@@ -22,8 +22,8 @@ explore → encounter → seamless battle transition → Poké Lab tactical pred
 | Creature art | 3D modelled in Blender | **Official Gen 5 pixel sprites** |
 | Level art | 3D | **3D — unchanged** |
 | Characters/NPCs | 3D rigged | **Pixel sprites** |
-| Battle camera | 10-shot orbiting cinematic rig | **Constrained** — billboards cannot be shot from behind |
-| Creature FBX | The deliverable | **Retired** |
+| Battle camera | 10-shot orbiting cinematic rig | **Traditional Pokémon** — fixed three-quarter, no orbit |
+| Creature FBX | The deliverable | **Retired and deleted** |
 
 ### Why
 
@@ -62,14 +62,23 @@ that inverts winding and flips normal-map interpretation).
   because the camera deliberately gives a 0.3 m Pidgey and a 1.3 m Gastly the same screen area.
 - Depth of field on in every grade — the tilt-shift diorama look is HD-2D's clearest signature.
 
-## Camera — the open decision
+## Camera — decided: traditional Pokémon
 
-Billboarded sprites cannot be shot from behind, and pixel art tolerates roughly a 6× change in
-apparent size. The current rig varies subject size **12–16×** and includes two over-the-shoulder shots
-and a 0.90-screen-fraction impact punch-in.
+Battle uses the **classic Pokémon presentation**: a fixed three-quarter view with the player's creature
+near-left showing its **back sprite**, and the opponent far-right showing its **front sprite**. No
+orbiting, no over-the-shoulder, no impact punch-in.
 
-Either constrain the battle camera to an Octopath-style fixed angle with a shallow zoom range, or keep
-3D battles and make only exploration HD-2D. **Not yet decided.**
+This is not a compromise, it is the format the assets were made for — Gen 1–5 battles use exactly two
+sprites per species, front and back, which is exactly what we have.
+
+Consequences for `BattleCameraRig` (711 lines, ten shots): both over-the-shoulders, the impact punch-in
+and the faint/victory low angles are cut, since a billboard has no back and no underside. What
+survives is a static framing with small authored moves — a slight push on a big hit, a shake, a hold on
+a faint — all within a shallow zoom range, because pixel art tolerates roughly a 6× change in apparent
+size and the old rig varied it 12–16×.
+
+Drama comes from VFX, timing, screen shake and the grade rather than from camera acrobatics, which is
+how the traditional games do it.
 
 ## What is unaffected
 
