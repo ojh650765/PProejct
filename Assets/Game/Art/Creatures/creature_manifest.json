@@ -1,0 +1,2121 @@
+{
+  "$schema": "poke-lab creature art manifest v1",
+  "generator": "Tools/Blender/build_all.py (Blender 4.0.1)",
+  "conventions": {
+    "units": "1 blender unit = 1 metre; creatures authored at true size",
+    "orientation": "modelled facing -Y with +Z up, exported with axis_forward='-Y', axis_up='Z' so the FBX declares UpAxis=+Z / FrontAxis=+Y / CoordAxis=-X and Unity's axis conversion lands the creature facing +Z, Y up, feet at the origin (see Tools/Blender/previews/axis_probe.txt)",
+    "fps": 30,
+    "anchors": [
+      "Anchor_Head",
+      "Anchor_Body",
+      "Anchor_Muzzle"
+    ],
+    "clipNaming": "one action per CreatureAnimation enum value",
+    "rootMotion": "none - locomotion clips are in place"
+  },
+  "creatures": {
+    "1": {
+      "id": 1,
+      "nameEn": "Bulbasaur",
+      "types": [
+        "Grass",
+        "Poison"
+      ],
+      "design": "squat seafoam quadruped with dark blotches and a closed green bulb",
+      "bodyPlan": "quadruped",
+      "fbx": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur.fbx",
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur_LOD1.fbx",
+        "tris": 2414
+      },
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur_Portrait.png",
+      "displayHeight": 0.7,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 0.7
+      },
+      "shoulderHeight": 0.348,
+      "boundsMetres": {
+        "min": [
+          -0.2533,
+          -0.4677,
+          0.0
+        ],
+        "max": [
+          0.2533,
+          0.4677,
+          0.7
+        ]
+      },
+      "triangles": 6038,
+      "quadRatio": 0.839,
+      "bones": 19,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 113,
+          "loop": true,
+          "seconds": 3.767
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 85,
+          "loop": true,
+          "seconds": 2.833
+        },
+        {
+          "name": "Walk",
+          "frames": 47,
+          "loop": true,
+          "seconds": 1.567
+        },
+        {
+          "name": "Run",
+          "frames": 28,
+          "loop": true,
+          "seconds": 0.933
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 42,
+          "loop": false,
+          "seconds": 1.4
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 56,
+          "loop": false,
+          "seconds": 1.867
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 49,
+          "loop": false,
+          "seconds": 1.633
+        },
+        {
+          "name": "Hit",
+          "frames": 31,
+          "loop": false,
+          "seconds": 1.033
+        },
+        {
+          "name": "Dodge",
+          "frames": 28,
+          "loop": false,
+          "seconds": 0.933
+        },
+        {
+          "name": "Faint",
+          "frames": 64,
+          "loop": false,
+          "seconds": 2.133
+        },
+        {
+          "name": "Celebrate",
+          "frames": 78,
+          "loop": false,
+          "seconds": 2.6
+        },
+        {
+          "name": "SentOut",
+          "frames": 49,
+          "loop": false,
+          "seconds": 1.633
+        },
+        {
+          "name": "Recalled",
+          "frames": 31,
+          "loop": false,
+          "seconds": 1.033
+        },
+        {
+          "name": "Sleep",
+          "frames": 130,
+          "loop": true,
+          "seconds": 4.333
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 6038,
+        "quad_ratio": 0.839,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.171531,
+        "uv_bounds": [
+          0.0088,
+          0.0089,
+          0.9891,
+          0.9912
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 19,
+        "single_influence_verts": 0,
+        "single_influence_pct": 0.0
+      },
+      "problems": []
+    },
+    "5": {
+      "id": 5,
+      "nameEn": "Charmander",
+      "types": [
+        "Fire"
+      ],
+      "design": "upright orange fire biped with cream belly and a flame-tipped tail",
+      "bodyPlan": "biped",
+      "fbx": "Assets/Game/Art/Creatures/Creature_5_Charmander.fbx",
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_5_Charmander_LOD1.fbx",
+        "tris": 2712
+      },
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_5_Charmander_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_5_Charmander_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_5_Charmander_Portrait.png",
+      "displayHeight": 0.6,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 0.6
+      },
+      "shoulderHeight": 0.4176,
+      "boundsMetres": {
+        "min": [
+          -0.1955,
+          -0.3082,
+          0.0
+        ],
+        "max": [
+          0.1955,
+          0.3082,
+          0.6
+        ]
+      },
+      "triangles": 6782,
+      "quadRatio": 0.817,
+      "bones": 22,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 91,
+          "loop": true,
+          "seconds": 3.033
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 69,
+          "loop": true,
+          "seconds": 2.3
+        },
+        {
+          "name": "Walk",
+          "frames": 38,
+          "loop": true,
+          "seconds": 1.267
+        },
+        {
+          "name": "Run",
+          "frames": 23,
+          "loop": true,
+          "seconds": 0.767
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 34,
+          "loop": false,
+          "seconds": 1.133
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 46,
+          "loop": false,
+          "seconds": 1.533
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 40,
+          "loop": false,
+          "seconds": 1.333
+        },
+        {
+          "name": "Hit",
+          "frames": 25,
+          "loop": false,
+          "seconds": 0.833
+        },
+        {
+          "name": "Dodge",
+          "frames": 23,
+          "loop": false,
+          "seconds": 0.767
+        },
+        {
+          "name": "Faint",
+          "frames": 51,
+          "loop": false,
+          "seconds": 1.7
+        },
+        {
+          "name": "Celebrate",
+          "frames": 63,
+          "loop": false,
+          "seconds": 2.1
+        },
+        {
+          "name": "SentOut",
+          "frames": 40,
+          "loop": false,
+          "seconds": 1.333
+        },
+        {
+          "name": "Recalled",
+          "frames": 25,
+          "loop": false,
+          "seconds": 0.833
+        },
+        {
+          "name": "Sleep",
+          "frames": 117,
+          "loop": true,
+          "seconds": 3.9
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 6782,
+        "quad_ratio": 0.817,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.023545,
+        "uv_bounds": [
+          0.009,
+          0.0094,
+          0.9869,
+          0.991
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 22,
+        "single_influence_verts": 31,
+        "single_influence_pct": 0.9
+      },
+      "problems": []
+    },
+    "10": {
+      "id": 10,
+      "nameEn": "Squirtle",
+      "types": [
+        "Water"
+      ],
+      "design": "light-blue shelled biped with a panelled brown carapace and curled tail",
+      "bodyPlan": "biped",
+      "fbx": "Assets/Game/Art/Creatures/Creature_10_Squirtle.fbx",
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_10_Squirtle_LOD1.fbx",
+        "tris": 2480
+      },
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_10_Squirtle_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_10_Squirtle_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_10_Squirtle_Portrait.png",
+      "displayHeight": 0.5,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 0.5
+      },
+      "shoulderHeight": 0.3148,
+      "boundsMetres": {
+        "min": [
+          -0.146,
+          -0.1943,
+          0.0
+        ],
+        "max": [
+          0.146,
+          0.1943,
+          0.5
+        ]
+      },
+      "triangles": 6200,
+      "quadRatio": 0.834,
+      "bones": 21,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 96,
+          "loop": true,
+          "seconds": 3.2
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 72,
+          "loop": true,
+          "seconds": 2.4
+        },
+        {
+          "name": "Walk",
+          "frames": 40,
+          "loop": true,
+          "seconds": 1.333
+        },
+        {
+          "name": "Run",
+          "frames": 24,
+          "loop": true,
+          "seconds": 0.8
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 36,
+          "loop": false,
+          "seconds": 1.2
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 48,
+          "loop": false,
+          "seconds": 1.6
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 42,
+          "loop": false,
+          "seconds": 1.4
+        },
+        {
+          "name": "Hit",
+          "frames": 26,
+          "loop": false,
+          "seconds": 0.867
+        },
+        {
+          "name": "Dodge",
+          "frames": 24,
+          "loop": false,
+          "seconds": 0.8
+        },
+        {
+          "name": "Faint",
+          "frames": 54,
+          "loop": false,
+          "seconds": 1.8
+        },
+        {
+          "name": "Celebrate",
+          "frames": 66,
+          "loop": false,
+          "seconds": 2.2
+        },
+        {
+          "name": "SentOut",
+          "frames": 42,
+          "loop": false,
+          "seconds": 1.4
+        },
+        {
+          "name": "Recalled",
+          "frames": 26,
+          "loop": false,
+          "seconds": 0.867
+        },
+        {
+          "name": "Sleep",
+          "frames": 120,
+          "loop": true,
+          "seconds": 4.0
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 6200,
+        "quad_ratio": 0.834,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.02581,
+        "uv_bounds": [
+          0.0094,
+          0.0094,
+          0.9907,
+          0.9907
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 21,
+        "single_influence_verts": 0,
+        "single_influence_pct": 0.0
+      },
+      "problems": []
+    },
+    "21": {
+      "id": 21,
+      "nameEn": "Pidgey",
+      "types": [
+        "Normal",
+        "Flying"
+      ],
+      "design": "plump cream-and-brown bird with a swept crest and a pink beak",
+      "bodyPlan": "avian",
+      "fbx": "Assets/Game/Art/Creatures/Creature_21_Pidgey.fbx",
+      "lod1": null,
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_21_Pidgey_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_21_Pidgey_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_21_Pidgey_Portrait.png",
+      "displayHeight": 0.3,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 0.3
+      },
+      "shoulderHeight": 0.1713,
+      "boundsMetres": {
+        "min": [
+          -0.1451,
+          -0.204,
+          0.0
+        ],
+        "max": [
+          0.1451,
+          0.204,
+          0.3
+        ]
+      },
+      "triangles": 4636,
+      "quadRatio": 0.795,
+      "bones": 18,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 62,
+          "loop": true,
+          "seconds": 2.067
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 46,
+          "loop": true,
+          "seconds": 1.533
+        },
+        {
+          "name": "Walk",
+          "frames": 26,
+          "loop": true,
+          "seconds": 0.867
+        },
+        {
+          "name": "Run",
+          "frames": 15,
+          "loop": true,
+          "seconds": 0.5
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 23,
+          "loop": false,
+          "seconds": 0.767
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 31,
+          "loop": false,
+          "seconds": 1.033
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 27,
+          "loop": false,
+          "seconds": 0.9
+        },
+        {
+          "name": "Hit",
+          "frames": 17,
+          "loop": false,
+          "seconds": 0.567
+        },
+        {
+          "name": "Dodge",
+          "frames": 15,
+          "loop": false,
+          "seconds": 0.5
+        },
+        {
+          "name": "Faint",
+          "frames": 35,
+          "loop": false,
+          "seconds": 1.167
+        },
+        {
+          "name": "Celebrate",
+          "frames": 43,
+          "loop": false,
+          "seconds": 1.433
+        },
+        {
+          "name": "SentOut",
+          "frames": 27,
+          "loop": false,
+          "seconds": 0.9
+        },
+        {
+          "name": "Recalled",
+          "frames": 17,
+          "loop": false,
+          "seconds": 0.567
+        },
+        {
+          "name": "Sleep",
+          "frames": 94,
+          "loop": true,
+          "seconds": 3.133
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 4636,
+        "quad_ratio": 0.795,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.005318,
+        "uv_bounds": [
+          0.0091,
+          0.0092,
+          0.9869,
+          0.991
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 18,
+        "single_influence_verts": 0,
+        "single_influence_pct": 0.0
+      },
+      "problems": []
+    },
+    "25": {
+      "id": 25,
+      "nameEn": "Rattata",
+      "types": [
+        "Normal"
+      ],
+      "design": "low purple rodent with big ears, buck teeth and a curling tail",
+      "bodyPlan": "quadruped",
+      "fbx": "Assets/Game/Art/Creatures/Creature_25_Rattata.fbx",
+      "lod1": null,
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_25_Rattata_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_25_Rattata_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_25_Rattata_Portrait.png",
+      "displayHeight": 0.3,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 0.3
+      },
+      "shoulderHeight": 0.1506,
+      "boundsMetres": {
+        "min": [
+          -0.1073,
+          -0.325,
+          0.0
+        ],
+        "max": [
+          0.1073,
+          0.325,
+          0.3
+        ]
+      },
+      "triangles": 4744,
+      "quadRatio": 0.76,
+      "bones": 26,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 66,
+          "loop": true,
+          "seconds": 2.2
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 50,
+          "loop": true,
+          "seconds": 1.667
+        },
+        {
+          "name": "Walk",
+          "frames": 28,
+          "loop": true,
+          "seconds": 0.933
+        },
+        {
+          "name": "Run",
+          "frames": 17,
+          "loop": true,
+          "seconds": 0.567
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 25,
+          "loop": false,
+          "seconds": 0.833
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 33,
+          "loop": false,
+          "seconds": 1.1
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 29,
+          "loop": false,
+          "seconds": 0.967
+        },
+        {
+          "name": "Hit",
+          "frames": 18,
+          "loop": false,
+          "seconds": 0.6
+        },
+        {
+          "name": "Dodge",
+          "frames": 17,
+          "loop": false,
+          "seconds": 0.567
+        },
+        {
+          "name": "Faint",
+          "frames": 37,
+          "loop": false,
+          "seconds": 1.233
+        },
+        {
+          "name": "Celebrate",
+          "frames": 46,
+          "loop": false,
+          "seconds": 1.533
+        },
+        {
+          "name": "SentOut",
+          "frames": 29,
+          "loop": false,
+          "seconds": 0.967
+        },
+        {
+          "name": "Recalled",
+          "frames": 18,
+          "loop": false,
+          "seconds": 0.6
+        },
+        {
+          "name": "Sleep",
+          "frames": 98,
+          "loop": true,
+          "seconds": 3.267
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 4744,
+        "quad_ratio": 0.76,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.007633,
+        "uv_bounds": [
+          0.0088,
+          0.0086,
+          0.9873,
+          0.9914
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 26,
+        "single_influence_verts": 0,
+        "single_influence_pct": 0.0
+      },
+      "problems": []
+    },
+    "31": {
+      "id": 31,
+      "nameEn": "Pikachu",
+      "types": [
+        "Electric"
+      ],
+      "design": "chubby yellow biped with black-tipped ears, red cheeks and a bolt tail",
+      "bodyPlan": "biped",
+      "fbx": "Assets/Game/Art/Creatures/Creature_31_Pikachu.fbx",
+      "lod1": null,
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_31_Pikachu_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_31_Pikachu_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_31_Pikachu_Portrait.png",
+      "displayHeight": 0.4,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 0.4
+      },
+      "shoulderHeight": 0.1939,
+      "boundsMetres": {
+        "min": [
+          -0.0938,
+          -0.126,
+          0.0
+        ],
+        "max": [
+          0.0938,
+          0.126,
+          0.4
+        ]
+      },
+      "triangles": 4956,
+      "quadRatio": 0.772,
+      "bones": 17,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 71,
+          "loop": true,
+          "seconds": 2.367
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 53,
+          "loop": true,
+          "seconds": 1.767
+        },
+        {
+          "name": "Walk",
+          "frames": 30,
+          "loop": true,
+          "seconds": 1.0
+        },
+        {
+          "name": "Run",
+          "frames": 18,
+          "loop": true,
+          "seconds": 0.6
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 27,
+          "loop": false,
+          "seconds": 0.9
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 36,
+          "loop": false,
+          "seconds": 1.2
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 31,
+          "loop": false,
+          "seconds": 1.033
+        },
+        {
+          "name": "Hit",
+          "frames": 19,
+          "loop": false,
+          "seconds": 0.633
+        },
+        {
+          "name": "Dodge",
+          "frames": 18,
+          "loop": false,
+          "seconds": 0.6
+        },
+        {
+          "name": "Faint",
+          "frames": 40,
+          "loop": false,
+          "seconds": 1.333
+        },
+        {
+          "name": "Celebrate",
+          "frames": 49,
+          "loop": false,
+          "seconds": 1.633
+        },
+        {
+          "name": "SentOut",
+          "frames": 31,
+          "loop": false,
+          "seconds": 1.033
+        },
+        {
+          "name": "Recalled",
+          "frames": 19,
+          "loop": false,
+          "seconds": 0.633
+        },
+        {
+          "name": "Sleep",
+          "frames": 102,
+          "loop": true,
+          "seconds": 3.4
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 4956,
+        "quad_ratio": 0.772,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.00291,
+        "uv_bounds": [
+          0.0091,
+          0.0089,
+          0.9871,
+          0.9911
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 17,
+        "single_influence_verts": 0,
+        "single_influence_pct": 0.0
+      },
+      "problems": []
+    },
+    "47": {
+      "id": 47,
+      "nameEn": "Zubat",
+      "types": [
+        "Poison",
+        "Flying"
+      ],
+      "design": "eyeless blue bat with purple wing membranes and a fanged open mouth",
+      "bodyPlan": "biped",
+      "fbx": "Assets/Game/Art/Creatures/Creature_47_Zubat.fbx",
+      "lod1": null,
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_47_Zubat_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_47_Zubat_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_47_Zubat_Portrait.png",
+      "displayHeight": 0.6094,
+      "authoredSize": {
+        "axis": "x",
+        "metres": 0.8
+      },
+      "shoulderHeight": 0.3739,
+      "boundsMetres": {
+        "min": [
+          -0.4,
+          -0.0973,
+          0.0
+        ],
+        "max": [
+          0.4,
+          0.0973,
+          0.6094
+        ]
+      },
+      "triangles": 4472,
+      "quadRatio": 0.894,
+      "bones": 11,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 66,
+          "loop": true,
+          "seconds": 2.2
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 50,
+          "loop": true,
+          "seconds": 1.667
+        },
+        {
+          "name": "Walk",
+          "frames": 28,
+          "loop": true,
+          "seconds": 0.933
+        },
+        {
+          "name": "Run",
+          "frames": 17,
+          "loop": true,
+          "seconds": 0.567
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 25,
+          "loop": false,
+          "seconds": 0.833
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 33,
+          "loop": false,
+          "seconds": 1.1
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 29,
+          "loop": false,
+          "seconds": 0.967
+        },
+        {
+          "name": "Hit",
+          "frames": 18,
+          "loop": false,
+          "seconds": 0.6
+        },
+        {
+          "name": "Dodge",
+          "frames": 17,
+          "loop": false,
+          "seconds": 0.567
+        },
+        {
+          "name": "Faint",
+          "frames": 37,
+          "loop": false,
+          "seconds": 1.233
+        },
+        {
+          "name": "Celebrate",
+          "frames": 46,
+          "loop": false,
+          "seconds": 1.533
+        },
+        {
+          "name": "SentOut",
+          "frames": 29,
+          "loop": false,
+          "seconds": 0.967
+        },
+        {
+          "name": "Recalled",
+          "frames": 18,
+          "loop": false,
+          "seconds": 0.6
+        },
+        {
+          "name": "Sleep",
+          "frames": 98,
+          "loop": true,
+          "seconds": 3.267
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 4472,
+        "quad_ratio": 0.894,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.00777,
+        "uv_bounds": [
+          0.0079,
+          0.0079,
+          0.9901,
+          0.9921
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 11,
+        "single_influence_verts": 20,
+        "single_influence_pct": 0.9
+      },
+      "problems": []
+    },
+    "49": {
+      "id": 49,
+      "nameEn": "Oddish",
+      "types": [
+        "Grass",
+        "Poison"
+      ],
+      "design": "round navy body with stubby feet and five broad green head leaves",
+      "bodyPlan": "biped",
+      "fbx": "Assets/Game/Art/Creatures/Creature_49_Oddish.fbx",
+      "lod1": null,
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_49_Oddish_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_49_Oddish_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_49_Oddish_Portrait.png",
+      "displayHeight": 0.5,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 0.5
+      },
+      "shoulderHeight": 0.1988,
+      "boundsMetres": {
+        "min": [
+          -0.2121,
+          -0.2104,
+          0.0
+        ],
+        "max": [
+          0.2121,
+          0.2104,
+          0.5
+        ]
+      },
+      "triangles": 4738,
+      "quadRatio": 0.895,
+      "bones": 10,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 101,
+          "loop": true,
+          "seconds": 3.367
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 76,
+          "loop": true,
+          "seconds": 2.533
+        },
+        {
+          "name": "Walk",
+          "frames": 42,
+          "loop": true,
+          "seconds": 1.4
+        },
+        {
+          "name": "Run",
+          "frames": 25,
+          "loop": true,
+          "seconds": 0.833
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 38,
+          "loop": false,
+          "seconds": 1.267
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 51,
+          "loop": false,
+          "seconds": 1.7
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 44,
+          "loop": false,
+          "seconds": 1.467
+        },
+        {
+          "name": "Hit",
+          "frames": 27,
+          "loop": false,
+          "seconds": 0.9
+        },
+        {
+          "name": "Dodge",
+          "frames": 25,
+          "loop": false,
+          "seconds": 0.833
+        },
+        {
+          "name": "Faint",
+          "frames": 57,
+          "loop": false,
+          "seconds": 1.9
+        },
+        {
+          "name": "Celebrate",
+          "frames": 69,
+          "loop": false,
+          "seconds": 2.3
+        },
+        {
+          "name": "SentOut",
+          "frames": 44,
+          "loop": false,
+          "seconds": 1.467
+        },
+        {
+          "name": "Recalled",
+          "frames": 27,
+          "loop": false,
+          "seconds": 0.9
+        },
+        {
+          "name": "Sleep",
+          "frames": 123,
+          "loop": true,
+          "seconds": 4.1
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 4738,
+        "quad_ratio": 0.895,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.01225,
+        "uv_bounds": [
+          0.0075,
+          0.0075,
+          0.9925,
+          0.9925
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 10,
+        "single_influence_verts": 197,
+        "single_influence_pct": 8.2
+      },
+      "problems": []
+    },
+    "66": {
+      "id": 66,
+      "nameEn": "Poliwag",
+      "types": [
+        "Water"
+      ],
+      "design": "spherical blue tadpole with a spiral belly and a long finned tail",
+      "bodyPlan": "biped",
+      "fbx": "Assets/Game/Art/Creatures/Creature_66_Poliwag.fbx",
+      "lod1": null,
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_66_Poliwag_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_66_Poliwag_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_66_Poliwag_Portrait.png",
+      "displayHeight": 0.6,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 0.6
+      },
+      "shoulderHeight": 0.448,
+      "boundsMetres": {
+        "min": [
+          -0.2202,
+          -0.3852,
+          0.0
+        ],
+        "max": [
+          0.2202,
+          0.3852,
+          0.6
+        ]
+      },
+      "triangles": 4276,
+      "quadRatio": 0.872,
+      "bones": 13,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 83,
+          "loop": true,
+          "seconds": 2.767
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 63,
+          "loop": true,
+          "seconds": 2.1
+        },
+        {
+          "name": "Walk",
+          "frames": 35,
+          "loop": true,
+          "seconds": 1.167
+        },
+        {
+          "name": "Run",
+          "frames": 21,
+          "loop": true,
+          "seconds": 0.7
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 31,
+          "loop": false,
+          "seconds": 1.033
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 42,
+          "loop": false,
+          "seconds": 1.4
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 37,
+          "loop": false,
+          "seconds": 1.233
+        },
+        {
+          "name": "Hit",
+          "frames": 23,
+          "loop": false,
+          "seconds": 0.767
+        },
+        {
+          "name": "Dodge",
+          "frames": 21,
+          "loop": false,
+          "seconds": 0.7
+        },
+        {
+          "name": "Faint",
+          "frames": 47,
+          "loop": false,
+          "seconds": 1.567
+        },
+        {
+          "name": "Celebrate",
+          "frames": 57,
+          "loop": false,
+          "seconds": 1.9
+        },
+        {
+          "name": "SentOut",
+          "frames": 37,
+          "loop": false,
+          "seconds": 1.233
+        },
+        {
+          "name": "Recalled",
+          "frames": 23,
+          "loop": false,
+          "seconds": 0.767
+        },
+        {
+          "name": "Sleep",
+          "frames": 112,
+          "loop": true,
+          "seconds": 3.733
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 4276,
+        "quad_ratio": 0.872,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.049929,
+        "uv_bounds": [
+          0.008,
+          0.008,
+          0.9776,
+          0.9923
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 13,
+        "single_influence_verts": 0,
+        "single_influence_pct": 0.0
+      },
+      "problems": []
+    },
+    "73": {
+      "id": 73,
+      "nameEn": "Machop",
+      "types": [
+        "Fighting"
+      ],
+      "design": "grey-blue muscular fighter with three brown crown ridges",
+      "bodyPlan": "biped",
+      "fbx": "Assets/Game/Art/Creatures/Creature_73_Machop.fbx",
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_73_Machop_LOD1.fbx",
+        "tris": 2048
+      },
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_73_Machop_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_73_Machop_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_73_Machop_Portrait.png",
+      "displayHeight": 0.8,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 0.8
+      },
+      "shoulderHeight": 0.5842,
+      "boundsMetres": {
+        "min": [
+          -0.3199,
+          -0.1762,
+          0.0
+        ],
+        "max": [
+          0.3199,
+          0.1762,
+          0.8
+        ]
+      },
+      "triangles": 5122,
+      "quadRatio": 0.861,
+      "bones": 19,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 128,
+          "loop": true,
+          "seconds": 4.267
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 96,
+          "loop": true,
+          "seconds": 3.2
+        },
+        {
+          "name": "Walk",
+          "frames": 53,
+          "loop": true,
+          "seconds": 1.767
+        },
+        {
+          "name": "Run",
+          "frames": 32,
+          "loop": true,
+          "seconds": 1.067
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 48,
+          "loop": false,
+          "seconds": 1.6
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 64,
+          "loop": false,
+          "seconds": 2.133
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 56,
+          "loop": false,
+          "seconds": 1.867
+        },
+        {
+          "name": "Hit",
+          "frames": 35,
+          "loop": false,
+          "seconds": 1.167
+        },
+        {
+          "name": "Dodge",
+          "frames": 32,
+          "loop": false,
+          "seconds": 1.067
+        },
+        {
+          "name": "Faint",
+          "frames": 72,
+          "loop": false,
+          "seconds": 2.4
+        },
+        {
+          "name": "Celebrate",
+          "frames": 88,
+          "loop": false,
+          "seconds": 2.933
+        },
+        {
+          "name": "SentOut",
+          "frames": 56,
+          "loop": false,
+          "seconds": 1.867
+        },
+        {
+          "name": "Recalled",
+          "frames": 35,
+          "loop": false,
+          "seconds": 1.167
+        },
+        {
+          "name": "Sleep",
+          "frames": 137,
+          "loop": true,
+          "seconds": 4.567
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 5122,
+        "quad_ratio": 0.861,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.028565,
+        "uv_bounds": [
+          0.0088,
+          0.0088,
+          0.9876,
+          0.9914
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 19,
+        "single_influence_verts": 0,
+        "single_influence_pct": 0.0
+      },
+      "problems": []
+    },
+    "81": {
+      "id": 81,
+      "nameEn": "Geodude",
+      "types": [
+        "Rock",
+        "Ground"
+      ],
+      "design": "rough grey boulder with a heavy brow and two muscular stone arms",
+      "bodyPlan": "biped",
+      "fbx": "Assets/Game/Art/Creatures/Creature_81_Geodude.fbx",
+      "lod1": null,
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_81_Geodude_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_81_Geodude_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_81_Geodude_Portrait.png",
+      "displayHeight": 0.4,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 0.4
+      },
+      "shoulderHeight": 0.2518,
+      "boundsMetres": {
+        "min": [
+          -0.3803,
+          -0.1811,
+          0.0
+        ],
+        "max": [
+          0.3803,
+          0.1811,
+          0.4
+        ]
+      },
+      "triangles": 2658,
+      "quadRatio": 0.782,
+      "bones": 12,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 128,
+          "loop": true,
+          "seconds": 4.267
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 96,
+          "loop": true,
+          "seconds": 3.2
+        },
+        {
+          "name": "Walk",
+          "frames": 53,
+          "loop": true,
+          "seconds": 1.767
+        },
+        {
+          "name": "Run",
+          "frames": 32,
+          "loop": true,
+          "seconds": 1.067
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 48,
+          "loop": false,
+          "seconds": 1.6
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 64,
+          "loop": false,
+          "seconds": 2.133
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 56,
+          "loop": false,
+          "seconds": 1.867
+        },
+        {
+          "name": "Hit",
+          "frames": 35,
+          "loop": false,
+          "seconds": 1.167
+        },
+        {
+          "name": "Dodge",
+          "frames": 32,
+          "loop": false,
+          "seconds": 1.067
+        },
+        {
+          "name": "Faint",
+          "frames": 72,
+          "loop": false,
+          "seconds": 2.4
+        },
+        {
+          "name": "Celebrate",
+          "frames": 88,
+          "loop": false,
+          "seconds": 2.933
+        },
+        {
+          "name": "SentOut",
+          "frames": 56,
+          "loop": false,
+          "seconds": 1.867
+        },
+        {
+          "name": "Recalled",
+          "frames": 35,
+          "loop": false,
+          "seconds": 1.167
+        },
+        {
+          "name": "Sleep",
+          "frames": 137,
+          "loop": true,
+          "seconds": 4.567
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 2658,
+        "quad_ratio": 0.782,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.041489,
+        "uv_bounds": [
+          0.0076,
+          0.0075,
+          0.9857,
+          0.9925
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 12,
+        "single_influence_verts": 0,
+        "single_influence_pct": 0.0
+      },
+      "problems": []
+    },
+    "100": {
+      "id": 100,
+      "nameEn": "Gastly",
+      "types": [
+        "Ghost",
+        "Poison"
+      ],
+      "design": "black gas core wreathed in a ragged purple cloud, pale angular eyes",
+      "bodyPlan": "floater",
+      "fbx": "Assets/Game/Art/Creatures/Creature_100_Gastly.fbx",
+      "lod1": null,
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_100_Gastly_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_100_Gastly_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_100_Gastly_Portrait.png",
+      "displayHeight": 1.3,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 1.3
+      },
+      "shoulderHeight": 0.7615,
+      "boundsMetres": {
+        "min": [
+          -0.7375,
+          -0.5333,
+          0.0
+        ],
+        "max": [
+          0.7375,
+          0.5333,
+          1.3
+        ]
+      },
+      "triangles": 4130,
+      "quadRatio": 0.921,
+      "bones": 4,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 113,
+          "loop": true,
+          "seconds": 3.767
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 85,
+          "loop": true,
+          "seconds": 2.833
+        },
+        {
+          "name": "Walk",
+          "frames": 47,
+          "loop": true,
+          "seconds": 1.567
+        },
+        {
+          "name": "Run",
+          "frames": 28,
+          "loop": true,
+          "seconds": 0.933
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 42,
+          "loop": false,
+          "seconds": 1.4
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 56,
+          "loop": false,
+          "seconds": 1.867
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 49,
+          "loop": false,
+          "seconds": 1.633
+        },
+        {
+          "name": "Hit",
+          "frames": 31,
+          "loop": false,
+          "seconds": 1.033
+        },
+        {
+          "name": "Dodge",
+          "frames": 28,
+          "loop": false,
+          "seconds": 0.933
+        },
+        {
+          "name": "Faint",
+          "frames": 64,
+          "loop": false,
+          "seconds": 2.133
+        },
+        {
+          "name": "Celebrate",
+          "frames": 78,
+          "loop": false,
+          "seconds": 2.6
+        },
+        {
+          "name": "SentOut",
+          "frames": 49,
+          "loop": false,
+          "seconds": 1.633
+        },
+        {
+          "name": "Recalled",
+          "frames": 31,
+          "loop": false,
+          "seconds": 1.033
+        },
+        {
+          "name": "Sleep",
+          "frames": 130,
+          "loop": true,
+          "seconds": 4.333
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 4130,
+        "quad_ratio": 0.921,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.517377,
+        "uv_bounds": [
+          0.0086,
+          0.0086,
+          0.9752,
+          0.9914
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 4,
+        "single_influence_verts": 836,
+        "single_influence_pct": 39.7
+      },
+      "problems": []
+    }
+  }
+}
