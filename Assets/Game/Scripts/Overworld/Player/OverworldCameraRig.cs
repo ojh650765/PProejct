@@ -28,6 +28,20 @@ namespace PokeLab.Overworld
         [Header("Orbit limits")]
         [SerializeField] private float _minPitch = -25f;
         [SerializeField] private float _maxPitch = 60f;
+
+        [Header("HD-2D framing")]
+        [Tooltip("Hold the world at one angle. The camera still follows the player; it just never " +
+                 "orbits. Required while characters are billboarded sprites — a yaw change swaps " +
+                 "which drawn view is shown without the character having turned.")]
+        [SerializeField] private bool _lockYaw = true;
+        [Tooltip("The single yaw the world is viewed from. Battle uses its own layout yaw; this is exploration's.")]
+        [Range(0f, 360f)]
+        [SerializeField] private float _fixedYaw = 45f;
+        [Tooltip("Downward angle. Shallower than a true isometric so the sprites keep their height on screen.")]
+        [Range(10f, 70f)]
+        [SerializeField] private float _fixedPitch = 38f;
+        [Tooltip("Degrees per second the yaw eases back after a cutscene has borrowed the camera.")]
+        [SerializeField] private float _yawReturnRate = 120f;
         [Tooltip("Distance the rig sits at with a clear line of sight.")]
         [SerializeField] private float _restDistance = 5.5f;
         [SerializeField] private float _minDistance = 1.4f;
@@ -97,6 +111,29 @@ namespace PokeLab.Overworld
         private void ApplyLookInput(float dt)
         {
             if (_orbital == null) return;
+
+            // HD-2D holds the world at one angle. The camera still follows the player, but it
+            // never orbits, because the characters are billboarded sprites with a small set of
+            // drawn views: swinging the yaw would change which view is shown without the
+            // character having turned, and would keep redefining which way "north" is. So the
+            // yaw is a constant here and steering is disabled outright rather than damped.
+            if (_lockYaw)
+            {
+                var locked = _orbital.HorizontalAxis;
+                if (!Mathf.Approximately(locked.Value, _fixedYaw))
+                {
+                    // Ease rather than snap, so a scripted camera move that borrowed the yaw
+                    // hands it back without a visible jump.
+                    locked.Value = Mathf.MoveTowardsAngle(locked.Value, _fixedYaw, _yawReturnRate * dt);
+                    _orbital.HorizontalAxis = locked;
+                }
+
+                var pitchLocked = _orbital.VerticalAxis;
+                pitchLocked.Range = new Vector2(_minPitch, _maxPitch);
+                pitchLocked.Value = Mathf.Clamp(_fixedPitch, _minPitch, _maxPitch);
+                _orbital.VerticalAxis = pitchLocked;
+                return;
+            }
 
             var look = (ControlEnabled && _input != null && _input.InputEnabled) ? _input.Look : Vector2.zero;
 
