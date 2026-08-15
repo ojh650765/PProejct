@@ -44,20 +44,34 @@ namespace PokeLab.Vfx
             tonemapping.mode.Override(TonemappingMode.Neutral);
 
             // --- Colour adjustments --------------------------------------------
+            // The LUT already contains lift/gamma/gain, contrast, split toning, hue and
+            // saturation. Applying the same numbers again through these sliders graded the
+            // frame twice — two lots of contrast, two lots of saturation and Gain multiplying
+            // the whole image on top of a LUT that had already applied it. So the sliders
+            // carry only the share the LUT is *not* contributing. At contribution 1.0 they go
+            // to neutral; at 0 they reproduce the full grade, which preserves the original
+            // belt-and-braces intent of still looking graded if the LUT fails to bake.
+            float lutShare = lut != null ? Mathf.Clamp01(grade.LutContribution) : 0f;
+            float sliderShare = 1f - lutShare;
+
             var colour = GetOrAdd<ColorAdjustments>(profile);
             colour.active = true;
+            // Exposure is deliberately full-strength: it is not baked into the LUT, which
+            // stores a 0-1 transfer curve and cannot represent an exposure change.
             colour.postExposure.Override(grade.PostExposure);
             // URP takes contrast and saturation as percentages.
-            colour.contrast.Override(Mathf.Clamp(grade.Contrast * 100f, -100f, 100f));
-            colour.saturation.Override(Mathf.Clamp(grade.Saturation * 100f, -100f, 100f));
-            colour.hueShift.Override(Mathf.Clamp(grade.HueShift, -180f, 180f));
-            colour.colorFilter.Override(grade.Gain);
+            colour.contrast.Override(Mathf.Clamp(grade.Contrast * sliderShare * 100f, -100f, 100f));
+            colour.saturation.Override(Mathf.Clamp(grade.Saturation * sliderShare * 100f, -100f, 100f));
+            colour.hueShift.Override(Mathf.Clamp(grade.HueShift * sliderShare, -180f, 180f));
+            colour.colorFilter.Override(Color.Lerp(Color.white, grade.Gain, sliderShare));
 
             // --- Split toning ---------------------------------------------------
+            // Same complementary split as the colour adjustments above — the LUT already
+            // carries the split tone, so re-applying it at full strength tinted shadows twice.
             var split = GetOrAdd<SplitToning>(profile);
             split.active = true;
-            split.shadows.Override(grade.SplitShadows);
-            split.highlights.Override(grade.SplitHighlights);
+            split.shadows.Override(Color.Lerp(Color.grey, grade.SplitShadows, sliderShare));
+            split.highlights.Override(Color.Lerp(Color.grey, grade.SplitHighlights, sliderShare));
             split.balance.Override(Mathf.Clamp(grade.SplitBalance * 100f, -100f, 100f));
 
             // --- The baked LUT --------------------------------------------------

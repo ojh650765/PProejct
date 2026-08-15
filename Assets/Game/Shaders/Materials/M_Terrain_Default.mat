@@ -19,11 +19,79 @@ Material:
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
-  m_LockedProperties:
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs: []
+    m_TexEnvs:
+    - _ControlMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer0Map:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer0Normal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer1Map:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer1Normal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer2Map:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer2Normal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer3Map:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer3Normal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
-    m_Floats: []
-    m_Colors: []
+    m_Floats:
+    - _HeightContrast: 0.18
+    - _Layer0NormalScale: 1
+    - _Layer0Scale: 0.35
+    - _Layer1NormalScale: 1
+    - _Layer1Scale: 0.5
+    - _Layer2NormalScale: 1
+    - _Layer2Scale: 0.6
+    - _Layer3NormalScale: 1
+    - _Layer3Scale: 0.28
+    - _MacroScale: 26
+    - _MacroVariation: 0.4
+    - _PuddleAmount: 0.35
+    - _PuddleScale: 3.5
+    - _ShadeSoftness: 0.02
+    - _ShadeSteps: 3
+    - _ShadeWrap: 0.2
+    - _ShadowStrength: 0.85
+    - _ShoreWetHeight: 0.6
+    - _SlopeEnd: 52
+    - _SlopeStart: 30
+    - _SpecularSharpness: 32
+    - _SpecularStrength: 0.03
+    - _TriplanarSharpness: 5
+    - _UseControlMap: 0
+    - _WaterLevel: 0
+    - _Wetness: 0
+    m_Colors:
+    - _Layer0Color: {r: 0.45, g: 0.62, b: 0.27999997, a: 1}
+    - _Layer1Color: {r: 0.41999996, g: 0.30999997, b: 0.20999995, a: 1}
+    - _Layer2Color: {r: 0.82, g: 0.74, b: 0.54999995, a: 1}
+    - _Layer3Color: {r: 0.45999992, g: 0.45, b: 0.47999996, a: 1}
+    - _ShadeColor: {r: 0.41999996, g: 0.5, b: 0.68, a: 1}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1
