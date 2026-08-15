@@ -1096,7 +1096,7 @@
     "worldSpaceAssets": "Every asset whose `pivot` reads 'world origin (0,0,0)' is authored in level world space: instantiate it at position (0,0,0) with identity rotation and scale 1, and it lands exactly where slice_layout.json's terrain block says it should. Do not re-position it.",
     "colliders": "Ground decks, ramps and ledges are closed solids -- boundary skirted to a floor and capped -- so a MeshCollider straight on the imported mesh is watertight; leave Convex OFF. Cliff, path and riverbank modules are likewise closed solids. Water surfaces want a trigger collider on the Water layer, not a solid one. Foliage should use no collider, or a capsule on the tall-grass patches if encounters are driven by trigger volumes."
   },
-  "assetCount": 100,
+  "assetCount": 104,
   "assets": [
     {
       "name": "Env_Tree_Broadleaf_A",
@@ -1368,6 +1368,82 @@
       "windVertexColors": true,
       "notes": "",
       "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_TallGrass_Cluster_A",
+      "family": "Foliage",
+      "subfamily": "TallGrass",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_A.fbx",
+      "triangles": 160,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "Encounter-height grass, 1.0-1.3 m, covering roughly 1 x 1 m -- one instance is a patch, so ~80 of these replace the layout's 834 lawn clumps. Built to the instancing contract: one mesh, one material, no LODs, pivot at the base and centred so a per-instance Y rotation spins it in place. The green channel is the WITHIN-cluster wind phase only; add the per-instance phase on top at draw time.",
+      "budgetClass": "scatter",
+      "gpuInstanced": true,
+      "materialSlots": 1,
+      "withinBudget": true
+    },
+    {
+      "name": "Env_TallGrass_Cluster_B",
+      "family": "Foliage",
+      "subfamily": "TallGrass",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_B.fbx",
+      "triangles": 170,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "Encounter-height grass, 1.0-1.3 m, covering roughly 1 x 1 m -- one instance is a patch, so ~80 of these replace the layout's 834 lawn clumps. Built to the instancing contract: one mesh, one material, no LODs, pivot at the base and centred so a per-instance Y rotation spins it in place. The green channel is the WITHIN-cluster wind phase only; add the per-instance phase on top at draw time.",
+      "budgetClass": "scatter",
+      "gpuInstanced": true,
+      "materialSlots": 1,
+      "withinBudget": true
+    },
+    {
+      "name": "Env_TallGrass_Cluster_C",
+      "family": "Foliage",
+      "subfamily": "TallGrass",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_C.fbx",
+      "triangles": 150,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "Encounter-height grass, 1.0-1.3 m, covering roughly 1 x 1 m -- one instance is a patch, so ~80 of these replace the layout's 834 lawn clumps. Built to the instancing contract: one mesh, one material, no LODs, pivot at the base and centred so a per-instance Y rotation spins it in place. The green channel is the WITHIN-cluster wind phase only; add the per-instance phase on top at draw time.",
+      "budgetClass": "scatter",
+      "gpuInstanced": true,
+      "materialSlots": 1,
+      "withinBudget": true
+    },
+    {
+      "name": "Env_TallGrass_Cluster_D",
+      "family": "Foliage",
+      "subfamily": "TallGrass",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_D.fbx",
+      "triangles": 180,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "Encounter-height grass, 1.0-1.3 m, covering roughly 1 x 1 m -- one instance is a patch, so ~80 of these replace the layout's 834 lawn clumps. Built to the instancing contract: one mesh, one material, no LODs, pivot at the base and centred so a per-instance Y rotation spins it in place. The green channel is the WITHIN-cluster wind phase only; add the per-instance phase on top at draw time.",
+      "budgetClass": "scatter",
+      "gpuInstanced": true,
+      "materialSlots": 1,
       "withinBudget": true
     },
     {

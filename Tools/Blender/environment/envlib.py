@@ -1139,6 +1139,31 @@ class ValidationError(Exception):
     pass
 
 
+def strip_unused_materials(obj):
+    """Drop material slots no face uses, remapping the indices that survive.
+
+    Every generator hands bm_to_obj the family's whole 16-slot MatSet so that
+    material_index == atlas cell, which is convenient to author against and
+    wrong to ship: the FBX then declares sixteen materials on a mesh that uses
+    one, and Unity builds a renderer with sixteen material slots. For the
+    scatter families that is fatal -- an instanced draw is one mesh with one
+    material, and extra slots split the batch. Called after UV packing, which
+    is the last thing that depends on the original indices.
+    """
+    me = obj.data
+    used = sorted({p.material_index for p in me.polygons})
+    if not used or len(used) == len(me.materials):
+        return len(me.materials)
+    remap = {old: i for i, old in enumerate(used)}
+    keep = [me.materials[i] for i in used if i < len(me.materials)]
+    for p in me.polygons:
+        p.material_index = remap[p.material_index]
+    me.materials.clear()
+    for m in keep:
+        me.materials.append(m)
+    return len(keep)
+
+
 def mesh_report(obj):
     """Topology facts a contact sheet cannot show you.
 
@@ -1176,9 +1201,14 @@ def mesh_report(obj):
 
 
 def validate(obj, budget=None, need_vcol=False, need_uv=True, strict=True,
-             closed=False, max_coplanar_dupes=None):
+             closed=False, max_coplanar_dupes=None, max_materials=None,
+             max_lods=None):
     problems = []
     me = obj.data
+    if max_materials is not None and len(me.materials) > max_materials:
+        problems.append("%d material slots (want at most %d -- an instanced "
+                        "draw is one mesh, one material)"
+                        % (len(me.materials), max_materials))
     if closed or max_coplanar_dupes is not None:
         rep = mesh_report(obj)
         if closed and rep["boundaryEdges"]:
