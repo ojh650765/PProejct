@@ -1,0 +1,5 @@
+# Reference screenshots are copyrighted Nintendo / Game Freak material and are never
+# committed. fetch_refs.sh re-downloads them on demand; SOURCES.md records what they showed.
+*.png
+*.jpg
+*.jpeg
