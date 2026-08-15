@@ -594,7 +594,7 @@ def bevel(bm, edges=None, verts=None, width=0.01, segments=2, profile=0.5,
             return
         bmesh.ops.bevel(bm, geom=geom, offset=width, segments=segments,
                         profile=profile, affect='EDGES', clamp_overlap=clamp,
-                        offset_type='OFFSET', miter_outer='MITER_ARC')
+                        offset_type='OFFSET', miter_outer='ARC')
     else:
         geom = verts if verts is not None else list(bm.verts)
         if not geom:

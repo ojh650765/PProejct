@@ -255,7 +255,7 @@ def p_rock(seed, base, dark, light, plates=48, speck=0.10, erosion=0.5):
 def p_strata(seed, cols, bands=11, tilt=0.06, weather=0.45):
     y = (np.arange(CELL)[:, None] / CELL)
     x = (np.arange(CELL)[None, :] / CELL)
-    warp = (fbm2(4, seed, 4) - 0.5) * 0.09
+    warp = (fbm2(5, seed, 5) - 0.5) * 0.26
     yy = y + x * tilt + warp
     idx = np.floor(yy * bands).astype(int) % len(cols)
     img = np.zeros((CELL, CELL, 3))
@@ -263,14 +263,18 @@ def p_strata(seed, cols, bands=11, tilt=0.06, weather=0.45):
         m = (idx == i)
         img[m] = c
     band_edge = np.abs(((yy * bands) % 1.0) - 0.5) * 2.0
-    img *= (0.68 + 0.32 * band_edge)[..., None]
-    # vertical weathering streaks
-    st = np.clip(fbm2(50, seed + 7, 3, h=CELL, w=CELL), 0, 1)
-    st = np.clip((st - 0.45) * 3.0, 0, 1)
-    streak = np.repeat(st[:1, :], CELL, axis=0) * (y ** 0.6)
-    img *= (1.0 - streak[..., None] * weather * 0.55)
-    img += (fbm2(14, seed + 23, 5) - 0.5)[..., None] * 0.07
-    hgt = np.clip(0.5 + (band_edge - 0.5) * 0.7 + fbm2(20, seed + 5, 3) * 0.3, 0, 1)
+    # a dark seam right at each bedding plane reads as stone, not as a stripe
+    seam = np.clip(1.0 - band_edge * 4.0, 0, 1)
+    img *= (0.62 + 0.38 * band_edge)[..., None]
+    img *= (1.0 - seam * 0.42)[..., None]
+    # broken blocky joints across the beds
+    d1, d2, cid = voronoi(150, seed + 91, jitter=0.85, metric='m')
+    joint = np.clip((d2 - d1) * 5.0, 0, 1)
+    img *= (0.66 + 0.34 * joint)[..., None]
+    img *= (0.86 + 0.28 * cell_random(cid, seed + 97))[..., None]
+    img += (fbm2(40, seed + 23, 5) - 0.5)[..., None] * 0.08
+    hgt = np.clip(0.5 + (band_edge - 0.5) * 0.5 + joint * 0.35 +
+                  fbm2(30, seed + 5, 3) * 0.2, 0, 1)
     return np.clip(img, 0, 1), hgt
 
 
