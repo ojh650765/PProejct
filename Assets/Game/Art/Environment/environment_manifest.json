@@ -23,6 +23,14 @@
     "character": [
       3000,
       8000
+    ],
+    "ground": [
+      60,
+      26000
+    ],
+    "scatter": [
+      40,
+      260
     ]
   },
   "budgetExemptions": {
@@ -46,6 +54,29 @@
     "A": "always 1",
     "appliesTo": "every asset in the Foliage family",
     "encoding": "Exported with colors_type=LINEAR, so the FBX carries the authored 0-1 mask values VERBATIM -- no gamma encode is applied on the way out. Measured: authoring (0.25, 0.50, 0.75) writes (0.25, 0.50, 0.75) to the file. Blender's own importer then decodes them as sRGB and shows (0.051, 0.216, 0.521), which is an artefact of that importer, not of the data. If Unity turns out to apply the same decode, either undo it in the shader with pow(c, 1/2.2) or flip envlib.export_fbx to colors_type='SRGB' and re-run build_all.py -- the choice is one line."
+  },
+  "terrainVertexColors": {
+    "attribute": "Col",
+    "appliesTo": "every asset whose `unityMaterial` is PokeLab/TerrainBlend -- the Ground, Ramp and Ledge subfamilies",
+    "R": "grass layer weight",
+    "G": "dirt layer weight",
+    "B": "sand layer weight",
+    "A": "rock layer weight",
+    "note": "Normalised to sum to 1 per vertex, matching PokeLabTerrainBlend's stated convention. Worn dirt is baked along the layout's own walkable path polylines, and rock rises automatically on the skirt walls, so the shader's slope-driven rock is reinforcing an authored weight rather than fighting a flat one."
+  },
+  "gpuInstancing": {
+    "families": [
+      "Grass",
+      "TallGrass",
+      "Flower",
+      "Fern",
+      "Bush",
+      "Reed",
+      "Lilypad",
+      "Moss"
+    ],
+    "contract": "One mesh, one material, no sub-objects, no LODs, pivot at the base and centred so a per-instance Y rotation spins the cluster in place. Variation comes from a handful of genuinely different cluster meshes plus per-instance rotation, scale and wind phase at draw time -- not from more asset variants.",
+    "windPhase": "The green channel is the WITHIN-cluster phase offset only. Add the per-instance phase on top at draw time."
   },
   "atlases": {
     "Foliage": {
@@ -1051,270 +1082,21 @@
           ]
         }
       ]
-    },
-    "Characters": {
-      "baseColor": "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
-      "normal": "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png",
-      "resolution": 2048,
-      "grid": [
-        4,
-        4
-      ],
-      "cells": [
-        {
-          "index": 0,
-          "name": "skin_light",
-          "uvRect": [
-            0.003,
-            0.003,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.9383,
-            0.7896,
-            0.6803
-          ]
-        },
-        {
-          "index": 1,
-          "name": "skin_mid",
-          "uvRect": [
-            0.253,
-            0.003,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.8184,
-            0.6311,
-            0.4832
-          ]
-        },
-        {
-          "index": 2,
-          "name": "skin_dark",
-          "uvRect": [
-            0.503,
-            0.003,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.5576,
-            0.3907,
-            0.2803
-          ]
-        },
-        {
-          "index": 3,
-          "name": "hair_brown",
-          "uvRect": [
-            0.753,
-            0.003,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.2436,
-            0.147,
-            0.0812
-          ]
-        },
-        {
-          "index": 4,
-          "name": "hair_black",
-          "uvRect": [
-            0.003,
-            0.253,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.1119,
-            0.1119,
-            0.1455
-          ]
-        },
-        {
-          "index": 5,
-          "name": "hair_blonde",
-          "uvRect": [
-            0.253,
-            0.253,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.5487,
-            0.4392,
-            0.2048
-          ]
-        },
-        {
-          "index": 6,
-          "name": "shirt_red",
-          "uvRect": [
-            0.503,
-            0.253,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.6829,
-            0.1916,
-            0.1797
-          ]
-        },
-        {
-          "index": 7,
-          "name": "shirt_blue",
-          "uvRect": [
-            0.753,
-            0.253,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.1911,
-            0.3503,
-            0.6296
-          ]
-        },
-        {
-          "index": 8,
-          "name": "jacket_green",
-          "uvRect": [
-            0.003,
-            0.503,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.1724,
-            0.3848,
-            0.2765
-          ]
-        },
-        {
-          "index": 9,
-          "name": "denim",
-          "uvRect": [
-            0.253,
-            0.503,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.2322,
-            0.3003,
-            0.4604
-          ]
-        },
-        {
-          "index": 10,
-          "name": "shoes",
-          "uvRect": [
-            0.503,
-            0.503,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.5638,
-            0.5838,
-            0.6238
-          ]
-        },
-        {
-          "index": 11,
-          "name": "cap_red",
-          "uvRect": [
-            0.753,
-            0.503,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.7109,
-            0.1517,
-            0.1357
-          ]
-        },
-        {
-          "index": 12,
-          "name": "backpack",
-          "uvRect": [
-            0.003,
-            0.753,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.6956,
-            0.4948,
-            0.1609
-          ]
-        },
-        {
-          "index": 13,
-          "name": "belt",
-          "uvRect": [
-            0.253,
-            0.753,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.3442,
-            0.2269,
-            0.1408
-          ]
-        },
-        {
-          "index": 14,
-          "name": "face",
-          "uvRect": [
-            0.503,
-            0.753,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.9466,
-            0.8345,
-            0.744
-          ]
-        },
-        {
-          "index": 15,
-          "name": "accent",
-          "uvRect": [
-            0.753,
-            0.753,
-            0.244,
-            0.244
-          ],
-          "averageColorLinear": [
-            0.1633,
-            0.1813,
-            0.2182
-          ]
-        }
-      ]
     }
   },
   "unitySetup": {
     "importScale": 1.0,
-    "convertUnits": false,
+    "convertUnits": true,
+    "bakeAxisConversion": false,
+    "exportFix": "FIXED. The kit previously exported with axis_forward='-Y', axis_up='Z' and apply_scale_options='FBX_SCALE_NONE', which wrote UnitScaleFactor=1.0 (centimetres) over metre-valued vertices and declared UpAxis=+Z. Unity therefore imported the whole kit at 1/100 scale, lying on its back. It now exports axis_forward='-Z', axis_up='Y', apply_scale_options='FBX_SCALE_UNITS', bake_space_transform=True: UnitScaleFactor=100.0, real metres, Y up baked into the vertex data, identity node transforms. Verify any file with `python Tools/Blender/environment/fbx_probe.py <file.fbx>`. IMPORT WITH STOCK SETTINGS -- Scale Factor 1, Convert Units ON, Bake Axis Conversion OFF. Any globalScale=100 or bakeAxisConversion compensation added while the bug was live must now be removed, or the correction is applied twice.",
     "normals": "Import (custom split normals are authored; do not recalculate)",
     "tangents": "Calculate Mikktspace",
-    "materials": "One material per family atlas is enough: assign the family BaseColor + Normal to the shared stylised toon shader. Every mesh in a family is UV-packed into that one atlas.",
-    "lodGroups": "For any asset with a non-empty `lods` array, add a LODGroup with LOD0 = base mesh, LOD1 and LOD2 from the listed FBXs. Suggested screen-relative heights 0.45 / 0.16 / 0.03 with 30% fade transition width, Cross Fade animation mode.",
-    "characterRig": "Animation Type = Humanoid, Avatar Definition = Create From This Model on Env_Char_Player.fbx, then Copy From Other Avatar for the three NPCs (identical skeleton). Import the @Clip FBXs with Avatar Definition = Copy From Other Avatar.",
-    "colliders": "None authored. Cliff, path and riverbank modules are closed solids suitable for mesh colliders; foliage should use no collider or a capsule."
+    "materials": "One material per family atlas is enough: assign the family BaseColor + Normal to the shared stylised toon shader. Every mesh in a family is UV-packed into that one atlas. EXCEPT the Ground/Water/Ramp/Ledge/Waterfall subfamilies, which carry no atlas: see each entry's `unityMaterial` field.",
+    "lodGroups": "For any asset with a non-empty `lods` array, add a LODGroup with LOD0 = base mesh, LOD1 and LOD2 from the listed FBXs. Suggested screen-relative heights 0.45 / 0.16 / 0.03 with 30% fade transition width, Cross Fade animation mode. Assets with an empty `lods` array are deliberately single-mesh: the scatter families are GPU instanced (per-instance LOD selection costs more than it saves at 200 tris) and the walkable ground decks would desync from the layout's placement heights if they were decimated.",
+    "worldSpaceAssets": "Every asset whose `pivot` reads 'world origin (0,0,0)' is authored in level world space: instantiate it at position (0,0,0) with identity rotation and scale 1, and it lands exactly where slice_layout.json's terrain block says it should. Do not re-position it.",
+    "colliders": "Ground decks, ramps and ledges are closed solids -- boundary skirted to a floor and capped -- so a MeshCollider straight on the imported mesh is watertight; leave Convex OFF. Cliff, path and riverbank modules are likewise closed solids. Water surfaces want a trigger collider on the Water layer, not a solid one. Foliage should use no collider, or a capsule on the tall-grass patches if encounters are driven by trigger volumes."
   },
-  "assetCount": 85,
+  "assetCount": 100,
   "assets": [
     {
       "name": "Env_Tree_Broadleaf_A",
@@ -2327,6 +2109,305 @@
       "withinBudget": true
     },
     {
+      "name": "Env_Ground_RouteFloor",
+      "family": "Terrain",
+      "subfamily": "Ground",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ground_RouteFloor.fbx",
+      "triangles": 5440,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Meets Deck_TownTerrace at the X=34 cliff and Deck_ShoreBand along its southern edge. Closed slab: the boundary is skirted to y=-3.0 and capped, so a MeshCollider on this mesh is watertight. Authored in world space -- instantiate at (0,0,0) with identity rotation.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ground_TownTerrace",
+      "family": "Terrain",
+      "subfamily": "Ground",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ground_TownTerrace.fbx",
+      "triangles": 5952,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Cliff-edged on west and south; the cliff runs under Town/Terrain match it. Closed slab: the boundary is skirted to y=-1.4 and capped, so a MeshCollider on this mesh is watertight. Authored in world space -- instantiate at (0,0,0) with identity rotation.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ground_ShoreBand",
+      "family": "Terrain",
+      "subfamily": "Ground",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ground_ShoreBand.fbx",
+      "triangles": 16124,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "A ring around the lake, 6-9 m wide, grading from -1. Closed slab: the boundary is skirted to y=-5.4 and capped, so a MeshCollider on this mesh is watertight. Authored in world space -- instantiate at (0,0,0) with identity rotation.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ground_CaveFloor",
+      "family": "Terrain",
+      "subfamily": "Ground",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ground_CaveFloor.fbx",
+      "triangles": 1940,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "The chamber floor, a void carved out of the massif mass. Closed slab: the boundary is skirted to y=-1.2 and capped, so a MeshCollider on this mesh is watertight. Authored in world space -- instantiate at (0,0,0) with identity rotation.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ground_MassifTier1Top",
+      "family": "Terrain",
+      "subfamily": "Ground",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ground_MassifTier1Top.fbx",
+      "triangles": 1256,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Top of the massif's first ring. Closed slab: the boundary is skirted to y=-0.5 and capped, so a MeshCollider on this mesh is watertight. Authored in world space -- instantiate at (0,0,0) with identity rotation. NOT walkable, keep off the NavMesh.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ground_MassifTier2Top",
+      "family": "Terrain",
+      "subfamily": "Ground",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ground_MassifTier2Top.fbx",
+      "triangles": 712,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Deck_MassifTier2Top. Closed slab: the boundary is skirted to y=5.5 and capped, so a MeshCollider on this mesh is watertight. Authored in world space -- instantiate at (0,0,0) with identity rotation. NOT walkable, keep off the NavMesh.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ground_MassifRidgeTop",
+      "family": "Terrain",
+      "subfamily": "Ground",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ground_MassifRidgeTop.fbx",
+      "triangles": 324,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "The skyline. Closed slab: the boundary is skirted to y=11.5 and capped, so a MeshCollider on this mesh is watertight. Authored in world space -- instantiate at (0,0,0) with identity rotation. NOT walkable, keep off the NavMesh.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ground_CaveCeiling",
+      "family": "Terrain",
+      "subfamily": "Ground",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ground_CaveCeiling.fbx",
+      "triangles": 1180,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Chamber roof at y=6.5, dipping to meet the walls at the rim. Built as a 1.4 m slab so the massif above reads solid and the ceiling does not vanish when the camera clips it. Faces down. World space.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ground_RiverChannel",
+      "family": "Terrain",
+      "subfamily": "Ground",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ground_RiverChannel.fbx",
+      "triangles": 1508,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Not in the layout's deck list, but Water_Outflow runs east past the shore band's edge at x=34 and had no bed under it. Same channel profile as the shore deck uses, so the two agree along the seam.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Water_Lake",
+      "family": "Terrain",
+      "subfamily": "Water",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Water_Lake.fbx",
+      "triangles": 2513,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Lake surface at y=-2.0 over a bed at -3.8 carved into Env_Ground_ShoreBand. 1 m grid: PokeLabWater's default wavelength is 4.2 m, so this resolves the vertex wave four ways over. Needs Depth Texture and Opaque Texture ON in the URP renderer.",
+      "unityMaterial": "PokeLab/Water",
+      "budgetClass": "ground",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Water_Outflow",
+      "family": "Terrain",
+      "subfamily": "Water",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Water_Outflow.fbx",
+      "triangles": 466,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "The east outflow. Bed at -3.2 is carried by Env_Ground_ShoreBand and Env_Ground_RiverChannel.",
+      "unityMaterial": "PokeLab/Water",
+      "budgetClass": "ground",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Water_CavePool",
+      "family": "Terrain",
+      "subfamily": "Water",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Water_CavePool.fbx",
+      "triangles": 562,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Still cave pool at y=1.05 over a bed at 0.3 carved into Env_Ground_CaveFloor. Set wave amplitude near zero on this one -- the layout calls for still, dark water.",
+      "unityMaterial": "PokeLab/Water",
+      "budgetClass": "ground",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ramp_TownFromRoute",
+      "family": "Terrain",
+      "subfamily": "Ramp",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ramp_TownFromRoute.fbx",
+      "triangles": 248,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "[30.0, 0.0, 42.0] -> [38.0, 3.0, 44.0], 5.0 m wide, 20 deg -- inside the 48 deg slope limit. Both ends cross-fade into the deck height field over 1.2 m so there is no step at the join.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ramp_CaveFromRoute",
+      "family": "Terrain",
+      "subfamily": "Ramp",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ramp_CaveFromRoute.fbx",
+      "triangles": 164,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "[-26.0, 0.0, 32.0] -> [-31.0, 1.5, 32.0], 5.0 m wide, 17 deg. Both ends cross-fade into the deck height field over 1.2 m so there is no step at the join.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ramp_LakeSpur",
+      "family": "Terrain",
+      "subfamily": "Ramp",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ramp_LakeSpur.fbx",
+      "triangles": 668,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "[4.0, 0.0, 32.5] -> [8.5, -1.5, 10.0], 4.0 m wide, graded bank, under 8 deg, punctuated by two 1 m ledges. Both ends cross-fade into the deck height field over 1.2 m so there is no step at the join.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ledge_Spur_Upper",
+      "family": "Terrain",
+      "subfamily": "Ledge",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ledge_Spur_Upper.fbx",
+      "triangles": 116,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "One-way hop-down, 1.0 m drop, grass cap overhangs the face. PlayerLocomotion's 0.45 m max step makes this a real barrier from below. World space.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ledge_Spur_Lower",
+      "family": "Terrain",
+      "subfamily": "Ledge",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ledge_Spur_Lower.fbx",
+      "triangles": 124,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "One-way hop-down, 1.0 m drop, grass cap overhangs the face. PlayerLocomotion's 0.45 m max step makes this a real barrier from below. World space.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Waterfall_Main",
+      "family": "Terrain",
+      "subfamily": "Waterfall",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Waterfall_Main.fbx",
+      "triangles": 252,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "The falling sheet for Waterfall_Main: top [-26.0, 4.5, 6.0], bottom [-24.5, -2.0, 3.0], 3.2 m wide, 6.5 m drop. Narrows and bows as it falls so the silhouette is not a rectangle. Env_Waterfall_Shelf is the lip; this is the fall.",
+      "unityMaterial": "PokeLab/Water (scrolling) or a VFX sheet",
+      "budgetClass": "ground",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Waterfall_Plunge_Main",
+      "family": "Terrain",
+      "subfamily": "Waterfall",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Waterfall_Plunge_Main.fbx",
+      "triangles": 120,
+      "lods": [],
+      "pivot": "world origin (0,0,0)",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Foam ring at the plunge pool, sitting 3 cm proud of the lake surface. World space, matched to Waterfall_Main's bottom point.",
+      "unityMaterial": "PokeLab/Water (foam) or a VFX sheet",
+      "budgetClass": "ground",
+      "withinBudget": true
+    },
+    {
       "name": "Env_House_Cottage_A",
       "family": "Town",
       "subfamily": "House",
@@ -2745,298 +2826,6 @@
       "windVertexColors": false,
       "notes": "",
       "budgetClass": "prop",
-      "withinBudget": true
-    },
-    {
-      "name": "Env_Char_Player",
-      "family": "Characters",
-      "subfamily": "Character",
-      "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player.fbx",
-      "triangles": 3026,
-      "lods": [
-        {
-          "level": 1,
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player_LOD1.fbx",
-          "triangles": 1210
-        },
-        {
-          "level": 2,
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player_LOD2.fbx",
-          "triangles": 453
-        }
-      ],
-      "pivot": "between the feet at ground level, facing +Z",
-      "textures": [
-        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
-        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
-      ],
-      "windVertexColors": false,
-      "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
-      "anchors": [
-        "Anchor_Head",
-        "Anchor_Body",
-        "Anchor_HandR",
-        "Anchor_HandL"
-      ],
-      "clips": [
-        {
-          "name": "Idle",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
-        },
-        {
-          "name": "Walk",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
-        },
-        {
-          "name": "Run",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
-        },
-        {
-          "name": "Turn",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
-        },
-        {
-          "name": "Talk",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
-        },
-        {
-          "name": "ThrowBall",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
-        },
-        {
-          "name": "Cheer",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
-        },
-        {
-          "name": "Surprised",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
-        },
-        {
-          "name": "RaiseScanner",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
-        }
-      ],
-      "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them.",
-      "budgetClass": "character",
-      "withinBudget": true
-    },
-    {
-      "name": "Env_Char_NPC_Townsfolk_A",
-      "family": "Characters",
-      "subfamily": "Character",
-      "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_A.fbx",
-      "triangles": 3000,
-      "lods": [
-        {
-          "level": 1,
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_A_LOD1.fbx",
-          "triangles": 1199
-        },
-        {
-          "level": 2,
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_A_LOD2.fbx",
-          "triangles": 449
-        }
-      ],
-      "pivot": "between the feet at ground level, facing +Z",
-      "textures": [
-        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
-        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
-      ],
-      "windVertexColors": false,
-      "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
-      "anchors": [
-        "Anchor_Head",
-        "Anchor_Body",
-        "Anchor_HandR",
-        "Anchor_HandL"
-      ],
-      "clips": [
-        {
-          "name": "Idle",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
-        },
-        {
-          "name": "Walk",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
-        },
-        {
-          "name": "Run",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
-        },
-        {
-          "name": "Turn",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
-        },
-        {
-          "name": "Talk",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
-        },
-        {
-          "name": "ThrowBall",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
-        },
-        {
-          "name": "Cheer",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
-        },
-        {
-          "name": "Surprised",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
-        },
-        {
-          "name": "RaiseScanner",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
-        }
-      ],
-      "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them.",
-      "budgetClass": "character",
-      "withinBudget": true
-    },
-    {
-      "name": "Env_Char_NPC_Townsfolk_B",
-      "family": "Characters",
-      "subfamily": "Character",
-      "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_B.fbx",
-      "triangles": 3120,
-      "lods": [
-        {
-          "level": 1,
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_B_LOD1.fbx",
-          "triangles": 1248
-        },
-        {
-          "level": 2,
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_B_LOD2.fbx",
-          "triangles": 468
-        }
-      ],
-      "pivot": "between the feet at ground level, facing +Z",
-      "textures": [
-        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
-        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
-      ],
-      "windVertexColors": false,
-      "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
-      "anchors": [
-        "Anchor_Head",
-        "Anchor_Body",
-        "Anchor_HandR",
-        "Anchor_HandL"
-      ],
-      "clips": [
-        {
-          "name": "Idle",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
-        },
-        {
-          "name": "Walk",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
-        },
-        {
-          "name": "Run",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
-        },
-        {
-          "name": "Turn",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
-        },
-        {
-          "name": "Talk",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
-        },
-        {
-          "name": "ThrowBall",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
-        },
-        {
-          "name": "Cheer",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
-        },
-        {
-          "name": "Surprised",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
-        },
-        {
-          "name": "RaiseScanner",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
-        }
-      ],
-      "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them.",
-      "budgetClass": "character",
-      "withinBudget": true
-    },
-    {
-      "name": "Env_Char_NPC_Rival",
-      "family": "Characters",
-      "subfamily": "Character",
-      "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Rival.fbx",
-      "triangles": 3224,
-      "lods": [
-        {
-          "level": 1,
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Rival_LOD1.fbx",
-          "triangles": 1288
-        },
-        {
-          "level": 2,
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Rival_LOD2.fbx",
-          "triangles": 482
-        }
-      ],
-      "pivot": "between the feet at ground level, facing +Z",
-      "textures": [
-        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
-        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
-      ],
-      "windVertexColors": false,
-      "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
-      "anchors": [
-        "Anchor_Head",
-        "Anchor_Body",
-        "Anchor_HandR",
-        "Anchor_HandL"
-      ],
-      "clips": [
-        {
-          "name": "Idle",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
-        },
-        {
-          "name": "Walk",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
-        },
-        {
-          "name": "Run",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
-        },
-        {
-          "name": "Turn",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
-        },
-        {
-          "name": "Talk",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
-        },
-        {
-          "name": "ThrowBall",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
-        },
-        {
-          "name": "Cheer",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
-        },
-        {
-          "name": "Surprised",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
-        },
-        {
-          "name": "RaiseScanner",
-          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
-        }
-      ],
-      "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them.",
-      "budgetClass": "character",
       "withinBudget": true
     }
   ]

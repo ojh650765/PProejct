@@ -16,6 +16,7 @@ Everything is deterministic: every generator seeds its own random.Random.
 
 import os
 import sys
+import glob
 import math
 import json
 import random
@@ -916,6 +917,138 @@ def uv_smart(obj, angle=64.0, margin=0.02):
     bpy.ops.object.mode_set(mode='OBJECT')
 
 
+def uv_planar(obj, bounds=None, margin=0.002):
+    """Top-down planar UV normalised into 0-1 over the object's XY extent.
+
+    The atlas packer is the right answer for a prop that shares a 4x4 cell with
+    thirty others.  It is the wrong answer for a 68 x 38 m ground deck: squeezed
+    into a quarter cell the texel density collapses, and the deck does not use
+    the atlas anyway -- PokeLabTerrainBlend derives its layer UVs from world XZ
+    and reads UV0 only for the optional control map.  So UV0 here is exactly
+    that: a normalised map of the deck's own footprint, which a painted control
+    map can be authored against later.
+    """
+    me = obj.data
+    while len(me.uv_layers) > 1:
+        me.uv_layers.remove(me.uv_layers[-1])
+    uvl = me.uv_layers[0] if me.uv_layers else me.uv_layers.new(name="UVMap")
+    if bounds is None:
+        xs = [v.co.x for v in me.vertices]
+        ys = [v.co.y for v in me.vertices]
+        bounds = (min(xs), min(ys), max(xs), max(ys))
+    x0, y0, x1, y1 = bounds
+    sx = max(x1 - x0, 1e-6)
+    sy = max(y1 - y0, 1e-6)
+    inner = 1.0 - 2.0 * margin
+    data = uvl.data
+    for poly in me.polygons:
+        for li in poly.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            u = margin + inner * min(1.0, max(0.0, (co.x - x0) / sx))
+            v = margin + inner * min(1.0, max(0.0, (co.y - y0) / sy))
+            data[li].uv = (u, v)
+    return uvl
+
+
+def uv_box_walls(obj, scale=0.25, margin=0.004):
+    """Cheap 0-1 box map for a slab-like solid: top and bottom faces get the
+    planar map, side faces get a strip keyed on height.  Used by ledges, ramps
+    and other pieces that are mostly horizontal but have visible walls."""
+    me = obj.data
+    while len(me.uv_layers) > 1:
+        me.uv_layers.remove(me.uv_layers[-1])
+    uvl = me.uv_layers[0] if me.uv_layers else me.uv_layers.new(name="UVMap")
+    xs = [v.co.x for v in me.vertices]
+    ys = [v.co.y for v in me.vertices]
+    zs = [v.co.z for v in me.vertices]
+    sx = max(max(xs) - min(xs), 1e-6)
+    sy = max(max(ys) - min(ys), 1e-6)
+    sz = max(max(zs) - min(zs), 1e-6)
+    inner = 1.0 - 2.0 * margin
+
+    def clamp01(t):
+        return margin + inner * min(1.0, max(0.0, t))
+
+    data = uvl.data
+    for poly in me.polygons:
+        n = poly.normal
+        vertical = abs(n.z) >= 0.5
+        for li in poly.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            if vertical:
+                u = clamp01((co.x - min(xs)) / sx)
+                v = clamp01((co.y - min(ys)) / sy)
+            elif abs(n.x) >= abs(n.y):
+                u = clamp01((co.y - min(ys)) / sy)
+                v = clamp01((co.z - min(zs)) / sz)
+            else:
+                u = clamp01((co.x - min(xs)) / sx)
+                v = clamp01((co.z - min(zs)) / sz)
+            data[li].uv = (u, v)
+    return uvl
+
+
+def boundary_edges(bm):
+    return [e for e in bm.edges if len(e.link_faces) == 1]
+
+
+def skirt(bm, floor_z, cap=True, mat=None, skew=0.0):
+    """Close an open surface into a solid by dropping its boundary to floor_z
+    and capping the underside.
+
+    A ground deck authored as a single-sided sheet is fine to look at and
+    useless to collide with: the player walks off the edge into nothing and the
+    cliff behind it shows daylight underneath.  Extruding the border down to a
+    floor turns every deck into a closed slab that a MeshCollider can take
+    without any Unity-side work, which is what the layout's `colliders: none
+    authored` note is asking for.
+
+    skew pushes the bottom rim outward from the surface centroid, so the slab
+    reads as a wedge of earth rather than a wafer.
+    """
+    bm.verts.ensure_lookup_table()
+    bm.edges.ensure_lookup_table()
+    border = boundary_edges(bm)
+    if not border:
+        return []
+    cx = sum(v.co.x for v in bm.verts) / len(bm.verts)
+    cy = sum(v.co.y for v in bm.verts) / len(bm.verts)
+
+    res = bmesh.ops.extrude_edge_only(bm, edges=border)
+    new_verts = [g for g in res["geom"] if isinstance(g, bmesh.types.BMVert)]
+    new_edges = [g for g in res["geom"] if isinstance(g, bmesh.types.BMEdge)
+                 and len(g.link_faces) == 1]
+    for v in new_verts:
+        dx, dy = v.co.x - cx, v.co.y - cy
+        d = math.hypot(dx, dy) or 1.0
+        v.co.x += dx / d * skew
+        v.co.y += dy / d * skew
+        v.co.z = floor_z
+    walls = [f for f in res["geom"] if isinstance(f, bmesh.types.BMFace)]
+    if mat is not None:
+        for f in walls:
+            f.material_index = mat
+    made = list(walls)
+    if cap:
+        bottom = [e for e in new_edges if
+                  abs(e.verts[0].co.z - floor_z) < 1e-6 and
+                  abs(e.verts[1].co.z - floor_z) < 1e-6]
+        if bottom:
+            try:
+                fill = bmesh.ops.triangle_fill(bm, use_beauty=True,
+                                               use_dissolve=False,
+                                               edges=bottom,
+                                               normal=Vector((0, 0, -1)))
+                for f in fill.get("geom", []):
+                    if isinstance(f, bmesh.types.BMFace):
+                        if mat is not None:
+                            f.material_index = mat
+                        made.append(f)
+            except Exception as exc:
+                print("  ! skirt cap failed (%s)" % exc)
+    return made
+
+
 def uv_pack_into_cells(obj, matset, grid=ATLAS_GRID):
     """Take the globally packed 0-1 UVs and squeeze each material's islands into
     that material's atlas cell.  Islands stay non-overlapping because different
@@ -1000,9 +1133,57 @@ class ValidationError(Exception):
     pass
 
 
-def validate(obj, budget=None, need_vcol=False, need_uv=True, strict=True):
+def mesh_report(obj):
+    """Topology facts a contact sheet cannot show you.
+
+    `boundary` is the one that matters for anything meant to be a solid: a
+    building with its back wall missing, or a deck whose underside never got
+    capped, has boundary edges and looks perfectly fine in every render taken
+    from the front.
+    """
+    bm = obj_bm(obj)
+    bm.edges.ensure_lookup_table()
+    boundary = [e for e in bm.edges if len(e.link_faces) == 1]
+    nonmanifold = [e for e in bm.edges if len(e.link_faces) > 2]
+    loose_v = [v for v in bm.verts if not v.link_edges]
+    loose_e = [e for e in bm.edges if not e.link_faces]
+    zero = [f for f in bm.faces if f.calc_area() < 1e-9]
+    # coplanar duplicates: same centre, same plane, opposite or equal normal.
+    # This is what z-fighting is, before it is a rendering symptom.
+    buckets = {}
+    dup = 0
+    for f in bm.faces:
+        c = f.calc_center_median()
+        key = (round(c.x, 3), round(c.y, 3), round(c.z, 3))
+        for other in buckets.get(key, ()):
+            if abs(other.normal.dot(f.normal)) > 0.999 and \
+                    abs(other.calc_area() - f.calc_area()) < 1e-4:
+                dup += 1
+                break
+        buckets.setdefault(key, []).append(f)
+    res = {"boundaryEdges": len(boundary), "nonManifoldEdges": len(nonmanifold),
+           "looseVerts": len(loose_v), "looseEdges": len(loose_e),
+           "zeroAreaFaces": len(zero), "coplanarDuplicateFaces": dup,
+           "verts": len(bm.verts), "faces": len(bm.faces)}
+    bm.free()
+    return res
+
+
+def validate(obj, budget=None, need_vcol=False, need_uv=True, strict=True,
+             closed=False, max_coplanar_dupes=None):
     problems = []
     me = obj.data
+    if closed or max_coplanar_dupes is not None:
+        rep = mesh_report(obj)
+        if closed and rep["boundaryEdges"]:
+            problems.append("%d boundary edges (mesh is not closed)"
+                            % rep["boundaryEdges"])
+        if closed and rep["nonManifoldEdges"]:
+            problems.append("%d non-manifold edges" % rep["nonManifoldEdges"])
+        if max_coplanar_dupes is not None and \
+                rep["coplanarDuplicateFaces"] > max_coplanar_dupes:
+            problems.append("%d coplanar duplicate faces (z-fighting)"
+                            % rep["coplanarDuplicateFaces"])
 
     if tuple(round(x, 5) for x in obj.location) != (0.0, 0.0, 0.0):
         problems.append("location not applied: %s" % (tuple(obj.location),))
@@ -1058,6 +1239,44 @@ def validate(obj, budget=None, need_vcol=False, need_uv=True, strict=True):
 # export
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# Export settings -- do not change these without re-running fbx_probe.py.
+#
+# The kit originally exported with axis_forward='-Y', axis_up='Z' and
+# apply_scale_options='FBX_SCALE_NONE'.  Measured with fbx_probe.py, that wrote:
+#
+#     UnitScaleFactor 1.0   (i.e. "these numbers are centimetres")
+#     vertex data      metres, unconverted
+#     UpAxis           +Z
+#
+# So a 5.07 m cottage was declared to be 5.07 cm and to be lying on its back,
+# and Unity duly imported it at 1/100 scale, flat on the ground.  The integrator
+# was compensating with globalScale=100 and bakeAxisConversion=true.  The bug is
+# here, not there.
+#
+# The settings below write, measured on the same probe:
+#
+#     UnitScaleFactor 100.0 (i.e. "these numbers are metres")
+#     vertex data      real metres, Y up, axis conversion baked in
+#     Lcl Rotation     identity        Lcl Scaling  identity
+#
+# which imports correctly in Unity with STOCK settings: Scale Factor 1,
+# Convert Units ON, Bake Axis Conversion OFF.  Blender +Y (the authoring
+# "forward") lands on Unity +Z, Blender +Z lands on Unity +Y, and nothing is
+# mirrored -- the kit's stated convention, now actually true in the file.
+#
+# bake_space_transform is what removes the -90 deg X rotation that Blender
+# otherwise leaves on every object node.  For a level assembled from thousands
+# of world-space prefab instances, a hidden -90 on every mesh child is a trap
+# worth avoiding; it is disabled for armature exports, where Blender documents
+# it as unreliable.
+# --------------------------------------------------------------------------
+
+FBX_AXIS_FORWARD = '-Z'
+FBX_AXIS_UP = 'Y'
+FBX_SCALE_OPTION = 'FBX_SCALE_UNITS'
+
+
 def export_fbx(objs, path, apply_modifiers=True, armature=None, anim=False,
                anim_actions=False):
     objs = [o for o in objs if o]
@@ -1066,14 +1285,17 @@ def export_fbx(objs, path, apply_modifiers=True, armature=None, anim=False,
     for o in objs:
         o.select_set(True)
     bpy.context.view_layer.objects.active = objs[0]
+    rigged = bool(armature) or anim or anim_actions or \
+        any(o.type == 'ARMATURE' for o in objs)
     kwargs = dict(
         filepath=path,
         use_selection=True,
         apply_unit_scale=True,
         global_scale=1.0,
-        apply_scale_options='FBX_SCALE_NONE',
-        axis_forward='-Y',
-        axis_up='Z',
+        apply_scale_options=FBX_SCALE_OPTION,
+        bake_space_transform=not rigged,
+        axis_forward=FBX_AXIS_FORWARD,
+        axis_up=FBX_AXIS_UP,
         object_types={'MESH', 'ARMATURE', 'EMPTY'},
         use_mesh_modifiers=apply_modifiers,
         mesh_smooth_type='FACE',
@@ -1150,12 +1372,26 @@ class Manifest:
         return path
 
 
-def part_manifest_path(family):
-    return os.path.join(THIS_DIR, "_manifest_parts", "%s.json" % family)
+def part_manifest_path(family, part=None):
+    """One family can be produced by more than one generator.  gen_terrain.py
+    owns the cliff/rock kit; gen_ground.py owns the decks, water and ramps that
+    the level layout demands.  Both are the Terrain family, so each writes its
+    own part file and build_manifest.py merges every `<Family>*.json` it finds
+    rather than a single hard-coded name."""
+    stem = family if not part else "%s__%s" % (family, part)
+    return os.path.join(THIS_DIR, "_manifest_parts", "%s.json" % stem)
 
 
-def write_part(family, entries):
-    p = part_manifest_path(family)
+def part_manifest_paths(family):
+    """Every part file belonging to one family, base part first."""
+    base = part_manifest_path(family)
+    extra = sorted(glob.glob(os.path.join(THIS_DIR, "_manifest_parts",
+                                          "%s__*.json" % family)))
+    return ([base] if os.path.exists(base) else []) + extra
+
+
+def write_part(family, entries, part=None):
+    p = part_manifest_path(family, part)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf-8") as f:
         json.dump(entries, f, indent=2)

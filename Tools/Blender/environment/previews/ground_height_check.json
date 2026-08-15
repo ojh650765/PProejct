@@ -1,0 +1,928 @@
+{
+  "note": "Two-part ground-height verification. `objects` compares the authored mesh against the Y of every layout object whose placement was sampled from one of build_layout.py's four analytic height fields. `freeGrid` compares the mesh against the fields themselves at random points, excluding the water beds this build deliberately carves below them.",
+  "tolerance": 0.05,
+  "objects": {
+    "cave": {
+      "samples": 48,
+      "meanAbsError": 0.00733,
+      "p99AbsError": 0.06658,
+      "maxAbsError": 0.06658,
+      "withinTolerance": 46,
+      "failures": 2,
+      "outsideDeckPolygon": 42,
+      "deck": "Env_Ground_CaveFloor"
+    },
+    "route": {
+      "samples": 2093,
+      "meanAbsError": 0.00037,
+      "p99AbsError": 0.00111,
+      "maxAbsError": 0.00141,
+      "withinTolerance": 2093,
+      "failures": 0,
+      "outsideDeckPolygon": 56,
+      "deck": "Env_Ground_RouteFloor"
+    },
+    "shore": {
+      "samples": 480,
+      "meanAbsError": 0.00278,
+      "p99AbsError": 0.03708,
+      "maxAbsError": 0.04697,
+      "withinTolerance": 480,
+      "failures": 0,
+      "outsideDeckPolygon": 20,
+      "deck": "Env_Ground_ShoreBand"
+    },
+    "town": {
+      "samples": 957,
+      "meanAbsError": 0.00072,
+      "p99AbsError": 0.00274,
+      "maxAbsError": 0.07661,
+      "withinTolerance": 956,
+      "failures": 1,
+      "outsideDeckPolygon": 15,
+      "deck": "Env_Ground_TownTerrace"
+    }
+  },
+  "freeGrid": {
+    "route": {
+      "samples": 3000,
+      "meanAbsError": 0.00029,
+      "p99AbsError": 0.00082,
+      "maxAbsError": 0.00094,
+      "withinTolerance": 3000,
+      "failures": 0,
+      "noSurfaceHit": 0
+    },
+    "town": {
+      "samples": 3000,
+      "meanAbsError": 0.00052,
+      "p99AbsError": 0.00133,
+      "maxAbsError": 0.15199,
+      "withinTolerance": 2999,
+      "failures": 1,
+      "noSurfaceHit": 0
+    },
+    "cave": {
+      "samples": 3000,
+      "meanAbsError": 0.00076,
+      "p99AbsError": 0.00234,
+      "maxAbsError": 0.00263,
+      "withinTolerance": 3000,
+      "failures": 0,
+      "noSurfaceHit": 0
+    },
+    "shore": {
+      "samples": 3000,
+      "meanAbsError": 0.00217,
+      "p99AbsError": 0.03237,
+      "maxAbsError": 0.04989,
+      "withinTolerance": 3000,
+      "failures": 0,
+      "noSurfaceHit": 0
+    }
+  },
+  "unanchoredObjectsByParent": {
+    "Cave/Terrain": 199,
+    "Lakeside/Foliage": 182,
+    "Lakeside/Detail": 102,
+    "Lakeside/Water": 91,
+    "Lakeside/Ground": 62,
+    "Town/Terrain": 39,
+    "Town/Foliage": 32,
+    "Lakeside/Terrain": 31,
+    "Route/Detail": 20,
+    "Town/Ground": 17,
+    "Cave/Detail": 10,
+    "Town/Props": 9,
+    "Route/Terrain": 8,
+    "Route/Ground": 6,
+    "Cave/Foliage": 6,
+    "Cave/Ground": 2
+  },
+  "unanchoredNote": "Objects whose Y matches no height field: placed on a ramp/shore-walk polyline (poly_y), hanging from the cave ceiling, floating on water, or stacked on a cliff module. Not this mesh's responsibility.",
+  "objectsInsideRampCorridors": {
+    "count": 12,
+    "note": "Standing where a deck was notched to let a ramp cut in. They sit up to the ramp's depth above the deck; the level owner should re-sample them against the ramp surface or move them clear.",
+    "sample": [
+      {
+        "object": "Town_Street_01",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Ground",
+        "x": 37.5,
+        "z": 42.0,
+        "placedY": 2.962
+      },
+      {
+        "object": "Town_Street_04",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Ground",
+        "x": 39.0,
+        "z": 40.5,
+        "placedY": 3.008
+      },
+      {
+        "object": "Town_StreetEdge_06",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Detail",
+        "x": 38.91,
+        "z": 40.04,
+        "placedY": 3.014
+      },
+      {
+        "object": "Town_Scatter_06",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Detail",
+        "x": 35.21,
+        "z": 45.83,
+        "placedY": 2.879
+      },
+      {
+        "object": "Town_CliffCap_03",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Detail",
+        "x": 34.13,
+        "z": 39.86,
+        "placedY": 2.949
+      },
+      {
+        "object": "Town_CliffCapGreen_03",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Foliage",
+        "x": 36.99,
+        "z": 41.63,
+        "placedY": 2.96
+      },
+      {
+        "object": "Town_CliffCapGreen_07",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Foliage",
+        "x": 37.03,
+        "z": 39.61,
+        "placedY": 2.991
+      },
+      {
+        "object": "Town_CliffCapGreen_10",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Foliage",
+        "x": 36.34,
+        "z": 40.45,
+        "placedY": 2.968
+      },
+      {
+        "object": "Town_CliffCapGreen_11",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Foliage",
+        "x": 36.95,
+        "z": 41.3,
+        "placedY": 2.964
+      },
+      {
+        "object": "Town_CliffCapGreen_16",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Foliage",
+        "x": 36.19,
+        "z": 39.77,
+        "placedY": 2.976
+      },
+      {
+        "object": "Town_CliffCapGreen_33",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Foliage",
+        "x": 36.05,
+        "z": 38.97,
+        "placedY": 2.986
+      },
+      {
+        "object": "Town_CliffCapGreen_37",
+        "ramp": "Ramp_TownFromRoute",
+        "parent": "Town/Foliage",
+        "x": 36.8,
+        "z": 41.35,
+        "placedY": 2.961
+      }
+    ]
+  },
+  "objectsInsideWaterPolygons": {
+    "count": 143,
+    "note": "LAYOUT DEFECT, for the level owner. Ground scatter placed at a height-field Y that falls inside a water polygon, so it stands in open water above the surface with nothing under it. Placed before any water mesh existed. Needs moving or culling in build_layout.py -- no terrain mesh can rescue it.",
+    "byPrefab": {
+      "Env_Moss_Cave_B.fbx": 21,
+      "Env_Grass_Clump_C.fbx": 16,
+      "Env_Reed_B.fbx": 15,
+      "Env_Moss_Cave_A.fbx": 13,
+      "Env_Reed_A.fbx": 13,
+      "Env_Grass_Clump_A.fbx": 12,
+      "Env_Grass_Clump_B.fbx": 12,
+      "Env_Grass_Clump_D.fbx": 10,
+      "Env_Bush_B.fbx": 6,
+      "Env_Cave_Stalagmite_A.fbx": 4,
+      "Env_Fern_B.fbx": 4,
+      "Env_Flower_White.fbx": 3,
+      "Env_Cave_Stalagmite_B.fbx": 3,
+      "Env_Bush_C.fbx": 2,
+      "Env_Fern_A.fbx": 2,
+      "Env_Rock_Boulder_A.fbx": 1,
+      "Env_Rock_Boulder_Wet_F.fbx": 1,
+      "Env_Rock_Scatter_B.fbx": 1,
+      "Env_Rock_Scatter_A.fbx": 1,
+      "Env_Rock_Boulder_C.fbx": 1,
+      "Env_Flower_Purple.fbx": 1,
+      "Env_Flower_Yellow.fbx": 1
+    },
+    "sample": [
+      {
+        "object": "Lake_ShoreTuft_02",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_A.fbx",
+        "water": "Water_Lake",
+        "x": 16.29,
+        "z": 0.28,
+        "placedY": -1.348,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_04",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_D.fbx",
+        "water": "Water_Lake",
+        "x": 16.09,
+        "z": 0.31,
+        "placedY": -1.385,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_05",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_C.fbx",
+        "water": "Water_Lake",
+        "x": 13.53,
+        "z": 2.55,
+        "placedY": -1.595,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_06",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_A.fbx",
+        "water": "Water_Lake",
+        "x": 12.46,
+        "z": 4.59,
+        "placedY": -1.567,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_07",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_A.fbx",
+        "water": "Water_Lake",
+        "x": 13.35,
+        "z": 3.04,
+        "placedY": -1.591,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_08",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_D.fbx",
+        "water": "Water_Lake",
+        "x": 12.8,
+        "z": 4.28,
+        "placedY": -1.577,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_09",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Reed_B.fbx",
+        "water": "Water_Lake",
+        "x": 10.31,
+        "z": 4.83,
+        "placedY": -1.494,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_10",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_A.fbx",
+        "water": "Water_Lake",
+        "x": 9.85,
+        "z": 6.7,
+        "placedY": -1.478,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_13",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_C.fbx",
+        "water": "Water_Lake",
+        "x": 11.77,
+        "z": 3.77,
+        "placedY": -1.545,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_16",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_C.fbx",
+        "water": "Water_Lake",
+        "x": 11.81,
+        "z": 3.8,
+        "placedY": -1.547,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_17",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Reed_B.fbx",
+        "water": "Water_Lake",
+        "x": 10.34,
+        "z": 6.49,
+        "placedY": -1.495,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_18",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Reed_B.fbx",
+        "water": "Water_Lake",
+        "x": 5.5,
+        "z": 8.28,
+        "placedY": -1.38,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_20",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_B.fbx",
+        "water": "Water_Lake",
+        "x": 6.48,
+        "z": 8.24,
+        "placedY": -1.388,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_21",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Reed_A.fbx",
+        "water": "Water_Lake",
+        "x": 7.68,
+        "z": 7.77,
+        "placedY": -1.411,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_23",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Reed_A.fbx",
+        "water": "Water_Lake",
+        "x": 4.94,
+        "z": 7.86,
+        "placedY": -1.38,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_26",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_A.fbx",
+        "water": "Water_Lake",
+        "x": 2.32,
+        "z": 9.0,
+        "placedY": -1.423,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_29",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Reed_B.fbx",
+        "water": "Water_Lake",
+        "x": 3.55,
+        "z": 9.97,
+        "placedY": -1.395,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_30",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Reed_B.fbx",
+        "water": "Water_Lake",
+        "x": 1.41,
+        "z": 10.08,
+        "placedY": -1.451,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_33",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Reed_B.fbx",
+        "water": "Water_Lake",
+        "x": 0.35,
+        "z": 9.11,
+        "placedY": -1.487,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_36",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Reed_B.fbx",
+        "water": "Water_Lake",
+        "x": -5.75,
+        "z": 12.08,
+        "placedY": -1.619,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_38",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_B.fbx",
+        "water": "Water_Lake",
+        "x": -4.12,
+        "z": 11.9,
+        "placedY": -1.613,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_39",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_A.fbx",
+        "water": "Water_Lake",
+        "x": -6.27,
+        "z": 10.33,
+        "placedY": -1.614,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_40",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_C.fbx",
+        "water": "Water_Lake",
+        "x": -3.37,
+        "z": 10.93,
+        "placedY": -1.602,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_41",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Grass_Clump_A.fbx",
+        "water": "Water_Lake",
+        "x": -13.98,
+        "z": 6.7,
+        "placedY": -1.396,
+        "waterSurfaceY": -2.0
+      },
+      {
+        "object": "Lake_ShoreTuft_43",
+        "parent": "Lakeside/Foliage",
+        "prefab": "Env_Reed_A.fbx",
+        "water": "Water_Lake",
+        "x": -13.91,
+        "z": 8.81,
+        "placedY": -1.397,
+        "waterSurfaceY": -2.0
+      }
+    ]
+  },
+  "totalFailures": 4,
+  "worst": [
+    {
+      "object": "Town_CliffCapGreen_04",
+      "parent": "Town/Foliage",
+      "deck": "Env_Ground_TownTerrace",
+      "field": "town",
+      "x": 35.767,
+      "z": 38.55,
+      "placedY": 2.987,
+      "meshY": 2.9104,
+      "error": -0.0766
+    },
+    {
+      "object": "Cave_FloorScatter_06",
+      "parent": "Cave/Detail",
+      "deck": "Env_Ground_CaveFloor",
+      "field": "cave",
+      "x": -49.566,
+      "z": 38.139,
+      "placedY": 1.532,
+      "meshY": 1.4654,
+      "error": -0.0666
+    },
+    {
+      "object": "Cave_PoolMoss_12",
+      "parent": "Cave/Detail",
+      "deck": "Env_Ground_CaveFloor",
+      "field": "cave",
+      "x": -51.586,
+      "z": 38.198,
+      "placedY": 1.526,
+      "meshY": 1.4642,
+      "error": -0.0618
+    },
+    {
+      "object": "Cave_Stalagmite_17",
+      "parent": "Cave/Terrain",
+      "deck": "Env_Ground_CaveFloor",
+      "field": "cave",
+      "x": -52.67,
+      "z": 38.319,
+      "placedY": 1.513,
+      "meshY": 1.4632,
+      "error": -0.0498
+    },
+    {
+      "object": "Lake_OpenBank_10",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 20.445,
+      "z": -3.018,
+      "placedY": -0.492,
+      "meshY": -0.539,
+      "error": -0.047
+    },
+    {
+      "object": "Town_CliffCapGreen_05",
+      "parent": "Town/Foliage",
+      "deck": "Env_Ground_TownTerrace",
+      "field": "town",
+      "x": 35.625,
+      "z": 38.213,
+      "placedY": 2.99,
+      "meshY": 2.9435,
+      "error": -0.0465
+    },
+    {
+      "object": "Lake_ShoreTuft_78",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": -8.065,
+      "z": -20.214,
+      "placedY": -1.57,
+      "meshY": -1.5263,
+      "error": 0.0437
+    },
+    {
+      "object": "Lake_OpenBank_01",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 20.499,
+      "z": -3.001,
+      "placedY": -0.48,
+      "meshY": -0.5203,
+      "error": -0.0403
+    },
+    {
+      "object": "Cave_Rubble_04",
+      "parent": "Cave/Detail",
+      "deck": "Env_Ground_CaveFloor",
+      "field": "cave",
+      "x": -46.83,
+      "z": 36.976,
+      "placedY": 1.492,
+      "meshY": 1.4528,
+      "error": -0.0392
+    },
+    {
+      "object": "Town_Street_02",
+      "parent": "Town/Ground",
+      "deck": "Env_Ground_TownTerrace",
+      "field": "town",
+      "x": 39.0,
+      "z": 43.5,
+      "placedY": 2.964,
+      "meshY": 2.9249,
+      "error": -0.0391
+    },
+    {
+      "object": "Lake_OpenBank_03",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 20.518,
+      "z": -3.046,
+      "placedY": -0.476,
+      "meshY": -0.5132,
+      "error": -0.0372
+    },
+    {
+      "object": "Lake_ShoreShrub_50",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": -24.624,
+      "z": -10.564,
+      "placedY": -1.594,
+      "meshY": -1.5569,
+      "error": 0.0371
+    },
+    {
+      "object": "Lake_ShoreTuft_31",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 3.657,
+      "z": 14.274,
+      "placedY": -1.382,
+      "meshY": -1.3467,
+      "error": 0.0353
+    },
+    {
+      "object": "Lake_OpenBank_02",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 23.056,
+      "z": -2.91,
+      "placedY": 0.071,
+      "meshY": 0.0374,
+      "error": -0.0336
+    },
+    {
+      "object": "Lake_OpenRock_07",
+      "parent": "Lakeside/Detail",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 15.967,
+      "z": -6.783,
+      "placedY": -1.311,
+      "meshY": -1.3444,
+      "error": -0.0334
+    },
+    {
+      "object": "Lake_ShoreCover_176",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 6.565,
+      "z": -24.683,
+      "placedY": 0.102,
+      "meshY": 0.0702,
+      "error": -0.0318
+    },
+    {
+      "object": "Lake_ShoreCover_15",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 5.285,
+      "z": 11.393,
+      "placedY": -1.38,
+      "meshY": -1.4078,
+      "error": -0.0278
+    },
+    {
+      "object": "Cave_Stalagmite_04",
+      "parent": "Cave/Terrain",
+      "deck": "Env_Ground_CaveFloor",
+      "field": "cave",
+      "x": -50.195,
+      "z": 29.892,
+      "placedY": 1.639,
+      "meshY": 1.6114,
+      "error": -0.0276
+    },
+    {
+      "object": "Lake_ShoreShrub_66",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": -9.768,
+      "z": -20.196,
+      "placedY": -1.476,
+      "meshY": -1.45,
+      "error": 0.026
+    },
+    {
+      "object": "Lake_ShoreScatter_13",
+      "parent": "Lakeside/Detail",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": -2.372,
+      "z": -19.868,
+      "placedY": -1.578,
+      "meshY": -1.5525,
+      "error": 0.0255
+    },
+    {
+      "object": "Lake_ShoreScatter_83",
+      "parent": "Lakeside/Detail",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": -26.255,
+      "z": -5.685,
+      "placedY": -1.62,
+      "meshY": -1.5946,
+      "error": 0.0254
+    },
+    {
+      "object": "Lake_ShoreTuft_35",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": -7.752,
+      "z": 12.408,
+      "placedY": -1.587,
+      "meshY": -1.6122,
+      "error": -0.0252
+    },
+    {
+      "object": "Lake_ShoreCover_164",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 2.26,
+      "z": -26.222,
+      "placedY": 0.075,
+      "meshY": 0.0505,
+      "error": -0.0245
+    },
+    {
+      "object": "Lake_ShoreShrub_51",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": -23.709,
+      "z": -11.421,
+      "placedY": -1.589,
+      "meshY": -1.565,
+      "error": 0.024
+    },
+    {
+      "object": "Cave_Stalagmite_10",
+      "parent": "Cave/Terrain",
+      "deck": "Env_Ground_CaveFloor",
+      "field": "cave",
+      "x": -54.646,
+      "z": 30.483,
+      "placedY": 1.559,
+      "meshY": 1.5371,
+      "error": -0.0219
+    },
+    {
+      "object": "Lake_ShoreScatter_116",
+      "parent": "Lakeside/Detail",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 22.817,
+      "z": -2.893,
+      "placedY": 0.033,
+      "meshY": 0.012,
+      "error": -0.021
+    },
+    {
+      "object": "Lake_ShoreShrub_02",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 19.282,
+      "z": 9.827,
+      "placedY": -0.112,
+      "meshY": -0.1317,
+      "error": -0.0197
+    },
+    {
+      "object": "Lake_ShoreRock_01",
+      "parent": "Lakeside/Detail",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 17.285,
+      "z": 13.269,
+      "placedY": -0.107,
+      "meshY": -0.1257,
+      "error": -0.0187
+    },
+    {
+      "object": "Lake_ShoreShrub_15",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 0.732,
+      "z": 14.91,
+      "placedY": -1.474,
+      "meshY": -1.4553,
+      "error": 0.0187
+    },
+    {
+      "object": "Lake_ShoreScatter_30",
+      "parent": "Lakeside/Detail",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": -14.038,
+      "z": -19.157,
+      "placedY": -1.338,
+      "meshY": -1.3203,
+      "error": 0.0177
+    },
+    {
+      "object": "Lake_ShoreShrub_19",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": -1.087,
+      "z": 16.171,
+      "placedY": -1.451,
+      "meshY": -1.4341,
+      "error": 0.0169
+    },
+    {
+      "object": "Lake_PlungeGreen_13",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": -24.768,
+      "z": -0.169,
+      "placedY": -1.609,
+      "meshY": -1.6256,
+      "error": -0.0166
+    },
+    {
+      "object": "Lake_OpenBank_16",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 18.094,
+      "z": -2.163,
+      "placedY": -1.01,
+      "meshY": -1.0262,
+      "error": -0.0162
+    },
+    {
+      "object": "Lake_ShoreTree_18",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 15.839,
+      "z": -18.775,
+      "placedY": -0.12,
+      "meshY": -0.136,
+      "error": -0.016
+    },
+    {
+      "object": "Lake_ShoreCover_159",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 0.036,
+      "z": -26.775,
+      "placedY": 0.001,
+      "meshY": -0.0147,
+      "error": -0.0157
+    },
+    {
+      "object": "Lake_ShoreScatter_104",
+      "parent": "Lakeside/Detail",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 23.317,
+      "z": -0.455,
+      "placedY": 0.078,
+      "meshY": 0.0632,
+      "error": -0.0148
+    },
+    {
+      "object": "Lake_ShoreTuft_85",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 1.952,
+      "z": -18.352,
+      "placedY": -1.434,
+      "meshY": -1.4477,
+      "error": -0.0137
+    },
+    {
+      "object": "Lake_ShoreShrub_54",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": -19.128,
+      "z": -15.783,
+      "placedY": -1.438,
+      "meshY": -1.4243,
+      "error": 0.0137
+    },
+    {
+      "object": "Lake_OpenBank_15",
+      "parent": "Lakeside/Foliage",
+      "deck": "Env_Ground_ShoreBand",
+      "field": "shore",
+      "x": 22.708,
+      "z": 1.02,
+      "placedY": 0.045,
+      "meshY": 0.0321,
+      "error": -0.0129
+    },
+    {
+      "object": "Cave_Stalagmite_12",
+      "parent": "Cave/Terrain",
+      "deck": "Env_Ground_CaveFloor",
+      "field": "cave",
+      "x": -53.109,
+      "z": 29.368,
+      "placedY": 1.624,
+      "meshY": 1.6111,
+      "error": -0.0129
+    }
+  ]
+}

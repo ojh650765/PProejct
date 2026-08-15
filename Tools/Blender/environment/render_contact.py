@@ -20,8 +20,11 @@ import textures as T
 
 
 def import_fbx(path):
+    # must mirror envlib's export axes or every sheet renders on its side
     before = set(bpy.context.scene.objects)
-    bpy.ops.import_scene.fbx(filepath=path, axis_forward='-Y', axis_up='Z',
+    bpy.ops.import_scene.fbx(filepath=path,
+                             axis_forward=E.FBX_AXIS_FORWARD,
+                             axis_up=E.FBX_AXIS_UP,
                              automatic_bone_orientation=True)
     new = [o for o in bpy.context.scene.objects if o not in before]
     return new

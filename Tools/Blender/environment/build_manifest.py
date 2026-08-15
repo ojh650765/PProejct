@@ -19,6 +19,12 @@ import textures as T
 
 FAMILIES = ["Foliage", "Terrain", "Town", "Props", "Characters"]
 
+# Families whose atlas still exists and is still referenced. Characters was
+# retired when the project moved to official pixel sprites (Docs/GOAL.md), so
+# its FBXs are gone from disk; its atlas block is dropped with them rather than
+# left in the manifest describing files nobody can open.
+ATLAS_FAMILIES = ["Foliage", "Terrain", "Town", "Props"]
+
 # The brief's budgets are per asset CLASS, not per folder: the town folder
 # holds both 6k buildings and 400-tri benches, and a single grass blade is
 # meant to be tiny.  Classify each asset so the report is honest.
@@ -28,6 +34,15 @@ BUDGETS = {
     "building": [1500, 6000],
     "prop": [300, 2000],
     "character": [3000, 8000],
+    # Ground decks, water surfaces, ramps and ledges. One instance each, world
+    # placed, and a route deck covering 68 x 38 m cannot be held to a prop's
+    # 2,000 tris without either a staircase boundary or a height field the
+    # layout's 4,682 placements no longer sit on.
+    "ground": [60, 26000],
+    # Scatter foliage drawn with GPU instancing: one mesh, one material, no
+    # LODs, and a tight ceiling because the triangles multiply by the instance
+    # count directly.
+    "scatter": [40, 260],
 }
 
 # Deliberately below the class floor: single-element scatter pieces where the
@@ -52,6 +67,10 @@ ROCKY = ("Cliff", "Rock", "Cave", "Riverbank", "Waterfall", "Stepping",
 
 
 def budget_class(entry):
+    # a generator may declare its own class; ground and scatter both do
+    declared = entry.get("budgetClass")
+    if declared in BUDGETS:
+        return declared
     fam = entry["family"]
     if fam == "Characters":
         return "character"
@@ -68,18 +87,26 @@ def main():
     parts = {}
     missing = []
     for fam in FAMILIES:
-        p = E.part_manifest_path(fam)
-        if not os.path.exists(p):
+        rows = []
+        for p in E.part_manifest_paths(fam):
+            with open(p, "r", encoding="utf-8") as f:
+                rows.extend(json.load(f))
+        if not rows:
             E.log("!! no manifest part for %s -- run gen_%s.py"
                   % (fam, fam.lower()))
             continue
-        with open(p, "r", encoding="utf-8") as f:
-            parts[fam] = json.load(f)
+        parts[fam] = rows
 
     assets = []
+    dropped = []
     for fam in FAMILIES:
         for e in parts.get(fam, []):
-            for rel in [e["path"]] + [l["path"] for l in e.get("lods", [])] + \
+            if not os.path.exists(os.path.join(E.REPO, e["path"])):
+                # the asset itself is gone: drop the entry instead of shipping a
+                # manifest that points the integrator at a file that is not there
+                dropped.append(e["path"])
+                continue
+            for rel in [l["path"] for l in e.get("lods", [])] + \
                     e.get("textures", []) + \
                     [c["path"] for c in e.get("clips", [])]:
                 if not os.path.exists(os.path.join(E.REPO, rel)):
@@ -91,9 +118,11 @@ def main():
                 e["budgetExempt"] = EXEMPT[e["name"]]
                 e["withinBudget"] = e["triangles"] <= hi
             assets.append(e)
+    for d in sorted(set(dropped)):
+        E.log("dropped missing asset from manifest: %s" % d)
 
     atlases = {}
-    for fam in FAMILIES:
+    for fam in ATLAS_FAMILIES:
         ap = T.atlas_paths(fam)
         cols = T.load_colors(fam)
         atlases[fam] = {
@@ -138,30 +167,91 @@ def main():
                         "envlib.export_fbx to colors_type='SRGB' and re-run "
                         "build_all.py -- the choice is one line.",
         },
+        "terrainVertexColors": {
+            "attribute": "Col",
+            "appliesTo": "every asset whose `unityMaterial` is "
+                         "PokeLab/TerrainBlend -- the Ground, Ramp and Ledge "
+                         "subfamilies",
+            "R": "grass layer weight",
+            "G": "dirt layer weight",
+            "B": "sand layer weight",
+            "A": "rock layer weight",
+            "note": "Normalised to sum to 1 per vertex, matching "
+                    "PokeLabTerrainBlend's stated convention. Worn dirt is "
+                    "baked along the layout's own walkable path polylines, and "
+                    "rock rises automatically on the skirt walls, so the "
+                    "shader's slope-driven rock is reinforcing an authored "
+                    "weight rather than fighting a flat one.",
+        },
+        "gpuInstancing": {
+            "families": ["Grass", "TallGrass", "Flower", "Fern", "Bush",
+                         "Reed", "Lilypad", "Moss"],
+            "contract": "One mesh, one material, no sub-objects, no LODs, "
+                        "pivot at the base and centred so a per-instance Y "
+                        "rotation spins the cluster in place. Variation comes "
+                        "from a handful of genuinely different cluster meshes "
+                        "plus per-instance rotation, scale and wind phase at "
+                        "draw time -- not from more asset variants.",
+            "windPhase": "The green channel is the WITHIN-cluster phase "
+                         "offset only. Add the per-instance phase on top at "
+                         "draw time.",
+        },
         "atlases": atlases,
         "unitySetup": {
             "importScale": 1.0,
-            "convertUnits": False,
+            "convertUnits": True,
+            "bakeAxisConversion": False,
+            "exportFix": "FIXED. The kit previously exported with "
+                         "axis_forward='-Y', axis_up='Z' and "
+                         "apply_scale_options='FBX_SCALE_NONE', which wrote "
+                         "UnitScaleFactor=1.0 (centimetres) over metre-valued "
+                         "vertices and declared UpAxis=+Z. Unity therefore "
+                         "imported the whole kit at 1/100 scale, lying on its "
+                         "back. It now exports axis_forward='-Z', axis_up='Y', "
+                         "apply_scale_options='FBX_SCALE_UNITS', "
+                         "bake_space_transform=True: UnitScaleFactor=100.0, "
+                         "real metres, Y up baked into the vertex data, "
+                         "identity node transforms. Verify any file with "
+                         "`python Tools/Blender/environment/fbx_probe.py "
+                         "<file.fbx>`. IMPORT WITH STOCK SETTINGS -- Scale "
+                         "Factor 1, Convert Units ON, Bake Axis Conversion "
+                         "OFF. Any globalScale=100 or bakeAxisConversion "
+                         "compensation added while the bug was live must now "
+                         "be removed, or the correction is applied twice.",
             "normals": "Import (custom split normals are authored; do not "
                        "recalculate)",
             "tangents": "Calculate Mikktspace",
             "materials": "One material per family atlas is enough: assign the "
                          "family BaseColor + Normal to the shared stylised "
                          "toon shader. Every mesh in a family is UV-packed "
-                         "into that one atlas.",
+                         "into that one atlas. EXCEPT the Ground/Water/Ramp/"
+                         "Ledge/Waterfall subfamilies, which carry no atlas: "
+                         "see each entry's `unityMaterial` field.",
             "lodGroups": "For any asset with a non-empty `lods` array, add a "
                          "LODGroup with LOD0 = base mesh, LOD1 and LOD2 from "
                          "the listed FBXs. Suggested screen-relative heights "
                          "0.45 / 0.16 / 0.03 with 30% fade transition width, "
-                         "Cross Fade animation mode.",
-            "characterRig": "Animation Type = Humanoid, Avatar Definition = "
-                            "Create From This Model on Env_Char_Player.fbx, "
-                            "then Copy From Other Avatar for the three NPCs "
-                            "(identical skeleton). Import the @Clip FBXs with "
-                            "Avatar Definition = Copy From Other Avatar.",
-            "colliders": "None authored. Cliff, path and riverbank modules "
-                         "are closed solids suitable for mesh colliders; "
-                         "foliage should use no collider or a capsule.",
+                         "Cross Fade animation mode. Assets with an empty "
+                         "`lods` array are deliberately single-mesh: the "
+                         "scatter families are GPU instanced (per-instance LOD "
+                         "selection costs more than it saves at 200 tris) and "
+                         "the walkable ground decks would desync from the "
+                         "layout's placement heights if they were decimated.",
+            "worldSpaceAssets": "Every asset whose `pivot` reads 'world origin "
+                                "(0,0,0)' is authored in level world space: "
+                                "instantiate it at position (0,0,0) with "
+                                "identity rotation and scale 1, and it lands "
+                                "exactly where slice_layout.json's terrain "
+                                "block says it should. Do not re-position it.",
+            "colliders": "Ground decks, ramps and ledges are closed solids -- "
+                         "boundary skirted to a floor and capped -- so a "
+                         "MeshCollider straight on the imported mesh is "
+                         "watertight; leave Convex OFF. Cliff, path and "
+                         "riverbank modules are likewise closed solids. Water "
+                         "surfaces want a trigger collider on the Water layer, "
+                         "not a solid one. Foliage should use no collider, or "
+                         "a capsule on the tall-grass patches if encounters "
+                         "are driven by trigger volumes.",
         },
         "assetCount": len(assets),
         "assets": assets,
@@ -194,7 +284,8 @@ def main():
             E.log("   %s" % m)
         return 1
 
-    for cls in ("foliage", "rock", "building", "prop", "character"):
+    for cls in ("foliage", "scatter", "rock", "building", "prop", "ground",
+                "character"):
         rows = [a for a in assets if a["budgetClass"] == cls]
         if not rows:
             continue

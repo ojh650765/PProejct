@@ -21,9 +21,13 @@ STAGES = [
     ("atlases", "build_atlases.py", ["--", "--force"]),
     ("foliage", "gen_foliage.py", []),
     ("terrain", "gen_terrain.py", []),
+    # ground must follow terrain: both write into the Terrain family folder and
+    # into their own manifest parts, and ground reads the level layout
+    ("ground", "gen_ground.py", []),
     ("town", "gen_town.py", []),
     ("props", "gen_props.py", []),
-    ("characters", "gen_characters.py", ["--", "--poses"]),
+    # ("characters", "gen_characters.py", []) -- retired with the pixel-sprite
+    # pivot (Docs/GOAL.md); the generator and its FBXs are gone from the repo.
     ("manifest", "build_manifest.py", []),
     ("contact_foliage_trees", "render_contact.py",
      ["--", "Foliage", "Env_Tree_*.fbx", "previews/contact_foliage_trees.png",
@@ -32,7 +36,14 @@ STAGES = [
      ["--", "Foliage", "Env_[!T]*.fbx", "previews/contact_foliage_plants.png",
       "2.2", "6"]),
     ("contact_terrain", "render_contact.py",
-     ["--", "Terrain", "*.fbx", "previews/contact_terrain.png", "6.0", "5"]),
+     ["--", "Terrain", "Env_[!GW]*.fbx", "previews/contact_terrain.png",
+      "6.0", "5"]),
+    ("contact_ground", "render_contact.py",
+     ["--", "Terrain", "Env_Ground_*.fbx", "previews/contact_ground.png",
+      "70.0", "3"]),
+    ("contact_water", "render_contact.py",
+     ["--", "Terrain", "Env_Water*.fbx", "previews/contact_water.png",
+      "46.0", "3"]),
     ("contact_town", "render_contact.py",
      ["--", "Town", "*.fbx", "previews/contact_town.png", "7.0", "5"]),
     ("contact_props", "render_contact.py",
