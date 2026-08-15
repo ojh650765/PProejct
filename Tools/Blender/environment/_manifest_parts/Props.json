@@ -1,0 +1,88 @@
+[
+  {
+    "name": "Env_Prop_CaptureBall",
+    "family": "Props",
+    "subfamily": "Prop",
+    "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall.fbx",
+    "triangles": 1962,
+    "lods": [],
+    "pivot": "volume centre (spins about its own axis)",
+    "textures": [
+      "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",
+      "Assets/Game/Art/Props/Textures/Env_Props_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Prop_CaptureBall_Open",
+    "family": "Props",
+    "subfamily": "Prop",
+    "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Open.fbx",
+    "triangles": 2634,
+    "lods": [
+      {
+        "level": 1,
+        "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Open_LOD1.fbx",
+        "triangles": 1052
+      },
+      {
+        "level": 2,
+        "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Open_LOD2.fbx",
+        "triangles": 394
+      }
+    ],
+    "pivot": "volume centre (spins about its own axis)",
+    "textures": [
+      "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",
+      "Assets/Game/Art/Props/Textures/Env_Props_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Prop_HealingMachine",
+    "family": "Props",
+    "subfamily": "Prop",
+    "path": "Assets/Game/Art/Props/Env_Prop_HealingMachine.fbx",
+    "triangles": 1852,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",
+      "Assets/Game/Art/Props/Textures/Env_Props_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Prop_ResearchTerminal",
+    "family": "Props",
+    "subfamily": "Prop",
+    "path": "Assets/Game/Art/Props/Env_Prop_ResearchTerminal.fbx",
+    "triangles": 1582,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",
+      "Assets/Game/Art/Props/Textures/Env_Props_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Prop_Scanner",
+    "family": "Props",
+    "subfamily": "Prop",
+    "path": "Assets/Game/Art/Props/Env_Prop_Scanner.fbx",
+    "triangles": 1380,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",
+      "Assets/Game/Art/Props/Textures/Env_Props_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  }
+]

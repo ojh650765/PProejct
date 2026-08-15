@@ -48,7 +48,7 @@ def apply_atlas(objs, family):
 
 
 def sheet(family, files, out_png, cols=None, cell=3.0, cam_pitch=30.0,
-          title=None, res=(2000, 1400)):
+          title=None, res=(2000, 1400), normalize=False):
     E.reset_scene()
     E.setup_render(res=res, samples=64, world_rgb=(0.56, 0.68, 0.86),
                    strength=0.55)
@@ -74,7 +74,11 @@ def sheet(family, files, out_png, cols=None, cell=3.0, cam_pitch=30.0,
         apply_atlas(meshes, family)
         lo, hi = E.obj_bounds(meshes)
         size = max(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z, 1e-3)
-        s = min(1.0, (cell * 0.62) / size)
+        # normalize=True fills each cell regardless of real size, which is what
+        # you want when an 11 cm ball shares a sheet with a 1.5 m desk
+        s = (cell * 0.62) / size
+        if not normalize:
+            s = min(1.0, s)
         cx = (i % cols) * cell - (cols - 1) * cell * 0.5
         cy = -((i // cols) * ygap) + (rows - 1) * ygap * 0.5
         for o in objs:
@@ -128,6 +132,7 @@ def main():
         E.PREVIEWS, "contact_%s.png" % family.lower())
     cell = float(argv[3]) if len(argv) > 3 else 3.0
     cols = int(argv[4]) if len(argv) > 4 else 0
+    norm = (len(argv) > 5 and argv[5] == 'norm')
 
     d = E.FAMILY_DIR[family]
     files = sorted(glob.glob(os.path.join(d, pattern)))
@@ -136,7 +141,7 @@ def main():
     if not files:
         E.log("no files for %s/%s" % (family, pattern))
         return
-    sheet(family, files, out, cols=(cols or None), cell=cell)
+    sheet(family, files, out, cols=(cols or None), cell=cell, normalize=norm)
 
 
 if __name__ == "__main__":
