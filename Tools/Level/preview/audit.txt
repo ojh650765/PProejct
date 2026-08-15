@@ -1,17 +1,81 @@
-1. solid-vs-solid overlaps: 0
-2. objects buried inside a building footprint: 0
-3. pivots >2.2 m off every declared height plane (floating/sunken): 0
-4. solid objects inside the inner 65% of a walkable corridor: 0
-5. most repeated (asset, yaw rounded to 5 deg) -- a big number means a grid:
-     Env_Grass_Clump_A          yaw~315    x17
-     Env_Grass_Clump_A          yaw~140    x14
-     Env_Grass_Clump_C          yaw~290    x13
-     Env_Grass_Clump_A          yaw~225    x13
-     Env_Grass_Clump_A          yaw~130    x13
-     distinct scale values: 41, range 0.75-1.15
-6. 8x8 m cells inside a zone volume holding <4 objects: 1 of 155 cells
-     Hollow Deep  cell x= -64 z=  40  n=3
-7. triangles placed: 1,817,430 over 4682 objects (mean 388)
-   objects per zone: Cave=380, Lakeside=1080, Route=2140, Town=1082
-   distinct assets used: 81 of 81 usable (4 character FBX are retired)
-   unused: none
+AUDIT -- checked against the five failures of the rejected layout
+==============================================================================
+1. PATHS AS A RASH OF TILES
+   path-tile objects placed: 0   (rejected layout: 226)
+   roads declared as splines: 10, 191 m total
+     Path_TownMain          w=5.0  blend=0.9   30.0 m  41 centreline points
+     Path_TownLane_West     w=2.6  blend=0.7   14.7 m  21 centreline points
+     Path_TownLane_Lab      w=3.2  blend=0.7    5.2 m  8 centreline points
+     Path_GateRamp          w=4.4  blend=1.0    9.4 m  14 centreline points
+     Path_RouteSpine        w=4.0  blend=1.1   27.5 m  38 centreline points
+     Path_CrossroadsFork    w=3.6  blend=1.0    6.9 m  10 centreline points
+     Path_CaveBranch        w=3.0  blend=1.0   26.0 m  36 centreline points
+     Path_LakeBranch        w=3.4  blend=1.1   24.6 m  34 centreline points
+     Path_LakeShoreTrail    w=2.0  blend=0.8   22.0 m  30 centreline points
+     Path_CaveInterior      w=3.4  blend=0.9   24.4 m  34 centreline points
+
+2. EVERYTHING WAS FLAT
+   height range -5.39 .. 31.61 m over 115 x 105 samples
+        -6..   -4 m     552 cells  ####
+        -4..   -2 m     374 cells  ##
+        -2..   +0 m    1845 cells  #############
+        +0..   +2 m    1225 cells  #########
+        +2..   +4 m    1570 cells  ###########
+        +4..   +6 m     307 cells  ##
+        +6..   +8 m     297 cells  ##
+        +8..  +10 m     348 cells  ##
+       +10..  +12 m     393 cells  ##
+       +12..  +14 m    1542 cells  ###########
+       +14..  +16 m     807 cells  ######
+       +16..  +18 m     665 cells  ####
+       +18..  +20 m     583 cells  ####
+       +20..  +22 m    1131 cells  ########
+       +22..  +24 m     268 cells  #
+       +24..  +26 m      48 cells  
+       +26..  +28 m      46 cells  
+       +28..  +30 m      34 cells  
+       +30..  +32 m      40 cells  
+   slope percentiles (deg): p50 17.9  p75 46.0  p90 63.5  p99 80.2
+   walkable-surface slope (deg), sampled where a material is assigned: p50 2.9  p90 37.0  p99 78.1
+   fraction of the map flatter than 1 deg: 6.1%  (a deck-based layout would be near 100%)
+
+3. BUILDINGS SCATTERED RATHER THAN COMPOSED
+   Town_Lab_01            setback  3.5 m, best front-to-frontage cos = +0.99 OK
+   Town_House_01          setback  2.3 m, best front-to-frontage cos = +1.00 OK
+   Town_House_02          setback  5.0 m, best front-to-frontage cos = +1.00 OK
+   Town_House_03          setback  8.1 m, best front-to-frontage cos = +0.90 OK
+   Town_House_04          setback  9.2 m, best front-to-frontage cos = +1.00 OK
+   Town_House_05          setback  8.9 m, best front-to-frontage cos = +0.98 OK
+   Town_House_06          setback  7.6 m, best front-to-frontage cos = +1.00 OK
+
+4. OBJECTS FLOATING WHERE THERE IS NO GROUND
+   objects checked against the baked height field: 437
+   max |offset| 0.001 m, mean 0.0003 m
+     Route_StreamSouth_09         -0.001 m
+     Lake_SouthTrees_10           -0.001 m
+     Route_ShelfRocks_02          +0.001 m
+     Lake_ShoreTrees_11           +0.001 m
+     Town_HedgeBush_01            -0.001 m
+     Route_StreamSouth_13         +0.001 m
+
+5. DENSITY WITHOUT INTENT
+   authored objects: 498   (rejected layout: 4682, of which 2201 grass)
+   ground cover moved to 12 declared foliage fields, 1923 instances, rendering=instanced
+   by subfamily: Tree 314, Bush 37, Cave 34, Fence 24, Rock 23, Fern 23, House 6, Prop 5, Vine 5, Bench 4, Planter 4, Signpost 4, Lamp 4, Market 3, Barrel 2, Building 1, Well 1, Crate 1, Bridge 1, Stepping 1, Waterfall 1
+   authored object density: 0.042 / m2 over 11856 m2
+   objects standing inside a road corridor: 0  
+   solid-vs-solid overlaps: 0
+
+6. STANDABILITY OF ANCHORS
+   playerSpawn                slope  3.1 deg  OK
+   Spawn_TownGate             slope  0.1 deg  OK
+   Spawn_RouteHead            slope  4.9 deg  OK
+   Spawn_Crossroads           slope  0.4 deg  OK
+   Spawn_CaveMouth            (cave floor, not height-field)
+   Spawn_CaveChamber          (cave floor, not height-field)
+   Spawn_Beach                slope  2.7 deg  OK
+   Spawn_Lookout              slope 13.9 deg  OK
+   Trainer_Route_Youngster    slope  0.7 deg  OK
+   Trainer_Route_Lass         slope 18.9 deg  OK
+   Trainer_Lake_Fisher        slope  9.3 deg  OK
+   Trainer_Cave_Hiker         (cave floor, not height-field)
