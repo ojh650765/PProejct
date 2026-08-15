@@ -20,8 +20,11 @@ import textures as T
 
 
 def import_fbx(path):
+    # must mirror envlib's export axes or every sheet renders on its side
     before = set(bpy.context.scene.objects)
-    bpy.ops.import_scene.fbx(filepath=path, axis_forward='-Y', axis_up='Z',
+    bpy.ops.import_scene.fbx(filepath=path,
+                             axis_forward=E.FBX_AXIS_FORWARD,
+                             axis_up=E.FBX_AXIS_UP,
                              automatic_bone_orientation=True)
     new = [o for o in bpy.context.scene.objects if o not in before]
     return new
@@ -38,7 +41,15 @@ def apply_atlas(objs, family):
             m = slot.material
             if m is None:
                 continue
-            base = m.name.split("M_%s_" % family)[-1]
+            prefix = "M_%s_" % family
+            if not m.name.startswith(prefix):
+                # Ground, water and waterfall assets do not use the family
+                # atlas -- they carry PokeLab/TerrainBlend and PokeLab/Water in
+                # Unity. Forcing them onto atlas cell 0 renders them as a
+                # patchwork of grass, sand and brick, which is a lie about the
+                # asset. Leave the imported placeholder alone.
+                continue
+            base = m.name[len(prefix):]
             key = base if base in cols else names[0]
             cell = names.index(key) if key in names else 0
             slot.material = E.get_material(family, base, cell,

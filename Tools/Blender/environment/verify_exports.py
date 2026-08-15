@@ -38,7 +38,9 @@ HUMANOID = ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head",
 
 def check(path, family):
     E.reset_scene()
-    bpy.ops.import_scene.fbx(filepath=path, axis_forward='-Y', axis_up='Z',
+    bpy.ops.import_scene.fbx(filepath=path,
+                             axis_forward=E.FBX_AXIS_FORWARD,
+                             axis_up=E.FBX_AXIS_UP,
                              automatic_bone_orientation=True)
     objs = list(bpy.context.scene.objects)
     meshes = [o for o in objs if o.type == 'MESH']
