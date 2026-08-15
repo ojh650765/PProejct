@@ -1,13 +1,22 @@
 """Verification contact sheets.
 
-The acceptance test for this pipeline is visual and nothing else: does it look
-like that Pokemon?  These sheets exist so that question can actually be asked
--- the sprite at the zooms it will really be seen at, on both a light and a
-dark ground, next to the official artwork it came from.
+    python Tools/Sprites/contact.py [game_species_id ...]
 
-    python Tools/Sprites/contact.py [species_id ...]
+The two failure modes of this pipeline -- accidental resampling and broken
+alignment -- are both invisible in code and obvious in an image, so nothing
+ships without being looked at.  Three sheets per creature:
 
-Writes to Tools/Sprites/_verify/.
+  * _vs_source : the packed frame beside the untouched source file, at 1x and
+                 4x, light and dark.  Any softening or colour drift shows up
+                 here immediately as a difference between two panels that must
+                 be pixel-identical.
+  * _align     : every frame of both views stacked into one image, plus the
+                 ground line and centre line drawn on.  A creature that bobs
+                 or slides when frames or views change shows up as a smear
+                 against those lines.
+  * _anim      : the loop laid out in play order.
+
+Writes to Tools/Sprites/_verify/ (not shipped; regenerate on demand).
 """
 
 from __future__ import annotations
@@ -17,142 +26,128 @@ import os
 import sys
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageSequence
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import recipes as R
-from build import MANIFEST, OUT_DIR
+import species as S
+from extract import MANIFEST, ROOT
 
 VERIFY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_verify")
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 LIGHT = (226, 228, 224)
-DARK = (26, 28, 34)
-INK = (24, 24, 24)
-INK_ON_DARK = (232, 232, 228)
+DARK = (24, 26, 32)
+INK = (20, 20, 20)
+INK_D = (232, 232, 228)
+GRID = (232, 96, 96)
 
 
-def _sheet_frames(path, cell_w, cell_h, cols, count, trim=None):
-    """Slice a sheet into frames.
-
-    `trim` crops every frame by the SAME rect (the union of all their content
-    boxes), so review sheets are not 90% empty cell padding while the frames
-    still stay in register with each other -- cropping each frame to its own
-    content would hide exactly the drift these sheets exist to catch.
-    """
-    im = Image.open(path).convert("RGBA")
+def _frames(entry, view):
+    vd = entry["views"][view]
+    im = Image.open(os.path.join(ROOT, vd["sheet"])).convert("RGBA")
+    cell, cols = entry["cell"]["width"], entry["cell"]["columns"]
     out = []
-    for i in range(count):
+    for i in range(vd["unique_frames"]):
         r, c = divmod(i, cols)
-        out.append(im.crop((c * cell_w, r * cell_h,
-                            (c + 1) * cell_w, (r + 1) * cell_h)))
-    if trim is None:
-        boxes = [f.getbbox() for f in out if f.getbbox()]
-        if boxes:
-            trim = (min(b[0] for b in boxes) , min(b[1] for b in boxes),
-                    max(b[2] for b in boxes), max(b[3] for b in boxes))
-    if trim:
-        out = [f.crop(trim) for f in out]
-    return out, trim
+        out.append(im.crop((c * cell, r * cell, (c + 1) * cell, (r + 1) * cell)))
+    return out, vd
 
 
 def _zoom(im, z):
     return im.resize((im.width * z, im.height * z), Image.NEAREST)
 
 
-def _paste_row(canvas, d, items, x, y, label, ink):
-    d.text((x, y), label, fill=ink)
-    cx = x
-    for im in items:
-        canvas.paste(im, (cx, y + 14), im)
-        cx += im.width + 8
-    return y + 14 + (max(i.height for i in items) if items else 0) + 10
+def sheet_vs_source(entry, name):
+    """Packed frame beside the raw source frame -- these must match exactly."""
+    panels = []
+    for view in ("front", "back"):
+        frames, vd = _frames(entry, view)
+        src = Image.open(S.anim_path(entry["dex_number"], view))
+        src0 = next(ImageSequence.Iterator(src)).convert("RGBA")
+        packed = frames[vd["clips"]["idle"]["sequence"][0]]
+        static_src = Image.open(S.static_path(entry["dex_number"], view)).convert("RGBA")
+        panels += [(f"{view} source gif f0", src0),
+                   (f"{view} packed f0", packed),
+                   (f"{view} source png", static_src),
+                   (f"{view} packed static", frames[vd["static_frame"]])]
 
-
-def build_contact(entry: dict) -> None:
-    cell = entry["cell"]
-    cw, chh, cols = cell["width"], cell["height"], cell["columns"]
-    name = entry["name"]
-
-    views, trim = {}, None
-    for v, vd in entry["views"].items():
-        views[v], trim = _sheet_frames(os.path.join(ROOT, vd["sheet"]),
-                                       cw, chh, cols, vd["frame_count"], trim)
-
-    idle_f = entry["views"]["front"]["states"]["Idle"]["start"]
-    idle_b = entry["views"]["back"]["states"]["Idle"]["start"]
-    front, back = views["front"][idle_f], views["back"][idle_b]
-    fmirror = front.transpose(Image.FLIP_LEFT_RIGHT)
-    bmirror = back.transpose(Image.FLIP_LEFT_RIGHT)
-
-    # ---------------- sheet 1: zoom ladder, light and dark ----------------
-    zooms = (1, 2, 4)
-    row_items = {z: [_zoom(i, z) for i in (front, fmirror, back, bmirror)]
-                 for z in zooms}
-    width = max(sum(i.width + 8 for i in row_items[z]) for z in zooms) + 40
-    height = sum(max(i.height for i in row_items[z]) + 26 for z in zooms) + 30
-
-    sheet = Image.new("RGB", (width * 2, height), LIGHT)
-    d = ImageDraw.Draw(sheet)
-    d.rectangle([width, 0, width * 2, height], fill=DARK)
-    for bg_i, (ox, ink) in enumerate(((0, INK), (width, INK_ON_DARK))):
-        y = 14
-        for z in zooms:
-            y = _paste_row(sheet, d, row_items[z], ox + 16, y,
-                           f"{z}x   front / front-mirrored / back / back-mirrored",
-                           ink)
-    d.text((16, height - 14), f"{name}  sprite {entry['sprite_height_px']}px  "
-                              f"PPU {entry['pixels_per_unit']}  "
-                              f"{entry['palette_colours']} colours", fill=INK)
-    sheet.save(os.path.join(VERIFY, f"{name.lower()}_contact.png"))
-
-    # ---------------- sheet 2: against the official artwork ----------------
-    src = Image.open(os.path.join(R.SOURCE_DIR, entry["source_artwork"])).convert("RGBA")
-    target_h = (trim[3] - trim[1]) * 4
-    sc = target_h / src.height
-    src_r = src.resize((int(src.width * sc), target_h), Image.LANCZOS)
-    port = Image.open(os.path.join(ROOT, entry["portrait"]["path"])).convert("RGBA")
-
-    panels = [("official artwork", src_r),
-              ("front 4x", _zoom(front, 4)),
-              ("back 4x", _zoom(back, 4)),
-              ("portrait 3x", _zoom(port, 3))]
-    W = sum(p[1].width + 24 for p in panels) + 24
-    H = max(p[1].height for p in panels) + 44
-    cmp_sheet = Image.new("RGB", (W, H * 2), LIGHT)
-    d = ImageDraw.Draw(cmp_sheet)
+    z = 4
+    zp = [(l, _zoom(i, z)) for l, i in panels]
+    W = sum(i.width + 16 for _, i in zp) + 16
+    H = max(i.height for _, i in zp) + 40
+    out = Image.new("RGB", (W, H * 2), LIGHT)
+    d = ImageDraw.Draw(out)
     d.rectangle([0, H, W, H * 2], fill=DARK)
-    for row, (oy, ink) in enumerate(((0, INK), (H, INK_ON_DARK))):
-        x = 16
-        for label, im in panels:
-            d.text((x, oy + 8), label, fill=ink)
-            cmp_sheet.paste(im, (x, oy + 26), im)
-            x += im.width + 24
-    cmp_sheet.save(os.path.join(VERIFY, f"{name.lower()}_vs_official.png"))
+    for oy, ink in ((0, INK), (H, INK_D)):
+        x = 8
+        for label, im in zp:
+            d.text((x, oy + 6), label, fill=ink)
+            out.paste(im, (x, oy + 22), im)
+            x += im.width + 16
+    out.save(os.path.join(VERIFY, f"{name}_vs_source.png"))
 
-    # ---------------- sheet 3: animation frames ----------------
+
+def sheet_align(entry, name):
+    """All frames stacked, with the ground and centre lines drawn on."""
+    cell = entry["cell"]["width"]
+    z = 4
+    tiles = []
+    for view in ("front", "back"):
+        frames, _ = _frames(entry, view)
+        acc = np.zeros((cell, cell, 4), np.float32)
+        for f in frames:
+            a = np.asarray(f, np.float32) / 255.0
+            acc[..., :3] += a[..., :3] * a[..., 3:4]
+            acc[..., 3] += a[..., 3]
+        n = max(1, len(frames))
+        rgb = acc[..., :3] / np.maximum(acc[..., 3:4], 1e-5)
+        alpha = np.clip(acc[..., 3] / n * 2.2, 0, 1)
+        im = Image.fromarray(
+            (np.concatenate([rgb, alpha[..., None]], 2) * 255).astype(np.uint8), "RGBA")
+        tiles.append((f"{view}: all {len(frames)} frames overlaid", _zoom(im, z)))
+
+    W = sum(i.width + 20 for _, i in tiles) + 20
+    H = tiles[0][1].height + 46
+    out = Image.new("RGB", (W, H), LIGHT)
+    d = ImageDraw.Draw(out)
+    x = 10
+    for label, im in tiles:
+        out.paste(im, (x, 26), im)
+        gy = 26 + entry["cell"]["height"] * z - (entry["pivot_px"]["y_from_bottom"] + 1) * z
+        d.line([x, gy, x + im.width, gy], fill=GRID)
+        cx = x + entry["pivot_px"]["x"] * z
+        d.line([cx, 26, cx, 26 + im.height], fill=GRID)
+        d.text((x, 8), label, fill=INK)
+        x += im.width + 20
+    d.text((10, H - 16), "red = ground row and pivot column; every frame of both "
+                         "views is registered to these", fill=INK)
+    out.save(os.path.join(VERIFY, f"{name}_align.png"))
+
+
+def sheet_anim(entry, name):
     z = 2
     rows = []
-    for v in ("front", "back"):
-        states = entry["views"][v]["states"]
-        for state, loc in states.items():
-            fr = [_zoom(views[v][loc["start"] + i], z) for i in range(loc["count"])]
-            rows.append((f"{v}  {state}", fr))
-    W = max(sum(i.width + 6 for i in r[1]) for r in rows) + 200
-    H = sum(max(i.height for i in r[1]) + 8 for r in rows) + 20
-    anim = Image.new("RGB", (W, H), LIGHT)
-    d = ImageDraw.Draw(anim)
+    for view in ("front", "back"):
+        frames, vd = _frames(entry, view)
+        seq = vd["clips"]["idle"]["sequence"]
+        rows.append((view, [_zoom(frames[i], z) for i in seq]))
+    per_row = 16
+    blocks = []
+    for view, ims in rows:
+        for i in range(0, len(ims), per_row):
+            blocks.append((f"{view} {i}", ims[i:i + per_row]))
+    W = per_row * (blocks[0][1][0].width + 4) + 120
+    H = sum(b[1][0].height + 6 for b in blocks) + 20
+    out = Image.new("RGB", (W, H), LIGHT)
+    d = ImageDraw.Draw(out)
     y = 10
-    for label, fr in rows:
-        d.text((10, y + fr[0].height // 2 - 6), label, fill=INK)
-        x = 190
-        for im in fr:
-            anim.paste(im, (x, y), im)
-            x += im.width + 6
-        y += fr[0].height + 8
-    anim.save(os.path.join(VERIFY, f"{name.lower()}_anim.png"))
-    print("wrote contact sheets for", name)
+    for label, ims in blocks:
+        d.text((8, y + ims[0].height // 2), label, fill=INK)
+        x = 110
+        for im in ims:
+            out.paste(im, (x, y), im)
+            x += im.width + 4
+        y += ims[0].height + 6
+    out.save(os.path.join(VERIFY, f"{name}_anim.png"))
 
 
 def main(argv):
@@ -163,7 +158,11 @@ def main(argv):
     for entry in man["creatures"]:
         if ids and entry["species_id"] not in ids:
             continue
-        build_contact(entry)
+        name = entry["name"].lower()
+        sheet_vs_source(entry, name)
+        sheet_align(entry, name)
+        sheet_anim(entry, name)
+        print("contact sheets:", entry["name"])
 
 
 if __name__ == "__main__":

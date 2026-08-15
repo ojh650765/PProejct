@@ -1,186 +1,418 @@
 {
-  "generator": "Tools/Sprites/build.py",
-  "pixels_per_unit": 256,
-  "cell_size": 256,
-  "ground_row": 240,
-  "size_policy": {
-    "cell_px": 256,
-    "reference_height_m": 0.6,
-    "exponent": 0.35,
-    "max_fill_px": 240,
-    "note": "Constant sprite resolution: every species is authored into the same 256x256 cell. How much of the cell it fills is (height_m / 0.6) ** 0.35, normalised so the tallest of the cast fills 240px -- the Gen 5 model, where one box size served every species but a small species did not fill it. ICreatureArtRegistry.GetDisplayHeight must return world_height_m (sprite_height_px / PPU), because that is the height actually on screen and health bars sit on it."
-  },
+  "generator": "Tools/Sprites/extract.py",
+  "source": "Official Gen 5 (Black/White) sprites via the PokeAPI sprite repository, staged in Tools/Sprites/source/.",
+  "policy": "Decode, integer-align, pack. No resampling, no re-quantisation, no filtering is applied to the artwork at any point.",
+  "cell_size": 96,
+  "ground_row": 84,
+  "pixels_per_unit": 96,
+  "id_note": "species_id is the GAME id; dex_number is the national dex. They collide: game 25 is Rattata, dex 25 is Pikachu.",
   "view_scheme": {
     "authored": [
       "front",
-      "back",
-      "side"
+      "back"
     ],
-    "runtime_mirrored": {
-      "left": "side",
-      "right": "side"
-    },
-    "note": "Three authored views per species. Left/right are the side view mirrored in the billboard shader's UV at runtime -- not authored, and never a negative X scale. Front is derived from the official artwork; back and side are authored from the front silhouette plus the species' known design."
+    "runtime_mirrored": "Left/right are the same sheets mirrored in the billboard shader as uv.x = 1 - uv.x. Never a negative X scale: that inverts winding and flips normal-map interpretation in URP.",
+    "side": "Not authored. Front and back cover battle and the overworld."
   },
   "import_settings": {
     "textureType": "Sprite (2D and UI)",
-    "spriteMode": "Multiple (sliced by the cell size in this manifest)",
-    "pixelsPerUnit": 256,
+    "spriteMode": "Multiple - slice by Grid By Cell Size, 96x96, no padding",
+    "pixelsPerUnit": 96,
     "filterMode": "Point (no filter)",
     "compression": "None",
     "generateMipMaps": false,
     "sRGBTexture": true,
     "alphaIsTransparency": true,
+    "alphaSource": "Input Texture Alpha",
     "maxTextureSize": 2048,
     "wrapMode": "Clamp",
     "meshType": "Full Rect",
     "extrudeEdges": 0,
-    "note": "Point + uncompressed + no mips is mandatory: bilinear filtering blurs the 1px outline into the background, block compression shatters the flat palette into gradients, and mips dissolve the sprite the moment the HD-2D camera pushes out."
+    "note": "Point, uncompressed, no mips is mandatory. Bilinear softens a 1px keyline into the background; block compression shatters a 13-colour indexed palette into gradients; mips dissolve the sprite as the HD-2D camera pulls out. Full Rect + extrude 0 keeps every frame on the same rect so the alignment done here survives import."
   },
   "creatures": [
     {
       "species_id": 31,
+      "dex_number": 25,
       "name": "Pikachu",
-      "source_artwork": "002501.png",
       "height_m": 0.4,
-      "pixels_per_unit": 256,
-      "sprite_height_px": 159,
-      "world_height_m": 0.6211,
-      "cell": {
-        "width": 256,
-        "height": 256,
-        "columns": 5
+      "source": {
+        "front_anim": "Tools/Sprites/source/anim_front_25.gif",
+        "back_anim": "Tools/Sprites/source/anim_back_25.gif",
+        "front_static": "Tools/Sprites/source/front_25.png",
+        "back_static": "Tools/Sprites/source/back_25.png"
       },
+      "cell": {
+        "width": 96,
+        "height": 96,
+        "columns": 8
+      },
+      "pixels_per_unit": 96,
       "pivot_px": {
-        "x": 128,
-        "y_from_bottom": 16
+        "x": 48,
+        "y_from_bottom": 11
       },
       "pivot_normalised": {
         "x": 0.5,
-        "y": 0.0625
+        "y": 0.11458
       },
-      "palette_colours": 15,
       "views": {
         "front": {
           "sheet": "Assets/Game/Art/Sprites/Creatures/pikachu_front.png",
-          "frame_count": 19,
-          "states": {
-            "Idle": {
-              "start": 0,
-              "count": 2
-            },
-            "IdleBattle": {
-              "start": 2,
-              "count": 2
-            },
-            "Walk": {
-              "start": 4,
-              "count": 4
-            },
-            "AttackPhysical": {
-              "start": 8,
-              "count": 3
-            },
-            "AttackSpecial": {
-              "start": 11,
-              "count": 2
-            },
-            "Hit": {
-              "start": 13,
-              "count": 1
-            },
-            "Faint": {
-              "start": 14,
-              "count": 1
-            },
-            "Celebrate": {
-              "start": 15,
-              "count": 2
-            },
-            "Sleep": {
-              "start": 17,
-              "count": 2
+          "unique_frames": 51,
+          "sheet_size": [
+            768,
+            672
+          ],
+          "static_frame": 50,
+          "clips": {
+            "idle": {
+              "sequence": [
+                0,
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                8,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                28,
+                27,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                32,
+                26,
+                41,
+                42,
+                43,
+                44,
+                45,
+                46,
+                46,
+                47,
+                47,
+                48,
+                49
+              ],
+              "durations_ms": [
+                200,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                200,
+                100,
+                100,
+                100
+              ],
+              "loop": true
             }
+          },
+          "headroom_px": {
+            "below": 11,
+            "above": 39
           }
         },
         "back": {
           "sheet": "Assets/Game/Art/Sprites/Creatures/pikachu_back.png",
-          "frame_count": 19,
-          "states": {
-            "Idle": {
-              "start": 0,
-              "count": 2
-            },
-            "IdleBattle": {
-              "start": 2,
-              "count": 2
-            },
-            "Walk": {
-              "start": 4,
-              "count": 4
-            },
-            "AttackPhysical": {
-              "start": 8,
-              "count": 3
-            },
-            "AttackSpecial": {
-              "start": 11,
-              "count": 2
-            },
-            "Hit": {
-              "start": 13,
-              "count": 1
-            },
-            "Faint": {
-              "start": 14,
-              "count": 1
-            },
-            "Celebrate": {
-              "start": 15,
-              "count": 2
-            },
-            "Sleep": {
-              "start": 17,
-              "count": 2
+          "unique_frames": 57,
+          "sheet_size": [
+            768,
+            768
+          ],
+          "static_frame": 56,
+          "clips": {
+            "idle": {
+              "sequence": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                0,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                41,
+                42,
+                43,
+                0,
+                0,
+                44,
+                45,
+                46,
+                47,
+                47,
+                48,
+                49,
+                50,
+                51,
+                52,
+                53,
+                54,
+                53,
+                55,
+                53,
+                54
+              ],
+              "durations_ms": [
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100,
+                100
+              ],
+              "loop": true
             }
+          },
+          "headroom_px": {
+            "below": 11,
+            "above": 38
           }
-        }
-      },
-      "mirrored_views": {
-        "left": "side, uv.x = 1 - uv.x",
-        "right": "side",
-        "note": "Mirror in the billboard shader's UV, never with a negative X scale -- negative scale inverts triangle winding and flips normal-map interpretation in URP, so the creature would re-light backwards as it turns under the moving key."
-      },
-      "procedural_states": {
-        "Run": {
-          "frames": "Walk",
-          "fps": 14,
-          "recipe": "Walk frames at 14fps; add a constant 6 deg forward lean about the foot pivot and a 2px vertical bob at 2x the frame rate."
-        },
-        "AttackStatus": {
-          "frames": "AttackSpecial",
-          "fps": 6,
-          "recipe": "AttackSpecial frames held on frame 1; pulse an additive tint of the move's type colour at 0.25 strength, 2 Hz, for the event's SuggestedDuration."
-        },
-        "Dodge": {
-          "frames": "Idle",
-          "fps": 0,
-          "recipe": "Idle frame 0; translate 7px along the dodge axis over 0.10s ease-out, hold 0.06s, return over 0.14s. Alpha 1 -> 0.45 -> 1 on the same curve. Add a 4 deg lean into the movement."
-        },
-        "SentOut": {
-          "frames": "Idle",
-          "fps": 0,
-          "recipe": "Idle frame 0; scale 0 -> 1.15 -> 1.0 over 0.22s from the foot pivot. For the first 0.10s render the sprite as a flat white silhouette (tint colour white, factor 1) fading to 0 -- this is the ball-release read. Never scale the sprite between frames of a loop, only during this one-shot."
-        },
-        "Recalled": {
-          "frames": "Idle",
-          "fps": 0,
-          "recipe": "Reverse of SentOut over 0.18s, ending at scale 0. Same white silhouette flash, ramping 0 -> 1 across the collapse."
         }
       },
       "portrait": {
         "path": "Assets/Game/Art/Sprites/Creatures/pikachu_portrait.png",
-        "size": 64
+        "size": 72,
+        "source": "front static sprite, trimmed and centred, not rescaled"
+      },
+      "palette_colours": 21,
+      "animation_states": {
+        "from_frames": {
+          "Idle": {
+            "clip": "idle",
+            "loop": true,
+            "note": "The Gen 5 loop at its authored per-frame durations."
+          },
+          "IdleBattle": {
+            "clip": "idle",
+            "loop": true,
+            "note": "Same clip -- the Gen 5 animation IS the battle idle. Do not retime it."
+          }
+        },
+        "procedural": {
+          "Walk": {
+            "base": "idle",
+            "recipe": "Idle clip playing, plus a 2px vertical bob on a 0.5s triangle wave and a 3 deg lean into the direction of travel. Snap the bob to whole pixels so the sprite never lands between texels."
+          },
+          "Run": {
+            "base": "idle",
+            "recipe": "As Walk at 1.6x clip speed, 3px bob on a 0.32s wave, 7 deg lean."
+          },
+          "AttackPhysical": {
+            "base": "idle",
+            "recipe": "Hold idle frame 0. Translate 10px toward the target over 0.12s ease-in, 0.06s hold at contact with a 12% horizontal squash, return over 0.18s ease-out. The DamageDealtEvent lands on the hold."
+          },
+          "AttackSpecial": {
+            "base": "idle",
+            "recipe": "Hold idle frame 0. Rear back 4px over 0.15s, then a 1.08x scale pop over 0.08s as the projectile leaves the MuzzleAnchor, settle over 0.2s. VFX owns the projectile; the sprite only gestures."
+          },
+          "AttackStatus": {
+            "base": "idle",
+            "recipe": "Idle clip continues. Additive tint in the move's type colour, 0.3 strength, 2Hz sine, for the event's SuggestedDuration."
+          },
+          "Hit": {
+            "base": "idle",
+            "recipe": "Gen 5's own damage read: alternate the sprite between normal and a flat white silhouette at 12Hz for 0.25s, while jittering 2px horizontally at 20Hz. No pose change -- the flash carries it."
+          },
+          "Dodge": {
+            "base": "idle",
+            "recipe": "Slide 8px along the dodge axis over 0.10s ease-out, hold 0.06s, return over 0.14s. Alpha 1 -> 0.45 -> 1 on the same curve."
+          },
+          "Faint": {
+            "base": "idle",
+            "recipe": "Gen 5's own faint: slide the sprite straight down by its own height over 0.45s ease-in while clipping it against the platform line, fading alpha 1 -> 0 across the last 40%. No death pose exists in the source and inventing one would not match."
+          },
+          "Celebrate": {
+            "base": "idle",
+            "recipe": "Idle clip playing. Two parabolic hops, 10px peak, 0.35s each, with a 10% squash on landing."
+          },
+          "SentOut": {
+            "base": "idle",
+            "recipe": "Scale 0 -> 1.15 -> 1.0 about the ground pivot over 0.22s. For the first 0.10s draw as a flat white silhouette, fading to the real sprite -- the ball-release read. Then Idle."
+          },
+          "Recalled": {
+            "base": "idle",
+            "recipe": "Reverse of SentOut over 0.18s ending at scale 0, with the silhouette tinted red rather than white, matching the recall beam."
+          },
+          "Sleep": {
+            "base": "idle",
+            "recipe": "Freeze the idle clip on frame 0. Vertical squash oscillating 0 to 6% on a 2.4s sine for slow breathing. Z particles from HeadAnchor are the VFX worker's."
+          }
+        }
       }
     }
   ]
