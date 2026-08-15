@@ -31,8 +31,16 @@ namespace PokeLab.Core
 
         public List<MoveSlot> Moves = new List<MoveSlot>(4);
 
-        /// <summary>Stable identity used to correlate model, animator and UI across a battle.</summary>
-        public string InstanceId = Guid.NewGuid().ToString("N");
+        /// <summary>
+        /// Stable identity used to correlate model, animator and UI across a battle, and
+        /// carried by <see cref="ExperienceGainedEvent"/>.
+        ///
+        /// Deliberately left null: a <c>Guid.NewGuid()</c> default would make every battle
+        /// event stream containing this id unreproducible, which breaks the engine's
+        /// determinism guarantee. Whoever creates a creature must assign a deterministic id —
+        /// see <see cref="CreatureIds.Derive"/>.
+        /// </summary>
+        public string InstanceId;
 
         public bool IsFainted => CurrentHp <= 0;
         public float HpFraction => MaxHp <= 0 ? 0f : (float)CurrentHp / MaxHp;

@@ -96,6 +96,10 @@ namespace PokeLab.Tests
                 Stats = new[] { maxHp, attack, defense, spAttack, spDefense, speed },
                 Ivs = new int[StatKinds.BaseCount],
                 Moves = new List<MoveSlot>(4),
+                // Core stopped defaulting InstanceId to a random Guid, because that made any
+                // battle event stream carrying the id unreproducible. Every creation site now
+                // derives one, and this fixture is a creation site like any other.
+                InstanceId = CreatureIds.Derive(speciesId, 15, speciesId, 0),
             };
             foreach (var moveId in moveIds)
                 creature.Moves.Add(new MoveSlot { MoveId = moveId, CurrentPp = 20, MaxPp = 20 });

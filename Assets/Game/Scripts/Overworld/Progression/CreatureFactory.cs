@@ -43,6 +43,11 @@ namespace PokeLab.Overworld
 
             for (var i = 0; i < StatKinds.BaseCount; i++) creature.Ivs[i] = rng.RangeInclusive(0, MaxIv);
 
+            // Core no longer defaults InstanceId to a fresh Guid: a random id makes every battle
+            // event stream carrying it unreproducible. Derive it from the same facts that drive
+            // the IV roll so a creature rebuilt from an encounter seed is identical end to end.
+            creature.InstanceId = CreatureIds.Derive(speciesId, creature.Level, seed, 0);
+
             ApplyStats(creature);
             ApplyAbility(creature);
             ApplyMoves(creature);

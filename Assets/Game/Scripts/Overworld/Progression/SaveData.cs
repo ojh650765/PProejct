@@ -132,7 +132,11 @@ namespace PokeLab.Overworld
                 HeldItemId = HeldItemId,
                 Status = (StatusCondition)Status,
                 StatusCounter = StatusCounter,
-                InstanceId = string.IsNullOrEmpty(InstanceId) ? Guid.NewGuid().ToString("N") : InstanceId,
+                // A restored save keeps its stored id; only a save written before ids existed
+                // needs one, and it must be derived rather than random so replays stay stable.
+                InstanceId = string.IsNullOrEmpty(InstanceId)
+                    ? CreatureIds.Derive(SpeciesId, Mathf.Max(1, Level), Experience, 0)
+                    : InstanceId,
                 Ivs = Ivs != null && Ivs.Length >= StatKinds.BaseCount ? (int[])Ivs.Clone() : new int[StatKinds.BaseCount],
                 Moves = new List<MoveSlot>(4),
             };
