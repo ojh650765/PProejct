@@ -278,8 +278,10 @@ namespace PokeLab.Battle
             var level = Math.Max(1, request.WildLevel > 0 ? request.WildLevel : FallbackLevel);
             var lead = request.WildSpeciesId > 0 ? request.WildSpeciesId : FallbackWildSpeciesId;
 
-            _opponentParty.Add(CreatureFactory.Create(lead, level, request.Seed));
-            _opponentParty.Add(CreatureFactory.Create(FallbackWildSpeciesId, level, request.Seed + 1));
+            // Distinct ordinals, so two same-species members of a fallback party do not end
+            // up sharing an instance id and confusing the presenters that key views on it.
+            _opponentParty.Add(CreatureFactory.Create(lead, level, request.Seed, ordinal: 0));
+            _opponentParty.Add(CreatureFactory.Create(FallbackWildSpeciesId, level, request.Seed, ordinal: 1));
         }
 
         // ---- Resolution --------------------------------------------------------------

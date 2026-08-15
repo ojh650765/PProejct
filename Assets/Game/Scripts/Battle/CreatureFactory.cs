@@ -9,9 +9,9 @@ namespace PokeLab.Battle
     /// derived here from base stats, IVs and level — never authored — so a level 7 Pikachu
     /// rolled in the overworld and one restored from a save agree exactly.
     ///
-    /// Every path takes a seed. <see cref="CreatureInstance.InstanceId"/> defaults to a
-    /// fresh <see cref="Guid"/>, which would make an event stream carrying instance ids
-    /// non-reproducible, so the factory overwrites it with a seed-derived id.
+    /// Every path takes a seed, and identity comes from <see cref="CreatureIds.Derive"/> so
+    /// that every creature in the game shares one id scheme and an event stream carrying
+    /// <see cref="ExperienceGainedEvent.InstanceId"/> stays reproducible from that seed.
     /// </summary>
     public static class CreatureFactory
     {
@@ -27,13 +27,19 @@ namespace PokeLab.Battle
         /// <param name="species">Species lookup. Falls back to <see cref="ServiceHub"/> when null.</param>
         /// <param name="moves">Move lookup used to fill the four slots. Falls back to <see cref="ServiceHub"/> when null.</param>
         /// <param name="perfectIvs">True to give flat 31s — used by tests and by scripted story battles.</param>
+        /// <param name="ordinal">
+        /// Distinguishes creatures built from the same seed, e.g. the slot within a trainer's
+        /// party. Two same-species, same-level creatures from one seed would otherwise share
+        /// an instance id, and the presentation layers key their views on it.
+        /// </param>
         public static CreatureInstance Create(
             int speciesId,
             int level,
             int seed,
             ISpeciesRegistry species = null,
             IMoveRegistry moves = null,
-            bool perfectIvs = false)
+            bool perfectIvs = false,
+            int ordinal = 0)
         {
             species ??= Resolve<ISpeciesRegistry>();
             moves ??= Resolve<IMoveRegistry>();
@@ -51,7 +57,7 @@ namespace PokeLab.Battle
                 Nickname = null,
                 Level = level,
                 Experience = StatMath.ExperienceForLevel(level),
-                InstanceId = DeterministicId(speciesId, level, seed),
+                InstanceId = CreatureIds.Derive(speciesId, level, seed, ordinal),
             };
 
             for (var i = 0; i < StatKinds.BaseCount; i++)
@@ -146,9 +152,6 @@ namespace PokeLab.Battle
             // Hidden abilities are not modelled, so any listed ability is equally likely.
             return data.Abilities[rng.Next(data.Abilities.Length)] ?? string.Empty;
         }
-
-        private static string DeterministicId(int speciesId, int level, int seed) =>
-            $"c{speciesId:D4}l{level:D3}s{unchecked((uint)seed):X8}";
 
         private static T Resolve<T>() where T : class =>
             ServiceHub.TryGet<T>(out var service) ? service : null;

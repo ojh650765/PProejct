@@ -118,6 +118,164 @@ namespace PokeLab.Battle.Tests
                 "The second opposing creature must be announced as a replacement.");
         }
 
+        /// <summary>
+        /// With no <see cref="IReplacementChooser"/> registered, the engine keeps picking the
+        /// first healthy member itself — the path every headless battle and test relies on.
+        /// </summary>
+        [Test]
+        public void ForcedSwitch_FallsBackToFirstHealthyWithoutAChooser()
+        {
+            ServiceHub.Reset();
+
+            var engine = BattleTestBuilder.Engine();
+            var doomed = BattleTestBuilder.Creature(TestData.Zubat, 5, "tackle").WithAbility(null);
+            var first = BattleTestBuilder.Creature(TestData.Squirtle, 30, "water-gun").WithAbility(null);
+            var second = BattleTestBuilder.Creature(TestData.Geodude, 30, "rock-throw").WithAbility(null);
+            var killer = BattleTestBuilder.Creature(TestData.Machop, 45, "karate-chop").WithAbility(null);
+
+            engine.Begin(BattleKind.Trainer,
+                BattleTestBuilder.Party(doomed, first, second),
+                BattleTestBuilder.Party(killer),
+                Weather.Clear, seed: 7001);
+
+            engine.ResolveTurn(BattleAction.UseMove(BattleSide.Player, 0));
+
+            Assert.That(doomed.IsFainted, Is.True, "The level 5 Zubat should have been knocked out.");
+            Assert.That(engine.State.ActiveOf(BattleSide.Player), Is.SameAs(first),
+                "Without a chooser the engine sends out the first healthy member.");
+        }
+
+        /// <summary>A registered chooser gets the decision, and its index is honoured.</summary>
+        [Test]
+        public void ForcedSwitch_HonoursARegisteredChooser()
+        {
+            ServiceHub.Reset();
+            // Deliberately the last legal index, so passing cannot be luck.
+            var chooser = new StubChooser(legal => legal[legal.Count - 1]);
+            ServiceHub.Register<IReplacementChooser>(chooser);
+
+            try
+            {
+                var engine = BattleTestBuilder.Engine();
+                var doomed = BattleTestBuilder.Creature(TestData.Zubat, 5, "tackle").WithAbility(null);
+                var skipped = BattleTestBuilder.Creature(TestData.Squirtle, 30, "water-gun").WithAbility(null);
+                var wanted = BattleTestBuilder.Creature(TestData.Geodude, 30, "rock-throw").WithAbility(null);
+                var killer = BattleTestBuilder.Creature(TestData.Machop, 45, "karate-chop").WithAbility(null);
+
+                engine.Begin(BattleKind.Trainer,
+                    BattleTestBuilder.Party(doomed, skipped, wanted),
+                    BattleTestBuilder.Party(killer),
+                    Weather.Clear, seed: 7002);
+
+                engine.ResolveTurn(BattleAction.UseMove(BattleSide.Player, 0));
+
+                Assert.That(doomed.IsFainted, Is.True);
+                Assert.That(chooser.Calls, Is.EqualTo(1), "The chooser must be consulted exactly once.");
+                Assert.That(chooser.LastSide, Is.EqualTo(BattleSide.Player),
+                    "The AI chooses for its own side; the chooser is for the player only.");
+                Assert.That(chooser.SawBadArguments, Is.False, "The engine passed a null or empty legal set.");
+                Assert.That(chooser.LastLegalIndices, Is.EquivalentTo(new[] { 1, 2 }),
+                    "Only healthy, non-active members in party order are offered.");
+                Assert.That(engine.State.ActiveOf(BattleSide.Player), Is.SameAs(wanted));
+            }
+            finally
+            {
+                ServiceHub.Reset();
+            }
+        }
+
+        /// <summary>An out-of-range answer degrades to the first legal index rather than corrupting the battle.</summary>
+        [Test]
+        public void ForcedSwitch_DegradesWhenTheChooserReturnsGarbage()
+        {
+            foreach (var badAnswer in new[] { -1, 0, 99 })
+            {
+                ServiceHub.Reset();
+                // 0 is the fainted active, so it is illegal too — not merely out of bounds.
+                ServiceHub.Register<IReplacementChooser>(new StubChooser(_ => badAnswer));
+
+                try
+                {
+                    var engine = BattleTestBuilder.Engine();
+                    var doomed = BattleTestBuilder.Creature(TestData.Zubat, 5, "tackle").WithAbility(null);
+                    var expected = BattleTestBuilder.Creature(TestData.Squirtle, 30, "water-gun").WithAbility(null);
+                    var other = BattleTestBuilder.Creature(TestData.Geodude, 30, "rock-throw").WithAbility(null);
+                    var killer = BattleTestBuilder.Creature(TestData.Machop, 45, "karate-chop").WithAbility(null);
+
+                    engine.Begin(BattleKind.Trainer,
+                        BattleTestBuilder.Party(doomed, expected, other),
+                        BattleTestBuilder.Party(killer),
+                        Weather.Clear, seed: 7003);
+
+                    Assert.DoesNotThrow(() => engine.ResolveTurn(BattleAction.UseMove(BattleSide.Player, 0)));
+
+                    Assert.That(engine.State.ActiveOf(BattleSide.Player), Is.SameAs(expected),
+                        $"A chooser returning {badAnswer} must fall back to the first legal index.");
+                }
+                finally
+                {
+                    ServiceHub.Reset();
+                }
+            }
+        }
+
+        /// <summary>A chooser that throws must not take the battle down with it.</summary>
+        [Test]
+        public void ForcedSwitch_SurvivesAThrowingChooser()
+        {
+            ServiceHub.Reset();
+            ServiceHub.Register<IReplacementChooser>(new StubChooser(_ => throw new InvalidOperationException("boom")));
+
+            try
+            {
+                var engine = BattleTestBuilder.Engine();
+                var doomed = BattleTestBuilder.Creature(TestData.Zubat, 5, "tackle").WithAbility(null);
+                var expected = BattleTestBuilder.Creature(TestData.Squirtle, 30, "water-gun").WithAbility(null);
+                var killer = BattleTestBuilder.Creature(TestData.Machop, 45, "karate-chop").WithAbility(null);
+
+                engine.Begin(BattleKind.Trainer,
+                    BattleTestBuilder.Party(doomed, expected),
+                    BattleTestBuilder.Party(killer),
+                    Weather.Clear, seed: 7004);
+
+                Assert.DoesNotThrow(() => engine.ResolveTurn(BattleAction.UseMove(BattleSide.Player, 0)));
+                Assert.That(engine.State.ActiveOf(BattleSide.Player), Is.SameAs(expected));
+            }
+            finally
+            {
+                ServiceHub.Reset();
+            }
+        }
+
+        /// <summary>Records what the engine asked, so the tests can assert on the contract.</summary>
+        private sealed class StubChooser : IReplacementChooser
+        {
+            private readonly Func<IReadOnlyList<int>, int> _answer;
+
+            public StubChooser(Func<IReadOnlyList<int>, int> answer) => _answer = answer;
+
+            public int Calls { get; private set; }
+            public BattleSide LastSide { get; private set; }
+            public IReadOnlyList<int> LastLegalIndices { get; private set; }
+
+            /// <summary>True if the engine ever broke its side of the contract.</summary>
+            public bool SawBadArguments { get; private set; }
+
+            public int ChooseReplacement(BattleSide side, IBattleStateView state, IReadOnlyList<int> legalIndices)
+            {
+                Calls++;
+                LastSide = side;
+                LastLegalIndices = legalIndices;
+
+                // Recorded rather than asserted here: the engine catches exceptions from a
+                // chooser, so an assertion failure raised inside this call would be
+                // swallowed and the test would pass on the fallback path.
+                if (state == null || legalIndices == null || legalIndices.Count == 0) SawBadArguments = true;
+
+                return _answer(legalIndices);
+            }
+        }
+
         /// <summary>Winning banks experience, and enough of it levels the winner up.</summary>
         [Test]
         public void Victory_AwardsExperienceAndLevels()

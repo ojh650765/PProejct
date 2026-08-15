@@ -38,6 +38,7 @@ namespace PokeLab.Battle
         private readonly List<BattleEvent> _stream = new List<BattleEvent>(64);
         private readonly List<BattleEvent> _pending = new List<BattleEvent>(8);
         private readonly List<BattleAction> _legalScratch = new List<BattleAction>(12);
+        private readonly List<int> _legalReplacements = new List<int>(6);
         private readonly Dictionary<int, SpeciesData> _speciesCache = new Dictionary<int, SpeciesData>();
         private readonly DamageContext _forecastContext = new DamageContext();
         private readonly DamageContext _resolveContext = new DamageContext();
@@ -1164,12 +1165,14 @@ namespace PokeLab.Battle
             if (active != null && !active.IsFainted) return;
             if (!state.HasHealthyMember) return;
 
-            // The engine picks the replacement itself: IBattleEngine has no "choose your
-            // next creature" callback, so a forced switch cannot be handed to the UI. The
-            // AI still gets to choose for its own side.
+            // The AI always picks for itself. The player's forced switch is offered to an
+            // IReplacementChooser when one is registered, so the UI can prompt instead of
+            // the engine deciding for the player; with none registered the engine falls
+            // back to the first healthy member, which is what keeps headless battles and
+            // every test running unchanged.
             var index = side == BattleSide.Opponent
                 ? Ai.ChooseReplacement(this, side)
-                : state.FirstHealthyIndex();
+                : ChoosePlayerReplacement(state);
 
             if (index < 0) return;
 
@@ -1177,6 +1180,46 @@ namespace PokeLab.Battle
             state.ResetOnSwitch();
             SendOut(side, index, true);
             FireEntryAbility(side);
+        }
+
+        /// <summary>
+        /// Asks the registered <see cref="IReplacementChooser"/> which creature comes in,
+        /// falling back to the first healthy party member.
+        ///
+        /// The chooser's answer is validated rather than trusted: the contract says an
+        /// out-of-set index degrades to the first legal one, and an implementation that
+        /// throws must not take the battle down with it — a forced switch happens after a
+        /// faint, where an exception would strand the player mid-transition.
+        /// </summary>
+        private int ChoosePlayerReplacement(BattleSideState state)
+        {
+            _legalReplacements.Clear();
+            for (var i = 0; i < state.Party.Count; i++)
+            {
+                if (i == state.ActiveIndex) continue;
+                var member = state.Party[i];
+                if (member != null && !member.IsFainted) _legalReplacements.Add(i);
+            }
+
+            if (_legalReplacements.Count == 0) return state.FirstHealthyIndex();
+
+            var fallback = _legalReplacements[0];
+            if (!ServiceHub.TryGet<IReplacementChooser>(out var chooser)) return fallback;
+
+            int chosen;
+            try
+            {
+                // A copy, not the scratch buffer: an implementation that pumps a wait for
+                // player input may well hold this list past the call, and it would see the
+                // next faint's contents if it were handed the reused one.
+                chosen = chooser.ChooseReplacement(state.Side, _state, _legalReplacements.ToArray());
+            }
+            catch (Exception)
+            {
+                return fallback;
+            }
+
+            return _legalReplacements.Contains(chosen) ? chosen : fallback;
         }
 
         private void EvaluateOutcome()

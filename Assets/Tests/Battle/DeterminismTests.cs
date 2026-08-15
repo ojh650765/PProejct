@@ -152,8 +152,9 @@ namespace PokeLab.Battle.Tests
         }
 
         /// <summary>
-        /// The factory must not leave a GUID in <see cref="CreatureInstance.InstanceId"/>:
-        /// experience events carry that id, and a GUID would make the stream unreproducible.
+        /// Instance ids must be derived, never random: experience events carry them, and a
+        /// GUID would make the whole stream unreproducible. The factory uses the shared
+        /// <see cref="CreatureIds.Derive"/> scheme so every creature in the game agrees.
         /// </summary>
         [Test]
         public void CreatureFactory_ProducesDeterministicInstanceIds()
@@ -167,10 +168,30 @@ namespace PokeLab.Battle.Tests
 
             Assert.That(b.InstanceId, Is.EqualTo(a.InstanceId));
             Assert.That(c.InstanceId, Is.Not.EqualTo(a.InstanceId));
-            Assert.That(a.InstanceId, Does.Not.Contain("-"), "The default GUID id leaked through.");
+            Assert.That(a.InstanceId, Is.EqualTo(CreatureIds.Derive(TestData.Pikachu, 12, 555, 0)),
+                "The factory must use the shared id scheme, not one of its own.");
+            Assert.That(a.InstanceId, Does.Not.Contain("-"), "A GUID id leaked through.");
 
             for (var i = 0; i < StatKinds.BaseCount; i++)
                 Assert.That(b.Ivs[i], Is.EqualTo(a.Ivs[i]));
+        }
+
+        /// <summary>
+        /// Two same-species, same-level creatures built from one seed must still be
+        /// distinguishable — the presentation layers key their views on the instance id.
+        /// </summary>
+        [Test]
+        public void CreatureFactory_OrdinalSeparatesCreaturesFromOneSeed()
+        {
+            var species = TestData.Species();
+            var moves = TestData.Moves();
+
+            var first = CreatureFactory.Create(TestData.Geodude, 12, 999, species, moves, ordinal: 0);
+            var second = CreatureFactory.Create(TestData.Geodude, 12, 999, species, moves, ordinal: 1);
+
+            Assert.That(second.InstanceId, Is.Not.EqualTo(first.InstanceId));
+            Assert.That(CreatureFactory.Create(TestData.Geodude, 12, 999, species, moves, ordinal: 1).InstanceId,
+                Is.EqualTo(second.InstanceId), "The same ordinal must reproduce the same id.");
         }
     }
 }
