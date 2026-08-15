@@ -37,11 +37,30 @@ namespace PokeLab.Boot.Editor
             if (!IsGameArt(assetPath)) return;
             var importer = (ModelImporter)assetImporter;
 
-            // Authored in true metres, so take the file verbatim. useFileUnits would rescale
-            // by the FBX's own unit declaration and quietly produce a 1/100-size creature.
-            importer.globalScale = 1f;
+            // Unit handling differs by family because the two pipelines export differently,
+            // and getting it wrong is invisible until something is measured: the environment
+            // FBX were arriving at 1/100, so a cottage was 7 cm tall and simply vanished
+            // against the ground rather than looking wrong.
+            //
+            // Creatures are authored in true metres and want the file taken verbatim.
+            // Environment and props declare their units in the file, so Unity must honour that
+            // declaration and convert.
+            // The environment FBX are authored at 1/100 — a cottage arrives 4.9 cm tall, which
+            // does not look wrong so much as invisible: it vanishes into the ground and the
+            // level reads as empty. The export is what is actually wrong and is being fixed at
+            // source, but compensating here means the existing 89 assets are usable now and
+            // stay usable either way, because a corrected export will declare its units and
+            // useFileUnits will then do the work instead.
+            var isCreatureArt = assetPath.StartsWith(CreatureRoot, StringComparison.Ordinal);
+            importer.globalScale = isCreatureArt ? 1f : 100f;
             importer.useFileUnits = false;
-            importer.bakeAxisConversion = false;
+
+            // The environment export writes Z-up without declaring the conversion, so the
+            // models arrive lying on their backs — a cottage reads as a slab on the ground.
+            // Baking the axis conversion at import rotates the mesh data itself rather than
+            // leaving a -90 degree rotation on every instance, which would fight every
+            // authored rotation in the layout.
+            importer.bakeAxisConversion = !isCreatureArt;
 
             // Custom split normals are exported; recalculating them would flatten the
             // smooth-with-sharp-edges shading the models were authored for.
@@ -115,6 +134,34 @@ namespace PokeLab.Boot.Editor
                         "model origin. Regenerate it from Tools/Blender.");
                 }
             }
+        }
+
+        /// <summary>
+        /// Forces every art asset through the importer again.
+        ///
+        /// Touching files is not enough: Unity keys reimport on a content hash, so changing
+        /// only the postprocessor leaves existing assets on whatever settings they were first
+        /// imported with. That is silent — the meta keeps the old values and nothing warns.
+        /// </summary>
+        [MenuItem("Tools/Poké Lab/Art/Reimport All Art")]
+        public static void ReimportAll()
+        {
+            var roots = new[] { CreatureRoot, EnvironmentRoot, PropRoot };
+            var reimported = 0;
+
+            foreach (var root in roots)
+            {
+                if (!AssetDatabase.IsValidFolder(root.TrimEnd('/'))) continue;
+                foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { root.TrimEnd('/') }))
+                {
+                    AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid),
+                        ImportAssetOptions.ForceUpdate);
+                    reimported++;
+                }
+            }
+
+            AssetDatabase.Refresh();
+            Debug.Log($"[Art] Reimported {reimported} model(s).");
         }
 
         private void OnPreprocessTexture()
