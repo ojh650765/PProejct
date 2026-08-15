@@ -428,14 +428,18 @@ namespace PokeLab.Cinematics
         private void AdvanceFrame()
         {
             var sheet = ActiveSheet();
-            if (_frozen || sheet == null || sheet.frames <= 1) return;
+            if (_frozen || sheet == null || sheet.StepCount <= 1) return;
 
-            float fps = Mathf.Max(0.5f, sheet.fps) * _rateScale;
-            _frameTime += Time.deltaTime * fps;
-            while (_frameTime >= 1f)
+            // Accumulate real seconds and spend them against each step's own duration, rather
+            // than ticking a single frame rate. The source loops are not uniform — a flat rate
+            // destroys Pidgey's 1900 ms hold and speeds up the 50 ms flutters.
+            _frameTime += Time.deltaTime * Mathf.Max(0.01f, _rateScale);
+
+            int guard = 0;
+            while (_frameTime >= sheet.StepSeconds(_frameIndex) && guard++ < 64)
             {
-                _frameTime -= 1f;
-                _frameIndex = (_frameIndex + 1) % Mathf.Max(1, sheet.frames);
+                _frameTime -= sheet.StepSeconds(_frameIndex);
+                _frameIndex = (_frameIndex + 1) % sheet.StepCount;
             }
         }
 
@@ -534,7 +538,7 @@ namespace PokeLab.Cinematics
             // wins when it exists.
             bool shaderFlips = _material != null && _material.HasProperty(ShaderProps.FlipX);
             Vector4 st = sheet != null
-                ? sheet.FrameST(_frameIndex, !shaderFlips && _flip)
+                ? sheet.FrameST(sheet.CellAt(_frameIndex), !shaderFlips && _flip)
                 : (!shaderFlips && _flip ? new Vector4(-1f, 1f, 1f, 0f) : new Vector4(1f, 1f, 0f, 0f));
 
             _block.SetVector(ShaderProps.BaseMapST, st);

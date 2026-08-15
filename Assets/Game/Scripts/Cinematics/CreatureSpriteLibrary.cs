@@ -19,8 +19,46 @@ namespace PokeLab.Cinematics
         [Tooltip("Authored playback rate.")]
         public float fps = 12f;
 
+        /// <summary>
+        /// Playback order as indices into the sheet's cells. The sheet stores only *unique*
+        /// cells — the Gen 5 loops repeat heavily, so Machop's 88-frame animation is 21
+        /// distinct images — and this restores the real sequence. Empty means "play cells in
+        /// storage order", which is what a sheet without deduplication wants.
+        /// </summary>
+        public int[] sequence;
+
+        /// <summary>
+        /// Per-step duration in milliseconds, parallel to <see cref="sequence"/>. The source
+        /// animations are not uniform: the cast runs from 50 ms frames to a 1900 ms hold in
+        /// Pidgey's loop, so collapsing them to a single frame rate visibly breaks animations
+        /// that are currently correct. Empty falls back to <see cref="fps"/>.
+        /// </summary>
+        public int[] durationsMs;
+
         /// <summary>True when this describes something that could actually be sampled.</summary>
         public bool IsUsable => !string.IsNullOrEmpty(texture) && columns > 0 && rows > 0 && frames > 0;
+
+        /// <summary>Number of playback steps, which is the sequence length when one is supplied.</summary>
+        public int StepCount => sequence != null && sequence.Length > 0 ? sequence.Length : Mathf.Max(1, frames);
+
+        /// <summary>Maps a playback step to the sheet cell it draws.</summary>
+        public int CellAt(int step)
+        {
+            int steps = StepCount;
+            int s = ((step % steps) + steps) % steps;
+            if (sequence == null || sequence.Length == 0) return s;
+            return Mathf.Clamp(sequence[s], 0, Mathf.Max(0, frames - 1));
+        }
+
+        /// <summary>How long a step is held, in seconds.</summary>
+        public float StepSeconds(int step)
+        {
+            int steps = StepCount;
+            int s = ((step % steps) + steps) % steps;
+            if (durationsMs != null && s < durationsMs.Length && durationsMs[s] > 0)
+                return durationsMs[s] * 0.001f;
+            return 1f / Mathf.Max(0.5f, fps);
+        }
 
         /// <summary>
         /// Tiling and offset for one frame, as the <c>_ST</c> vector a URP shader's
