@@ -148,7 +148,7 @@ def build():
         wings.append(_membrane("Zubat_Membrane_%s" % ('L' if sx > 0 else 'R'),
                                root=(0.058 * sx, -0.010, 0.372), span=0.300,
                                chord=0.210, droop=0.20, scallops=2,
-                               thickness=0.005, sx=sx))
+                               thickness=0.013, sx=sx))
 
     fangs = []
     for sx in (1.0, -1.0):

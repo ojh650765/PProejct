@@ -630,6 +630,222 @@ class SkinSkeleton(object):
         return obj
 
 
+# ----------------------------------------------------------------------------
+# welding a bag of shells into one continuous skin
+# ----------------------------------------------------------------------------
+
+# Parts that must stay their own shell through the weld: thin decals, teeth,
+# whiskers, membranes and the eyes. Voxel remeshing at the resolution the body
+# needs would either swallow them or inflate them into sausages, and a hard
+# accessory sitting on the surface is normal for a stylised creature. Everything
+# else - head, neck, torso, limbs, tail, shell, bulb, ears, crest - is body, and
+# body has to be one skin.
+DETAIL_PATTERNS = ("_eye", "_hl", "mouth", "claw", "blush", "brow", "tooth",
+                   "fang", "whisker", "pupil", "flame", "spiral", "earin")
+# "beak" deliberately absent: Pidgey's beak halves are open shells, so keeping
+# them out of the weld leaves boundary edges in the shipped mesh. Welding them
+# softens the beak slightly, which is the cheaper of the two costs.
+
+
+def drop_small_islands(obj, min_share=0.02):
+    """Delete disconnected shells that are a negligible share of the mesh.
+
+    Voxel remeshing sheds any feature thinner than a voxel, and a curling tail
+    tip or a whisker root can come off as a free-floating shard. It passes every
+    manifold check - it is a closed shell, just not attached to anything - so it
+    has to be found by connectivity, not by the usual loose-geometry test. This
+    caught a fragment hovering above Rattata's head.
+    """
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.faces.ensure_lookup_table()
+    seen = set()
+    islands = []
+    for f in bm.faces:
+        if f.index in seen:
+            continue
+        stack, comp = [f], []
+        seen.add(f.index)
+        while stack:
+            cur = stack.pop()
+            comp.append(cur)
+            for e in cur.edges:
+                for nb in e.link_faces:
+                    if nb.index not in seen:
+                        seen.add(nb.index)
+                        stack.append(nb)
+        islands.append(comp)
+    if len(islands) > 1:
+        biggest = max(len(i) for i in islands)
+        doomed = [f for i in islands
+                  if len(i) < max(4, biggest * min_share) for f in i]
+        if doomed:
+            print("  weld: dropped %d orphan shell(s), %d faces"
+                  % (sum(1 for i in islands
+                         if len(i) < max(4, biggest * min_share)), len(doomed)))
+            bmesh.ops.delete(bm, geom=doomed, context='FACES')
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    return obj
+
+
+def is_detail_part(obj):
+    n = obj.name.lower()
+    return any(p in n for p in DETAIL_PATTERNS)
+
+
+def transfer_colors(src_obj, dst_obj, layer=None):
+    """Nearest-surface vertex-colour transfer.
+
+    Remeshing throws colour away - `quadriflow_remesh` drops the attribute
+    outright - and re-deriving every creature's paint after the weld would mean
+    rewriting all twelve scripts. Sampling the pre-weld shells instead keeps
+    every belly, spot and stripe exactly where the creature script put it.
+
+    Values are copied straight across: what is stored in a colour attribute is
+    already linear, so running them back through `to_linear_rgba` here would
+    darken the whole cast.
+    """
+    from mathutils.bvhtree import BVHTree
+    layer = layer or COLOR_LAYER
+    src = src_obj.data
+    if layer not in src.color_attributes:
+        return dst_obj
+    sl = src.color_attributes[layer]
+    verts = [v.co.copy() for v in src.vertices]
+    polys = [tuple(p.vertices) for p in src.polygons]
+    if not polys:
+        return dst_obj
+    bvh = BVHTree.FromPolygons(verts, polys, all_triangles=False)
+    corners = [(tuple(p.vertices), tuple(p.loop_indices)) for p in src.polygons]
+    src_col = [tuple(c.color) for c in sl.data]
+
+    dl = ensure_color_layer(dst_obj)
+    dst = dst_obj.data
+    cache = {}
+    out = []
+    for lp in dst.loops:
+        vi = lp.vertex_index
+        col = cache.get(vi)
+        if col is None:
+            co = dst.vertices[vi].co
+            loc, _nrm, idx, _d = bvh.find_nearest(co)
+            if idx is None:
+                col = (1.0, 1.0, 1.0, 1.0)
+            else:
+                vids, lids = corners[idx]
+                # Inverse-distance blend across the hit face's corners. Straight
+                # nearest-corner sampling quantises every marking to the source
+                # face grid, which showed up as a dithered mess along Pikachu's
+                # back stripes; this stays sharp near a corner and interpolates
+                # in between.
+                tot = 0.0
+                acc = [0.0, 0.0, 0.0, 0.0]
+                for k, v in enumerate(vids):
+                    d2 = (verts[v] - loc).length_squared
+                    # inverse fourth power: near-nearest close to a corner, so a
+                    # hard-edged marking keeps its edge, but still continuous in
+                    # between instead of quantising to the source vertex grid
+                    w = 1.0 / (d2 * d2 + 1e-14)
+                    tot += w
+                    c = src_col[lids[k]]
+                    for j in range(4):
+                        acc[j] += c[j] * w
+                col = tuple(a / tot for a in acc) if tot > 0 else (1, 1, 1, 1)
+            cache[vi] = col
+        out.extend(col)
+    dl.data.foreach_set("color", out)
+    dst.update()
+    return dst_obj
+
+
+def weld_skin(obj, height, target_quads=2400, voxel_ratio=1.0 / 150.0,
+              smooth_iters=2, smooth_factor=0.45, symmetry=True):
+    """Turn a bag of interpenetrating shells into ONE continuous skin.
+
+    `join_objects` merges objects, not surfaces: a head ball jammed into a body
+    ball stays two balls with a hard interpenetration line down the join, and no
+    amount of care inside each individual loft fixes that. The user's
+    requirement is that a creature reads as a single mesh.
+
+    Route: voxel remesh (which is a union by construction - overlapping shells
+    become one watertight volume, all quads), smooth off the voxel stair-
+    stepping, then Quadriflow back to a clean quad field at an exact face
+    budget. Colour is carried across from the pre-weld shells afterwards.
+
+    Alternatives considered: a Boolean union alone welds the topology but leaves
+    a hard crease along the intersection curve, which is the very seam we are
+    trying to lose; bridging edge loops gives the best topology but cannot be
+    scripted generically across twelve different body plans.
+    """
+    activate(obj)
+    snapshot = obj.copy()
+    snapshot.data = obj.data.copy()
+    snapshot.name = obj.name + "_PreWeld"
+    link(snapshot)
+
+    me = obj.data
+    me.remesh_mode = 'VOXEL'
+    me.remesh_voxel_size = max(1e-4, height * voxel_ratio)
+    me.remesh_voxel_adaptivity = 0.0
+    me.use_remesh_fix_poles = True
+    for flag in ("use_remesh_preserve_volume", "use_remesh_preserve_vertex_colors"):
+        if hasattr(me, flag):
+            setattr(me, flag, True)
+    activate(obj)
+    bpy.ops.object.voxel_remesh()
+    print("  weld: voxel %.4f m -> %d faces" % (me.remesh_voxel_size,
+                                                len(me.polygons)))
+    drop_small_islands(obj)
+
+    if smooth_iters:
+        m = obj.modifiers.new("WeldSmooth", 'SMOOTH')
+        m.factor = smooth_factor
+        m.iterations = smooth_iters
+        apply_modifier(obj, m.name)
+
+    if symmetry:
+        for axis in ("symmetry_x",):
+            if hasattr(me, axis):
+                setattr(me, axis, True)
+
+    ok = False
+    try:
+        activate(obj)
+        bpy.ops.object.quadriflow_remesh(mode='FACES',
+                                         target_faces=max(400, int(target_quads)),
+                                         use_preserve_sharp=False,
+                                         use_preserve_boundary=False,
+                                         preserve_paint_mask=False,
+                                         smooth_normals=False,
+                                         use_mesh_symmetry=True, seed=0)
+        ok = len(obj.data.polygons) > 100
+    except Exception as exc:
+        print("  ! quadriflow failed (%s)" % exc)
+    if not ok:
+        # unsubdivide keeps quads, unlike a collapse decimate
+        while tri_count(obj) > target_quads * 2 * 1.15:
+            before = tri_count(obj)
+            m = obj.modifiers.new("WeldUnsub", 'DECIMATE')
+            m.decimate_type = 'UNSUBDIV'
+            m.iterations = 1
+            apply_modifier(obj, m.name)
+            if tri_count(obj) >= before:
+                break
+    print("  weld: quadriflow -> %d faces (%d tris, %.0f%% quads)"
+          % (len(obj.data.polygons), tri_count(obj), 100.0 * quad_ratio(obj)))
+
+    # Again after quadriflow: a tail tip thinner than a voxel can survive the
+    # voxel pass as a hairline bridge and only come away during the retopology,
+    # which is how Rattata ended up with a fragment hovering over its head.
+    drop_small_islands(obj, min_share=0.06)
+    cleanup_mesh(obj)
+    transfer_colors(snapshot, obj)
+    bpy.data.objects.remove(snapshot, do_unlink=True)
+    return obj
+
+
 def triangulate_ngons(obj):
     """The contract bans n-gons on deforming surfaces. Bevel mitres and sweep caps
     can still produce a few, so any survivor is split into triangles - quads are
@@ -1209,6 +1425,59 @@ def mouth_arc(name, center, width, curve=0.28, thickness=0.02, face_bow=0.0,
     obj = tube_along(name, pts, radii, segments=ring, up=d)
     paint_flat(obj, color)
     return obj
+
+
+def ray_to_surface(obj, origin, direction):
+    """Cast a ray from inside `obj` outward and return (location, normal).
+
+    `obj` must have its transform applied, which every part does by the time this
+    is useful, so object space and world space coincide.
+    """
+    hit, loc, nrm, _ = obj.ray_cast(Vector(origin), Vector(direction).normalized())
+    if not hit:
+        return None, None
+    return Vector(loc), Vector(nrm)
+
+
+def drape_line(name, obj, origin, look, up=(0, 0, 1), yaw_span=46.0, pitch=-26.0,
+               curve=14.0, thickness=0.008, color=MOUTH_DARK, samples=15, ring=6,
+               lift=0.6):
+    """A mouth (or brow) line laid ON a head, by ray-casting from inside it.
+
+    `mouth_arc` builds its curve inside a single flat tangent frame. That is fine
+    on a ball and wrong on anything with a snout or a jaw: the middle of the arc
+    ends up buried in the muzzle and only the tip pokes out, which is what the
+    first pass shipped on three of the four creatures revised here. Sampling the
+    real surface cannot make that mistake.
+
+    curve > 0 lifts the corners (a smile); the sweep is in degrees of yaw either
+    side of `look`, so the line wraps a narrow muzzle and a broad face alike.
+    """
+    look = Vector(look).normalized()
+    side = look.cross(Vector(up))
+    if side.length < 1e-5:
+        side = Vector((1, 0, 0))
+    side.normalize()
+    upv = side.cross(look).normalized()
+    bpy.context.view_layer.update()
+    pts, radii = [], []
+    for i in range(samples):
+        u = (i / float(samples - 1)) * 2.0 - 1.0
+        yaw = math.radians(yaw_span * u)
+        pit = math.radians(pitch + curve * (u * u - 0.35))
+        d = Matrix.Rotation(pit, 3, side) @ (Matrix.Rotation(yaw, 3, upv) @ look)
+        loc, nrm = ray_to_surface(obj, origin, d)
+        if loc is None:
+            continue
+        n = nrm if nrm is not None and nrm.length > 1e-6 else d
+        pts.append(loc + n.normalized() * (thickness * lift))
+        radii.append(thickness * (0.45 + 0.55 * math.cos(u * math.pi * 0.5) ** 0.7))
+    if len(pts) < 3:
+        print("  ! drape_line %s: only %d surface hits" % (name, len(pts)))
+        return None
+    ob = tube_along(name, pts, radii, segments=ring, up=look)
+    paint_flat(ob, color)
+    return ob
 
 
 def cheek_blush(name, center, radius, color=hexcol('e58a8f'), squash=(1.0, 0.30, 0.85)):

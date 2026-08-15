@@ -29,46 +29,75 @@ SIZE_AXIS = 'z'
 DESIGN = "squat seafoam quadruped with dark blotches and a closed green bulb"
 PROFILE = dict(tempo=0.85, weight=1.25, bounce=0.75, sway=0.9, stride=0.85)
 
-# sampled from 000101.png
-SKIN = C.hexcol('7ab89e')
-SKIN_LIGHT = C.hexcol('9fd2b8')
-SKIN_DARK = C.hexcol('5a9570')
-SPOT = C.hexcol('47836a')
+# Sampled off 000101.png: body #85ccb2, blotch #5c9a70, bulb #85c291. The spot is
+# pushed a further step down in value from the body so the marking survives the
+# studio key and the bake's ambient occlusion - in the reference these read as
+# graphic shapes, and the first pass's #47836a on #7ab89e washed out to mud.
+SKIN = C.hexcol('7cc3a6')
+SKIN_LIGHT = C.hexcol('9ed8bd')
+SKIN_DARK = C.hexcol('55917a')
+# The reference's blotches are only ~30% darker than the body, but they read
+# because the illustration draws a hard dark outline round each one. In 3D with
+# no outline, and after the bake multiplies in AO and a voronoi tint, that much
+# separation disappears. These are deliberately pushed well past the sampled
+# value so the marking survives to the screen.
+SPOT = C.hexcol('2a6141')
+SPOT_DEEP = C.hexcol('1e4d33')
 BELLY = C.hexcol('a8d6bf')
-BULB = C.hexcol('8cc48a')
-BULB_DARK = C.hexcol('66a06a')
+BULB = C.hexcol('82c184')
+BULB_LIGHT = C.hexcol('9cd39a')
+BULB_DARK = C.hexcol('4e8a5a')
 CLAW = C.hexcol('efe7d2')
 MOUTH_PINK = C.hexcol('b56a80')
+MOUTH_LINE = C.hexcol('6d3846')
 
 
-def _bulb(name, centre, radius):
-    """The closed bulb: one continuous grooved skin, the lobes cut in by scalloped
-    rings rather than five leaf flaps glued to a ball. The reference reads as a
-    single bud with overlapping leaf edges, and that only works as one form."""
+def _bulb(name, centre, radius, lobes=5):
+    """The closed bulb: one continuous grooved skin whose lobes are cut in by
+    scalloped rings, not five leaf flaps glued to a ball.
+
+    Second pass: the grooves were too shallow to read once the form was smoothed,
+    so the bud came out as a plain dome with a nipple on top. Now the scallop is
+    deeper (0.30 rather than 0.21), the lobe tips are pulled up and outward so
+    each one ends in a point the way a closed bud does, and the groove is shaded
+    with a real value difference rather than a 0.55 tint. The depth is chosen to
+    survive the weld pass: 30 mm of relief against a 3.8 mm voxel.
+    """
     r = radius
-    # low and round, sitting ON the back - the reference bud is wider than it is
-    # tall, not a cone
     stations = [
         ((0.0, 0.0, -r * 1.10), r * 0.52, r * 0.52),
         ((0.0, 0.0, -r * 0.72), r * 0.92, r * 0.92),
         ((0.0, 0.0, -r * 0.26), r * 1.16, r * 1.16),
         ((0.0, 0.0,  r * 0.16), r * 1.18, r * 1.18),
-        ((0.0, 0.0,  r * 0.52), r * 1.02, r * 1.02),
-        ((0.0, 0.0,  r * 0.80), r * 0.70, r * 0.70),
-        ((0.0, 0.0,  r * 0.98), r * 0.30, r * 0.30),
+        ((0.0, 0.0,  r * 0.52), r * 1.00, r * 1.00),
+        ((0.0, 0.0,  r * 0.80), r * 0.66, r * 0.66),
+        ((0.0, 0.0,  r * 1.00), r * 0.26, r * 0.26),
     ]
-    ob = C.lobed_loft(name, stations, lobes=5, lobe_depth=0.21, phase=math.pi * 0.5,
-                      segments=30, resample=1, round_start=0.0, round_end=0.75,
-                      cap_start=True)
-    # the leaf tips flare out and back, which is what makes it read as a bud
-    C.deform(ob, lambda co: Vector((co.x * (1.0 + 0.16 * C.smoothstep(co.z / (r * 0.9))),
-                                    co.y * (1.0 + 0.16 * C.smoothstep(co.z / (r * 0.9))),
-                                    co.z)))
+    ob = C.lobed_loft(name, stations, lobes=lobes, lobe_depth=0.30,
+                      phase=math.pi * 0.5, segments=lobes * 6, resample=1,
+                      round_start=0.0, round_end=0.55, cap_start=True)
+
+    # Lobe tips: on the crest of each scallop, lift and flare the upper part so
+    # every lobe finishes in a point instead of melting into the dome.
+    def tips(co):
+        rad = math.hypot(co.x, co.y)
+        if rad < 1e-6:
+            return co
+        ang = math.atan2(co.y, co.x)
+        crest = max(0.0, math.cos(lobes * (ang + math.pi * 0.5)))
+        up = C.smoothstep((co.z + r * 0.10) / (r * 0.95))
+        k = 1.0 + 0.22 * crest * up
+        return Vector((co.x * k, co.y * k, co.z + r * 0.30 * crest * up * up))
+
+    C.deform(ob, tips)
 
     def col(co, n, i):
-        t = C.smoothstep((co.z + r * 1.2) / (r * 2.4))
-        groove = C.smoothstep(1.0 - math.hypot(co.x, co.y) / (r * 1.15))
-        return C.mix(C.mix(BULB_DARK, BULB, t), BULB_DARK, groove * 0.55)
+        t = C.smoothstep((co.z + r * 1.2) / (r * 2.3))
+        ang = math.atan2(co.y, co.x)
+        # 1 in the groove between two lobes, 0 on a lobe crest
+        groove = 0.5 - 0.5 * math.cos(lobes * (ang + math.pi * 0.5))
+        base = C.mix(BULB_DARK, C.mix(BULB, BULB_LIGHT, t), C.smoothstep(t * 1.15))
+        return C.mix(base, BULB_DARK, groove ** 1.6)
 
     C.paint(ob, col)
     ob.location = Vector(centre)
@@ -109,9 +138,14 @@ def build():
     plan.head_size = (0.300, 0.284, 0.236)
     plan.subsurf = 0   # resampled loft stations smooth the length; no subsurf needed
 
-    body = plan.build_body(method='loft', torso_segments=16, limb_segments=10,
+    # Dense on purpose. This mesh is *discarded* by the weld pass - it only has to
+    # (a) voxelise faithfully and (b) carry the vertex colours that get sampled
+    # onto the welded skin. At 16 segments the torso quads were 30 mm across, and
+    # a 30 mm quad cannot represent the hard-edged blotch this creature needs no
+    # matter what `edge` is set to; the spots came out as smears.
+    body = plan.build_body(method='loft', torso_segments=26, limb_segments=14,
                            torso_square=2.15, round_torso_front=0.7,
-                           round_torso_back=0.9, resample=2, limb_resample=1)
+                           round_torso_back=0.9, resample=4, limb_resample=2)
     # flatten the back where the bulb sits, and drop a soft belly
     C.deform(body, lambda co: Vector((co.x, co.y, co.z - 0.020 * C.falloff(
         Vector((co.x / 1.5, (co.y - 0.03) / 1.9, (co.z - 0.40) / 0.8)).length, 0.17))))
@@ -144,31 +178,36 @@ def build():
         top=SKIN, bottom=SKIN_LIGHT, zmin=0.02, zmax=0.38,
         belly=BELLY, belly_axis_y=0.22,
         patches=[
-            # big graphic blotches, placed off the reference: flanks, haunches,
-            # shoulders, cheeks and the outside of each leg
-            (SPOT, (0.186, 0.048, 0.268), 0.082, (1.0, 1.5, 1.2)),
-            (SPOT, (-0.186, 0.048, 0.268), 0.082, (1.0, 1.5, 1.2)),
-            (SPOT, (0.184, -0.092, 0.232), 0.070, (1.0, 1.2, 1.1)),
-            (SPOT, (-0.184, -0.092, 0.232), 0.070, (1.0, 1.2, 1.1)),
-            (SPOT, (0.120, 0.168, 0.208), 0.064, (1.0, 1.2, 1.0)),
-            (SPOT, (-0.120, 0.168, 0.208), 0.064, (1.0, 1.2, 1.0)),
-            (SPOT, (0.172, -0.130, 0.118), 0.058, (1.0, 1.0, 1.4)),
-            (SPOT, (-0.172, -0.130, 0.118), 0.058, (1.0, 1.0, 1.4)),
-            (SPOT, (0.180, 0.114, 0.118), 0.060, (1.0, 1.0, 1.4)),
-            (SPOT, (-0.180, 0.114, 0.118), 0.060, (1.0, 1.0, 1.4)),
-            (SPOT, (0.142, -0.286, 0.300), 0.058, (1.0, 1.2, 1.0)),
-            (SPOT, (-0.142, -0.286, 0.300), 0.058, (1.0, 1.2, 1.0)),
-            (SPOT, (0.070, 0.010, 0.330), 0.062, (1.4, 1.1, 0.8)),
-            (SPOT, (-0.070, 0.010, 0.330), 0.062, (1.4, 1.1, 0.8)),
+            # Big graphic blotches placed off the reference: flanks, haunches,
+            # shoulders, cheeks and the outside of each leg. edge=0.16 keeps them
+            # hard-edged - the reference draws shapes, not airbrush - and the
+            # deeper SPOT_DEEP is used on the flanks where the largest blotches
+            # need to carry at silhouette size.
+            (SPOT_DEEP, (0.186, 0.048, 0.268), 0.086, (1.0, 1.5, 1.2), 0.16),
+            (SPOT_DEEP, (-0.186, 0.048, 0.268), 0.086, (1.0, 1.5, 1.2), 0.16),
+            (SPOT, (0.184, -0.092, 0.232), 0.072, (1.0, 1.2, 1.1), 0.16),
+            (SPOT, (-0.184, -0.092, 0.232), 0.072, (1.0, 1.2, 1.1), 0.16),
+            (SPOT, (0.120, 0.168, 0.208), 0.066, (1.0, 1.2, 1.0), 0.16),
+            (SPOT, (-0.120, 0.168, 0.208), 0.066, (1.0, 1.2, 1.0), 0.16),
+            (SPOT, (0.172, -0.130, 0.118), 0.060, (1.0, 1.0, 1.4), 0.16),
+            (SPOT, (-0.172, -0.130, 0.118), 0.060, (1.0, 1.0, 1.4), 0.16),
+            (SPOT, (0.180, 0.114, 0.118), 0.062, (1.0, 1.0, 1.4), 0.16),
+            (SPOT, (-0.180, 0.114, 0.118), 0.062, (1.0, 1.0, 1.4), 0.16),
+            (SPOT, (0.150, -0.300, 0.300), 0.060, (1.0, 1.2, 1.0), 0.16),
+            (SPOT, (-0.150, -0.300, 0.300), 0.060, (1.0, 1.2, 1.0), 0.16),
+            (SPOT_DEEP, (0.076, 0.010, 0.336), 0.066, (1.4, 1.1, 0.8), 0.16),
+            (SPOT_DEEP, (-0.076, 0.010, 0.336), 0.066, (1.4, 1.1, 0.8), 0.16),
         ],
-        noise_amt=0.016, seed=11)
+        noise_amt=0.010, seed=11)
     for ob in [body, head] + paws:
         C.paint(ob, grad)
 
-    # wide grin, pressed in and tinted, after the base colour so it survives
-    C.carve_mouth(head, (0.0, -0.130, -0.060), width=0.146, height=0.040,
-                  depth=0.018, look=Vector((0, -1, 0)), color=MOUTH_PINK,
-                  corner_lift=0.012)
+    # Wide grin, pressed in and tinted, after the base colour so it survives.
+    # World space: the head has already been moved onto the body, so the
+    # head-local coordinates the first pass used fell through empty space.
+    C.carve_mouth(head, tuple(plan.head_co + Vector((0.0, -0.128, -0.058))),
+                  width=0.120, height=0.030, depth=0.014,
+                  look=Vector((0, -1, 0)), color=MOUTH_PINK, corner_lift=0.012)
 
     ears = []
     for sx in (1.0, -1.0):
@@ -185,11 +224,16 @@ def build():
     face, eye_centres = B.simple_face(
         "Bulbasaur", plan.head_co,
         head_size=plan.head_size, eye_angles=(30.0, 6.0), eye_radius=0.0430,
-        eye_squash=(1.0, 0.58, 1.12), eye_tilt=4.0, eye_sink=0.90,
-        mouth_angles=-24.0, mouth_width=0.156, mouth_curve=0.52,
-        mouth_thickness=0.0110, face_bow=0.024, highlight=0.30)
+        eye_squash=(1.0, 0.58, 1.12), eye_tilt=4.0, eye_sink=1.00,
+        mouth_width=0.0, highlight=0.30)
 
-    bulb = _bulb("Bulbasaur_Bulb", (0.0, 0.045, 0.366), 0.132)
+    # the wide grin, threaded along the real surface of the muzzle
+    mouth = C.drape_line("Bulbasaur_Mouth", head, plan.head_co,
+                         look=(0, -1, -0.34), yaw_span=40.0, pitch=-10.0,
+                         curve=16.0, thickness=0.0090, color=MOUTH_LINE,
+                         samples=17)
+
+    bulb = _bulb("Bulbasaur_Bulb", (0.0, 0.045, 0.360), 0.134)
 
     claws = []
     for cy, sx in ((-0.140, 1), (-0.140, -1), (0.118, 1), (0.118, -1)):
@@ -199,7 +243,7 @@ def build():
                                 radius=0.0072, spread=0.022, drop=0.004,
                                 color=CLAW))
 
-    parts = [body, head] + paws + ears + face + bulb + claws
+    parts = [body, head] + paws + ears + face + bulb + claws + [mouth]
 
     return dict(
         parts=parts,
@@ -210,6 +254,7 @@ def build():
         muzzle_y=-0.452,
         anchors=dict(muzzle=(0.0, -0.458, 0.216)),
         bevel_scale=0.009,
-        albedo=dict(detail_scale=30.0, cavity=0.34, ao_strength=0.34, speckle=0.035),
+        albedo=dict(detail_scale=30.0, cavity=0.30, ao_strength=0.30,
+                    speckle=0.018, voronoi_amount=0.045),
         normal=dict(detail_scale=46.0, bump=0.09, pattern_scale=10.0, pattern_bump=0.05),
     )
