@@ -1,0 +1,286 @@
+[
+  {
+    "name": "Env_Char_Player",
+    "family": "Characters",
+    "subfamily": "Character",
+    "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player.fbx",
+    "triangles": 3026,
+    "lods": [
+      {
+        "level": 1,
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player_LOD1.fbx",
+        "triangles": 1210
+      },
+      {
+        "level": 2,
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player_LOD2.fbx",
+        "triangles": 453
+      }
+    ],
+    "pivot": "between the feet at ground level, facing +Z",
+    "textures": [
+      "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
+    "anchors": [
+      "Anchor_Head",
+      "Anchor_Body",
+      "Anchor_HandR",
+      "Anchor_HandL"
+    ],
+    "clips": [
+      {
+        "name": "Idle",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
+      },
+      {
+        "name": "Walk",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
+      },
+      {
+        "name": "Run",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
+      },
+      {
+        "name": "Turn",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
+      },
+      {
+        "name": "Talk",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
+      },
+      {
+        "name": "ThrowBall",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
+      },
+      {
+        "name": "Cheer",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
+      },
+      {
+        "name": "Surprised",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
+      },
+      {
+        "name": "RaiseScanner",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
+      }
+    ],
+    "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them."
+  },
+  {
+    "name": "Env_Char_NPC_Townsfolk_A",
+    "family": "Characters",
+    "subfamily": "Character",
+    "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_A.fbx",
+    "triangles": 3000,
+    "lods": [
+      {
+        "level": 1,
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_A_LOD1.fbx",
+        "triangles": 1199
+      },
+      {
+        "level": 2,
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_A_LOD2.fbx",
+        "triangles": 449
+      }
+    ],
+    "pivot": "between the feet at ground level, facing +Z",
+    "textures": [
+      "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
+    "anchors": [
+      "Anchor_Head",
+      "Anchor_Body",
+      "Anchor_HandR",
+      "Anchor_HandL"
+    ],
+    "clips": [
+      {
+        "name": "Idle",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
+      },
+      {
+        "name": "Walk",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
+      },
+      {
+        "name": "Run",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
+      },
+      {
+        "name": "Turn",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
+      },
+      {
+        "name": "Talk",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
+      },
+      {
+        "name": "ThrowBall",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
+      },
+      {
+        "name": "Cheer",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
+      },
+      {
+        "name": "Surprised",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
+      },
+      {
+        "name": "RaiseScanner",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
+      }
+    ],
+    "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them."
+  },
+  {
+    "name": "Env_Char_NPC_Townsfolk_B",
+    "family": "Characters",
+    "subfamily": "Character",
+    "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_B.fbx",
+    "triangles": 3120,
+    "lods": [
+      {
+        "level": 1,
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_B_LOD1.fbx",
+        "triangles": 1248
+      },
+      {
+        "level": 2,
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_B_LOD2.fbx",
+        "triangles": 468
+      }
+    ],
+    "pivot": "between the feet at ground level, facing +Z",
+    "textures": [
+      "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
+    "anchors": [
+      "Anchor_Head",
+      "Anchor_Body",
+      "Anchor_HandR",
+      "Anchor_HandL"
+    ],
+    "clips": [
+      {
+        "name": "Idle",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
+      },
+      {
+        "name": "Walk",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
+      },
+      {
+        "name": "Run",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
+      },
+      {
+        "name": "Turn",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
+      },
+      {
+        "name": "Talk",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
+      },
+      {
+        "name": "ThrowBall",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
+      },
+      {
+        "name": "Cheer",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
+      },
+      {
+        "name": "Surprised",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
+      },
+      {
+        "name": "RaiseScanner",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
+      }
+    ],
+    "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them."
+  },
+  {
+    "name": "Env_Char_NPC_Rival",
+    "family": "Characters",
+    "subfamily": "Character",
+    "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Rival.fbx",
+    "triangles": 3224,
+    "lods": [
+      {
+        "level": 1,
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Rival_LOD1.fbx",
+        "triangles": 1288
+      },
+      {
+        "level": 2,
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Rival_LOD2.fbx",
+        "triangles": 482
+      }
+    ],
+    "pivot": "between the feet at ground level, facing +Z",
+    "textures": [
+      "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
+    "anchors": [
+      "Anchor_Head",
+      "Anchor_Body",
+      "Anchor_HandR",
+      "Anchor_HandL"
+    ],
+    "clips": [
+      {
+        "name": "Idle",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
+      },
+      {
+        "name": "Walk",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
+      },
+      {
+        "name": "Run",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
+      },
+      {
+        "name": "Turn",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
+      },
+      {
+        "name": "Talk",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
+      },
+      {
+        "name": "ThrowBall",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
+      },
+      {
+        "name": "Cheer",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
+      },
+      {
+        "name": "Surprised",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
+      },
+      {
+        "name": "RaiseScanner",
+        "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
+      }
+    ],
+    "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them."
+  }
+]
