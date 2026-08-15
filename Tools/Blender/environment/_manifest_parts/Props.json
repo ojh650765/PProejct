@@ -19,19 +19,8 @@
     "family": "Props",
     "subfamily": "Prop",
     "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Open.fbx",
-    "triangles": 2634,
-    "lods": [
-      {
-        "level": 1,
-        "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Open_LOD1.fbx",
-        "triangles": 1052
-      },
-      {
-        "level": 2,
-        "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Open_LOD2.fbx",
-        "triangles": 394
-      }
-    ],
+    "triangles": 1890,
+    "lods": [],
     "pivot": "volume centre (spins about its own axis)",
     "textures": [
       "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",

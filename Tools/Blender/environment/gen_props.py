@@ -208,7 +208,7 @@ def capture_ball_open(bm, rng, R=0.055):
     bpy.data.meshes.remove(me)
     # a soft energy lens between the halves
     E.bm_polytube(bm, [Vector((0, 0, -R * 0.02)), Vector((0, 0, R * 0.02))],
-                  [R * 0.94, R * 0.94], 24, EMISSIVE, cap_start=True,
+                  [R * 0.94, R * 0.94], 14, EMISSIVE, cap_start=True,
                   cap_end=True, smooth=True)
 
 
@@ -474,7 +474,7 @@ def scanner(bm, rng):
 
 ASSETS = [
     ("Env_Prop_CaptureBall", 5101, (300, 2000), capture_ball, 'center', 2),
-    ("Env_Prop_CaptureBall_Open", 5102, (300, 2800), capture_ball_open, 'center', 2),
+    ("Env_Prop_CaptureBall_Open", 5102, (300, 2000), capture_ball_open, 'center', 1),
     ("Env_Prop_HealingMachine", 5201, (300, 2600), healing_machine_fix, 'base', 1),
     ("Env_Prop_ResearchTerminal", 5301, (300, 2600), research_terminal, 'base', 1),
     ("Env_Prop_Scanner", 5401, (300, 2000), scanner, 'base', 2),
