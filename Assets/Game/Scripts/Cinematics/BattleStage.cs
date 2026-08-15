@@ -58,7 +58,7 @@ namespace PokeLab.Cinematics
             }
         }
 
-        /// <summary>Centre of the arena, used by the wide establishing shot.</summary>
+        /// <summary>Centre of the arena. Every battle camera is placed relative to it.</summary>
         public Transform Center { get { EnsureBuilt(); return stageCenter; } }
 
         private void Awake() => EnsureBuilt();
@@ -68,9 +68,11 @@ namespace PokeLab.Cinematics
             if (_built) return;
             _built = true;
 
-            // The player mark is deliberately offset to the camera's left and the opponent to
-            // its right. Placing them on a single line makes the far creature sit exactly
-            // behind the near one on every over-the-shoulder shot.
+            // The player mark sits near-left of frame and the opponent far-right, which is the
+            // traditional battle layout. The lateral stagger is not what separates them on
+            // screen — both marks lie on the stage axis by definition, so the separation comes
+            // from BattleCameraRig.layoutYaw viewing that axis at an angle — but it does keep
+            // the arena from being a perfectly straight corridor.
             float half = creatureSeparation * 0.5f;
             playerCreatureMark = EnsureMark(playerCreatureMark, "Mark_PlayerCreature",
                 new Vector3(-lateralStagger, 0f, -half));
@@ -185,10 +187,12 @@ namespace PokeLab.Cinematics
         ///
         /// A fixed arena separation cannot serve both ends of the size contract. Two 0.3 m
         /// creatures five metres apart are two specks at opposite corners of the frame, and
-        /// no lens fixes that — an over-the-shoulder shot would need a 10-degree lens, which
-        /// flattens the foreground creature into a cutout. Two 6 m creatures at the same
-        /// separation are interpenetrating. So the field scales with its occupants, and the
-        /// camera rig's framing solve then has something it can actually solve.
+        /// no lens fixes that without a telephoto that flattens the whole diorama. Two 6 m
+        /// creatures at the same separation are interpenetrating. So the field scales with its
+        /// occupants, and the camera rig's framing solve then has something it can actually
+        /// solve. This matters more after the pivot, not less: the rig now has a 1.5× zoom
+        /// range to work with instead of 16×, so the arena has to arrive already close to
+        /// correct.
         ///
         /// Call after both sides are bound, then <see cref="BattleCameraRig.Retarget"/>.
         /// </summary>
@@ -229,8 +233,8 @@ namespace PokeLab.Cinematics
             float proportional = 2.6f * (a + b);
 
             // Second cap, driven by the *smaller* creature. Without it a 6 m creature facing
-            // a 0.5 m one pushes them 17 m apart, and no lens can frame the small one from
-            // behind the large one's shoulder. The pair closes up instead.
+            // a 0.5 m one pushes them 17 m apart, and the small one becomes a handful of pixels
+            // in a shot that has to contain both. The pair closes up instead.
             float smallestCanReach = 3f + 9f * Mathf.Min(a, b);
 
             return Mathf.Clamp(Mathf.Min(proportional, smallestCanReach), 2.0f, 16f);

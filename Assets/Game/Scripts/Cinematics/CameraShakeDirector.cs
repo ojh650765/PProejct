@@ -11,23 +11,43 @@ namespace PokeLab.Cinematics
     /// low-amplitude handheld drift that runs continuously underneath.
     ///
     /// Kept separate from <see cref="BattleCameraRig"/> because shake is orthogonal to shot
-    /// selection — a punch-in and a wide can both be shaking, and the rig should not have to
-    /// know about it to blend correctly.
+    /// selection — a push-in and the field shot can both be shaking, and the rig should not
+    /// have to know about it to blend correctly.
+    ///
+    /// <b>The pivot made this the loudest instrument in the orchestra.</b> With the impact
+    /// punch-in cut and the whole camera confined to a 1.5× zoom range, shake is most of what
+    /// is left to say "that hurt", so the amplitudes below went up rather than down. The one
+    /// thing that had to be added is the ceiling in <see cref="SubjectFalloff"/>: shaking a
+    /// flat sprite that already fills the frame does not read as force, it reads as a
+    /// cardboard cutout being waggled, and that failure is much worse than an under-sold hit.
     /// </summary>
     [DefaultExecutionOrder(-300)]
     public sealed class CameraShakeDirector : MonoBehaviour
     {
         [Header("Impact shake")]
         [Tooltip("Shake amplitude for a hit that removes the target's entire health bar.")]
-        [SerializeField] private float maxImpactAmplitude = 1.35f;
+        [SerializeField] private float maxImpactAmplitude = 1.90f;
         [Tooltip("Amplitude floor, so even a 1 HP chip registers physically.")]
-        [SerializeField] private float minImpactAmplitude = 0.18f;
+        [SerializeField] private float minImpactAmplitude = 0.26f;
         [Tooltip("Impulse duration in seconds at full strength.")]
-        [SerializeField] private float impactDuration = 0.32f;
+        [SerializeField] private float impactDuration = 0.36f;
         [Tooltip("Extra multiplier applied on a critical hit.")]
-        [SerializeField] private float criticalMultiplier = 1.8f;
+        [SerializeField] private float criticalMultiplier = 2.1f;
         [Tooltip("Extra multiplier applied when the hit was super effective.")]
-        [SerializeField] private float superEffectiveMultiplier = 1.35f;
+        [SerializeField] private float superEffectiveMultiplier = 1.45f;
+
+        [Header("Sprite ceiling")]
+        [Tooltip("Fraction of screen height the subject may fill before shake starts backing off. " +
+                 "Above this a flat sprite being shaken reads as a wobbling cutout rather than as impact.")]
+        [Range(0.5f, 1f)]
+        [SerializeField] private float shakeFalloffStart = 0.72f;
+        [Tooltip("Fraction of screen height at which shake is reduced to shakeFloor.")]
+        [Range(0.6f, 1.2f)]
+        [SerializeField] private float shakeFalloffEnd = 1.00f;
+        [Tooltip("Multiplier shake is reduced to at and beyond shakeFalloffEnd. Never zero — a hit that " +
+                 "produces no camera response at all reads as a dropped frame.")]
+        [Range(0.1f, 1f)]
+        [SerializeField] private float shakeFloor = 0.35f;
 
         [Header("Critical hitch")]
         [Tooltip("Freeze-frame on a critical hit. Set false if another system owns time scale.")]
@@ -49,6 +69,8 @@ namespace PokeLab.Cinematics
         private NoiseSettings _handheldProfile;
         private Coroutine _hitch;
         private float _timeScaleBeforeHitch = 1f;
+        private float _subjectScreenFraction = 0.6f;
+        private float _shotGain = 1f;
 
         /// <summary>
         /// The shared handheld noise profile, built in code so the rig does not depend on a
@@ -114,6 +136,37 @@ namespace PokeLab.Cinematics
             _source.DefaultVelocity = Vector3.down;
         }
 
+        // --- Framing context ---------------------------------------------------------------
+
+        /// <summary>
+        /// Tells the director how much of the frame the subject currently fills, so it can back
+        /// off before it starts shaking a near-full-screen sprite. Set by
+        /// <see cref="BattleCameraRig"/> whenever the live shot changes.
+        /// </summary>
+        public void SetSubjectScreenFraction(float fraction)
+            => _subjectScreenFraction = Mathf.Clamp(fraction, 0.05f, 1.5f);
+
+        /// <summary>Per-shot shake multiplier, from <see cref="ShotProfile.ShakeGain"/>.</summary>
+        public void SetShotGain(float gain) => _shotGain = Mathf.Clamp(gain, 0f, 3f);
+
+        /// <summary>
+        /// The ceiling that keeps a flat subject from being waggled.
+        ///
+        /// The failure this prevents is specific and it is the one the whole art pivot is
+        /// sensitive to: translate a camera in front of a billboard that already fills the
+        /// frame and every pixel of the creature moves together, rigidly, with no parallax and
+        /// no internal motion — which is precisely what a cardboard cutout being shaken looks
+        /// like. Below the threshold there is enough background in frame for the shake to read
+        /// as the camera moving instead.
+        /// </summary>
+        private float SubjectFalloff()
+        {
+            float start = Mathf.Min(shakeFalloffStart, shakeFalloffEnd - 0.01f);
+            if (_subjectScreenFraction <= start) return 1f;
+            float t = Mathf.Clamp01((_subjectScreenFraction - start) / Mathf.Max(0.01f, shakeFalloffEnd - start));
+            return Mathf.Lerp(1f, Mathf.Clamp01(shakeFloor), t);
+        }
+
         // --- Impact ----------------------------------------------------------------------
 
         /// <summary>
@@ -138,6 +191,7 @@ namespace PokeLab.Cinematics
             if (critical) amplitude *= criticalMultiplier;
             if (effectiveness == Effectiveness.SuperEffective) amplitude *= superEffectiveMultiplier;
             if (effectiveness == Effectiveness.NotVeryEffective) amplitude *= 0.6f;
+            amplitude *= SubjectFalloff();
 
             var def = _source.ImpulseDefinition;
             def.ImpulseDuration = Mathf.Lerp(impactDuration * 0.6f, impactDuration * 1.4f, f);
@@ -155,7 +209,20 @@ namespace PokeLab.Cinematics
         public void Bump(Vector3 worldPosition, float strength = 0.3f)
         {
             EnsureSource();
-            _source.GenerateImpulseAtPositionWithVelocity(worldPosition, Vector3.down * Mathf.Max(0.02f, strength));
+            float amplitude = Mathf.Max(0.02f, strength) * SubjectFalloff();
+            _source.GenerateImpulseAtPositionWithVelocity(worldPosition, Vector3.down * amplitude);
+        }
+
+        /// <summary>
+        /// Amplitude the director would produce for a hit right now, after the per-shot gain
+        /// and the sprite ceiling. Diagnostic — used by the framing audit rather than by any
+        /// beat, so a review can see the ceiling engaging instead of inferring it.
+        /// </summary>
+        public float PreviewAmplitude(float damageFraction, bool critical = false)
+        {
+            float a = Mathf.Lerp(minImpactAmplitude, maxImpactAmplitude, Mathf.Sqrt(Mathf.Clamp01(damageFraction)));
+            if (critical) a *= criticalMultiplier;
+            return a * SubjectFalloff() * _shotGain;
         }
 
         // --- Critical hitch --------------------------------------------------------------

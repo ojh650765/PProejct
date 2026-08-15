@@ -228,14 +228,14 @@ namespace PokeLab.Cinematics
         {
             _outcome = BattleOutcome.InProgress;
             Stage.FaceOff(0.5f);
-            Rig.SetRestingShot(BattleShot.WideEstablishing);
-            Rig.Show(BattleShot.WideEstablishing);
+            Rig.SetRestingShot(BattleShot.Field);
+            Rig.Show(BattleShot.Field);
 
             CinematicHooks.HudBeat("battle_start", 1f);
             CinematicHooks.Audio(CinematicAudioCues.EncounterSting, Stage.Center.position);
 
-            // A slow push on the establishing shot while nothing else is happening. It reads
-            // as the camera taking in the field, and it covers the frame where the HUD arrives.
+            // A beat held on the field shot while nothing else is happening. It reads as the
+            // camera taking in the arena, and it covers the frame where the HUD arrives.
             yield return CinematicRunner.Wait(0.6f);
             Rig.Release();
         }
@@ -280,7 +280,7 @@ namespace PokeLab.Cinematics
             // Fall and land with weight. The compression on contact is the beat that sells
             // the creature as a physical object rather than a spawned prop.
             float fallHeight = Mathf.Max(0.8f, burstPoint.y - Stage.MarkOf(side).position.y);
-            yield return view.Motion.Land(fallHeight, timing.LandFall * scale, timing.LandSettle * scale);
+            yield return view.PlayEntrance(fallHeight, timing.LandFall * scale, timing.LandSettle * scale);
 
             Rig.Shake?.Bump(view.transform.position, Mathf.Clamp(view.DisplayHeight * 0.35f, 0.12f, 0.6f));
             CinematicHooks.Vfx(CinematicVfxKeys.LandingDust, view.transform.position, Quaternion.identity);
@@ -301,7 +301,7 @@ namespace PokeLab.Cinematics
         {
             CreatureView view = Stage.ViewOf(e.Side);
             Rig.SetRoles(e.Side, BattleStage.Opposite(e.Side));
-            Rig.Show(e.Side == BattleSide.Player ? BattleShot.PlayerOverShoulder : BattleShot.OpponentOverShoulder);
+            Rig.Show(BattleCameraRig.FocusOn(e.Side));
 
             // Turn back toward its trainer before being recalled — a creature recalled while
             // still facing the enemy looks like it was deleted rather than called back.
@@ -326,9 +326,10 @@ namespace PokeLab.Cinematics
 
             Rig.SetRoles(attacker, target);
 
-            // Anticipation happens on the shoulder shot, not on the close-up. Starting tight
-            // leaves nowhere to push in to when the attack actually fires.
-            Rig.Show(attacker == BattleSide.Player ? BattleShot.PlayerOverShoulder : BattleShot.OpponentOverShoulder);
+            // Anticipation pans toward the attacker rather than pushing in on it. Starting
+            // tight leaves nowhere to go when the attack actually fires, and after the pivot
+            // "tight" is a 1.33× push that has to be spent on the impact, not on the wind-up.
+            Rig.Show(BattleCameraRig.FocusOn(attacker));
 
             CreatureView view = Stage.ViewOf(attacker);
             view.FaceTowards(Stage.MarkOf(target).position, 0.22f);
@@ -360,7 +361,7 @@ namespace PokeLab.Cinematics
 
             if (firstHit)
             {
-                Rig.Show(BattleShot.AttackerCloseUp);
+                Rig.Show(BattleCameraRig.FocusOn(e.Attacker));
                 attacker.FaceTowards(Stage.MarkOf(e.Target).position, 0.18f);
             }
             else
@@ -465,7 +466,7 @@ namespace PokeLab.Cinematics
         private IEnumerator PlayStatusMove(MoveExecutedEvent e, CreatureView attacker, CreatureView target)
         {
             attacker.Play(CreatureAnimation.AttackStatus, CreatureView.DefaultCrossfade(CreatureAnimation.AttackStatus));
-            Rig.Show(BattleShot.AttackerCloseUp);
+            Rig.Show(BattleCameraRig.FocusOn(e.Attacker));
 
             yield return CinematicRunner.Parallel(
                 attacker.Motion.Swell(timing.StatusGesture),
@@ -513,7 +514,7 @@ namespace PokeLab.Cinematics
         }
 
         /// <summary>
-        /// The frame the attack lands: impact VFX, audio, punch-in shot. Damage numbers and
+        /// The frame the attack lands: impact VFX, audio, and the push-in. Damage numbers and
         /// recoil are not applied here — those belong to the <see cref="DamageDealtEvent"/>
         /// that the engine emits next, and doing them twice would double the reaction.
         /// </summary>
@@ -525,12 +526,14 @@ namespace PokeLab.Cinematics
             string key = string.IsNullOrEmpty(e.VfxKey) ? CinematicVfxKeys.ImpactGeneric : e.VfxKey;
             CinematicHooks.Vfx(key, point, -Rig.Axis);
 
-            // Look ahead at the damage this is about to cause so the punch-in can be sized
-            // correctly on the frame of contact rather than one event later.
+            // Look ahead at the damage this is about to cause so the shot is chosen correctly
+            // on the frame of contact rather than one event later. A critical takes the push;
+            // anything else stays on a pan, because spending the rig's whole zoom range on
+            // every hit leaves nothing to escalate with.
             bool crit = PeekNext<DamageDealtEvent>(out var incoming, 2) && incoming.Critical;
 
             Rig.SetRoles(e.Attacker, e.Target);
-            Rig.Show(crit ? BattleShot.ImpactPunchIn : BattleShot.TargetReaction);
+            Rig.Show(crit ? BattleShot.FieldPush : BattleCameraRig.FocusOn(e.Target));
             yield break;
         }
 
@@ -549,7 +552,7 @@ namespace PokeLab.Cinematics
             // an immunity reported without a preceding MoveExecutedEvent, for instance.
             CreatureView target = Stage.ViewOf(e.Target);
             Rig.SetRoles(e.Attacker, e.Target);
-            Rig.Show(BattleShot.TargetReaction);
+            Rig.Show(BattleCameraRig.FocusOn(e.Target));
 
             if (!e.WasImmune)
             {
@@ -595,14 +598,14 @@ namespace PokeLab.Cinematics
 
             if (indirect)
             {
-                Rig.Show(BattleShot.TargetReaction);
+                Rig.Show(BattleCameraRig.FocusOn(e.Target));
                 CinematicHooks.Vfx(CinematicVfxKeys.ImpactGeneric, Rig.ImpactPointOf(e.Target), Quaternion.identity);
                 yield return target.Motion.Flinch(0.5f, 0.4f);
                 Rig.Release();
                 yield break;
             }
 
-            Rig.Show(BattleShot.ImpactPunchIn);
+            Rig.Show(BattleShot.FieldPush);
             Rig.PunchForDamage(e.Target, fraction, e.Critical, e.Effectiveness);
 
             CinematicHooks.Audio(EffectivenessCue(e.Effectiveness), target.transform.position);
@@ -663,7 +666,7 @@ namespace PokeLab.Cinematics
         {
             CreatureView view = Stage.ViewOf(e.Target);
             Rig.SetRoles(e.Target, BattleStage.Opposite(e.Target));
-            Rig.Show(e.Target == BattleSide.Player ? BattleShot.PlayerOverShoulder : BattleShot.OpponentOverShoulder);
+            Rig.Show(BattleCameraRig.FocusOn(e.Target));
 
             CinematicHooks.Vfx(CinematicVfxKeys.StatUp, view.transform.position, Quaternion.identity);
             CinematicHooks.HudBeat("heal", 1f);
@@ -677,7 +680,7 @@ namespace PokeLab.Cinematics
         {
             CreatureView view = Stage.ViewOf(e.Target);
             Rig.SetRoles(e.Target, BattleStage.Opposite(e.Target));
-            Rig.Show(BattleShot.TargetReaction);
+            Rig.Show(BattleCameraRig.FocusOn(e.Target));
 
             bool cured = e.Current == StatusCondition.None;
             CinematicHooks.HudBeat(cured ? "status_cured" : "status_" + e.Current.ToString().ToLowerInvariant(), 1f);
@@ -719,7 +722,7 @@ namespace PokeLab.Cinematics
             bool up = e.Delta > 0;
 
             Rig.SetRoles(e.Target, BattleStage.Opposite(e.Target));
-            Rig.Show(e.Target == BattleSide.Player ? BattleShot.PlayerOverShoulder : BattleShot.OpponentOverShoulder);
+            Rig.Show(BattleCameraRig.FocusOn(e.Target));
 
             CinematicHooks.Vfx(up ? CinematicVfxKeys.StatUp : CinematicVfxKeys.StatDown,
                 view.transform.position, Quaternion.identity);
@@ -738,7 +741,7 @@ namespace PokeLab.Cinematics
         {
             CreatureView view = Stage.ViewOf(e.Side);
             Rig.SetRoles(e.Side, BattleStage.Opposite(e.Side));
-            Rig.Show(BattleShot.AttackerCloseUp);
+            Rig.Show(BattleCameraRig.FocusOn(e.Side));
 
             CinematicHooks.Vfx(CinematicVfxKeys.AbilityFlare, view.transform.position, Quaternion.identity);
             CinematicHooks.HudBeat("ability", 1f);
@@ -751,7 +754,7 @@ namespace PokeLab.Cinematics
         private IEnumerator PlayItemUsed(ItemUsedEvent e)
         {
             Rig.SetRoles(e.Side, BattleStage.Opposite(e.Side));
-            Rig.Show(e.Side == BattleSide.Player ? BattleShot.PlayerOverShoulder : BattleShot.OpponentOverShoulder);
+            Rig.Show(BattleCameraRig.FocusOn(e.Side));
             CinematicHooks.HudBeat("item", 1f);
             yield return CinematicRunner.Wait(0.4f);
             Rig.Release();
@@ -760,8 +763,9 @@ namespace PokeLab.Cinematics
         private IEnumerator PlayWeather(WeatherChangedEvent e)
         {
             // Weather is a change to the whole field, so it is staged on the field, not on a
-            // combatant. The wide shot is the only one that can show it.
-            Rig.Show(BattleShot.WideEstablishing);
+            // combatant. The field shot is the widest the rig has and the only one framed on
+            // the arena rather than on somebody in it.
+            Rig.Show(BattleShot.Field);
             CinematicHooks.HudBeat("weather_" + e.Current.ToString().ToLowerInvariant(), 1f);
             CinematicHooks.Vfx("weather_" + e.Current.ToString().ToLowerInvariant(), Stage.Center.position, Quaternion.identity);
             yield return CinematicRunner.Wait(timing.WeatherTurn);
@@ -871,7 +875,7 @@ namespace PokeLab.Cinematics
                 CinematicHooks.Vfx(CinematicVfxKeys.BallBurst, target.transform.position, Quaternion.identity);
                 CinematicHooks.Cry(_active.TryGetValue(targetSide, out var c) ? c.SpeciesId : 0, target.transform.position);
 
-                yield return target.Motion.Land(target.DisplayHeight * 1.2f, 0.22f, 0.36f);
+                yield return target.PlayEntrance(target.DisplayHeight * 1.2f, 0.22f, 0.36f);
                 yield return target.FaceTowardsAndWait(Stage.MarkOf(BattleSide.Player).position, 0.3f);
                 target.PlayAuthored(CreatureAnimation.IdleBattle);
                 CinematicHooks.HudBeat("capture_failed", 1f);
@@ -913,8 +917,12 @@ namespace PokeLab.Cinematics
 
                 // Turn out toward the camera before celebrating — a creature celebrating at
                 // the empty space where its opponent used to be reads as a bug.
-                Vector3 outward = winner.transform.position + (Rig.Axis * -1f + Vector3.right * 0.6f);
-                yield return winner.FaceTowardsAndWait(outward, 0.4f);
+                // Turn out toward the lens, which for a sprite is a real reveal: the player's
+                // creature has shown its back sprite for the whole battle and this is the one
+                // beat that turns it around. Aimed along the camera's own view direction rather
+                // than at an arbitrary offset, so the front view lands square.
+                Vector3 outward = winner.transform.position - Rig.ViewDirection * 3f;
+                yield return winner.FaceTowardsAndWait(outward, 0.5f);
 
                 winner.PlayAuthored(CreatureAnimation.Celebrate);
                 CinematicHooks.Audio(CinematicAudioCues.Victory, winner.transform.position);
@@ -930,8 +938,8 @@ namespace PokeLab.Cinematics
             }
             else
             {
-                Rig.SetRestingShot(BattleShot.WideEstablishing);
-                Rig.Show(BattleShot.WideEstablishing);
+                Rig.SetRestingShot(BattleShot.Field);
+                Rig.Show(BattleShot.Field);
                 CinematicHooks.HudBeat(e.Outcome == BattleOutcome.Fled ? "fled" : "defeat", 1f);
                 yield return CinematicRunner.Wait(timing.BattleEndHold);
             }
@@ -1002,7 +1010,7 @@ namespace PokeLab.Cinematics
             _active.Clear();
             _declaredMove = null;
             _outcome = BattleOutcome.InProgress;
-            Rig.SetRestingShot(BattleShot.WideEstablishing);
+            Rig.SetRestingShot(BattleShot.Field);
             Rig.Release();
         }
     }

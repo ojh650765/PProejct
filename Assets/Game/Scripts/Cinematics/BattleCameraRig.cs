@@ -13,18 +13,29 @@ namespace PokeLab.Cinematics
     /// selected by priority and joined by the authored blend table in
     /// <see cref="ShotBlendRule"/>.
     ///
-    /// Three rules this class exists to enforce:
+    /// After the HD-2D pivot this is a <b>traditional Pokémon rig</b>, and the structure
+    /// changed to enforce that rather than merely to allow it:
     ///
-    /// 1. <b>Nothing is ever teleported.</b> The presenter asks for a shot; the rig raises
-    ///    that camera's priority and the brain blends. No code path repositions a live
-    ///    camera, so there is no way to author a cut by accident.
-    /// 2. <b>Framing is solved, not authored in metres.</b> Placement offsets are expressed
-    ///    per unit of creature height and the lens is then solved so the subject occupies a
-    ///    fixed fraction of the screen. That is what lets a 0.3 m and a 6 m creature share
-    ///    one rig.
-    /// 3. <b>The camera never ends up inside anything.</b> Every shot carries a deoccluder
-    ///    against the environment mask and a decollider against terrain, and the placement
-    ///    solve enforces a minimum standoff from the creature it is anchored to.
+    /// <list type="number">
+    /// <item><b>There is one camera placement, not one per shot.</b> <see cref="SolveBasis"/>
+    /// computes a single position and view direction from the stage axis, and every shot uses
+    /// it. A shot may pan its aim a few degrees and dolly a few centimetres; it cannot choose
+    /// a different anchor, and so it cannot orbit. That is what makes the fixed three-quarter
+    /// layout structural instead of a convention someone has to remember.</item>
+    /// <item><b>Apparent size is one number per shot and it is clamped.</b> The lens is solved
+    /// against a fixed reference distance, so on-screen creature size is exactly proportional
+    /// to <see cref="ShotProfile.StageScreenFraction"/>, which is clamped to a 1.92× band. The
+    /// old rig varied subject size 12-16× and the only way to find that out was to measure a
+    /// screenshot.</item>
+    /// <item><b>Nothing may move the camera to an unauthored angle.</b> The deoccluder's
+    /// obstacle avoidance is disabled on every shot. It stayed enabled in the old rig because
+    /// an over-the-shoulder framing genuinely needed rescuing when a tree got in the way; with
+    /// no shoulder shots left, all it can do is slide the camera to a yaw nobody authored.
+    /// The decollider stays, because vertical rescue does not change what the frame looks
+    /// like.</item>
+    /// <item><b>Nothing is ever teleported.</b> Unchanged. The presenter asks for a shot; the
+    /// rig raises that camera's priority and the brain blends.</item>
+    /// </list>
     ///
     /// The rig builds its own cameras at runtime when they are not assigned, so the battle
     /// stages correctly before the integrator has wired a scene. Assign them for shipping.
@@ -48,19 +59,35 @@ namespace PokeLab.Cinematics
         [Tooltip("Midpoint of the battle field. Falls back to the midpoint of the two creature marks.")]
         [SerializeField] private Transform stageCenter;
 
+        [Header("Traditional layout")]
+        [Tooltip("Degrees the view direction is rotated off the player-to-opponent axis. This is what " +
+                 "separates the two creatures diagonally in frame; at 0 they stack exactly on top of " +
+                 "each other, because both marks lie on the axis by definition.")]
+        [Range(12f, 55f)]
+        [SerializeField] private float layoutYaw = 32f;
+        [Tooltip("Downward tilt of the fixed three-quarter view, in degrees. The HD-2D diorama band is " +
+                 "roughly 15-30; above that a camera-facing billboard starts to look like a standing card.")]
+        [Range(8f, 32f)]
+        [SerializeField] private float layoutPitch = 20f;
+        [Tooltip("Horizontal standoff from the field centre, metres = x + y * field extent.")]
+        [SerializeField] private Vector2 standoff = new Vector2(1.2f, 2.6f);
+        [Tooltip("Mirror the layout yaw. Flip this if the arena's authored geometry reads better " +
+                 "with the player's creature to the right.")]
+        [SerializeField] private bool mirrorLayout;
+
         [Header("Occlusion")]
-        [Tooltip("Layers the camera must not pass through: terrain, rocks, trees, buildings.")]
+        [Tooltip("Layers the camera must not sink into: terrain, rocks, buildings. Used by the decollider only.")]
         [SerializeField] private LayerMask obstacleLayers = ~0;
         [Tooltip("Layers that must never trigger occlusion resolution — the creatures themselves and their VFX.")]
         [SerializeField] private LayerMask subjectLayers = 0;
         [Tooltip("Terrain layers for the decollider, which stops the camera dropping below ground.")]
         [SerializeField] private LayerMask terrainLayers = ~0;
-        [Tooltip("Radius of the sphere used for occlusion tests. Roughly the camera's near-plane half-diagonal.")]
+        [Tooltip("Radius of the sphere used for collision tests. Roughly the camera's near-plane half-diagonal.")]
         [SerializeField] private float cameraRadius = 0.32f;
 
         [Header("Framing")]
         [Tooltip("Shot the rig rests on when nothing else is requested.")]
-        [SerializeField] private BattleShot restingShot = BattleShot.WideEstablishing;
+        [SerializeField] private BattleShot restingShot = BattleShot.Field;
         [Tooltip("Creature height used before a creature is bound, in metres.")]
         [SerializeField] private float defaultDisplayHeight = 0.8f;
         [Tooltip("Height is clamped into this range before it is used for framing, so a bad registry value cannot put the camera in orbit.")]
@@ -73,6 +100,11 @@ namespace PokeLab.Cinematics
         [SerializeField] private ShotBlendRule[] blendRules = Array.Empty<ShotBlendRule>();
         [Tooltip("Shake and handheld noise. Created on this object when left empty.")]
         [SerializeField] private CameraShakeDirector shake;
+
+        [Header("Diagnostics")]
+        [Tooltip("Log the solved apparent-size ratio across the shot library at startup. " +
+                 "This is the number the pivot exists to keep small.")]
+        [SerializeField] private bool logFramingAudit = true;
 
         // --- Runtime state ---------------------------------------------------------------
 
@@ -103,13 +135,30 @@ namespace PokeLab.Cinematics
         /// <summary>True while the brain is mid-blend. Beats that must land on a settled frame wait on this.</summary>
         public bool IsBlending => brain != null && brain.IsBlending;
 
+        /// <summary>
+        /// The camera the brain is currently outputting. The sprite billboards resolve their
+        /// front/back facing against this, so it is exposed rather than left for each view to
+        /// go hunting for <see cref="Camera.main"/>.
+        /// </summary>
+        public Camera OutputCamera => brain != null && brain.OutputCamera != null ? brain.OutputCamera : Camera.main;
+
         // --- Lifecycle -------------------------------------------------------------------
 
         private void Awake()
         {
             if (shotProfiles == null || shotProfiles.Length == 0) shotProfiles = ShotProfile.DefaultLibrary();
             if (blendRules == null || blendRules.Length == 0) blendRules = ShotBlendRule.DefaultTable();
-            foreach (var p in shotProfiles) _profiles[p.Shot] = p;
+
+            // Sanitise every profile, authored or shipped. This is the enforcement point for
+            // the framing band and for "no shot avoids obstacles by moving" — an inspector
+            // edit cannot get round it, because nothing reads the raw array afterwards.
+            for (int i = 0; i < shotProfiles.Length; i++)
+            {
+                shotProfiles[i] = ShotProfile.Sanitise(shotProfiles[i]);
+                _profiles[shotProfiles[i].Shot] = shotProfiles[i];
+            }
+
+            if (!_profiles.ContainsKey(restingShot)) restingShot = BattleShot.Field;
 
             if (brain == null && Camera.main != null) brain = Camera.main.GetComponent<CinemachineBrain>();
             if (shake == null) shake = GetComponent<CameraShakeDirector>();
@@ -121,6 +170,8 @@ namespace PokeLab.Cinematics
             BuildCameras();
             Retarget();
             ApplyPriorities();
+
+            if (logFramingAudit) LogFramingAudit();
         }
 
         private void OnEnable()
@@ -136,6 +187,24 @@ namespace PokeLab.Cinematics
         private void OnDisable()
         {
             CinemachineCore.GetBlendOverride -= OnGetBlendOverride;
+        }
+
+        /// <summary>
+        /// Reports the apparent-size range the live library actually produces.
+        ///
+        /// This exists because the number it prints is the one the whole camera pivot turns
+        /// on, and before the pivot there was no way to know it without measuring pixels in a
+        /// screenshot. An over-range library is logged as an error, not a warning: shipping
+        /// one is a visual regression that will be blamed on the art.
+        /// </summary>
+        private void LogFramingAudit()
+        {
+            float ratio = ShotProfile.ApparentSizeRatio(shotProfiles);
+            string message = $"[BattleCameraRig] {shotProfiles.Length} shots, apparent-size range {ratio:0.00}× " +
+                             $"(ceiling {ShotProfile.MaxApparentSizeRatio:0.0}×, pixel-art tolerance ~6×, " +
+                             "the pre-pivot orbiting rig was 12-16×).";
+            if (ratio > ShotProfile.MaxApparentSizeRatio) Debug.LogError(message, this);
+            else Debug.Log(message, this);
         }
 
         // --- Binding ---------------------------------------------------------------------
@@ -162,9 +231,12 @@ namespace PokeLab.Cinematics
         }
 
         /// <summary>
-        /// Declares who is acting and who is receiving this beat. The Actor- and
-        /// Receiver-anchored shots re-solve immediately, which is why the presenter sets
-        /// roles before it asks for a shot rather than after.
+        /// Declares who is acting and who is receiving this beat. Shots focused on the actor
+        /// or the receiver re-aim immediately, which is why the presenter sets roles before it
+        /// asks for a shot rather than after.
+        ///
+        /// Note what this no longer does: it does not move a camera. In the orbiting rig a
+        /// role change relocated the anchor of four shots.
         /// </summary>
         public void SetRoles(BattleSide actor, BattleSide receiver)
         {
@@ -224,6 +296,10 @@ namespace PokeLab.Cinematics
             ApplyPriorities();
         }
 
+        /// <summary>The shot that pans toward a given side. Saves every caller a ternary.</summary>
+        public static BattleShot FocusOn(BattleSide side)
+            => side == BattleSide.Player ? BattleShot.PlayerFocus : BattleShot.OpponentFocus;
+
         /// <summary>The camera backing a shot, for callers that need to reach the transform directly.</summary>
         public CinemachineCamera CameraFor(BattleShot shot)
             => _cameras.TryGetValue(shot, out var c) ? c : null;
@@ -245,6 +321,14 @@ namespace PokeLab.Cinematics
                 if (kv.Value == null) continue;
                 kv.Value.Priority = kv.Key == live ? ActivePriority : RestingPriority;
             }
+
+            // Tell the shake director how much of the frame the subject fills on the live
+            // shot, so it can back off before it starts wobbling a near-full-screen cutout.
+            if (shake != null && _profiles.TryGetValue(live, out var profile))
+            {
+                shake.SetSubjectScreenFraction(profile.StageScreenFraction);
+                shake.SetShotGain(profile.ShakeGain);
+            }
         }
 
         // --- Framing ----------------------------------------------------------------------
@@ -258,58 +342,82 @@ namespace PokeLab.Cinematics
         /// Moves the aim proxies onto their subjects' framing points every frame.
         ///
         /// Aiming at a proxy rather than at <c>Anchor_Head</c> directly is what lets a shot
-        /// bias its aim between head and body: a punch-in wants the chest, a reaction wants
-        /// the face, and both are framing the same creature at the same instant.
+        /// bias its aim between the feet and the crown, and — new since the pivot — what lets
+        /// a "focus" be a partial pan toward a creature rather than a jump onto it.
         /// </summary>
         private void UpdateProxies()
         {
-            Vector3 playerPoint = FramingPoint(_playerView, 0.5f, BattleSide.Player);
-            Vector3 opponentPoint = FramingPoint(_opponentView, 0.5f, BattleSide.Opponent);
-            if (_stageProxy != null) _stageProxy.position = (playerPoint + opponentPoint) * 0.5f;
+            Vector3 playerGround = GroundPointOf(BattleSide.Player);
+            Vector3 opponentGround = GroundPointOf(BattleSide.Opponent);
+
+            // The stage proxy is the camera's follow target and sits at ground level, because
+            // the camera height is solved as a pitch above the ground plane. Putting it at
+            // mid-creature height would make the layout pitch drift with creature size.
+            if (_stageProxy != null)
+            {
+                _stageProxy.position = stageCenter != null
+                    ? new Vector3(stageCenter.position.x, (playerGround.y + opponentGround.y) * 0.5f, stageCenter.position.z)
+                    : (playerGround + opponentGround) * 0.5f;
+            }
 
             foreach (var kv in _aimProxies)
             {
                 if (kv.Value == null) continue;
                 if (!_profiles.TryGetValue(kv.Key, out var profile)) continue;
-
-                BattleSide? side = ResolveSide(profile.Target);
-                kv.Value.position = side.HasValue
-                    ? FramingPoint(ViewOf(side.Value), profile.AimBias, side.Value)
-                    : Vector3.Lerp(playerPoint, opponentPoint, 0.5f);
+                kv.Value.position = AimPointFor(profile, playerGround, opponentGround);
             }
         }
 
         /// <summary>
-        /// The world point a shot aims at: interpolated between the body and head anchors.
-        /// Falls back to the mark plus half the display height when a view or an anchor is
-        /// missing, so an un-rigged placeholder still frames plausibly.
+        /// Where a shot looks: the field midpoint panned <see cref="ShotProfile.FocusStrength"/>
+        /// of the way toward its focused creature, raised by
+        /// <see cref="ShotProfile.AimHeightBias"/> of that creature's height.
+        ///
+        /// Both marks lie on the stage axis, and the camera sits well back from it, so even a
+        /// full pan from one creature to the other is only ~14° of yaw; at the shipped focus
+        /// strengths it is ~6°. That is the entire angular range the rig can produce, and it
+        /// is what makes a discrete front/back sprite choice safe.
         /// </summary>
-        private Vector3 FramingPoint(ICreatureView view, float bias, BattleSide side)
+        private Vector3 AimPointFor(ShotProfile profile, Vector3 playerGround, Vector3 opponentGround)
         {
-            float h = side == BattleSide.Player ? _playerHeight : _opponentHeight;
-            if (h <= 0f) h = defaultDisplayHeight;
+            BattleSide? side = ResolveSide(profile.Focus);
+            Vector3 mid = (playerGround + opponentGround) * 0.5f;
 
-            if (view == null || view.Root == null)
+            float height;
+            Vector3 ground;
+            if (side.HasValue)
             {
-                Transform mark = MarkFor(side);
-                return (mark != null ? mark.position : transform.position) + Vector3.up * (h * 0.5f);
+                ground = Vector3.Lerp(mid, side.Value == BattleSide.Player ? playerGround : opponentGround,
+                    Mathf.Clamp01(profile.FocusStrength));
+                height = HeightOf(side.Value);
+            }
+            else
+            {
+                ground = mid;
+                height = Mathf.Max(_playerHeight, _opponentHeight);
             }
 
-            Vector3 body = view.BodyAnchor != null ? view.BodyAnchor.position : view.Root.position + Vector3.up * (h * 0.5f);
-            Vector3 head = view.HeadAnchor != null ? view.HeadAnchor.position : view.Root.position + Vector3.up * h;
-            return Vector3.Lerp(body, head, Mathf.Clamp01(bias));
+            if (height <= 0.01f) height = defaultDisplayHeight;
+            return ground + Vector3.up * (height * Mathf.Clamp01(profile.AimHeightBias));
+        }
+
+        /// <summary>Ground position of a side's creature: its mark, or the rig if nothing is bound.</summary>
+        private Vector3 GroundPointOf(BattleSide side)
+        {
+            Transform mark = MarkFor(side);
+            return mark != null ? mark.position : transform.position;
         }
 
         private ICreatureView ViewOf(BattleSide side) => side == BattleSide.Player ? _playerView : _opponentView;
 
-        private BattleSide? ResolveSide(ShotSubject subject)
+        private BattleSide? ResolveSide(ShotFocus focus)
         {
-            switch (subject)
+            switch (focus)
             {
-                case ShotSubject.Player: return BattleSide.Player;
-                case ShotSubject.Opponent: return BattleSide.Opponent;
-                case ShotSubject.Actor: return _actor;
-                case ShotSubject.Receiver: return _receiver;
+                case ShotFocus.Player: return BattleSide.Player;
+                case ShotFocus.Opponent: return BattleSide.Opponent;
+                case ShotFocus.Actor: return _actor;
+                case ShotFocus.Receiver: return _receiver;
                 default: return null;
             }
         }
@@ -322,21 +430,56 @@ namespace PokeLab.Cinematics
         }
 
         /// <summary>
+        /// The single camera placement every shot shares: position, view direction and the
+        /// reference distance the lens is solved against.
+        ///
+        /// Expressed as a yaw off the stage axis and a downward pitch rather than as back/up/
+        /// side offsets, because those are the two numbers that describe a traditional
+        /// three-quarter battle view and there is no third one. The old profile's per-shot
+        /// offset triple is what made every shot capable of being somewhere else entirely.
+        /// </summary>
+        private void SolveBasis(out Vector3 position, out Vector3 viewDirection, out float referenceDistance, out float extent)
+        {
+            Vector3 axis = StageAxis();
+            extent = StageExtent();
+
+            float yaw = mirrorLayout ? -layoutYaw : layoutYaw;
+            viewDirection = Quaternion.AngleAxis(yaw, Vector3.up) * axis;
+            viewDirection.y = 0f;
+            if (viewDirection.sqrMagnitude < 1e-4f) viewDirection = axis;
+            viewDirection.Normalize();
+
+            float back = Mathf.Max(1.0f, ShotProfile.Solve(standoff, extent));
+            float height = back * Mathf.Tan(Mathf.Clamp(layoutPitch, 5f, 45f) * Mathf.Deg2Rad);
+
+            Vector3 centre = _stageProxy != null ? _stageProxy.position : transform.position;
+            position = centre - viewDirection * back + Vector3.up * height;
+
+            // The reference distance is measured to the field centre, not to whatever the
+            // current shot happens to be aiming at. That is what makes on-screen subject size
+            // exactly proportional to StageScreenFraction: if the solve used the aim distance,
+            // a pan toward the near creature would silently enlarge it.
+            referenceDistance = Mathf.Max(0.5f, Vector3.Distance(position, centre + Vector3.up * (extent * 0.35f)));
+        }
+
+        /// <summary>
         /// Re-solves placement and lens for every camera.
         ///
-        /// Runs on binding changes and on shot changes rather than per frame: the offsets
-        /// depend only on the stage axis and the creature heights, both of which are constant
+        /// Runs on binding changes and on shot changes rather than per frame: the placement
+        /// depends only on the stage axis and the creature heights, both of which are constant
         /// between events, and re-solving each frame would fight the Cinemachine damping that
         /// makes the shot feel weighted.
         /// </summary>
         public void Retarget()
         {
-            // Proxies normally move in LateUpdate, but the lens solve below needs their
-            // positions now — otherwise the first Retarget of a battle solves the FOV against
-            // a proxy still sitting at the rig origin and the opening shot is framed wrong.
+            // Proxies normally move in LateUpdate, but the basis and lens solves below need
+            // their positions now — otherwise the first Retarget of a battle solves against a
+            // proxy still sitting at the rig origin and the opening shot is framed wrong.
             UpdateProxies();
 
-            Vector3 axis = StageAxis();
+            SolveBasis(out Vector3 basePosition, out Vector3 viewDirection, out float referenceDistance, out float extent);
+            Vector3 centre = _stageProxy != null ? _stageProxy.position : transform.position;
+            float baseHeight = basePosition.y - centre.y;
 
             foreach (var kv in _cameras)
             {
@@ -344,62 +487,14 @@ namespace PokeLab.Cinematics
                 if (cam == null) continue;
                 if (!_profiles.TryGetValue(kv.Key, out var profile)) continue;
 
-                BattleSide? anchorSide = ResolveSide(profile.Anchor);
-                BattleSide? targetSide = ResolveSide(profile.Target);
-
-                Transform anchor = anchorSide.HasValue ? MarkFor(anchorSide.Value) : (Transform)_stageProxy;
-
-                // Placement scale. A field-anchored shot scales with the field, not with a
-                // creature — otherwise the establishing shot on two tiny creatures sits as
-                // close as a close-up and stops establishing anything.
-                float anchorHeight = anchorSide.HasValue ? HeightOf(anchorSide.Value) : StageExtent();
-                float placementScale = anchorHeight;
-                if (anchorSide.HasValue && targetSide.HasValue && anchorSide.Value != targetSide.Value)
-                {
-                    // A cross-shot is composed of both creatures, so its offsets scale with
-                    // both. Using the anchor alone backs a 6 m attacker's shoulder camera so
-                    // far off that a 0.5 m target across the field becomes unframeable at any
-                    // sane focal length. The geometric mean is identical for an evenly matched
-                    // pair and only bites at the extremes, which is exactly where it is needed.
-                    placementScale = Mathf.Sqrt(Mathf.Max(0.01f, anchorHeight * HeightOf(targetSide.Value)));
-                }
-
-                // What the lens is asked to fill. For a shot aimed at a creature that is the
-                // creature; for one aimed at the field it is the field. Solving the wide shot
-                // against a creature's height frames a 0.3 m creature at 7% of the screen and
-                // pushes both combatants out of frame at the same time — the subject of an
-                // establishing shot is the space between them, not either of them.
-                float targetHeight = targetSide.HasValue ? HeightOf(targetSide.Value) : StageExtent();
-
-                // Orientation of the shot: "back" runs away from what we are looking at, so
-                // the camera always sits on the far side of the anchor from the target. For
-                // stage-anchored shots the stage axis stands in.
-                Vector3 toTarget = axis;
-                if (anchorSide.HasValue && targetSide.HasValue && anchorSide.Value != targetSide.Value)
-                {
-                    toTarget = FramingPoint(ViewOf(targetSide.Value), 0.5f, targetSide.Value)
-                             - FramingPoint(ViewOf(anchorSide.Value), 0.5f, anchorSide.Value);
-                    toTarget.y = 0f;
-                    if (toTarget.sqrMagnitude < 1e-4f) toTarget = axis;
-                    toTarget.Normalize();
-                }
-
-                Vector3 right = Vector3.Cross(Vector3.up, toTarget).normalized;
-                if (right.sqrMagnitude < 1e-4f) right = Vector3.right;
-
-                float back = ShotProfile.Solve(profile.Back, placementScale);
-                float up = ShotProfile.Solve(profile.Up, placementScale);
-                float lateral = ShotProfile.Solve(profile.Side, placementScale);
-
-                // Standoff floor, deliberately tied to the real anchor height rather than to
-                // the blended placement scale: the thing the camera can physically collide
-                // with is the creature it is sitting behind. This is the geometric half of the
-                // "never intersect a creature" rule.
-                float minStandoff = 0.45f + 0.55f * anchorHeight + cameraRadius;
-                Vector3 planar = -toTarget * back + right * lateral;
-                if (planar.magnitude < minStandoff) planar = planar.normalized * minStandoff;
-
-                Vector3 offset = planar + Vector3.up * up;
+                // The shot's whole freedom of placement: a fraction of the standoff nearer or
+                // further, and a fraction of the camera height up or down. Both are clamped to
+                // ±25% in ShotProfile.Sanitise, and the lens re-solves against the new
+                // distance so neither changes how large the creature is drawn.
+                Vector3 planar = basePosition - centre;
+                planar.y = 0f;
+                Vector3 offset = planar * (1f - profile.Dolly);
+                offset.y = baseHeight * (1f + profile.Rise);
 
                 var follow = cam.GetComponent<CinemachineFollow>();
                 if (follow != null)
@@ -412,22 +507,34 @@ namespace PokeLab.Cinematics
                 var composer = cam.GetComponent<CinemachineRotationComposer>();
                 if (composer != null) composer.Damping = profile.AimDamping;
 
-                cam.Target.TrackingTarget = anchor;
+                cam.Target.TrackingTarget = _stageProxy;
                 cam.Target.LookAtTarget = ProxyFor(kv.Key);
                 cam.Target.CustomLookAtTarget = true;
 
-                // Solve the lens so the subject occupies the intended slice of the screen.
-                Vector3 camPos = anchor.position + offset;
-                Vector3 aimPos = ProxyFor(kv.Key) != null ? ProxyFor(kv.Key).position : anchor.position;
-                float distance = Mathf.Max(0.35f, Vector3.Distance(camPos, aimPos));
-                cam.Lens.FieldOfView = SolveFov(targetHeight, distance, profile.TargetScreenFraction, profile.FovRange);
-                cam.Lens.Dutch = profile.Dutch;
-                // Near clip must sit inside the standoff or the camera eats its own subject.
-                cam.Lens.NearClipPlane = Mathf.Clamp(minStandoff * 0.15f, 0.05f, 0.3f);
+                // Apparent size. Solved against the shared reference distance corrected for
+                // this shot's dolly, so the dolly is a pure perspective change.
+                float shotDistance = Mathf.Max(0.5f, referenceDistance * (1f - profile.Dolly));
+                cam.Lens.FieldOfView = SolveFov(extent, shotDistance, profile.StageScreenFraction, profile.FovRange);
+                // No Dutch, ever. A rolled frame resamples a point-filtered sprite along a
+                // diagonal and the pixel grid visibly shears.
+                cam.Lens.Dutch = 0f;
+                cam.Lens.NearClipPlane = Mathf.Clamp(shotDistance * 0.02f, 0.05f, 0.3f);
 
                 ConfigureNoise(cam, profile);
-                ConfigureOcclusion(cam, profile, targetHeight);
+                ConfigureOcclusion(cam, profile, extent);
             }
+
+            // Keep the shake director in step with whichever shot is live, so a Retarget
+            // caused by a role change does not leave it scaled for the previous shot.
+            ApplyShakeContext();
+        }
+
+        private void ApplyShakeContext()
+        {
+            if (shake == null) return;
+            if (!_profiles.TryGetValue(Current, out var profile)) return;
+            shake.SetSubjectScreenFraction(profile.StageScreenFraction);
+            shake.SetShotGain(profile.ShakeGain);
         }
 
         private float HeightOf(BattleSide side) => side == BattleSide.Player ? _playerHeight : _opponentHeight;
@@ -435,16 +542,19 @@ namespace PokeLab.Cinematics
         /// <summary>The vertical extent a field-framing shot must cover, in metres.</summary>
         private float StageExtent() => SolveStageExtent(
             Mathf.Max(_playerHeight, _opponentHeight),
-            Vector3.Distance(MarkFor(BattleSide.Player).position, MarkFor(BattleSide.Opponent).position));
+            Vector3.Distance(GroundPointOf(BattleSide.Player), GroundPointOf(BattleSide.Opponent)));
 
         /// <summary>
-        /// The framing quantity for a shot aimed at the whole field.
+        /// The framing quantity for the field.
         ///
         /// Taken as the larger of "tall enough to contain the bigger creature with headroom"
-        /// and "wide enough to contain the gap between the marks", because an establishing
-        /// shot has to satisfy both and either one alone fails at the extremes: a small pair
-        /// of creatures produces a frame with nothing in it, and a large pair produces one
-        /// with both of them cropped.
+        /// and "wide enough to contain the gap between the marks", because the field framing
+        /// has to satisfy both and either one alone fails at the extremes: a small pair of
+        /// creatures produces a frame with nothing in it, and a large pair produces one with
+        /// both of them cropped.
+        ///
+        /// Unchanged by the pivot, and it is now the <i>only</i> quantity the lens is ever
+        /// solved against — no shot frames a single creature any more.
         /// </summary>
         public static float SolveStageExtent(float tallestCreature, float markSeparation)
             => Mathf.Max(Mathf.Max(0.2f, tallestCreature) * 1.6f, Mathf.Max(0.5f, markSeparation) * 0.55f);
@@ -502,6 +612,7 @@ namespace PokeLab.Cinematics
             foreach (var profile in shotProfiles)
             {
                 if (profile.Shot == BattleShot.None) continue;
+                if (_cameras.ContainsKey(profile.Shot)) continue;
 
                 CinemachineCamera cam = authored.TryGetValue(profile.Shot, out var a) ? a : CreateCamera(profile.Shot);
                 if (cam == null) continue;
@@ -554,49 +665,36 @@ namespace PokeLab.Cinematics
             if (profile.NoiseAmplitude <= 0.001f)
             {
                 perlin.AmplitudeGain = 0f;
-                return;
             }
-
-            if (perlin.NoiseProfile == null) perlin.NoiseProfile = shake != null ? shake.HandheldProfile : null;
-            perlin.AmplitudeGain = profile.NoiseAmplitude * (shake != null ? shake.HandheldScale : 1f);
-            perlin.FrequencyGain = Mathf.Max(0.01f, profile.NoiseFrequency);
+            else
+            {
+                if (perlin.NoiseProfile == null) perlin.NoiseProfile = shake != null ? shake.HandheldProfile : null;
+                perlin.AmplitudeGain = profile.NoiseAmplitude * (shake != null ? shake.HandheldScale : 1f);
+                perlin.FrequencyGain = Mathf.Max(0.01f, profile.NoiseFrequency);
+            }
 
             var listener = cam.GetComponent<CinemachineImpulseListener>();
             if (listener != null) listener.Gain = Mathf.Max(0f, profile.ShakeGain);
         }
 
         /// <summary>
-        /// Occlusion setup, and the reasoning behind the layer split.
+        /// Occlusion policy, and it is the one place the pivot removed a capability rather
+        /// than replacing it.
         ///
-        /// Creatures go in <see cref="subjectLayers"/>, which is fed to the deoccluder as
-        /// transparent. That is deliberate: an over-the-shoulder shot has the near creature
-        /// between the lens and the target by design, so treating it as an obstacle would
-        /// make the deoccluder shove the camera forward through its own subject on every
-        /// shoulder shot. Creature clipping is prevented geometrically instead, by the
-        /// standoff floor and near-clip solve in <see cref="Retarget"/>.
+        /// <b>Obstacle avoidance is off on every shot.</b> A <c>CinemachineDeoccluder</c> with
+        /// <c>PreserveCameraHeight</c> slides the camera laterally when scenery blocks the
+        /// view — to an angle nobody authored, triggered by a tree rather than by intent. The
+        /// old rig accepted that because an over-the-shoulder framing genuinely needed
+        /// rescuing; a fixed three-quarter layout with a discrete front/back sprite set cannot
+        /// absorb it. The component is left attached and configured so the integrator can see
+        /// the decision in the inspector instead of wondering where it went.
         ///
-        /// Environment goes in <see cref="obstacleLayers"/> and does push the camera, and
-        /// the decollider separately stops it sinking into terrain.
+        /// What replaces it is geometric: the standoff is solved from the field extent, so the
+        /// camera is always outside the field looking in, and the decollider still lifts it
+        /// out of terrain. Vertical rescue does not change the yaw, so it does not change what
+        /// the sprites look like.
         /// </summary>
-        /// <summary>
-        /// The layers occlusion must ignore.
-        ///
-        /// <see cref="subjectLayers"/> is the authoritative answer once the integrator has
-        /// set it, but it defaults to nothing, and the obstacle mask defaults to everything.
-        /// Left alone that combination would make every creature an obstacle and shove the
-        /// camera on every over-the-shoulder shot. So the layers the bound creature views are
-        /// actually on are folded in automatically: an unconfigured rig still behaves, and a
-        /// configured one is unaffected because those layers are already exempt.
-        /// </summary>
-        private int EffectiveSubjectLayers()
-        {
-            int mask = subjectLayers;
-            if (_playerView?.Root != null) mask |= 1 << _playerView.Root.gameObject.layer;
-            if (_opponentView?.Root != null) mask |= 1 << _opponentView.Root.gameObject.layer;
-            return mask;
-        }
-
-        private void ConfigureOcclusion(CinemachineCamera cam, ShotProfile profile, float targetHeight)
+        private void ConfigureOcclusion(CinemachineCamera cam, ShotProfile profile, float extent)
         {
             int exempt = EffectiveSubjectLayers();
 
@@ -605,14 +703,13 @@ namespace PokeLab.Cinematics
             {
                 deoccluder.CollideAgainst = obstacleLayers & ~exempt;
                 deoccluder.TransparentLayers = exempt;
-                deoccluder.MinimumDistanceFromTarget = Mathf.Max(0.25f, targetHeight * 0.4f);
+                deoccluder.MinimumDistanceFromTarget = Mathf.Max(0.25f, extent * 0.35f);
 
                 var avoid = deoccluder.AvoidObstacles;
-                avoid.Enabled = true;
+                // ShotProfile.Sanitise forces this false; the field is read rather than
+                // hardcoded so the intent stays visible at the point of use.
+                avoid.Enabled = profile.AvoidObstacles;
                 avoid.CameraRadius = cameraRadius;
-                // PreserveCameraHeight, not PullCameraForward: pulling forward on an
-                // over-the-shoulder shot walks the lens into the creature's back. Preserving
-                // height slides around the obstacle and keeps the composition.
                 avoid.Strategy = CinemachineDeoccluder.ObstacleAvoidance.ResolutionStrategy.PreserveCameraHeight;
                 avoid.MaximumEffort = 4;
                 avoid.SmoothingTime = 0.25f;
@@ -647,6 +744,25 @@ namespace PokeLab.Cinematics
                 terrain.Damping = 0.35f;
                 decollider.TerrainResolution = terrain;
             }
+        }
+
+        /// <summary>
+        /// The layers collision resolution must ignore.
+        ///
+        /// <see cref="subjectLayers"/> is the authoritative answer once the integrator has set
+        /// it, but it defaults to nothing and the obstacle mask defaults to everything. Left
+        /// alone that combination would make every creature an obstacle, and the decollider
+        /// would shove the camera whenever a billboard's bounds crossed it. So the layers the
+        /// bound creature views are actually on are folded in automatically: an unconfigured
+        /// rig still behaves, and a configured one is unaffected because those layers are
+        /// already exempt.
+        /// </summary>
+        private int EffectiveSubjectLayers()
+        {
+            int mask = subjectLayers;
+            if (_playerView?.Root != null) mask |= 1 << _playerView.Root.gameObject.layer;
+            if (_opponentView?.Root != null) mask |= 1 << _opponentView.Root.gameObject.layer;
+            return mask;
         }
 
         // --- Blending ---------------------------------------------------------------------
@@ -696,16 +812,38 @@ namespace PokeLab.Cinematics
         public void PunchForDamage(BattleSide target, float damageFraction, bool critical, Effectiveness effectiveness)
         {
             if (shake == null) return;
-            var view = ViewOf(target);
-            Vector3 point = FramingPoint(view, 0.4f, target);
+            Vector3 point = ImpactPointOf(target);
             Vector3 direction = target == BattleSide.Player ? -StageAxis() : StageAxis();
             shake.Impact(point, direction, damageFraction, critical, effectiveness);
         }
 
         /// <summary>World position a projectile should aim at for the given side.</summary>
-        public Vector3 ImpactPointOf(BattleSide side) => FramingPoint(ViewOf(side), 0.35f, side);
+        public Vector3 ImpactPointOf(BattleSide side)
+        {
+            var view = ViewOf(side);
+            float h = HeightOf(side);
+            if (h <= 0.01f) h = defaultDisplayHeight;
+
+            if (view == null || view.Root == null) return GroundPointOf(side) + Vector3.up * (h * 0.45f);
+            if (view.BodyAnchor != null) return view.BodyAnchor.position;
+            return view.Root.position + Vector3.up * (h * 0.45f);
+        }
 
         /// <summary>The horizontal player-to-opponent direction, for callers staging their own motion.</summary>
         public Vector3 Axis => StageAxis();
+
+        /// <summary>
+        /// The horizontal direction the camera looks along. Used by the creature views to pick
+        /// between the front and back sprite, and by anything that needs to place an effect
+        /// "toward the viewer" rather than "toward the opponent".
+        /// </summary>
+        public Vector3 ViewDirection
+        {
+            get
+            {
+                SolveBasis(out _, out Vector3 viewDirection, out _, out _);
+                return viewDirection;
+            }
+        }
     }
 }

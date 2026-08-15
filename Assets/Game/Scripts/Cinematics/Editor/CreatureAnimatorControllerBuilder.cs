@@ -205,5 +205,48 @@ namespace PokeLab.Cinematics.EditorTools
             }
             Debug.Log(sb.ToString());
         }
+
+        /// <summary>
+        /// Prints the full sprite mapping: which <see cref="CreatureAnimation"/> states draw
+        /// real authored frames and which are runtime transforms, with the recipe for each.
+        ///
+        /// This is the table the art and cinematics workers have to agree on, and it is short
+        /// enough to read in the console: exactly two of the fourteen states are real frames,
+        /// because the official Gen 5 set contains a looping idle and nothing else.
+        /// </summary>
+        [MenuItem("Poké Lab/Cinematics/Log Sprite Animation Mapping")]
+        public static void LogAnimationMapping()
+        {
+            Debug.Log("[Cinematics] " + CreatureAnimationPlans.Describe());
+        }
+
+        /// <summary>
+        /// Prints the shot library's apparent-size range.
+        ///
+        /// The number this reports is the one the whole HD-2D camera pivot turns on: pixel art
+        /// tolerates roughly a 6× change in on-screen subject size, an HD-2D battle camera uses
+        /// about 1.3×, and the pre-pivot orbiting rig used 12-16×. Run it after any inspector
+        /// tuning of the shot profiles.
+        /// </summary>
+        [MenuItem("Poké Lab/Cinematics/Audit Battle Camera Framing")]
+        public static void AuditFraming()
+        {
+            var library = ShotProfile.DefaultLibrary();
+            var sb = new System.Text.StringBuilder("[Cinematics] Battle shot framing audit\n");
+            sb.AppendLine($"{"Shot",-16} {"Focus",-10} {"Field %",8} {"Dolly",7} {"Rise",6} {"Shake",6}  Avoid");
+            foreach (var p in library)
+            {
+                sb.AppendLine($"{p.Shot,-16} {p.Focus,-10} {p.StageScreenFraction,8:0.00} " +
+                              $"{p.Dolly,7:0.00} {p.Rise,6:0.00} {p.ShakeGain,6:0.00}  {p.AvoidObstacles}");
+            }
+
+            float ratio = ShotProfile.ApparentSizeRatio(library);
+            sb.AppendLine($"\nApparent-size range: {ratio:0.00}× " +
+                          $"(ceiling {ShotProfile.MaxApparentSizeRatio:0.0}×, pixel-art tolerance ~6×, " +
+                          "pre-pivot orbiting rig 12-16×, Octopath ~1.3×).");
+
+            if (ratio > ShotProfile.MaxApparentSizeRatio) Debug.LogError(sb.ToString());
+            else Debug.Log(sb.ToString());
+        }
     }
 }
