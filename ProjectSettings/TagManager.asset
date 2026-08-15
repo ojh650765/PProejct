@@ -2,8 +2,16 @@
 %TAG !u! tag:unity3d.com,2011:
 --- !u!78 &1
 TagManager:
-  serializedVersion: 2
-  tags: []
+  serializedVersion: 3
+  tags:
+  - WildCreature
+  - Trainer
+  - Npc
+  - TallGrass
+  - WaterVolume
+  - BattleAnchorPlayer
+  - BattleAnchorOpponent
+  - PokeLabScanner
   layers:
   - Default
   - TransparentFX
@@ -13,15 +21,15 @@ TagManager:
   - UI
   - 
   - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Terrain
+  - Creature
+  - Foliage
+  - Prop
+  - CameraOccluder
+  - Interactable
+  - EncounterZone
+  - BattleStage
+  - Vfx
   - 
   - 
   - 
@@ -50,27 +58,3 @@ TagManager:
   - Light Layer 5
   - Light Layer 6
   - Light Layer 7
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
