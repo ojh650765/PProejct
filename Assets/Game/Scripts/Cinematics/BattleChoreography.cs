@@ -66,9 +66,9 @@ namespace PokeLab.Cinematics
         public float RecoilMax = 0.62f;
         [Tooltip("Recoil length at negligible damage.")]
         public float RecoilMin = 0.28f;
-        [Tooltip("Punch-in shot hold on a normal hit.")]
+        [Tooltip("Hold on the impact push-in after a normal hit.")]
         public float PunchInHold = 0.22f;
-        [Tooltip("Punch-in shot hold on a critical hit.")]
+        [Tooltip("Hold on the impact push-in after a critical hit.")]
         public float PunchInHoldCritical = 0.46f;
         [Tooltip("Extra beat held on a super-effective hit before the next event.")]
         public float SuperEffectiveBeat = 0.30f;

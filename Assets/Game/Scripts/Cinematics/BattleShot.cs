@@ -5,44 +5,83 @@ using Unity.Cinemachine;
 namespace PokeLab.Cinematics
 {
     /// <summary>
-    /// The battle rig's shot vocabulary. One Cinemachine camera exists per value and the
-    /// presenter selects between them by raising priority — it never repositions a live
-    /// camera, so every change of shot goes through an authored blend.
+    /// The battle rig's shot vocabulary, after the HD-2D pivot.
+    ///
+    /// This is the <b>traditional Pokémon presentation</b>: one fixed three-quarter framing of
+    /// the whole field, held for almost the entire battle, with a small number of authored
+    /// variations that change how much of the frame the field fills and where inside it the
+    /// camera is looking. Nothing here orbits, nothing crosses the axis, and nothing looks at
+    /// a creature from behind or from underneath.
+    ///
+    /// <b>Why the orbiting set was deleted.</b> Creatures are camera-facing billboards now. A
+    /// billboard has exactly two authored views — front and back — and no underside, so the
+    /// shots that made the old rig worth building are not merely worse, they are impossible:
+    ///
+    /// <list type="bullet">
+    /// <item><c>PlayerOverShoulder</c> / <c>OpponentOverShoulder</c> put a creature between the
+    /// lens and the target, seen from behind. A camera-facing quad shows its front while its
+    /// back is turned.</item>
+    /// <item><c>ImpactPunchIn</c> filled 90% of a 1080p frame with one creature — 972 px of flat
+    /// cutout, shaken hard. It is the single shot most likely to tell the player the art is
+    /// cardboard.</item>
+    /// <item><c>Faint</c> sat below the creature's mid-height looking up, and <c>Victory</c> rose
+    /// and looked down. Neither view exists in the art.</item>
+    /// <item><c>AttackerCloseUp</c> / <c>TargetReaction</c> at 0.62-0.68 of screen height were
+    /// part of a 12-16× apparent-size range across the library. Pixel art tolerates roughly
+    /// 6×; Octopath's battle camera varies it about 1.3×.</item>
+    /// </list>
+    ///
+    /// What replaces them is deliberately narrow. Drama now comes from VFX, timing, screen
+    /// shake and the grade, which is how the traditional games do it.
     /// </summary>
     public enum BattleShot
     {
         /// <summary>No shot forced; the rig falls back to its resting shot.</summary>
         None = 0,
-        /// <summary>Both combatants in frame across the stage axis. The resting shot.</summary>
-        WideEstablishing = 1,
-        /// <summary>Behind the player's creature, looking at the opponent.</summary>
-        PlayerOverShoulder = 2,
-        /// <summary>Behind the opponent's creature, looking at the player's. Used when the opponent acts.</summary>
-        OpponentOverShoulder = 3,
-        /// <summary>Tight on whoever is attacking, during anticipation and release.</summary>
-        AttackerCloseUp = 4,
-        /// <summary>Tight on whoever is being hit, held through the recoil.</summary>
-        TargetReaction = 5,
-        /// <summary>Very tight, very fast. Snaps in on the frame of contact and is held briefly.</summary>
-        ImpactPunchIn = 6,
-        /// <summary>Low and wide, tracking the ball arc and the creature landing.</summary>
-        SendOut = 7,
-        /// <summary>Low angle on the collapsing creature, held for the beat.</summary>
-        Faint = 8,
-        /// <summary>Locked on the ball for the absorb, the fall and the shakes.</summary>
-        Capture = 9,
-        /// <summary>Rising three-quarter on the winner.</summary>
-        Victory = 10,
+
+        /// <summary>
+        /// The primary framing and the resting shot: fixed three-quarter on the whole field,
+        /// player's creature near-left, opponent far-right. Held for most of the battle.
+        /// </summary>
+        Field = 1,
+
+        /// <summary>
+        /// The same framing, pushed in a little and aimed at whoever is receiving. This is the
+        /// entire replacement for the impact punch-in: a 1.33× push, no yaw, no Dutch.
+        /// </summary>
+        FieldPush = 2,
+
+        /// <summary>The field with the aim biased toward the player's creature. A pan, not a move.</summary>
+        PlayerFocus = 3,
+
+        /// <summary>The field with the aim biased toward the opponent's creature.</summary>
+        OpponentFocus = 4,
+
+        /// <summary>Slightly wider, for the ball arc and the landing. The widest shot in the rig.</summary>
+        SendOut = 5,
+
+        /// <summary>A slow held framing on the creature going down. Nothing moves during it.</summary>
+        Faint = 6,
+
+        /// <summary>Modest framing on the ball, which is a real 3D object and takes a camera move fine.</summary>
+        Capture = 7,
+
+        /// <summary>A slow drift on the winner. Level with it — never rising and looking down.</summary>
+        Victory = 8,
     }
 
-    /// <summary>Which combatant a shot is framed around, resolved at retarget time.</summary>
-    public enum ShotSubject
+    /// <summary>
+    /// Which combatant a shot <i>aims</i> at. This only moves the look target; it never moves
+    /// the camera, which is the whole point — an aim bias is a pan of a few degrees, and a
+    /// change of anchor was an orbit.
+    /// </summary>
+    public enum ShotFocus
     {
-        /// <summary>Framed on the stage as a whole.</summary>
+        /// <summary>Aim at the midpoint of the field.</summary>
         Stage = 0,
-        /// <summary>Framed on whichever side is currently acting.</summary>
+        /// <summary>Aim toward whichever side is currently acting.</summary>
         Actor = 1,
-        /// <summary>Framed on whichever side is currently being acted upon.</summary>
+        /// <summary>Aim toward whichever side is currently being acted upon.</summary>
         Receiver = 2,
         /// <summary>Always the player's creature.</summary>
         Player = 3,
@@ -51,44 +90,73 @@ namespace PokeLab.Cinematics
     }
 
     /// <summary>
-    /// Per-shot framing rules, expressed in units of the subject's display height rather
-    /// than in metres.
+    /// Per-shot framing rules.
     ///
-    /// This is the whole answer to "a 0.3 m Pidgey and a 1.3 m Gastly must both frame well
-    /// through the same rig": absolute offsets can only be tuned for one creature size, so
-    /// every distance here is <c>Constant + PerHeight * subjectHeight</c>, and the lens is
-    /// then solved so the subject occupies a fixed fraction of the screen regardless of how
-    /// that arithmetic came out.
+    /// The structure changed with the pivot and the change is the point. The old profile let
+    /// every shot pick its own anchor creature, its own back/up/side offsets and its own
+    /// subject, which is what produced a 12-16× apparent-size range and a library where three
+    /// shots could not be drawn at all. Here, <b>every shot shares one camera placement</b>
+    /// solved once by <see cref="BattleCameraRig"/> from the stage axis, and a shot may vary
+    /// only four things:
+    ///
+    /// <list type="number">
+    /// <item><see cref="StageScreenFraction"/> — how much of the frame the field fills. This is
+    /// the <i>only</i> control over apparent subject size, and it is hard-clamped to
+    /// <see cref="MinStageFraction"/>..<see cref="MaxStageFraction"/>, so the ratio across the
+    /// whole library is bounded by construction and can be asserted
+    /// (<see cref="ApparentSizeRatio"/>).</item>
+    /// <item><see cref="Focus"/> and <see cref="FocusStrength"/> — where inside the field the
+    /// camera looks. A pan of a few degrees.</item>
+    /// <item><see cref="Dolly"/> and <see cref="Rise"/> — a small perspective change with the
+    /// lens re-solved so apparent size does not move with it.</item>
+    /// <item>Feel: damping, handheld noise, shake gain.</item>
+    /// </list>
+    ///
+    /// There is deliberately no Dutch field. A Dutch roll rotates the pixel grid off screen
+    /// axes, which is exactly the sampling case point-filtered sprite art handles worst.
     /// </summary>
     [Serializable]
     public struct ShotProfile
     {
+        /// <summary>
+        /// Floor on how much of the frame the field may fill. Together with
+        /// <see cref="MaxStageFraction"/> this bounds the apparent-size range at 1.92×,
+        /// against a ~6× tolerance for pixel art and the ~1.3× an HD-2D battle camera uses.
+        /// </summary>
+        public const float MinStageFraction = 0.48f;
+
+        /// <summary>Ceiling on how much of the frame the field may fill. See <see cref="MinStageFraction"/>.</summary>
+        public const float MaxStageFraction = 0.92f;
+
+        /// <summary>
+        /// The contractual ceiling on apparent-size variation across the whole library. The
+        /// shipped values sit far below it; this exists so an inspector-tuned rig that drifts
+        /// upward fails a check instead of quietly reintroducing the old problem.
+        /// </summary>
+        public const float MaxApparentSizeRatio = 3f;
+
         [Tooltip("Which shot these values configure.")]
         public BattleShot Shot;
 
-        [Tooltip("Who the camera is placed relative to.")]
-        public ShotSubject Anchor;
+        [Header("Aim (a pan — never moves the camera)")]
+        [Tooltip("Who the camera looks toward.")]
+        public ShotFocus Focus;
+        [Tooltip("How far toward that side the aim travels. 0 stays on the field midpoint, 1 aims fully at the creature.")]
+        [Range(0f, 1f)] public float FocusStrength;
+        [Tooltip("0 aims at the creature's feet, 1 at its crown. 0.4-0.5 is chest height.")]
+        [Range(0f, 1f)] public float AimHeightBias;
 
-        [Tooltip("Who the camera looks at.")]
-        public ShotSubject Target;
-
-        [Header("Placement (metres = Constant + PerHeight * subjectHeight)")]
-        [Tooltip("Distance back along the stage axis, away from the target.")]
-        public Vector2 Back;
-        [Tooltip("Height above the anchor's feet.")]
-        public Vector2 Up;
-        [Tooltip("Lateral offset across the stage axis. Positive is the camera's right.")]
-        public Vector2 Side;
-
-        [Header("Aim")]
-        [Tooltip("0 aims at Anchor_Body, 1 aims at Anchor_Head.")]
-        [Range(0f, 1f)] public float AimBias;
-        [Tooltip("Fraction of screen height the target should occupy. Drives the solved FOV.")]
-        [Range(0.05f, 1.5f)] public float TargetScreenFraction;
+        [Header("Framing — the only apparent-size control")]
+        [Tooltip("Fraction of screen height the field occupies. Clamped; the library's spread is the rig's whole zoom range.")]
+        [Range(MinStageFraction, MaxStageFraction)] public float StageScreenFraction;
         [Tooltip("Clamp on the solved field of view, in degrees.")]
         public Vector2 FovRange;
-        [Tooltip("Dutch roll in degrees. Small non-zero values keep a shot from feeling surveyed.")]
-        public float Dutch;
+
+        [Header("Perspective (size-neutral: the lens re-solves)")]
+        [Tooltip("Fraction of the standoff to dolly in by. Positive is closer. Kept tiny — this is a perspective change, not a zoom.")]
+        [Range(-0.25f, 0.25f)] public float Dolly;
+        [Tooltip("Fraction of the camera height to rise by. Positive is higher. Never enough to look down on a billboard.")]
+        [Range(-0.25f, 0.25f)] public float Rise;
 
         [Header("Feel")]
         [Tooltip("Position damping in seconds. Low values track hard, high values drift.")]
@@ -99,124 +167,185 @@ namespace PokeLab.Cinematics
         public float NoiseAmplitude;
         [Tooltip("Handheld noise frequency.")]
         public float NoiseFrequency;
-        [Tooltip("Multiplier on impulse shake reaching this shot. Punch-ins take the most.")]
+        [Tooltip("Multiplier on impulse shake reaching this shot. Shake now carries the drama the punch-in used to.")]
         public float ShakeGain;
 
-        /// <summary>Evaluates a (constant, per-height) pair against a subject height.</summary>
-        public static float Solve(Vector2 pair, float subjectHeight) => pair.x + pair.y * subjectHeight;
+        [Header("Occlusion")]
+        [Tooltip("Let the deoccluder slide this camera when scenery blocks it. Off for every creature shot: " +
+                 "a runtime yaw change is an unauthored camera angle, which is the one thing a fixed sprite layout cannot absorb.")]
+        public bool AvoidObstacles;
+
+        /// <summary>Evaluates a (constant, per-metre) pair against a scale in metres.</summary>
+        public static float Solve(Vector2 pair, float scale) => pair.x + pair.y * scale;
 
         /// <summary>
-        /// The library of shots the rig ships with. These are tuned values, not placeholders:
-        /// the punch-in is deliberately closer and harsher than anything else, the faint sits
-        /// low so the collapse reads against the sky, and the wide is the only shot with a
-        /// long damping tail so it feels like it is settling rather than following.
+        /// The library of shots the rig ships with.
+        ///
+        /// Read the <see cref="StageScreenFraction"/> column on its own: 0.52 to 0.80, a total
+        /// range of 1.54×. That number is the whole camera decision. The old library's
+        /// equivalent range was 0.28 to 0.90 measured against different subjects, which worked
+        /// out at 12-16× of on-screen creature height.
         /// </summary>
         public static ShotProfile[] DefaultLibrary() => new[]
         {
             new ShotProfile
             {
-                // The only shot whose screen fraction is measured against the field rather
-                // than a creature (see BattleCameraRig.SolveStageExtent), so its numbers read
-                // large next to the others.
-                Shot = BattleShot.WideEstablishing, Anchor = ShotSubject.Stage, Target = ShotSubject.Stage,
-                Back = new Vector2(0.25f, 2.00f), Up = new Vector2(0.10f, 0.70f), Side = new Vector2(0.15f, 0.60f),
-                AimBias = 0.35f, TargetScreenFraction = 0.42f, FovRange = new Vector2(24f, 64f), Dutch = 0f,
-                PositionDamping = 1.1f, AimDamping = new Vector2(0.9f, 0.9f),
-                NoiseAmplitude = 0.22f, NoiseFrequency = 0.35f, ShakeGain = 0.5f,
+                // The shot the battle lives in. Long damping so it settles rather than follows,
+                // and the lowest noise in the library — a fixed shot that visibly breathes
+                // reads as a mistake, where a moving one reads as handheld.
+                Shot = BattleShot.Field, Focus = ShotFocus.Stage,
+                FocusStrength = 0f, AimHeightBias = 0.42f,
+                StageScreenFraction = 0.60f, FovRange = new Vector2(26f, 54f),
+                Dolly = 0f, Rise = 0f,
+                PositionDamping = 1.00f, AimDamping = new Vector2(0.80f, 0.80f),
+                NoiseAmplitude = 0.10f, NoiseFrequency = 0.28f, ShakeGain = 0.85f,
+                AvoidObstacles = false,
             },
             new ShotProfile
             {
-                // Over-the-shoulder frames the far creature across the whole stage, so its
-                // screen fraction is necessarily the smallest in the library — a shoulder
-                // shot that fills the frame with the opponent is not a shoulder shot.
-                Shot = BattleShot.PlayerOverShoulder, Anchor = ShotSubject.Player, Target = ShotSubject.Opponent,
-                Back = new Vector2(0.15f, 0.75f), Up = new Vector2(0.12f, 0.55f), Side = new Vector2(0.10f, 0.35f),
-                AimBias = 0.55f, TargetScreenFraction = 0.28f, FovRange = new Vector2(16f, 58f), Dutch = -1.5f,
+                // The impact beat. 0.80 against the Field's 0.60 is a 1.33× push — visible as
+                // emphasis, nowhere near enough to expose the sprite's resolution. The shake
+                // gain is where the violence went.
+                Shot = BattleShot.FieldPush, Focus = ShotFocus.Receiver,
+                FocusStrength = 0.45f, AimHeightBias = 0.46f,
+                StageScreenFraction = 0.80f, FovRange = new Vector2(24f, 50f),
+                Dolly = 0.10f, Rise = -0.02f,
+                PositionDamping = 0.35f, AimDamping = new Vector2(0.28f, 0.28f),
+                NoiseAmplitude = 0.18f, NoiseFrequency = 0.55f, ShakeGain = 1.45f,
+                AvoidObstacles = false,
+            },
+            new ShotProfile
+            {
+                Shot = BattleShot.PlayerFocus, Focus = ShotFocus.Player,
+                FocusStrength = 0.55f, AimHeightBias = 0.45f,
+                StageScreenFraction = 0.70f, FovRange = new Vector2(24f, 52f),
+                Dolly = 0.05f, Rise = 0f,
                 PositionDamping = 0.55f, AimDamping = new Vector2(0.45f, 0.45f),
-                NoiseAmplitude = 0.32f, NoiseFrequency = 0.5f, ShakeGain = 0.8f,
+                NoiseAmplitude = 0.13f, NoiseFrequency = 0.38f, ShakeGain = 1.00f,
+                AvoidObstacles = false,
             },
             new ShotProfile
             {
-                Shot = BattleShot.OpponentOverShoulder, Anchor = ShotSubject.Opponent, Target = ShotSubject.Player,
-                Back = new Vector2(0.15f, 0.75f), Up = new Vector2(0.12f, 0.55f), Side = new Vector2(-0.10f, -0.35f),
-                AimBias = 0.55f, TargetScreenFraction = 0.28f, FovRange = new Vector2(16f, 58f), Dutch = 1.5f,
+                // Deliberately identical to PlayerFocus except for the side it pans toward.
+                // Mirroring the numbers is what keeps a swap between them from reading as a
+                // reframe; only the aim differs, so the cut is a pan of a few degrees.
+                Shot = BattleShot.OpponentFocus, Focus = ShotFocus.Opponent,
+                FocusStrength = 0.55f, AimHeightBias = 0.45f,
+                StageScreenFraction = 0.70f, FovRange = new Vector2(24f, 52f),
+                Dolly = 0.05f, Rise = 0f,
                 PositionDamping = 0.55f, AimDamping = new Vector2(0.45f, 0.45f),
-                NoiseAmplitude = 0.32f, NoiseFrequency = 0.5f, ShakeGain = 0.8f,
+                NoiseAmplitude = 0.13f, NoiseFrequency = 0.38f, ShakeGain = 1.00f,
+                AvoidObstacles = false,
             },
             new ShotProfile
             {
-                Shot = BattleShot.AttackerCloseUp, Anchor = ShotSubject.Actor, Target = ShotSubject.Actor,
-                Back = new Vector2(0.20f, 1.50f), Up = new Vector2(0.10f, 0.55f), Side = new Vector2(0.20f, 0.90f),
-                AimBias = 0.75f, TargetScreenFraction = 0.68f, FovRange = new Vector2(20f, 55f), Dutch = -3f,
-                PositionDamping = 0.30f, AimDamping = new Vector2(0.25f, 0.25f),
-                NoiseAmplitude = 0.45f, NoiseFrequency = 0.7f, ShakeGain = 1.0f,
+                // The one shot allowed to go wider than the Field. The ball arcs above the
+                // creature's head and a tighter framing crops the top of the throw.
+                Shot = BattleShot.SendOut, Focus = ShotFocus.Actor,
+                FocusStrength = 0.35f, AimHeightBias = 0.55f,
+                StageScreenFraction = 0.52f, FovRange = new Vector2(26f, 56f),
+                Dolly = -0.06f, Rise = 0.10f,
+                PositionDamping = 0.70f, AimDamping = new Vector2(0.50f, 0.50f),
+                NoiseAmplitude = 0.12f, NoiseFrequency = 0.32f, ShakeGain = 0.80f,
+                AvoidObstacles = false,
             },
             new ShotProfile
             {
-                // Mirrored across the stage axis from the attacker close-up, so cutting
-                // between them crosses the line deliberately rather than by accident.
-                Shot = BattleShot.TargetReaction, Anchor = ShotSubject.Receiver, Target = ShotSubject.Receiver,
-                Back = new Vector2(0.20f, 1.65f), Up = new Vector2(0.10f, 0.58f), Side = new Vector2(-0.20f, -0.95f),
-                AimBias = 0.70f, TargetScreenFraction = 0.62f, FovRange = new Vector2(20f, 55f), Dutch = 3f,
-                PositionDamping = 0.28f, AimDamping = new Vector2(0.22f, 0.22f),
-                NoiseAmplitude = 0.5f, NoiseFrequency = 0.75f, ShakeGain = 1.2f,
+                // Aimed low because the creature ends up on the ground, and level rather than
+                // beneath it. The old profile put the lens under the creature's mid-height
+                // looking up, which a billboard has no image for.
+                Shot = BattleShot.Faint, Focus = ShotFocus.Receiver,
+                FocusStrength = 0.60f, AimHeightBias = 0.30f,
+                StageScreenFraction = 0.72f, FovRange = new Vector2(24f, 52f),
+                Dolly = 0.04f, Rise = -0.04f,
+                PositionDamping = 0.85f, AimDamping = new Vector2(0.70f, 0.70f),
+                NoiseAmplitude = 0.08f, NoiseFrequency = 0.22f, ShakeGain = 1.10f,
+                AvoidObstacles = false,
             },
             new ShotProfile
             {
-                // The tightest shot in the rig and the only one allowed to crop its subject.
-                Shot = BattleShot.ImpactPunchIn, Anchor = ShotSubject.Receiver, Target = ShotSubject.Receiver,
-                Back = new Vector2(0.15f, 1.00f), Up = new Vector2(0.08f, 0.45f), Side = new Vector2(-0.15f, -0.55f),
-                AimBias = 0.65f, TargetScreenFraction = 0.90f, FovRange = new Vector2(20f, 55f), Dutch = -6f,
-                PositionDamping = 0.08f, AimDamping = new Vector2(0.06f, 0.06f),
-                NoiseAmplitude = 0.7f, NoiseFrequency = 1.1f, ShakeGain = 1.6f,
+                // Aimed low: for most of the sequence the subject is the ball on the ground,
+                // and the ball is real geometry, so this is the one shot that could take a
+                // bigger move. It does not, because it has to blend with everything else.
+                Shot = BattleShot.Capture, Focus = ShotFocus.Opponent,
+                FocusStrength = 0.55f, AimHeightBias = 0.25f,
+                StageScreenFraction = 0.74f, FovRange = new Vector2(24f, 52f),
+                Dolly = 0.06f, Rise = -0.05f,
+                PositionDamping = 0.50f, AimDamping = new Vector2(0.40f, 0.40f),
+                NoiseAmplitude = 0.14f, NoiseFrequency = 0.42f, ShakeGain = 1.00f,
+                AvoidObstacles = false,
             },
             new ShotProfile
             {
-                // Backed off further than the close-up: the ball arc and the fall need
-                // headroom above the creature, which a tight shot has none of.
-                Shot = BattleShot.SendOut, Anchor = ShotSubject.Actor, Target = ShotSubject.Actor,
-                Back = new Vector2(0.30f, 2.40f), Up = new Vector2(0.15f, 0.60f), Side = new Vector2(0.25f, 1.10f),
-                AimBias = 0.50f, TargetScreenFraction = 0.45f, FovRange = new Vector2(20f, 58f), Dutch = -2f,
-                PositionDamping = 0.6f, AimDamping = new Vector2(0.4f, 0.4f),
-                NoiseAmplitude = 0.35f, NoiseFrequency = 0.55f, ShakeGain = 0.7f,
-            },
-            new ShotProfile
-            {
-                // Deliberately low: Up is well below the creature's mid-height so the
-                // collapse falls toward the lens rather than away from it.
-                Shot = BattleShot.Faint, Anchor = ShotSubject.Receiver, Target = ShotSubject.Receiver,
-                Back = new Vector2(0.20f, 1.90f), Up = new Vector2(0.06f, 0.20f), Side = new Vector2(0.20f, 0.80f),
-                AimBias = 0.45f, TargetScreenFraction = 0.55f, FovRange = new Vector2(20f, 55f), Dutch = 4.5f,
-                PositionDamping = 0.7f, AimDamping = new Vector2(0.6f, 0.6f),
-                NoiseAmplitude = 0.28f, NoiseFrequency = 0.4f, ShakeGain = 1.0f,
-            },
-            new ShotProfile
-            {
-                // Aimed low (small AimBias) because the ball, not the creature, is the
-                // subject for most of the sequence.
-                Shot = BattleShot.Capture, Anchor = ShotSubject.Receiver, Target = ShotSubject.Receiver,
-                Back = new Vector2(0.20f, 1.90f), Up = new Vector2(0.10f, 0.60f), Side = new Vector2(0.20f, 0.85f),
-                AimBias = 0.30f, TargetScreenFraction = 0.50f, FovRange = new Vector2(20f, 55f), Dutch = -2.5f,
-                PositionDamping = 0.45f, AimDamping = new Vector2(0.35f, 0.35f),
-                NoiseAmplitude = 0.4f, NoiseFrequency = 0.5f, ShakeGain = 0.9f,
-            },
-            new ShotProfile
-            {
-                Shot = BattleShot.Victory, Anchor = ShotSubject.Actor, Target = ShotSubject.Actor,
-                Back = new Vector2(0.30f, 2.30f), Up = new Vector2(0.20f, 0.90f), Side = new Vector2(0.25f, 1.20f),
-                AimBias = 0.60f, TargetScreenFraction = 0.50f, FovRange = new Vector2(20f, 58f), Dutch = -1f,
-                PositionDamping = 0.9f, AimDamping = new Vector2(0.7f, 0.7f),
-                NoiseAmplitude = 0.3f, NoiseFrequency = 0.4f, ShakeGain = 0.6f,
+                // A slow drift, level with the winner. Rise is +0.05 of the camera height,
+                // which is centimetres — enough to feel like a lift, not enough to start
+                // looking down at a quad that has no top.
+                Shot = BattleShot.Victory, Focus = ShotFocus.Player,
+                FocusStrength = 0.50f, AimHeightBias = 0.45f,
+                StageScreenFraction = 0.66f, FovRange = new Vector2(26f, 54f),
+                Dolly = 0.02f, Rise = 0.05f,
+                PositionDamping = 0.95f, AimDamping = new Vector2(0.75f, 0.75f),
+                NoiseAmplitude = 0.10f, NoiseFrequency = 0.26f, ShakeGain = 0.70f,
+                AvoidObstacles = false,
             },
         };
+
+        /// <summary>
+        /// The largest apparent-size change any shot change in <paramref name="library"/> can
+        /// produce, as a multiple. Because every shot shares one camera placement and the lens
+        /// is solved against a fixed reference distance, this is exactly the ratio of the
+        /// largest <see cref="StageScreenFraction"/> to the smallest — which is why the pivot
+        /// moved the framing control here in the first place: it is now a number you can
+        /// assert rather than a property you have to measure in a screenshot.
+        /// </summary>
+        public static float ApparentSizeRatio(ShotProfile[] library)
+        {
+            if (library == null || library.Length == 0) return 1f;
+            float min = float.MaxValue;
+            float max = 0f;
+            for (int i = 0; i < library.Length; i++)
+            {
+                if (library[i].Shot == BattleShot.None) continue;
+                float f = Mathf.Clamp(library[i].StageScreenFraction, MinStageFraction, MaxStageFraction);
+                if (f < min) min = f;
+                if (f > max) max = f;
+            }
+            return min >= float.MaxValue || min <= 0.0001f ? 1f : max / min;
+        }
+
+        /// <summary>
+        /// Forces a profile back inside the framing band and strips the fields that cannot be
+        /// drawn on a billboard. Applied to every profile at startup, authored or shipped, so
+        /// an inspector edit cannot reintroduce a shot the art has no image for.
+        /// </summary>
+        public static ShotProfile Sanitise(ShotProfile p)
+        {
+            p.StageScreenFraction = Mathf.Clamp(p.StageScreenFraction <= 0.0001f ? 0.60f : p.StageScreenFraction,
+                MinStageFraction, MaxStageFraction);
+            p.FocusStrength = Mathf.Clamp01(p.FocusStrength);
+            p.AimHeightBias = Mathf.Clamp01(p.AimHeightBias);
+            p.Dolly = Mathf.Clamp(p.Dolly, -0.25f, 0.25f);
+            p.Rise = Mathf.Clamp(p.Rise, -0.25f, 0.25f);
+            p.PositionDamping = Mathf.Max(0.01f, p.PositionDamping);
+            p.AimDamping = new Vector2(Mathf.Max(0f, p.AimDamping.x), Mathf.Max(0f, p.AimDamping.y));
+            p.NoiseAmplitude = Mathf.Clamp(p.NoiseAmplitude, 0f, 0.6f);
+            p.NoiseFrequency = Mathf.Clamp(p.NoiseFrequency, 0.01f, 2f);
+            p.ShakeGain = Mathf.Clamp(p.ShakeGain, 0f, 3f);
+            if (p.FovRange == Vector2.zero) p.FovRange = new Vector2(24f, 54f);
+            // Non-negotiable: nothing in this rig may resolve occlusion by moving the camera.
+            p.AvoidObstacles = false;
+            return p;
+        }
     }
 
     /// <summary>
     /// An authored blend for one ordered pair of shots.
     ///
-    /// The point of naming pairs rather than using a single default blend is pacing: going
-    /// wide-to-punch-in must be violent (0.08 s, hard in) and punch-in-back-to-wide must be
-    /// a long settle (0.9 s, ease out). One global blend time makes one of those two wrong.
+    /// The pacing argument is unchanged from the orbiting rig — going into an impact beat must
+    /// be faster than coming out of one — but the numbers moved. Every blend in this table is
+    /// now a lens change plus a pan of a few degrees between two cameras standing in almost
+    /// the same place, so it can afford to be short without reading as a cut. The one rule the
+    /// old table broke is gone with the shots that broke it: nothing here sweeps yaw.
     /// </summary>
     [Serializable]
     public struct ShotBlendRule
@@ -235,32 +364,31 @@ namespace PokeLab.Cinematics
         /// </summary>
         public static ShotBlendRule[] DefaultTable() => new[]
         {
-            // Impact: in like a slap, out like a breath.
-            R(BattleShot.None, BattleShot.ImpactPunchIn, CinemachineBlendDefinition.Styles.HardIn, 0.09f),
-            R(BattleShot.ImpactPunchIn, BattleShot.None, CinemachineBlendDefinition.Styles.EaseOut, 0.85f),
+            // Impact: in like a slap, out like a breath. Still the sharpest pair in the table,
+            // but 0.14 s rather than 0.09 s, because what it is snapping to is a 1.33× push
+            // and not a 90%-of-frame punch-in — the same violence would now read as a glitch.
+            R(BattleShot.None, BattleShot.FieldPush, CinemachineBlendDefinition.Styles.HardIn, 0.14f),
+            R(BattleShot.FieldPush, BattleShot.None, CinemachineBlendDefinition.Styles.EaseOut, 0.80f),
 
-            // Anticipation reads better as a deliberate push than as a cut.
-            R(BattleShot.PlayerOverShoulder, BattleShot.AttackerCloseUp, CinemachineBlendDefinition.Styles.EaseIn, 0.42f),
-            R(BattleShot.OpponentOverShoulder, BattleShot.AttackerCloseUp, CinemachineBlendDefinition.Styles.EaseIn, 0.42f),
-            R(BattleShot.AttackerCloseUp, BattleShot.TargetReaction, CinemachineBlendDefinition.Styles.HardIn, 0.16f),
-            R(BattleShot.TargetReaction, BattleShot.ImpactPunchIn, CinemachineBlendDefinition.Styles.HardIn, 0.07f),
+            // A focus pan is the most common change in the battle and must be almost
+            // invisible: same placement, same lens, a few degrees of aim.
+            R(BattleShot.PlayerFocus, BattleShot.OpponentFocus, CinemachineBlendDefinition.Styles.EaseInOut, 0.45f),
+            R(BattleShot.OpponentFocus, BattleShot.PlayerFocus, CinemachineBlendDefinition.Styles.EaseInOut, 0.45f),
+            R(BattleShot.PlayerFocus, BattleShot.FieldPush, CinemachineBlendDefinition.Styles.HardIn, 0.16f),
+            R(BattleShot.OpponentFocus, BattleShot.FieldPush, CinemachineBlendDefinition.Styles.HardIn, 0.16f),
 
             // Set pieces get long, obviously authored moves.
-            R(BattleShot.None, BattleShot.Faint, CinemachineBlendDefinition.Styles.EaseInOut, 0.75f),
-            R(BattleShot.Faint, BattleShot.None, CinemachineBlendDefinition.Styles.EaseInOut, 1.1f),
-            R(BattleShot.None, BattleShot.Capture, CinemachineBlendDefinition.Styles.EaseInOut, 0.9f),
-            R(BattleShot.Capture, BattleShot.None, CinemachineBlendDefinition.Styles.EaseInOut, 1.0f),
-            R(BattleShot.None, BattleShot.Victory, CinemachineBlendDefinition.Styles.EaseInOut, 1.2f),
-            R(BattleShot.None, BattleShot.SendOut, CinemachineBlendDefinition.Styles.EaseInOut, 0.7f),
-            R(BattleShot.SendOut, BattleShot.None, CinemachineBlendDefinition.Styles.EaseInOut, 0.8f),
+            R(BattleShot.None, BattleShot.Faint, CinemachineBlendDefinition.Styles.EaseInOut, 0.80f),
+            R(BattleShot.Faint, BattleShot.None, CinemachineBlendDefinition.Styles.EaseInOut, 1.10f),
+            R(BattleShot.None, BattleShot.Capture, CinemachineBlendDefinition.Styles.EaseInOut, 0.90f),
+            R(BattleShot.Capture, BattleShot.None, CinemachineBlendDefinition.Styles.EaseInOut, 1.00f),
+            R(BattleShot.None, BattleShot.Victory, CinemachineBlendDefinition.Styles.EaseInOut, 1.20f),
+            R(BattleShot.None, BattleShot.SendOut, CinemachineBlendDefinition.Styles.EaseInOut, 0.70f),
+            R(BattleShot.SendOut, BattleShot.None, CinemachineBlendDefinition.Styles.EaseInOut, 0.80f),
 
-            // Returning to the wide is always the slowest move in the rig; it is the shot
-            // the player rests on, so arriving at it should feel like exhaling.
-            R(BattleShot.None, BattleShot.WideEstablishing, CinemachineBlendDefinition.Styles.EaseOut, 0.95f),
-
-            // Shoulder-to-shoulder is a real reframe, not a cut across the axis.
-            R(BattleShot.PlayerOverShoulder, BattleShot.OpponentOverShoulder, CinemachineBlendDefinition.Styles.EaseInOut, 0.6f),
-            R(BattleShot.OpponentOverShoulder, BattleShot.PlayerOverShoulder, CinemachineBlendDefinition.Styles.EaseInOut, 0.6f),
+            // Returning to the field is always the slowest move in the rig; it is the shot the
+            // player rests on, so arriving at it should feel like exhaling.
+            R(BattleShot.None, BattleShot.Field, CinemachineBlendDefinition.Styles.EaseOut, 0.95f),
 
             // Tail default for every pair not named above.
             R(BattleShot.None, BattleShot.None, CinemachineBlendDefinition.Styles.EaseInOut, 0.55f),

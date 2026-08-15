@@ -217,7 +217,7 @@ namespace PokeLab.Cinematics
                 if (battlePresenter != null)
                 {
                     battlePresenter.Rig.SetRigActive(true);
-                    battlePresenter.Rig.Show(BattleShot.WideEstablishing);
+                    battlePresenter.Rig.Show(BattleShot.Field);
                     battlePresenter.Rig.Retarget();
                 }
                 if (_swingCamera != null) _swingCamera.Priority = 0;

@@ -9,34 +9,64 @@ namespace PokeLab.Cinematics
     /// The scene-side creature: the concrete <see cref="ICreatureView"/> the battle presenter
     /// drives.
     ///
+    /// <b>The contract is unchanged.</b> <c>Root</c>, <c>HeadAnchor</c>, <c>BodyAnchor</c>,
+    /// <c>MuzzleAnchor</c>, <c>Bind</c>, <c>Play</c> and <c>FaceTowards</c> mean exactly what
+    /// they meant when a creature was a rigged mesh, and the VFX, UI and projectile systems
+    /// that dereference them did not have to change. What changed is what is underneath.
+    ///
     /// Owns a three-level hierarchy, and the split is load-bearing:
     /// <code>
     /// CreatureView (root)   — position on the mark, facing. Written by the stage and by FaceTowards.
     ///   MotionRoot          — procedural offsets. Written only by CreatureMotionLayer.
-    ///     Model             — the registry prefab. Written only by the Animator.
-    ///       Anchor_Head / Anchor_Body / Anchor_Muzzle
+    ///     Sprite            — the billboard quad. Owns its own facing rotation and squash.
+    ///     Anchor_Head / Anchor_Body / Anchor_Muzzle
     /// </code>
     /// Collapsing any two of those levels means two systems writing one transform, which is
     /// how creatures end up sliding off their marks or snapping back mid-animation.
     ///
-    /// Every path here survives a missing registry, a missing prefab, a missing Animator and
-    /// missing anchors, because during partial integration all four are missing at once and
+    /// <b>Three things the pivot moved.</b>
+    ///
+    /// <list type="number">
+    /// <item><b>Anchors are computed, not found.</b> A quad has no skeleton, so the three
+    /// contract anchors are derived from the sprite's drawn height and its ground-contact
+    /// origin — both of which come from the sprite manifest, because a padded 96×96 frame does
+    /// not tell you where the feet are. A hand-authored prefab that <i>does</i> carry named
+    /// anchors still wins, so a bespoke creature can override the arithmetic.</item>
+    /// <item><b><c>FaceTowards</c> is now a facing <i>selection</i> as well as a turn.</b> The
+    /// root still rotates — every other system reads <c>transform.forward</c> and the turn has
+    /// to stay smooth and non-instant — but what the player sees change is the sprite: front
+    /// or back, plus a horizontal mirror. The mirror is a UV flip in the shader, never a
+    /// negative X scale, for the reasons set out on <see cref="CreatureBillboard"/>.</item>
+    /// <item><b><c>Play</c> drives sheets where frames exist and transforms where they do
+    /// not.</b> Two of the fourteen <see cref="CreatureAnimation"/> states are real authored
+    /// frames; the mapping for all fourteen is <see cref="CreatureAnimationPlans"/>. Where a
+    /// rigged prefab with an Animator is bound instead of a billboard, the Animator is still
+    /// driven by state name, so a 3D actor left in the project keeps working.</item>
+    /// </list>
+    ///
+    /// Every path here survives a missing registry, a missing manifest, a missing texture and
+    /// a missing shader, because during partial integration all four are missing at once and
     /// the battle still has to be reviewable.
     /// </summary>
     [DefaultExecutionOrder(-150)]
     public sealed class CreatureView : MonoBehaviour, ICreatureView
     {
-        [Header("Anchors (optional — resolved by name when left empty)")]
+        [Header("Anchors (optional — computed from the sprite when left empty)")]
         [SerializeField] private Transform headAnchor;
         [SerializeField] private Transform bodyAnchor;
         [SerializeField] private Transform muzzleAnchor;
 
         [Header("Fallback")]
-        [Tooltip("Spawn a stand-in body when the art registry has no prefab. Turn this off " +
-                 "for review builds — it is a staging aid, not shippable art.")]
+        [Tooltip("Spawn a stand-in body when neither the art registry nor the sprite manifest " +
+                 "resolves anything. Turn this off for review builds — it is a staging aid, not shippable art.")]
         [SerializeField] private bool spawnPlaceholderWhenMissing = true;
         [Tooltip("Display height used when no registry is available, in metres.")]
         [SerializeField] private float fallbackDisplayHeight = 0.8f;
+
+        [Header("Sprite")]
+        [Tooltip("How the horizontal mirror is chosen. Off is correct for battle: the official " +
+                 "sprites are drawn at the three-quarter the battle layout views them from.")]
+        [SerializeField] private MirrorMode mirrorMode = MirrorMode.Off;
 
         [Header("Turning")]
         [Tooltip("Degrees per second cap on FaceTowards. Prevents a large turn finishing instantly.")]
@@ -50,11 +80,17 @@ namespace PokeLab.Cinematics
         private readonly List<Transform> _syntheticAnchors = new List<Transform>();
         private Transform _motionRoot;
         private GameObject _model;
+        private CreatureBillboard _billboard;
+        // The quad this view built for itself, as opposed to one supplied by a prefab. Kept
+        // across binds: rebuilding it every switch would leak a mesh renderer per swap and
+        // throw away the material the first bind resolved a shader for.
+        private CreatureBillboard _ownBillboard;
         private Animator _animator;
         private CreatureMotionLayer _motion;
         private Coroutine _turn;
         private CreatureAnimation _currentAnimation = CreatureAnimation.Idle;
         private bool _built;
+        private bool _hidden;
 
         /// <summary>The creature currently bound, or null.</summary>
         public CreatureInstance Creature { get; private set; }
@@ -68,8 +104,17 @@ namespace PokeLab.Cinematics
             get { EnsureBuilt(); return _motion; }
         }
 
+        /// <summary>The sprite quad, or null when a rigged prefab is bound instead.</summary>
+        public CreatureBillboard Billboard
+        {
+            get { EnsureBuilt(); return _billboard; }
+        }
+
         /// <summary>The animation state currently requested.</summary>
         public CreatureAnimation CurrentAnimation => _currentAnimation;
+
+        /// <summary>Which authored view is on screen. <c>Back</c> for the player's creature in a battle.</summary>
+        public SpriteFacing Facing => _billboard != null ? _billboard.Facing : SpriteFacing.Front;
 
         // --- ICreatureView ----------------------------------------------------------------
 
@@ -103,6 +148,7 @@ namespace PokeLab.Cinematics
             _motion = _motionRoot.GetComponent<CreatureMotionLayer>();
             if (_motion == null) _motion = _motionRoot.gameObject.AddComponent<CreatureMotionLayer>();
             _motion.DisplayHeight = DisplayHeight;
+            _motion.SpriteMode = true;
 
             ResolveAnchors();
         }
@@ -121,6 +167,7 @@ namespace PokeLab.Cinematics
 
             SwapModel(speciesId);
             ResolveAnchors();
+            _hidden = false;
 
             name = creature == null
                 ? "CreatureView (empty)"
@@ -131,11 +178,29 @@ namespace PokeLab.Cinematics
             Play(CreatureAnimation.IdleBattle, 0f);
         }
 
+        /// <summary>
+        /// Plays an animation state.
+        ///
+        /// Three things happen, and which of them do anything depends on what art is bound:
+        /// the sprite track is applied (which sheet, how fast, frozen or not, entry flash);
+        /// the Animator is driven by state name if a rigged prefab supplied one; and the
+        /// caller is expected to start the matching procedural recipe on
+        /// <see cref="Motion"/>. The recipe is not started here on purpose — a lunge needs a
+        /// distance and a recoil needs a severity, and only the presenter knows those.
+        /// <see cref="CreatureAnimationPlans"/> names the recipe each state expects.
+        /// </summary>
         /// <inheritdoc />
         public void Play(CreatureAnimation animation, float crossfade = 0.15f)
         {
             EnsureBuilt();
             _currentAnimation = animation;
+
+            CreatureAnimationPlan plan = CreatureAnimationPlans.For(animation);
+
+            // A billboard with no resolved texture is a white rectangle, so it stays hidden and
+            // the beat is carried by the placeholder volume and the motion layer alone.
+            if (_billboard != null && _billboard.HasArt && !_hidden) _billboard.ApplyPlan(plan);
+
             if (_animator == null || _animator.runtimeAnimatorController == null) return;
 
             // A negative or unspecified crossfade takes the authored default for this state.
@@ -144,7 +209,7 @@ namespace PokeLab.Cinematics
             int hash = Animator.StringToHash(animation.ToString());
             if (!_animator.HasState(0, hash))
             {
-                // A stub rig may not have every clip yet. Falling back to the battle idle is
+                // A stub rig may not have every clip. Falling back to the battle idle is
                 // better than an exception spam loop, and the procedural layer still carries
                 // the beat, so the choreography remains readable.
                 int idle = Animator.StringToHash(CreatureAnimation.IdleBattle.ToString());
@@ -179,6 +244,41 @@ namespace PokeLab.Cinematics
             PlayAuthored(CreatureAnimation.IdleBattle);
         }
 
+        /// <summary>
+        /// The arrival beat, dispatched by art form.
+        ///
+        /// A rigged actor falls from the burst point and compresses on contact, because it has
+        /// a volume and gravity is what sells it. A sprite scales in from nothing with an
+        /// overshoot, because that is what Gen 1-5 did and because a 96-pixel image dropped
+        /// from two metres reads as a sticker being slid down the screen.
+        ///
+        /// The dispatch lives here rather than in the presenter on purpose: the choreography
+        /// is meant to stay art-agnostic, so the presenter asks for "the creature arrives" and
+        /// the view decides what that looks like. Deliberately not an iterator method, so the
+        /// pre-roll below runs at the call rather than one frame later — otherwise the sprite
+        /// is drawn once at full size before the pop starts.
+        /// </summary>
+        public IEnumerator PlayEntrance(float fromHeight, float fallDuration, float settleDuration)
+        {
+            EnsureBuilt();
+            if (!_motion.SpriteMode) return _motion.Land(fromHeight, fallDuration, settleDuration);
+
+            _motion.PrepareEntrance();
+            if (_billboard != null && _billboard.HasArt) _billboard.SetAlpha(0f);
+            return _motion.Pop(fallDuration + settleDuration);
+        }
+
+        /// <summary>
+        /// Turns to face a world point, and with it selects which authored view of the
+        /// creature is drawn.
+        ///
+        /// The root rotation is kept even though a billboard ignores it. Two reasons, both
+        /// load-bearing: <c>transform.forward</c> is what the muzzle anchor, the projectile
+        /// system and the VFX layer orient against, and the sprite's own front/back choice is
+        /// made by comparing that forward with the direction to the camera. Deleting the turn
+        /// and swapping the sprite directly would have made the facing correct and everything
+        /// that aims off a creature wrong.
+        /// </summary>
         /// <inheritdoc />
         public void FaceTowards(Vector3 worldPoint, float duration = 0.3f)
         {
@@ -220,6 +320,26 @@ namespace PokeLab.Cinematics
             _turn = null;
         }
 
+        // --- Per-frame publication -----------------------------------------------------------
+
+        /// <summary>
+        /// Hands the motion layer's rotation, scale and opacity to the billboard.
+        ///
+        /// This bridge exists because a camera-facing quad ignores its transform's rotation and
+        /// shears under a parent's non-uniform scale, so the two channels have to be applied in
+        /// the quad's own space instead of the motion root's. Without it the dodge roll, the
+        /// recoil tilt and every squash in the library would be silent no-ops — which is the
+        /// single easiest way to end up with a battle where nothing appears to be animated
+        /// while every coroutine reports that it ran.
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (_billboard == null || _motion == null || !_billboard.HasArt) return;
+            _billboard.SetRoll(_motion.Roll);
+            _billboard.SetSquash(_motion.Squash);
+            if (!_hidden) _billboard.SetAlpha(_motion.Fade);
+        }
+
         // --- Model resolution ---------------------------------------------------------------
 
         private static float ResolveDisplayHeight(int speciesId)
@@ -232,6 +352,32 @@ namespace PokeLab.Cinematics
             return 0f; // caller substitutes the serialized fallback
         }
 
+        private static Sprite ResolvePortrait(int speciesId)
+        {
+            if (ServiceHub.TryGet<ICreatureArtRegistry>(out var registry) && registry != null)
+            {
+                return registry.GetPortrait(speciesId);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Swaps in the art for a species.
+        ///
+        /// Resolution order, and the order is the design:
+        /// <list type="number">
+        /// <item>A prefab from <see cref="ICreatureArtRegistry"/>. The shipping path — a
+        /// serialized reference is the only thing that reliably survives into a player build,
+        /// and the contract already returns a <c>GameObject</c>, so a billboard prefab
+        /// satisfies it with no change to <c>Core</c>. A prefab that already carries its own
+        /// <see cref="CreatureBillboard"/> or <see cref="Animator"/> is used as authored.</item>
+        /// <item>A billboard built here, fed from the sprite manifest. The integration path,
+        /// for while the prefabs do not exist.</item>
+        /// <item>The registry portrait on that same billboard: one static frame, no back view.
+        /// Visibly wrong and still reviewable.</item>
+        /// <item>The ellipsoid placeholder. Never meant to reach a build.</item>
+        /// </list>
+        /// </summary>
         private void SwapModel(int speciesId)
         {
             Transform oldModel = _model != null ? _model.transform : null;
@@ -239,8 +385,8 @@ namespace PokeLab.Cinematics
             // Anchors belonging to the outgoing model, and anchors we synthesised for it,
             // must both be dropped. The synthetic ones are not children of the model, so
             // destroying the model does not take them with it — left in place they would
-            // shadow the real anchors on the incoming rig and the new creature would be
-            // framed and shot at using the previous creature's proportions.
+            // shadow the real anchors on the incoming art and the new creature would be framed
+            // and shot at using the previous creature's proportions.
             // Anchors assigned by hand in the inspector and living outside the model are
             // deliberately left alone.
             headAnchor = KeepAnchor(headAnchor, oldModel);
@@ -258,6 +404,7 @@ namespace PokeLab.Cinematics
                 Destroy(_model);
                 _model = null;
                 _animator = null;
+                _billboard = null;
             }
 
             GameObject prefab = null;
@@ -273,32 +420,85 @@ namespace PokeLab.Cinematics
                 _model.transform.localRotation = Quaternion.identity;
                 _model.transform.localScale = Vector3.one;
                 _model.name = "Model";
-            }
-            else if (spawnPlaceholderWhenMissing)
-            {
-                _model = BuildPlaceholder(DisplayHeight > 0.01f ? DisplayHeight : fallbackDisplayHeight);
-                _model.transform.SetParent(_motionRoot, false);
+                _billboard = _model.GetComponentInChildren<CreatureBillboard>();
             }
 
             if (DisplayHeight <= 0.01f) DisplayHeight = fallbackDisplayHeight;
-            _motion.DisplayHeight = DisplayHeight;
 
             _animator = _model != null ? _model.GetComponentInChildren<Animator>() : null;
             if (_animator != null)
             {
-                // Always animate, even when the view is off screen behind a punch-in: culling
-                // an animator mid-beat freezes the creature at whatever pose it held.
+                // Always animate, even when the view is off screen: culling an animator
+                // mid-beat freezes the creature at whatever pose it held.
                 _animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
                 _animator.applyRootMotion = false; // the motion layer owns translation
             }
+
+            // A rigged prefab drives its own rotation and scale through the Animator, so the
+            // motion layer must go back to writing them. A billboard, or no art at all, keeps
+            // sprite mode.
+            bool rigged = _animator != null && _billboard == null;
+            _motion.SpriteMode = !rigged;
+
+            if (!rigged)
+            {
+                if (_billboard == null)
+                {
+                    if (_ownBillboard == null) _ownBillboard = BuildBillboard();
+                    _billboard = _ownBillboard;
+                }
+                if (_ownBillboard != null) _ownBillboard.gameObject.SetActive(_billboard == _ownBillboard);
+                _billboard.Mirror = mirrorMode;
+                _billboard.Bind(speciesId, DisplayHeight, ResolvePortrait(speciesId));
+
+                if (!_billboard.HasArt)
+                {
+                    // An untextured quad is a white rectangle, which is worse than the thing
+                    // it replaced. Hide it and fall back to the volume stand-in, which at
+                    // least reads as a creature-shaped object in a framing test.
+                    _billboard.SetVisible(false);
+                    if (spawnPlaceholderWhenMissing && _model == null)
+                    {
+                        _model = BuildPlaceholder(DisplayHeight);
+                        _model.transform.SetParent(_motionRoot, false);
+                        _motion.SpriteMode = false;
+                    }
+                }
+            }
+            else if (_ownBillboard != null)
+            {
+                // A rigged prefab took over. Park the view's own quad rather than destroying
+                // it, so a later switch back to a sprite species does not have to rebuild it.
+                _ownBillboard.gameObject.SetActive(false);
+            }
+
+            _motion.DisplayHeight = DisplayHeight;
+        }
+
+        private CreatureBillboard BuildBillboard()
+        {
+            var go = new GameObject("Sprite");
+            go.transform.SetParent(_motionRoot, false);
+            go.layer = gameObject.layer;
+            go.AddComponent<MeshFilter>();
+            go.AddComponent<MeshRenderer>();
+            return go.AddComponent<CreatureBillboard>();
         }
 
         /// <summary>
-        /// Resolves the three contract anchors by name, deepest-first search.
+        /// Resolves the three contract anchors.
         ///
-        /// Missing anchors are synthesised from the display height rather than left null:
-        /// the camera rig, the projectile system and the VFX layer all dereference these,
-        /// and a null anchor turns a missing art asset into a crash three systems away.
+        /// A billboard has no skeleton, so unless a hand-authored prefab supplies named
+        /// anchors these are computed from the sprite's drawn height — the metre height the
+        /// registry reports, which the billboard has already mapped onto the frame using the
+        /// manifest's content height and ground origin. That last part is why the manifest
+        /// carries those two numbers at all: a Gen 5 frame is padded, so the crown of a
+        /// creature is not the top of its image and the feet are not the bottom, and an anchor
+        /// placed at the frame's extents puts the health bar in empty space.
+        ///
+        /// Missing anchors are never left null: the camera rig, the projectile system and the
+        /// VFX layer all dereference these, and a null anchor turns a missing art asset into a
+        /// crash three systems away.
         /// </summary>
         private void ResolveAnchors()
         {
@@ -309,10 +509,13 @@ namespace PokeLab.Cinematics
             if (muzzleAnchor == null) muzzleAnchor = FindDeep(searchRoot, MuzzleAnchorName);
 
             float h = DisplayHeight > 0.01f ? DisplayHeight : fallbackDisplayHeight;
-            if (bodyAnchor == null) bodyAnchor = MakeAnchor(BodyAnchorName + " (synthetic)", new Vector3(0f, h * 0.55f, 0f));
-            if (headAnchor == null) headAnchor = MakeAnchor(HeadAnchorName + " (synthetic)", new Vector3(0f, h, 0f));
-            // Muzzle sits forward of the body so projectiles do not spawn inside the model.
-            if (muzzleAnchor == null) muzzleAnchor = MakeAnchor(MuzzleAnchorName + " (synthetic)", new Vector3(0f, h * 0.6f, h * 0.35f));
+            if (bodyAnchor == null) bodyAnchor = MakeAnchor(BodyAnchorName + " (computed)", new Vector3(0f, h * 0.52f, 0f));
+            if (headAnchor == null) headAnchor = MakeAnchor(HeadAnchorName + " (computed)", new Vector3(0f, h * 0.96f, 0f));
+            // The muzzle sits forward of the body so projectiles do not spawn inside the
+            // sprite. On a flat subject "forward" is the creature's facing, which is why this
+            // hangs off the motion root and not off the quad — the quad is turned to the
+            // camera and has no forward of its own.
+            if (muzzleAnchor == null) muzzleAnchor = MakeAnchor(MuzzleAnchorName + " (computed)", new Vector3(0f, h * 0.58f, h * 0.30f));
         }
 
         /// <summary>Returns the anchor if it should survive a model swap, otherwise null.</summary>
@@ -347,7 +550,8 @@ namespace PokeLab.Cinematics
         }
 
         /// <summary>
-        /// The stand-in body. Deliberately an ellipsoid rather than a cube: it reads as a
+        /// The stand-in body, used only when neither a prefab nor the sprite manifest resolved
+        /// anything. Deliberately an ellipsoid rather than a cube: it reads as a
         /// creature-shaped volume in a framing test, which is what this is for. It is never
         /// meant to reach a build — see <see cref="spawnPlaceholderWhenMissing"/>.
         /// </summary>
@@ -394,35 +598,21 @@ namespace PokeLab.Cinematics
         ///
         /// These are the numbers the "animation snapping" QA item is really about. The rule
         /// applied: reactive states blend fastest because a delayed reaction reads as lag,
-        /// attacks blend fast because the wind-up is in the clip, and returns to idle blend
+        /// attacks blend fast because the wind-up is in the motion, and returns to idle blend
         /// slowest because a fast return to idle is what makes a creature look like it is
         /// popping between poses.
+        ///
+        /// Kept as a static function, and kept authoritative: it is what the Animator path
+        /// uses for a rigged actor and what <see cref="CreatureAnimationPlans"/> mirrors for
+        /// the sprite path, so the two forms of creature are timed identically.
         /// </summary>
         public static float DefaultCrossfade(CreatureAnimation animation)
-        {
-            switch (animation)
-            {
-                case CreatureAnimation.Hit: return 0.045f;   // must be on the impact frame
-                case CreatureAnimation.Dodge: return 0.05f;  // must beat the incoming attack
-                case CreatureAnimation.AttackPhysical: return 0.07f;
-                case CreatureAnimation.AttackSpecial: return 0.10f;
-                case CreatureAnimation.AttackStatus: return 0.12f;
-                case CreatureAnimation.SentOut: return 0.06f; // lands on the burst frame
-                case CreatureAnimation.Recalled: return 0.08f;
-                case CreatureAnimation.Faint: return 0.13f;   // reads as losing control, not as a cut
-                case CreatureAnimation.Run: return 0.16f;
-                case CreatureAnimation.Walk: return 0.20f;
-                case CreatureAnimation.Celebrate: return 0.22f;
-                case CreatureAnimation.IdleBattle: return 0.26f;
-                case CreatureAnimation.Idle: return 0.30f;
-                case CreatureAnimation.Sleep: return 0.40f;
-                default: return 0.18f;
-            }
-        }
+            => CreatureAnimationPlans.For(animation).Crossfade;
 
         /// <summary>
         /// State names the Animator Controller must expose, one per <see cref="CreatureAnimation"/>.
-        /// Used by the editor controller builder and by integration checks.
+        /// Used by the editor controller builder and by integration checks. Still meaningful
+        /// after the pivot: a rigged actor bound through the registry is driven by these names.
         /// </summary>
         public static IEnumerable<string> RequiredStateNames()
         {
@@ -433,7 +623,7 @@ namespace PokeLab.Cinematics
         // --- Visibility ---------------------------------------------------------------------
 
         /// <summary>
-        /// Hides or shows the model without disabling this component.
+        /// Hides or shows the creature without disabling this component.
         ///
         /// Disabling the GameObject would kill the coroutines mid-beat and drop the anchors
         /// out from under the camera rig, so send-out and recall toggle renderers instead.
@@ -441,9 +631,23 @@ namespace PokeLab.Cinematics
         public void SetModelVisible(bool visible)
         {
             EnsureBuilt();
+            _hidden = !visible;
+
+            if (_billboard != null && _billboard.HasArt)
+            {
+                _billboard.SetVisible(visible);
+                if (visible) _billboard.SetAlpha(Mathf.Max(0.01f, _motion != null ? _motion.Fade : 1f));
+            }
+
             if (_model == null) return;
             var renderers = _model.GetComponentsInChildren<Renderer>(true);
-            for (int i = 0; i < renderers.Length; i++) renderers[i].enabled = visible;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                // The billboard owns its own visibility above; toggling it here as well would
+                // undo an alpha fade that is still running.
+                if (_billboard != null && renderers[i] == _billboard.Renderer) continue;
+                renderers[i].enabled = visible;
+            }
         }
     }
 }
