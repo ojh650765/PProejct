@@ -73,12 +73,45 @@ def build_creature(mod, render=True, engine='BLENDER_EEVEE', strict=True,
     if os.environ.get("PL_PARTS"):
         for p in parts:
             print("    part %-34s %5d tris" % (p.name, C.tri_count(p)))
-    mesh = C.join_objects(parts, name)
+
+    # A creature is one skin plus a handful of accessories, not a pile of
+    # interpenetrating shells. Everything that makes up the body silhouette gets
+    # welded into a single continuous surface; eyes, teeth, claws, decals and
+    # the like stay their own shells sitting on it.
+    details = list(result.get('details', []) or [])
+    if details:
+        skin = [p for p in parts if p not in details]
+    else:
+        skin = [p for p in parts if not C.is_detail_part(p)]
+        details = [p for p in parts if C.is_detail_part(p)]
+    if not skin:
+        skin, details = parts, []
+
+    # Spend whatever the accessories leave on the skin: the welded surface is the
+    # only thing carrying the silhouette now, and its resolution is what decides
+    # whether a tail reads as a taper or as a stack of facets. The 1.12 allows
+    # for the bevel growing the detail shells.
+    detail_tris = sum(C.tri_count(d) for d in details)
+    tri_max = getattr(mod, 'TRI_MAX', 8000)
+    target_quads = int(max(900, min(3400,
+                                    (tri_max * 0.92 - detail_tris * 1.12) / 2.0)))
+
+    mesh = C.join_objects(skin, name)
     C.cleanup_mesh(mesh)
+    print("  skin: %d parts, %d tris; details: %d parts, %d tris; budget %d quads"
+          % (len(skin), C.tri_count(mesh), len(details), detail_tris, target_quads))
+    C.weld_skin(mesh, mod.HEIGHT, target_quads=target_quads,
+                voxel_ratio=result.get('voxel_ratio', 1.0 / 185.0),
+                smooth_iters=result.get('weld_smooth', 2))
+    if details:
+        mesh = C.join_objects([mesh] + details, name)
+        C.cleanup_mesh(mesh)
     print("  joined: %d tris" % C.tri_count(mesh))
     B.finish_mesh(mesh, mod.HEIGHT,
                   bevel_scale=result.get('bevel_scale', 0.012),
-                  bevel_segments=result.get('bevel_segments', 2),
+                  # one segment: the welded skin has no hard edges left to
+                  # chamfer, so a second segment only taxed the accessories
+                  bevel_segments=result.get('bevel_segments', 1),
                   smooth_angle=result.get('smooth_angle', 38.0),
                   sharp_angle=result.get('sharp_angle', 46.0),
                   crease=result.get('crease', False),

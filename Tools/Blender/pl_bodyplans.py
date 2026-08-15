@@ -568,6 +568,18 @@ def finish_mesh(obj, height, bevel_scale=0.012, bevel_segments=1,
     if tri_max:
         fit_budget(obj, tri_max)
         C.triangulate_ngons(obj)
+    # Final repair. The bevel, the budget decimate and the quadriflow pass in the
+    # weld can each leave a handful of boundary edges, and a hole shows in a
+    # render as a black rim. Note this must NOT drop small islands: by now the
+    # detail shells - teeth, whiskers, claws, eyes - are joined in, and they are
+    # legitimately small disconnected islands. Orphan culling belongs in
+    # `weld_skin`, where only the skin is present.
+    for _ in range(3):
+        holes = C.fill_holes(obj)
+        if not holes:
+            break
+        C.cleanup_mesh(obj)
+        C.triangulate_ngons(obj)
     C.shade_smooth_with_sharp(obj, smooth_angle)
     C.add_custom_split_normals(obj)
     return obj

@@ -83,8 +83,12 @@ def setup_studio(height, engine='BLENDER_EEVEE', samples=48, res=512, bg=0.30):
     # scale - the earlier distance-based area key blew every render to white), a
     # large weak area fill tinted to the key's complement, and a cold rim so the
     # silhouette separates from the card. Shadows are never black.
+    # Exposure: the previous key blew a mid-tone straight through 255 in the red
+    # channel, which is why every creature reviewed as pastel and why markings
+    # that are correctly authored (Bulbasaur's blotches, Pikachu's stripes) read
+    # as absent. This also ships in the portrait, so it is worth getting right.
     sun_data = bpy.data.lights.new("Key", 'SUN')
-    sun_data.energy = 2.3
+    sun_data.energy = 1.85
     sun_data.angle = math.radians(6.0)
     sun_data.color = (1.0, 0.96, 0.90)
     sun = bpy.data.objects.new("Key", sun_data)
@@ -92,9 +96,9 @@ def setup_studio(height, engine='BLENDER_EEVEE', samples=48, res=512, bg=0.30):
     sun.location = Vector((-2.0 * h, -2.4 * h, 3.0 * h))
     sun.rotation_euler = (-sun.location).to_track_quat('-Z', 'Y').to_euler()
 
-    area("Fill", (2.6 * h, -2.0 * h, 1.1 * h), 12.0 * h * h, h * 6.0,
+    area("Fill", (2.6 * h, -2.0 * h, 1.1 * h), 8.5 * h * h, h * 6.0,
          (0.80, 0.87, 1.0))
-    area("Rim", (0.9 * h, 2.9 * h, 2.2 * h), 16.0 * h * h, h * 3.0,
+    area("Rim", (0.9 * h, 2.9 * h, 2.2 * h), 12.0 * h * h, h * 3.0,
          (0.86, 0.93, 1.0))
 
     cam_data = bpy.data.cameras.new("PreviewCam")
