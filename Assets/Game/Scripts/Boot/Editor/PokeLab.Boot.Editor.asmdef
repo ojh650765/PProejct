@@ -1,0 +1,19 @@
+{
+    "name": "PokeLab.Boot.Editor",
+    "rootNamespace": "PokeLab.Boot.Editor",
+    "references": [
+        "PokeLab.Core",
+        "PokeLab.Boot"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
