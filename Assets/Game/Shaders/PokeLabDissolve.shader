@@ -36,8 +36,9 @@ Shader "PokeLab/Dissolve"
 
         [Header(Toon Ramp)][Space(4)]
         _ShadeColor("Shadow Tint", Color) = (0.42,0.48,0.66,1)
+        // Shared HD-2D ramp language: 3 bands, 0.02 edge. See PokeLabCreature.
         _ShadeSteps("Band Count", Range(1,6)) = 3
-        _ShadeSoftness("Band Softness", Range(0,0.6)) = 0.08
+        _ShadeSoftness("Band Softness", Range(0,0.6)) = 0.02
         _ShadeWrap("Light Wrap", Range(0,1)) = 0.25
         _RimColor("Rim Colour", Color) = (1,0.95,0.85,1)
         _RimStrength("Rim Strength", Range(0,3)) = 0.6

@@ -1,0 +1,83 @@
+{
+  "atlasSize": 2048,
+  "cellSize": 512,
+  "grid": 4,
+  "targetDensity": {
+    "contactZone": "256 px/m",
+    "general": "128 px/m",
+    "heroCloseRange": "256 px/m",
+    "note": "Density is set by UV scale in Tools/Blender/environment, not by this script. The 0.5 m modular grid lands on 128 px."
+  },
+  "outlineColor": [
+    0.08,
+    0.07,
+    0.12
+  ],
+  "families": [
+    {
+      "family": "Characters",
+      "colours": 16,
+      "valueSteps": 4,
+      "keyline": false,
+      "keylineGain": 0.0,
+      "normalScale": 0.75,
+      "harmonise": 0.1,
+      "note": "The human FBX are slated to become sprites, so this atlas is on borrowed time. Quantised anyway so the frame stays coherent for as long as they are in the scene.",
+      "keylinedCells": 0,
+      "keylineVetoedCells": 0,
+      "outputSha256": "80cdae5a3d5155c5eee51976d5f3817f8a2af96c5f30bdb0dcaf8c1a1ac474b1"
+    },
+    {
+      "family": "Foliage",
+      "colours": 16,
+      "valueSteps": 5,
+      "keyline": false,
+      "keylineGain": 0.0,
+      "normalScale": 0.7,
+      "harmonise": 0.1,
+      "note": "No keyline: a canopy has no joinery, and an edge filter on leaf clusters produces speckle. Alpha is passed through untouched -- it is the cutout mask and posterising it would chew the silhouette.",
+      "keylinedCells": 0,
+      "keylineVetoedCells": 0,
+      "outputSha256": "972528f0a6aff738e54cc6132dfbc18313d31632b7fe97bd5d65d757018c3ce6"
+    },
+    {
+      "family": "Props",
+      "colours": 20,
+      "valueSteps": 4,
+      "keyline": true,
+      "keylineGain": 0.6,
+      "normalScale": 0.8,
+      "harmonise": 0.1,
+      "note": "Manufactured objects: panel lines and rims are real boundaries.",
+      "keylinedCells": 16,
+      "keylineVetoedCells": 0,
+      "outputSha256": "fcb5833c0ed622fbccc2733b7e8edbae2b2f6aa3d4c4e8b1510607a2068eea56"
+    },
+    {
+      "family": "Terrain",
+      "colours": 20,
+      "valueSteps": 4,
+      "keyline": true,
+      "keylineGain": 0.5,
+      "normalScale": 0.85,
+      "harmonise": 0.1,
+      "note": "Ground and cliff. Keyline is weak: stone joints yes, strata noise no. Normal scale is the highest of any family because the split-normals pass leans on it to keep rock reading as faceted.",
+      "keylinedCells": 16,
+      "keylineVetoedCells": 0,
+      "outputSha256": "b9a217a3bac350c62482a600eae4f45f40313d9e49ccf186c3f21aeb561284d0"
+    },
+    {
+      "family": "Town",
+      "colours": 18,
+      "valueSteps": 4,
+      "keyline": true,
+      "keylineGain": 0.7,
+      "normalScale": 0.75,
+      "harmonise": 0.1,
+      "note": "Plank edges, stone joints and roof tile rows are exactly the natural boundaries the keyline is for. Strongest keyline in the project.",
+      "keylinedCells": 15,
+      "keylineVetoedCells": 1,
+      "outputSha256": "7032aae3c2a225f0c09a5e66a43bfe09f60545a2532e07dc14ba2d574952048f"
+    }
+  ]
+}

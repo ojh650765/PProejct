@@ -35,8 +35,12 @@ Shader "PokeLab/Foliage"
 
         [Header(Toon Ramp)][Space(4)]
         _ShadeColor("Shadow Tint", Color) = (0.38,0.48,0.55,1)
-        _ShadeSteps("Band Count", Range(1,6)) = 2
-        _ShadeSoftness("Band Softness", Range(0,0.6)) = 0.12
+        // Shared HD-2D ramp language: 3 bands, 0.02 edge. See PokeLabCreature.
+        // Foliage used to band at 2 with a soft edge; it now matches the rest of
+        // the frame exactly, and the wrap below is what keeps leaves reading as
+        // thin rather than the band count.
+        _ShadeSteps("Band Count", Range(1,6)) = 3
+        _ShadeSoftness("Band Softness", Range(0,0.6)) = 0.02
         _ShadeWrap("Light Wrap", Range(0,1)) = 0.45
         _ShadowStrength("Cast Shadow Depth", Range(0,1)) = 0.65
         _OcclusionStrength("Vertex Occlusion", Range(0,1)) = 0.8
@@ -47,8 +51,10 @@ Shader "PokeLab/Foliage"
         _TranslucencyPower("Translucency Falloff", Range(1,16)) = 5
 
         [Header(Specular and Rim)][Space(4)]
-        _SpecularStrength("Sheen Strength", Range(0,2)) = 0.35
-        _SpecularSharpness("Sheen Sharpness", Range(1,128)) = 24
+        // Leaf sheen cut to a hint. A wet-look highlight travelling over a canopy
+        // is the fastest way to break the painted read.
+        _SpecularStrength("Sheen Strength", Range(0,2)) = 0.08
+        _SpecularSharpness("Sheen Sharpness", Range(1,128)) = 36
         _RimStrength("Rim Strength", Range(0,3)) = 0.5
         _RimPower("Rim Power", Range(0.5,12)) = 3
 

@@ -41,15 +41,19 @@ Shader "PokeLab/PropGroundBlend"
 
         [Header(Toon Ramp)][Space(4)]
         _ShadeColor("Shadow Tint", Color) = (0.40,0.48,0.66,1)
+        // Shared HD-2D ramp language: 3 bands, 0.02 edge. See PokeLabCreature.
         _ShadeSteps("Band Count", Range(1,6)) = 3
-        _ShadeSoftness("Band Softness", Range(0,0.6)) = 0.1
+        _ShadeSoftness("Band Softness", Range(0,0.6)) = 0.02
         _ShadeWrap("Light Wrap", Range(0,1)) = 0.2
         _ShadowStrength("Cast Shadow Depth", Range(0,1)) = 0.85
         _OcclusionStrength("Vertex Occlusion", Range(0,1)) = 0.6
 
         [Header(Highlights)][Space(4)]
-        _SpecularStrength("Specular Strength", Range(0,2)) = 0.25
-        _SpecularSharpness("Specular Sharpness", Range(1,128)) = 26
+        // Near-zero dry specular for the flat pixel read. The wetness path still
+        // lerps this up to 1.8, which is intentional: rain is meant to be a visible
+        // change of surface, not a change of art style.
+        _SpecularStrength("Specular Strength", Range(0,2)) = 0.05
+        _SpecularSharpness("Specular Sharpness", Range(1,128)) = 40
         _RimColor("Rim Colour", Color) = (1,0.95,0.85,1)
         _RimStrength("Rim Strength", Range(0,3)) = 0.45
         _RimPower("Rim Power", Range(0.5,12)) = 3.5

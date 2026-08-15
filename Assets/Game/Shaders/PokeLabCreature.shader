@@ -31,17 +31,24 @@ Shader "PokeLab/Creature"
 
         [Header(Toon Ramp)][Space(4)]
         _ShadeColor("Shadow Tint", Color) = (0.42,0.47,0.66,1)
+        // HD-2D ramp language. 3 bands with a 0.02 edge is a hard cel terminator,
+        // not a soft one, and the same pair is authored on every family in this
+        // folder -- creature, sprite, prop, terrain, foliage. If the world bands at
+        // 3 steps and a creature bands at 8 they read as two renderers in one frame.
         _ShadeSteps("Band Count", Range(1,6)) = 3
-        _ShadeSoftness("Band Softness", Range(0,0.6)) = 0.06
+        _ShadeSoftness("Band Softness", Range(0,0.6)) = 0.02
         _ShadeWrap("Light Wrap", Range(0,1)) = 0.25
         _ShadowStrength("Cast Shadow Depth", Range(0,1)) = 0.8
         _OcclusionStrength("Vertex Occlusion", Range(0,1)) = 0.7
 
         [Header(Specular)][Space(4)]
         _SpecularColor("Specular Colour", Color) = (1,1,1,1)
-        _SpecularSharpness("Specular Sharpness", Range(1,128)) = 32
-        _SpecularStrength("Specular Strength", Range(0,2)) = 0.5
-        _SpecularStep("Specular Hardness", Range(0,1)) = 0.5
+        // Specular is nearly off for the pixel look. A moving Blinn-Phong smear is
+        // the strongest "this is a 3D model" tell there is, so what survives is a
+        // small, fully stepped highlight that reads as a painted shape.
+        _SpecularSharpness("Specular Sharpness", Range(1,128)) = 48
+        _SpecularStrength("Specular Strength", Range(0,2)) = 0.08
+        _SpecularStep("Specular Hardness", Range(0,1)) = 1.0
 
         [Header(Rim)][Space(4)]
         _RimColor("Rim Colour", Color) = (1,0.95,0.85,1)

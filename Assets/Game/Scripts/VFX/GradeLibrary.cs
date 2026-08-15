@@ -13,6 +13,38 @@ namespace PokeLab.Vfx
     ///
     /// Every colour is authored the way a colourist would think about it, then the
     /// LUT baker turns the grading block into an actual lookup table.
+    ///
+    /// HD-2D pass. Depth of field is on everywhere, which is most of the diorama
+    /// read on its own. Four further moves, applied as one coherent pass across all
+    /// seven grades rather than as seven independent slider pulls -- the point of a
+    /// grade library is that the looks stay related to each other:
+    ///
+    ///   Bloom up, threshold down.
+    ///       HD-2D leans on light bleed the way a CRT did. Every grade gains roughly
+    ///       50% bloom intensity, wider scatter, and a threshold pulled below 1.0 so
+    ///       bright diffuse -- not just emissives -- starts to glow. The ordering
+    ///       between grades is preserved: Day still blooms least, Cave most.
+    ///
+    ///   Key lower and warmer.
+    ///       A high, neutral key flattens a diorama. Sun intensity comes down by
+    ///       roughly 15% and the daylight grades shift warm. PostExposure comes up a
+    ///       little in each grade to hold the midtones where they were, so the change
+    ///       reads as a change of light rather than as an underexposure.
+    ///
+    ///   Ambient contrast deeper.
+    ///       The gap between AmbientSky and AmbientGround widens in every grade. That
+    ///       gradient is what PL_Ambient() samples with the synthetic sphere normal on
+    ///       sprites and with the real normal on geometry, so widening it is what gives
+    ///       both a top-lit, modelled read instead of a uniform wash. The ground term
+    ///       takes the cut; the sky term goes slightly up.
+    ///
+    ///   Film grain to near zero, vignette up.
+    ///       Per-pixel grain on a 4x-magnified sprite crawls and reads as video
+    ///       compression, so it drops to 0.02 everywhere. Night and Cave keep 0.04,
+    ///       because grain doubles as dither in the two grades where 8-bit banding
+    ///       shows first, and PL_AdaptiveDither already scales itself by NightFactor
+    ///       to cover the rest. Vignette comes up to sit with the DOF: darkening the
+    ///       frame edge is half of what makes a tilt-shift shot read as a model.
     /// </summary>
     public static class GradeLibrary
     {
@@ -36,13 +68,13 @@ namespace PokeLab.Vfx
         private static GradeDefinition Dawn() => new GradeDefinition
         {
             Key = GradeKey.Dawn,
-            SunColor = new Color(1.00f, 0.72f, 0.48f),
-            SunIntensity = 1.5f,
+            SunColor = new Color(1.00f, 0.70f, 0.45f),
+            SunIntensity = 1.35f,
             ShadowStrength = 0.62f,
 
-            AmbientSky = new Color(0.42f, 0.48f, 0.72f),
+            AmbientSky = new Color(0.44f, 0.50f, 0.78f),
             AmbientEquator = new Color(0.58f, 0.50f, 0.52f),
-            AmbientGround = new Color(0.26f, 0.22f, 0.24f),
+            AmbientGround = new Color(0.17f, 0.15f, 0.18f),
             AmbientIntensity = 1.0f,
 
             RimTint = new Color(1.00f, 0.78f, 0.55f),
@@ -74,16 +106,16 @@ namespace PokeLab.Vfx
             SplitBalance = -0.1f,
             LutContribution = 0.75f,
 
-            PostExposure = 0.10f,
-            BloomThreshold = 0.85f,
-            BloomIntensity = 0.60f,
-            BloomScatter = 0.72f,
+            PostExposure = 0.14f,
+            BloomThreshold = 0.78f,
+            BloomIntensity = 0.95f,
+            BloomScatter = 0.78f,
             BloomTint = new Color(1.00f, 0.86f, 0.72f),
-            VignetteIntensity = 0.22f,
-            VignetteSmoothness = 0.45f,
+            VignetteIntensity = 0.28f,
+            VignetteSmoothness = 0.42f,
             VignetteColor = new Color(0.06f, 0.04f, 0.10f),
             ChromaticAberration = 0.05f,
-            FilmGrain = 0.10f,
+            FilmGrain = 0.02f,
             DepthOfFieldEnabled = true,
             DofFocusDistance = 9.0f,
             DofAperture = 3.2f,
@@ -100,13 +132,13 @@ namespace PokeLab.Vfx
         private static GradeDefinition Day() => new GradeDefinition
         {
             Key = GradeKey.Day,
-            SunColor = new Color(1.00f, 0.96f, 0.86f),
-            SunIntensity = 2.4f,
+            SunColor = new Color(1.00f, 0.94f, 0.80f),
+            SunIntensity = 2.05f,
             ShadowStrength = 0.78f,
 
-            AmbientSky = new Color(0.52f, 0.68f, 0.92f),
+            AmbientSky = new Color(0.56f, 0.72f, 0.98f),
             AmbientEquator = new Color(0.62f, 0.66f, 0.70f),
-            AmbientGround = new Color(0.30f, 0.30f, 0.26f),
+            AmbientGround = new Color(0.20f, 0.21f, 0.19f),
             AmbientIntensity = 1.0f,
 
             RimTint = new Color(1.00f, 0.97f, 0.88f),
@@ -129,7 +161,7 @@ namespace PokeLab.Vfx
 
             Lift = new Color(0.02f, 0.03f, 0.05f),
             Gamma = new Color(1.00f, 1.00f, 1.00f),
-            Gain = new Color(1.02f, 1.01f, 0.99f),
+            Gain = new Color(1.05f, 1.01f, 0.95f),
             Contrast = 0.10f,
             Saturation = 0.16f,
             HueShift = 0f,
@@ -138,16 +170,16 @@ namespace PokeLab.Vfx
             SplitBalance = 0f,
             LutContribution = 0.70f,
 
-            PostExposure = 0f,
-            BloomThreshold = 1.05f,
-            BloomIntensity = 0.45f,
-            BloomScatter = 0.62f,
-            BloomTint = Color.white,
-            VignetteIntensity = 0.16f,
-            VignetteSmoothness = 0.50f,
+            PostExposure = 0.06f,
+            BloomThreshold = 0.92f,
+            BloomIntensity = 0.75f,
+            BloomScatter = 0.70f,
+            BloomTint = new Color(1.00f, 0.98f, 0.94f),
+            VignetteIntensity = 0.22f,
+            VignetteSmoothness = 0.46f,
             VignetteColor = new Color(0.04f, 0.05f, 0.08f),
             ChromaticAberration = 0.03f,
-            FilmGrain = 0.05f,
+            FilmGrain = 0.02f,
             DepthOfFieldEnabled = true,
             DofFocusDistance = 11.0f,
             DofAperture = 3.6f,
@@ -163,13 +195,13 @@ namespace PokeLab.Vfx
         private static GradeDefinition Dusk() => new GradeDefinition
         {
             Key = GradeKey.Dusk,
-            SunColor = new Color(1.00f, 0.55f, 0.28f),
-            SunIntensity = 1.7f,
+            SunColor = new Color(1.00f, 0.53f, 0.25f),
+            SunIntensity = 1.5f,
             ShadowStrength = 0.58f,
 
-            AmbientSky = new Color(0.34f, 0.34f, 0.66f),
+            AmbientSky = new Color(0.36f, 0.36f, 0.72f),
             AmbientEquator = new Color(0.70f, 0.46f, 0.44f),
-            AmbientGround = new Color(0.24f, 0.18f, 0.22f),
+            AmbientGround = new Color(0.15f, 0.11f, 0.16f),
             AmbientIntensity = 1.0f,
 
             RimTint = new Color(1.00f, 0.62f, 0.35f),
@@ -201,16 +233,16 @@ namespace PokeLab.Vfx
             SplitBalance = -0.15f,
             LutContribution = 0.82f,
 
-            PostExposure = 0.05f,
-            BloomThreshold = 0.75f,
-            BloomIntensity = 0.85f,
-            BloomScatter = 0.78f,
+            PostExposure = 0.10f,
+            BloomThreshold = 0.68f,
+            BloomIntensity = 1.25f,
+            BloomScatter = 0.82f,
             BloomTint = new Color(1.00f, 0.76f, 0.58f),
-            VignetteIntensity = 0.28f,
-            VignetteSmoothness = 0.42f,
+            VignetteIntensity = 0.34f,
+            VignetteSmoothness = 0.40f,
             VignetteColor = new Color(0.08f, 0.03f, 0.10f),
             ChromaticAberration = 0.08f,
-            FilmGrain = 0.12f,
+            FilmGrain = 0.02f,
             DepthOfFieldEnabled = true,
             DofFocusDistance = 9.0f,
             DofAperture = 3.0f,
@@ -229,12 +261,12 @@ namespace PokeLab.Vfx
         {
             Key = GradeKey.Night,
             SunColor = new Color(0.52f, 0.62f, 1.00f),
-            SunIntensity = 0.55f,
+            SunIntensity = 0.50f,
             ShadowStrength = 0.40f,
 
-            AmbientSky = new Color(0.14f, 0.19f, 0.38f),
+            AmbientSky = new Color(0.15f, 0.21f, 0.42f),
             AmbientEquator = new Color(0.12f, 0.15f, 0.28f),
-            AmbientGround = new Color(0.06f, 0.07f, 0.13f),
+            AmbientGround = new Color(0.04f, 0.05f, 0.10f),
             AmbientIntensity = 1.0f,
 
             RimTint = new Color(0.62f, 0.76f, 1.00f),
@@ -266,18 +298,21 @@ namespace PokeLab.Vfx
             SplitBalance = -0.3f,
             LutContribution = 0.80f,
 
-            PostExposure = -0.15f,
-            BloomThreshold = 0.60f,
-            BloomIntensity = 0.95f,
-            BloomScatter = 0.80f,
+            PostExposure = -0.12f,
+            BloomThreshold = 0.55f,
+            BloomIntensity = 1.30f,
+            BloomScatter = 0.84f,
             BloomTint = new Color(0.78f, 0.86f, 1.00f),
-            VignetteIntensity = 0.34f,
-            VignetteSmoothness = 0.40f,
+            VignetteIntensity = 0.38f,
+            VignetteSmoothness = 0.38f,
             VignetteColor = new Color(0.01f, 0.02f, 0.06f),
             ChromaticAberration = 0.06f,
             // Grain doubles as extra dither in the darkest grade, on top of the
-            // per-shader dither. Between them the night sky should not band.
-            FilmGrain = 0.28f,
+            // per-shader dither. Cut from 0.28 to the minimum that still breaks
+            // banding: at 0.28 it crawled visibly over magnified sprite pixels and
+            // read as video compression. PL_AdaptiveDither already triples its own
+            // amplitude at NightFactor 1, which covers most of what grain was doing.
+            FilmGrain = 0.04f,
             DepthOfFieldEnabled = true,
             DofFocusDistance = 8.0f,
             DofAperture = 2.8f,
@@ -295,12 +330,12 @@ namespace PokeLab.Vfx
         {
             Key = GradeKey.CaveInterior,
             SunColor = new Color(0.30f, 0.38f, 0.55f),
-            SunIntensity = 0.15f,
+            SunIntensity = 0.12f,
             ShadowStrength = 0.30f,
 
-            AmbientSky = new Color(0.12f, 0.16f, 0.22f),
+            AmbientSky = new Color(0.13f, 0.17f, 0.24f),
             AmbientEquator = new Color(0.10f, 0.12f, 0.17f),
-            AmbientGround = new Color(0.05f, 0.06f, 0.08f),
+            AmbientGround = new Color(0.03f, 0.04f, 0.06f),
             AmbientIntensity = 1.0f,
 
             RimTint = new Color(0.55f, 0.78f, 0.95f),
@@ -332,16 +367,17 @@ namespace PokeLab.Vfx
             SplitBalance = -0.2f,
             LutContribution = 0.85f,
 
-            PostExposure = -0.05f,
-            BloomThreshold = 0.55f,
-            BloomIntensity = 1.20f,
-            BloomScatter = 0.82f,
+            PostExposure = -0.02f,
+            BloomThreshold = 0.50f,
+            BloomIntensity = 1.55f,
+            BloomScatter = 0.86f,
             BloomTint = new Color(0.70f, 0.88f, 1.00f),
-            VignetteIntensity = 0.42f,
-            VignetteSmoothness = 0.35f,
+            VignetteIntensity = 0.46f,
+            VignetteSmoothness = 0.34f,
             VignetteColor = Color.black,
             ChromaticAberration = 0.10f,
-            FilmGrain = 0.22f,
+            // As Night: kept above the others as dither, well below the old 0.22.
+            FilmGrain = 0.04f,
             DepthOfFieldEnabled = true,
             DofFocusDistance = 7.0f,
             DofAperture = 2.6f,
@@ -358,13 +394,13 @@ namespace PokeLab.Vfx
         private static GradeDefinition Rain() => new GradeDefinition
         {
             Key = GradeKey.Rain,
-            SunColor = new Color(0.72f, 0.78f, 0.86f),
-            SunIntensity = 0.90f,
+            SunColor = new Color(0.74f, 0.78f, 0.84f),
+            SunIntensity = 0.80f,
             ShadowStrength = 0.35f,
 
-            AmbientSky = new Color(0.40f, 0.45f, 0.52f),
+            AmbientSky = new Color(0.42f, 0.47f, 0.56f),
             AmbientEquator = new Color(0.38f, 0.42f, 0.47f),
-            AmbientGround = new Color(0.20f, 0.22f, 0.25f),
+            AmbientGround = new Color(0.14f, 0.16f, 0.19f),
             AmbientIntensity = 1.0f,
 
             RimTint = new Color(0.82f, 0.90f, 1.00f),
@@ -396,16 +432,16 @@ namespace PokeLab.Vfx
             SplitBalance = -0.1f,
             LutContribution = 0.75f,
 
-            PostExposure = -0.08f,
-            BloomThreshold = 0.90f,
-            BloomIntensity = 0.55f,
-            BloomScatter = 0.75f,
+            PostExposure = -0.04f,
+            BloomThreshold = 0.82f,
+            BloomIntensity = 0.85f,
+            BloomScatter = 0.80f,
             BloomTint = new Color(0.90f, 0.94f, 1.00f),
-            VignetteIntensity = 0.30f,
-            VignetteSmoothness = 0.45f,
+            VignetteIntensity = 0.34f,
+            VignetteSmoothness = 0.43f,
             VignetteColor = new Color(0.05f, 0.06f, 0.08f),
             ChromaticAberration = 0.05f,
-            FilmGrain = 0.16f,
+            FilmGrain = 0.02f,
             DepthOfFieldEnabled = true,
             DofFocusDistance = 10.0f,
             DofAperture = 3.4f,
@@ -425,13 +461,13 @@ namespace PokeLab.Vfx
         private static GradeDefinition Battle() => new GradeDefinition
         {
             Key = GradeKey.Battle,
-            SunColor = new Color(1.00f, 0.92f, 0.80f),
-            SunIntensity = 2.9f,
+            SunColor = new Color(1.00f, 0.90f, 0.76f),
+            SunIntensity = 2.45f,
             ShadowStrength = 0.90f,
 
-            AmbientSky = new Color(0.42f, 0.54f, 0.86f),
+            AmbientSky = new Color(0.44f, 0.57f, 0.92f),
             AmbientEquator = new Color(0.48f, 0.48f, 0.58f),
-            AmbientGround = new Color(0.16f, 0.16f, 0.20f),
+            AmbientGround = new Color(0.10f, 0.10f, 0.14f),
             AmbientIntensity = 1.0f,
 
             RimTint = new Color(1.00f, 0.94f, 0.82f),
@@ -454,7 +490,7 @@ namespace PokeLab.Vfx
 
             Lift = new Color(-0.02f, -0.01f, 0.03f),
             Gamma = new Color(0.98f, 0.99f, 1.01f),
-            Gain = new Color(1.10f, 1.06f, 1.00f),
+            Gain = new Color(1.12f, 1.06f, 0.97f),
             Contrast = 0.34f,
             Saturation = 0.28f,
             HueShift = -2f,
@@ -463,16 +499,16 @@ namespace PokeLab.Vfx
             SplitBalance = 0.15f,
             LutContribution = 0.90f,
 
-            PostExposure = 0.18f,
-            BloomThreshold = 0.70f,
-            BloomIntensity = 1.10f,
-            BloomScatter = 0.68f,
+            PostExposure = 0.22f,
+            BloomThreshold = 0.64f,
+            BloomIntensity = 1.45f,
+            BloomScatter = 0.76f,
             BloomTint = new Color(1.00f, 0.94f, 0.86f),
-            VignetteIntensity = 0.40f,
-            VignetteSmoothness = 0.34f,
+            VignetteIntensity = 0.44f,
+            VignetteSmoothness = 0.32f,
             VignetteColor = new Color(0.02f, 0.02f, 0.06f),
             ChromaticAberration = 0.14f,
-            FilmGrain = 0.08f,
+            FilmGrain = 0.02f,
             // Depth of field is what turns a battle into a staged shot rather than
             // a wide view of a field with two creatures on it.
             DepthOfFieldEnabled = true,

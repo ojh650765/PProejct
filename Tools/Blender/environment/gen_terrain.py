@@ -636,7 +636,66 @@ ASSETS = [
 ]
 
 
-def finish(bm, name, ms, budget, pivot, smooth=26.0):
+# --------------------------------------------------------------------------
+# Split normals
+#
+# Once the atlases are palette-quantised and the toon ramp bands at three hard
+# steps, smooth-shaded rock stops working. A smooth normal across a boulder
+# produces a soft gradient that the flat texture and the hard ramp have nothing
+# to say about, and the result reads as mush: a shape with no facets under a
+# lighting model that only draws facets. The fix is *harder* normal breaks, not
+# softer -- an authoring pass, not a remodel. Geometry is untouched.
+#
+# Two mechanisms, both wanted:
+#
+#   angle break     auto smooth at SPLIT_ANGLE instead of the 26 degrees the
+#                   family shipped with. 26 degrees smooths across most of an
+#                   eroded boulder's relief; 18 leaves the erosion pass's
+#                   plateaus and undercuts reading as distinct planes, which is
+#                   what the toon ramp then bands.
+#   material break  every edge between two different materials is marked sharp
+#                   unconditionally. A strata band meeting rock, or moss meeting
+#                   wet stone, is a change of surface and should never share an
+#                   interpolated normal across the join, whatever the angle is.
+#
+# Blender's FBX exporter writes per-loop normals from the split-normal result,
+# so both of these reach Unity through the existing export path with no exporter
+# change. The manifest's "custom split normals are authored; do not recalculate"
+# import note is what keeps Unity from throwing them away on the other side.
+# --------------------------------------------------------------------------
+
+SPLIT_ANGLE = 18.0        # degrees; was 26 before the HD-2D pivot
+SPLIT_ANGLE_BUILT = 24.0  # bridge and stepping stones: milled timber and cut
+                          # stone read wrong if every board face separates
+
+SMOOTH_OVERRIDE = {
+    "Env_Bridge_Wood": SPLIT_ANGLE_BUILT,
+    "Env_Stepping_Stones": SPLIT_ANGLE_BUILT,
+}
+
+
+def split_normals(obj, angle=SPLIT_ANGLE, material_breaks=True):
+    """Harden the shading normals in place. No vertices move."""
+    me = obj.data
+
+    if material_breaks and len(me.materials) > 1:
+        bm = E.obj_bm(obj)
+        bm.edges.ensure_lookup_table()
+        for e in bm.edges:
+            if len(e.link_faces) == 2 and \
+                    e.link_faces[0].material_index != e.link_faces[1].material_index:
+                e.smooth = False
+        E.bm_write(bm, obj)
+        me = obj.data
+
+    for p in me.polygons:
+        p.use_smooth = True
+    me.use_auto_smooth = True
+    me.auto_smooth_angle = math.radians(angle)
+    return obj
+
+
+def finish(bm, name, ms, budget, pivot, smooth=SPLIT_ANGLE):
     obj = E.bm_to_obj(bm, name, ms.materials())
     E.finalize(obj, smooth_angle=smooth)
     if pivot == 'corner':
@@ -648,6 +707,10 @@ def finish(bm, name, ms, budget, pivot, smooth=26.0):
         E.pivot_to_base(obj)
     E.apply_transforms(obj)
     E.uv_all(obj, ms, angle=62.0, margin=0.012)
+    # Last, deliberately. UV unwrapping goes through bmesh and operators that
+    # rewrite the mesh datablock, and edge sharpness set before that point is not
+    # guaranteed to survive the round trip.
+    split_normals(obj, angle=smooth)
     tris, probs = E.validate(obj, budget=budget, need_vcol=False, strict=False)
     return obj, tris, probs
 
@@ -665,7 +728,8 @@ def main():
         rng = random.Random(seed)
         bm = E.bm_new()
         fn(bm, rng)
-        obj, tris, probs = finish(bm, name, ms, budget, pivot)
+        obj, tris, probs = finish(bm, name, ms, budget, pivot,
+                                  smooth=SMOOTH_OVERRIDE.get(name, SPLIT_ANGLE))
         path = os.path.join(OUT, name + ".fbx")
         lods = []
         if tris > 2000:
