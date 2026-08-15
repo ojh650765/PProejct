@@ -1,0 +1,187 @@
+{
+  "generator": "Tools/Sprites/build.py",
+  "pixels_per_unit": 256,
+  "cell_size": 256,
+  "ground_row": 240,
+  "size_policy": {
+    "cell_px": 256,
+    "reference_height_m": 0.6,
+    "exponent": 0.35,
+    "max_fill_px": 240,
+    "note": "Constant sprite resolution: every species is authored into the same 256x256 cell. How much of the cell it fills is (height_m / 0.6) ** 0.35, normalised so the tallest of the cast fills 240px -- the Gen 5 model, where one box size served every species but a small species did not fill it. ICreatureArtRegistry.GetDisplayHeight must return world_height_m (sprite_height_px / PPU), because that is the height actually on screen and health bars sit on it."
+  },
+  "view_scheme": {
+    "authored": [
+      "front",
+      "back",
+      "side"
+    ],
+    "runtime_mirrored": {
+      "left": "side",
+      "right": "side"
+    },
+    "note": "Three authored views per species. Left/right are the side view mirrored in the billboard shader's UV at runtime -- not authored, and never a negative X scale. Front is derived from the official artwork; back and side are authored from the front silhouette plus the species' known design."
+  },
+  "import_settings": {
+    "textureType": "Sprite (2D and UI)",
+    "spriteMode": "Multiple (sliced by the cell size in this manifest)",
+    "pixelsPerUnit": 256,
+    "filterMode": "Point (no filter)",
+    "compression": "None",
+    "generateMipMaps": false,
+    "sRGBTexture": true,
+    "alphaIsTransparency": true,
+    "maxTextureSize": 2048,
+    "wrapMode": "Clamp",
+    "meshType": "Full Rect",
+    "extrudeEdges": 0,
+    "note": "Point + uncompressed + no mips is mandatory: bilinear filtering blurs the 1px outline into the background, block compression shatters the flat palette into gradients, and mips dissolve the sprite the moment the HD-2D camera pushes out."
+  },
+  "creatures": [
+    {
+      "species_id": 31,
+      "name": "Pikachu",
+      "source_artwork": "002501.png",
+      "height_m": 0.4,
+      "pixels_per_unit": 256,
+      "sprite_height_px": 159,
+      "world_height_m": 0.6211,
+      "cell": {
+        "width": 256,
+        "height": 256,
+        "columns": 5
+      },
+      "pivot_px": {
+        "x": 128,
+        "y_from_bottom": 16
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "palette_colours": 15,
+      "views": {
+        "front": {
+          "sheet": "Assets/Game/Art/Sprites/Creatures/pikachu_front.png",
+          "frame_count": 19,
+          "states": {
+            "Idle": {
+              "start": 0,
+              "count": 2
+            },
+            "IdleBattle": {
+              "start": 2,
+              "count": 2
+            },
+            "Walk": {
+              "start": 4,
+              "count": 4
+            },
+            "AttackPhysical": {
+              "start": 8,
+              "count": 3
+            },
+            "AttackSpecial": {
+              "start": 11,
+              "count": 2
+            },
+            "Hit": {
+              "start": 13,
+              "count": 1
+            },
+            "Faint": {
+              "start": 14,
+              "count": 1
+            },
+            "Celebrate": {
+              "start": 15,
+              "count": 2
+            },
+            "Sleep": {
+              "start": 17,
+              "count": 2
+            }
+          }
+        },
+        "back": {
+          "sheet": "Assets/Game/Art/Sprites/Creatures/pikachu_back.png",
+          "frame_count": 19,
+          "states": {
+            "Idle": {
+              "start": 0,
+              "count": 2
+            },
+            "IdleBattle": {
+              "start": 2,
+              "count": 2
+            },
+            "Walk": {
+              "start": 4,
+              "count": 4
+            },
+            "AttackPhysical": {
+              "start": 8,
+              "count": 3
+            },
+            "AttackSpecial": {
+              "start": 11,
+              "count": 2
+            },
+            "Hit": {
+              "start": 13,
+              "count": 1
+            },
+            "Faint": {
+              "start": 14,
+              "count": 1
+            },
+            "Celebrate": {
+              "start": 15,
+              "count": 2
+            },
+            "Sleep": {
+              "start": 17,
+              "count": 2
+            }
+          }
+        }
+      },
+      "mirrored_views": {
+        "left": "side, uv.x = 1 - uv.x",
+        "right": "side",
+        "note": "Mirror in the billboard shader's UV, never with a negative X scale -- negative scale inverts triangle winding and flips normal-map interpretation in URP, so the creature would re-light backwards as it turns under the moving key."
+      },
+      "procedural_states": {
+        "Run": {
+          "frames": "Walk",
+          "fps": 14,
+          "recipe": "Walk frames at 14fps; add a constant 6 deg forward lean about the foot pivot and a 2px vertical bob at 2x the frame rate."
+        },
+        "AttackStatus": {
+          "frames": "AttackSpecial",
+          "fps": 6,
+          "recipe": "AttackSpecial frames held on frame 1; pulse an additive tint of the move's type colour at 0.25 strength, 2 Hz, for the event's SuggestedDuration."
+        },
+        "Dodge": {
+          "frames": "Idle",
+          "fps": 0,
+          "recipe": "Idle frame 0; translate 7px along the dodge axis over 0.10s ease-out, hold 0.06s, return over 0.14s. Alpha 1 -> 0.45 -> 1 on the same curve. Add a 4 deg lean into the movement."
+        },
+        "SentOut": {
+          "frames": "Idle",
+          "fps": 0,
+          "recipe": "Idle frame 0; scale 0 -> 1.15 -> 1.0 over 0.22s from the foot pivot. For the first 0.10s render the sprite as a flat white silhouette (tint colour white, factor 1) fading to 0 -- this is the ball-release read. Never scale the sprite between frames of a loop, only during this one-shot."
+        },
+        "Recalled": {
+          "frames": "Idle",
+          "fps": 0,
+          "recipe": "Reverse of SentOut over 0.18s, ending at scale 0. Same white silhouette flash, ramping 0 -> 1 across the collapse."
+        }
+      },
+      "portrait": {
+        "path": "Assets/Game/Art/Sprites/Creatures/pikachu_portrait.png",
+        "size": 64
+      }
+    }
+  ]
+}
