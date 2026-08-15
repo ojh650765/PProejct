@@ -296,8 +296,15 @@ def build_view(dex: int, view: str, name: str) -> dict:
     uniq, seq = dedupe(placed)
     static_index = len(uniq)
     uniq.append(placed_static)
+
+    # Crown of the resting pose, measured rather than guessed: this is what
+    # the health bar and scanner tag hang from, and what GetDisplayHeight has
+    # to agree with, since a constant 96px cell means authored height in
+    # metres no longer says anything about what is on screen.
+    crown = int(np.nonzero((placed_static[..., 3] > 0).any(1))[0].min())
+
     return dict(frames=uniq, sequence=seq, durations=durations,
-                static_index=static_index,
+                static_index=static_index, crown_row=crown,
                 headroom=dict(
                     below=S.CELL - 1 - (lowest + S.GROUND_ROW - ground),
                     above=highest + S.GROUND_ROW - ground))
@@ -324,8 +331,9 @@ def build_creature(game_id: int) -> dict:
     os.makedirs(OUT_DIR, exist_ok=True)
     slug = name.lower()
     colours: set[tuple] = set()
+    built = {}
     for view in ("front", "back"):
-        v = build_view(dex, view, name)
+        v = built[view] = build_view(dex, view, name)
         sheet = compose_sheet(v["frames"])
         fname = f"{slug}_{view}.png"
         Image.fromarray(sheet, "RGBA").save(os.path.join(OUT_DIR, fname))
@@ -366,6 +374,33 @@ def build_creature(game_id: int) -> dict:
     entry["palette_colours"] = len(colours)
     entry["animation_states"] = dict(from_frames=FRAME_STATES,
                                      procedural=PROCEDURAL_STATES)
+
+    # Anchors, in cell pixels measured from the front resting silhouette.
+    # Every species now occupies the same 96px cell, so the authored height in
+    # metres no longer predicts on-screen size -- GetDisplayHeight has to come
+    # from here or health bars will float away from small species and sink
+    # into large ones.
+    crown = built["front"]["crown_row"]
+    sprite_h = S.GROUND_ROW - crown + 1
+    entry["display"] = dict(
+        sprite_height_px=sprite_h,
+        world_height_m=round(sprite_h / S.PPU, 4),
+        note=("ICreatureArtRegistry.GetDisplayHeight must return "
+              "world_height_m -- the height actually rendered. height_m above "
+              "is the species' canonical height, for the dex only."),
+        anchors_px=dict(
+            root=dict(x=S.CELL // 2, y=S.GROUND_ROW),
+            head=dict(x=S.CELL // 2, y=crown),
+            body=dict(x=S.CELL // 2, y=crown + sprite_h // 2),
+            muzzle=dict(x=S.CELL // 2, y=crown + sprite_h // 4,
+                        note="approximate: centre-of-cell at three-quarter "
+                             "height. Nudge per species toward the facing "
+                             "side if projectiles read as leaving the spine."),
+        ),
+        anchors_note=("y is a row index from the TOP of the cell; Unity's "
+                      "sprite space counts from the bottom, so use "
+                      "cell_height - 1 - y."),
+    )
     return entry
 
 

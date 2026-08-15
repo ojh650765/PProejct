@@ -413,6 +413,31 @@
             "recipe": "Freeze the idle clip on frame 0. Vertical squash oscillating 0 to 6% on a 2.4s sine for slow breathing. Z particles from HeadAnchor are the VFX worker's."
           }
         }
+      },
+      "display": {
+        "sprite_height_px": 46,
+        "world_height_m": 0.4792,
+        "note": "ICreatureArtRegistry.GetDisplayHeight must return world_height_m -- the height actually rendered. height_m above is the species' canonical height, for the dex only.",
+        "anchors_px": {
+          "root": {
+            "x": 48,
+            "y": 84
+          },
+          "head": {
+            "x": 48,
+            "y": 39
+          },
+          "body": {
+            "x": 48,
+            "y": 62
+          },
+          "muzzle": {
+            "x": 48,
+            "y": 50,
+            "note": "approximate: centre-of-cell at three-quarter height. Nudge per species toward the facing side if projectiles read as leaving the spine."
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
       }
     }
   ]
