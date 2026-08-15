@@ -654,20 +654,31 @@ def fill_holes(obj):
     a ring to zero area; deleting it leaves an open shell, which shows as a black
     rim in a render and fails the contract's no-holes check."""
     me = obj.data
-    bm = bmesh.new()
-    bm.from_mesh(me)
-    boundary = [e for e in bm.edges if len(e.link_faces) == 1]
-    n = len(boundary)
-    if boundary:
+    total = 0
+    for _ in range(4):
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        boundary = [e for e in bm.edges if len(e.link_faces) == 1]
+        if not boundary:
+            bm.free()
+            break
+        total += len(boundary)
         bmesh.ops.holes_fill(bm, edges=boundary, sides=0)
         still = [e for e in bm.edges if len(e.link_faces) == 1]
         if still:
             bmesh.ops.triangle_fill(bm, edges=still, use_beauty=True)
+        # anything left is a sliver too degenerate to fill - collapse it away
+        still = [e for e in bm.edges if len(e.link_faces) == 1]
+        if still:
+            verts = set()
+            for e in still:
+                verts.update(e.verts)
+            bmesh.ops.dissolve_verts(bm, verts=list(verts))
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
-    bm.to_mesh(me)
-    bm.free()
-    me.update()
-    return n
+        bm.to_mesh(me)
+        bm.free()
+        me.update()
+    return total
 
 
 def cleanup_mesh(obj, merge_dist=1e-5, recalc=True):

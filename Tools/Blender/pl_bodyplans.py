@@ -16,7 +16,7 @@ in Blender (see the axis probe in previews/axis_probe.txt for why).
 
 import bpy
 import math
-from mathutils import Vector
+from mathutils import Vector, Quaternion
 
 import pl_core as C
 import pl_rig as R
@@ -505,6 +505,28 @@ def claw_set(name, centre, forward, count=3, length=0.02, radius=0.008,
                          length, radius, curve=(0, 0, -drop), samples=5, ring=6,
                          color=color))
     return out
+
+
+def place_along(obj, base, direction, roll=0.0, local_axis=(0, 1, 0)):
+    """Aim an object's growth axis at a world direction, then move it to `base`.
+
+    Composing Euler angles by hand to aim a leaf or a fin is how parts end up
+    buried inside the body: a rotation about the wrong axis silently does nothing
+    visible. Rotating by the measured difference between the local axis and the
+    target direction cannot get this wrong.
+    """
+    src = Vector(local_axis).normalized()
+    dst = Vector(direction).normalized()
+    quat = src.rotation_difference(dst)
+    if roll:
+        quat = Quaternion(dst, math.radians(roll)) @ quat
+    mat = quat.to_matrix()
+    for v in obj.data.vertices:
+        v.co = mat @ Vector(v.co)
+    obj.data.update()
+    obj.location = Vector(base)
+    C.apply_transforms(obj)
+    return obj
 
 
 def paw_pair(name, centre, *args, **kwargs):
