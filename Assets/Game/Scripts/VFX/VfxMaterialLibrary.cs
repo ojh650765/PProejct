@@ -36,6 +36,72 @@ namespace PokeLab.Vfx
         private static readonly int FlowMapId = Shader.PropertyToID("_FlowMap");
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int SoftFadeId = Shader.PropertyToID("_SoftFadeDistance");
+        private static readonly int OpacityId = Shader.PropertyToID("_Opacity");
+        private static readonly int EdgeFadeId = Shader.PropertyToID("_EdgeFade");
+        private static readonly int NormalCutoffId = Shader.PropertyToID("_NormalCutoff");
+        private static readonly int NormalFadeId = Shader.PropertyToID("_NormalFade");
+
+        private static Material _blobShadow;
+
+        /// <summary>
+        /// The grounding blob under a sprite creature or character.
+        ///
+        /// A billboard quad cannot ground itself: it is vertical, the terrain under
+        /// it is not flat, and a second horizontal quad at the feet would clip
+        /// through every slope it stands on. PokeLab/VFX/Decal already solves this
+        /// -- it lists "the shadow blob under a creature" as a supported case,
+        /// reconstructs world position from scene depth and conforms to whatever
+        /// geometry is actually there, and rejects surfaces that face the wrong way
+        /// so the blob never smears up a wall the creature is standing beside.
+        ///
+        /// This is the *contact* shadow. It is not a replacement for the real cast
+        /// shadow, which PokeLab/SpriteBillboard's light-facing ShadowCaster pass
+        /// produces: the blob says "this thing is touching the ground here", the
+        /// cast shadow says "the sun is over there". A sprite needs both, and either
+        /// one alone reads as a mistake.
+        ///
+        /// Render it on a unit cube scaled to roughly (footprint, height, footprint)
+        /// centred at the feet. The Y extent only has to be deep enough to catch the
+        /// ground under a slope.
+        ///
+        /// REQUIRES the depth texture, and wants DepthNormals for the surface-angle
+        /// rejection. Both are already on for the DOF and SSAO the grades use.
+        /// </summary>
+        public static Material GetSpriteBlobShadow()
+        {
+            if (_blobShadow != null) return _blobShadow;
+
+            Shader shader = FindShader(DecalShaderName);
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+
+            var mat = new Material(shader)
+            {
+                name = "PL_Decal_SpriteBlobShadow",
+                hideFlags = HideFlags.HideAndDontSave,
+                enableInstancing = false,
+            };
+
+            mat.SetTexture(BaseMapId, ProceduralVfxTextures.Get(ProceduralVfxTextures.Kind.SoftDot));
+            // Tinted toward the shared shadow colour rather than to black. Every
+            // other surface in the game shades into a blue-violet, and a neutral
+            // black blob under a creature is the one place that reads as a hole.
+            mat.SetColor(BaseColorId, new Color(0.10f, 0.09f, 0.16f, 1f));
+            mat.SetFloat(OpacityId, 0.55f);
+            mat.SetFloat(EdgeFadeId, 0.20f);
+            // Upward-facing surfaces only, with a wide fade so a blob on a slope
+            // thins out rather than ending on a line.
+            mat.SetFloat(NormalCutoffId, 0.35f);
+            mat.SetFloat(NormalFadeId, 0.45f);
+            // Straight alpha, and deliberately not ApplyBlend: that sets a render
+            // queue of 3000 for the particle path, and this must stay on the decal
+            // shader's own Transparent-50 so the blob lands before anything else
+            // transparent draws over the ground.
+            mat.SetFloat(SrcBlendId, (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat(DstBlendId, (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+
+            _blobShadow = mat;
+            return _blobShadow;
+        }
 
         public static Material Get(VfxSurface surface, VfxBlend blend, ProceduralVfxTextures.Kind texture)
         {
@@ -151,6 +217,12 @@ namespace PokeLab.Vfx
                 if (kv.Value == null) continue;
                 if (Application.isPlaying) Object.Destroy(kv.Value);
                 else Object.DestroyImmediate(kv.Value);
+            }
+            if (_blobShadow != null)
+            {
+                if (Application.isPlaying) Object.Destroy(_blobShadow);
+                else Object.DestroyImmediate(_blobShadow);
+                _blobShadow = null;
             }
             Cache.Clear();
             ShaderCache.Clear();

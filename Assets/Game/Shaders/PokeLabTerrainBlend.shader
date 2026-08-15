@@ -74,12 +74,17 @@ Shader "PokeLab/TerrainBlend"
 
         [Header(Toon Ramp)][Space(4)]
         _ShadeColor("Shadow Tint", Color) = (0.42,0.50,0.68,1)
+        // Shared HD-2D ramp language: 3 bands, 0.02 edge. See PokeLabCreature.
+        // This is the surface a sprite stands on, so any mismatch here is the one
+        // the player sees first.
         _ShadeSteps("Band Count", Range(1,6)) = 3
-        _ShadeSoftness("Band Softness", Range(0,0.6)) = 0.15
+        _ShadeSoftness("Band Softness", Range(0,0.6)) = 0.02
         _ShadeWrap("Light Wrap", Range(0,1)) = 0.2
         _ShadowStrength("Cast Shadow Depth", Range(0,1)) = 0.85
-        _SpecularStrength("Specular Strength", Range(0,2)) = 0.15
-        _SpecularSharpness("Specular Sharpness", Range(1,128)) = 20
+        // Effectively off when dry. A specular sheen on a receding ground plane is
+        // both an art-style break and a shimmer source under minification.
+        _SpecularStrength("Specular Strength", Range(0,2)) = 0.03
+        _SpecularSharpness("Specular Sharpness", Range(1,128)) = 32
     }
 
     SubShader
