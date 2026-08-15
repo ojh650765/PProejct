@@ -151,9 +151,11 @@ class CreaturePlan(object):
         spine_pts = self._pts(self.spine)
         head_top = tuple(Vector(self.head_co) + Vector((0, 0, self.head_size[2] * 0.5)))
         if self.kind == 'biped':
+            # spine + head centre + crown, so the last bone is a real Head bone
+            # rather than the neck being mislabelled as the head
             specs, roles = R.biped_skeleton(
                 hips_z=spine_pts[0][2],
-                spine_pts=spine_pts + [tuple(self.head_co)],
+                spine_pts=spine_pts + [tuple(self.head_co), head_top],
                 head_top=head_top,
                 arm_pts=self._pts(self.arms) if self.arms else None,
                 leg_pts=self._pts(self.legs) if self.legs else None,
@@ -309,11 +311,34 @@ def eye_pair(name, head_co, offset, radius, **kwargs):
     return out
 
 
-def simple_face(name, head_co, eye_offset, eye_radius, mouth_offset=None,
+def face_point(head_co, head_size, yaw_deg, pitch_deg, sink=0.86):
+    """A point on the head ellipsoid at a given yaw/pitch off the forward axis,
+    plus the outward normal there.
+
+    Placing features by angle rather than by raw XYZ offsets is what keeps eyes on
+    the *front* of a face. Offsets that look right on paper slide onto the side of
+    the skull as soon as the head gets rounder, which is exactly how the first
+    pass ended up with eyes on the temples.
+    """
+    yaw = math.radians(yaw_deg)
+    pitch = math.radians(pitch_deg)
+    d = Vector((math.sin(yaw) * math.cos(pitch),
+                -math.cos(yaw) * math.cos(pitch),
+                math.sin(pitch)))
+    half = Vector((head_size[0] * 0.5, head_size[1] * 0.5, head_size[2] * 0.5))
+    pos = Vector(head_co) + Vector((d.x * half.x, d.y * half.y, d.z * half.z)) * sink
+    nrm = Vector((d.x / max(1e-6, half.x), d.y / max(1e-6, half.y),
+                  d.z / max(1e-6, half.z))).normalized()
+    return pos, nrm
+
+
+def simple_face(name, head_co, eye_offset=None, eye_radius=0.02, mouth_offset=None,
                 mouth_width=0.0, mouth_curve=0.30, mouth_thickness=None,
                 face_bow=0.0, eye_squash=(1.0, 0.55, 1.15), eye_tilt=0.0,
                 blush=None, blush_offset=None, blush_radius=0.0,
-                highlight=0.30, look=(0, -1, 0)):
+                highlight=0.30, look=(0, -1, 0), head_size=None,
+                eye_angles=None, mouth_angles=None, eye_sink=0.84,
+                mouth_sink=1.06, blush_angles=None):
     """The cast-wide facial language in one call: two simple dark oval eyes with a
     soft highlight, and a simple curved mouth. Returns (objects, eye_centres).
 
@@ -323,24 +348,45 @@ def simple_face(name, head_co, eye_offset, eye_radius, mouth_offset=None,
     objs = []
     centres = []
     for sx in (1.0, -1.0):
-        c = Vector(head_co) + Vector((eye_offset[0] * sx, eye_offset[1], eye_offset[2]))
+        if eye_angles is not None and head_size is not None:
+            c, nrm = face_point(head_co, head_size, eye_angles[0] * sx,
+                                eye_angles[1], sink=eye_sink)
+            eye_look = nrm
+        else:
+            c = Vector(head_co) + Vector((eye_offset[0] * sx, eye_offset[1],
+                                          eye_offset[2]))
+            eye_look = Vector(look)
         centres.append(c)
         eye, hl = C.make_eye("%s_Eye_%s" % (name, 'L' if sx > 0 else 'R'), c,
-                             eye_radius, look=Vector(look), squash=eye_squash,
+                             eye_radius, look=eye_look, squash=eye_squash,
                              tilt=math.radians(eye_tilt) * sx, highlight=highlight,
                              highlight_dir=(-0.42 * sx, 0.0, 0.44))
         objs.append(eye)
         if hl:
             objs.append(hl)
-    if mouth_width > 0.0 and mouth_offset is not None:
-        mc = Vector(head_co) + Vector(mouth_offset)
-        th = mouth_thickness if mouth_thickness else eye_radius * 0.22
-        objs.append(C.mouth_arc("%s_Mouth" % name, mc, mouth_width, curve=mouth_curve,
-                                thickness=th, face_bow=face_bow, look=Vector(look)))
-    if blush and blush_radius > 0.0 and blush_offset is not None:
+    if mouth_width > 0.0:
+        if mouth_angles is not None and head_size is not None:
+            mc, mnrm = face_point(head_co, head_size, 0.0, mouth_angles,
+                                  sink=mouth_sink)
+            mlook = mnrm
+        elif mouth_offset is not None:
+            mc = Vector(head_co) + Vector(mouth_offset)
+            mlook = Vector(look)
+        else:
+            mc, mlook = None, None
+        if mc is not None:
+            th = mouth_thickness if mouth_thickness else eye_radius * 0.22
+            objs.append(C.mouth_arc("%s_Mouth" % name, mc, mouth_width,
+                                    curve=mouth_curve, thickness=th,
+                                    face_bow=face_bow, look=mlook))
+    if blush and blush_radius > 0.0:
         for sx in (1.0, -1.0):
-            c = Vector(head_co) + Vector((blush_offset[0] * sx, blush_offset[1],
-                                          blush_offset[2]))
+            if blush_angles is not None and head_size is not None:
+                c, _ = face_point(head_co, head_size, blush_angles[0] * sx,
+                                  blush_angles[1], sink=0.94)
+            else:
+                c = Vector(head_co) + Vector((blush_offset[0] * sx, blush_offset[1],
+                                              blush_offset[2]))
             objs.append(C.cheek_blush("%s_Blush_%s" % (name, 'L' if sx > 0 else 'R'),
                                       c, blush_radius, color=blush))
     return objs, centres
@@ -388,6 +434,41 @@ def paw(name, centre, length, width, height, toes=3, toe_scale=0.42, spread=0.72
     ob.location = Vector(centre)
     C.apply_transforms(ob)
     return ob
+
+
+def flame(name, base, height_, width, lobes=4, tongues=3, colour_hot=None,
+          colour_cool=None, seed=5):
+    """A stylised flame: overlapping tapered tongues with scalloped rings, hot in
+    the core and cooling toward the tips. Built as geometry so it holds up in a
+    turntable, and the VFX worker can add motion on top."""
+    import random as _r
+    rnd = _r.Random(seed)
+    objs = []
+    for t in range(tongues):
+        f = 1.0 - t * 0.24
+        lean = (rnd.random() - 0.5) * 0.30
+        st = [
+            ((0.0, 0.0, 0.0), width * 0.34 * f, width * 0.34 * f),
+            ((lean * width * 0.3, 0.0, height_ * 0.22 * f), width * 0.52 * f,
+             width * 0.52 * f),
+            ((lean * width * 0.6, 0.0, height_ * 0.48 * f), width * 0.42 * f,
+             width * 0.42 * f),
+            ((lean * width * 1.1, 0.0, height_ * 0.74 * f), width * 0.24 * f,
+             width * 0.24 * f),
+            ((lean * width * 1.7, 0.0, height_ * 1.00 * f), width * 0.04 * f,
+             width * 0.04 * f),
+        ]
+        ob = C.lobed_loft("%s_%d" % (name, t), st, lobes=lobes, lobe_depth=0.20,
+                          phase=t * 0.7, segments=lobes * 5, resample=1,
+                          round_start=0.6, round_end=0.0)
+        hot = colour_hot or C.hexcol('ffe07a')
+        cool = colour_cool or C.hexcol('f2622a')
+        C.paint(ob, lambda co, n, i, _h=height_ * max(0.2, f): C.mix(
+            hot, cool, C.smoothstep(co.z / _h)))
+        C.place(ob, location=tuple(Vector(base) + Vector((0, 0, 0))),
+                rotation=(0, 0, rnd.random() * 2.0))
+        objs.append(ob)
+    return objs
 
 
 def spike(name, base, direction, length, radius, curve=(0, 0, 0), samples=7,
@@ -457,6 +538,10 @@ def finish_mesh(obj, height, bevel_scale=0.012, bevel_segments=1,
                        angle_deg=bevel_angle, harden=True)
     print("  bevel: %d -> %d tris" % (before, C.tri_count(obj)))
     C.cleanup_mesh(obj)
+    holes = C.fill_holes(obj)
+    if holes:
+        print("  filled %d boundary edges" % holes)
+        C.cleanup_mesh(obj)
     C.triangulate_ngons(obj)
     if tri_max:
         fit_budget(obj, tri_max)

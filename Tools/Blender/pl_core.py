@@ -647,6 +647,29 @@ def triangulate_ngons(obj):
     return len(ngons)
 
 
+def fill_holes(obj):
+    """Close any boundary loops left behind after degenerate faces were removed.
+
+    Aggressive shaping (flattening a rock's base, squashing a spike) can collapse
+    a ring to zero area; deleting it leaves an open shell, which shows as a black
+    rim in a render and fails the contract's no-holes check."""
+    me = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    boundary = [e for e in bm.edges if len(e.link_faces) == 1]
+    n = len(boundary)
+    if boundary:
+        bmesh.ops.holes_fill(bm, edges=boundary, sides=0)
+        still = [e for e in bm.edges if len(e.link_faces) == 1]
+        if still:
+            bmesh.ops.triangle_fill(bm, edges=still, use_beauty=True)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
+    return n
+
+
 def cleanup_mesh(obj, merge_dist=1e-5, recalc=True):
     activate(obj)
     bm = bmesh.new()
@@ -886,7 +909,13 @@ def crease_sharp_edges(obj, angle_deg=48.0, crease=0.9):
     me = obj.data
     bm = bmesh.new()
     bm.from_mesh(me)
-    layer = bm.edges.layers.crease.verify()
+    # Blender 4.0 moved edge crease off bm.edges.layers.crease and onto a generic
+    # float attribute named 'crease_edge'
+    try:
+        layer = bm.edges.layers.crease.verify()
+    except AttributeError:
+        layer = (bm.edges.layers.float.get('crease_edge')
+                 or bm.edges.layers.float.new('crease_edge'))
     a = math.radians(angle_deg)
     for e in bm.edges:
         if len(e.link_faces) == 2 and e.calc_face_angle(0.0) > a:
@@ -1111,10 +1140,17 @@ def make_eye(name, center, radius, look=Vector((0, -1, 0)), dark=EYE_DARK,
         return mix(dark, tuple(min(1.0, c + rim) for c in dark[:3]) + (1.0,), edge)
 
     paint(eye, paint_fn)
+    # squash along the view axis, then swing the whole eye so its flattened axis
+    # follows `look` - otherwise a non-forward eye gets flattened across the wrong
+    # axis and reads as a bulging bead on the side of the skull
     eye.scale = (radius * squash[0], radius * squash[1], radius * squash[2])
     apply_transforms(eye)
     if tilt:
         rotate_obj(eye, (0, tilt, 0))
+    swing = Vector((0, -1, 0)).rotation_difference(d).to_matrix().to_4x4()
+    for v in eye.data.vertices:
+        v.co = swing @ Vector(v.co)
+    eye.data.update()
     eye.location = Vector(center)
     apply_transforms(eye)
 
@@ -1124,8 +1160,14 @@ def make_eye(name, center, radius, look=Vector((0, -1, 0)), dark=EYE_DARK,
         hl.scale = (1.0, 0.6, 1.0)
         apply_transforms(hl)
         paint_flat(hl, (1.0, 1.0, 1.0, 1.0))
-        off = (Vector(center) + d * (radius * squash[1] * 0.78)
-               + Vector(highlight_dir) * radius)
+        side = d.cross(Vector((0, 0, 1)))
+        if side.length < 1e-4:
+            side = Vector((1, 0, 0))
+        side.normalize()
+        up = side.cross(d).normalized()
+        off = (Vector(center) + d * (radius * squash[1] * 0.80)
+               + side * (highlight_dir[0] * radius)
+               + up * (highlight_dir[2] * radius))
         hl.location = off
         apply_transforms(hl)
     return eye, hl
@@ -1135,7 +1177,14 @@ def mouth_arc(name, center, width, curve=0.28, thickness=0.02, face_bow=0.0,
               look=Vector((0, -1, 0)), color=MOUTH_DARK, segments=9, ring=7):
     """A simple curved mouth line that hugs the face - the other half of the shared
     facial language. curve > 0 smiles, curve < 0 frowns."""
+    # build in the tangent frame at the placement point, so the mouth lies ON the
+    # face wherever it is put rather than slicing through the skull
     d = Vector(look).normalized()
+    side = d.cross(Vector((0, 0, 1)))
+    if side.length < 1e-4:
+        side = Vector((1, 0, 0))
+    side.normalize()
+    up = side.cross(d).normalized()
     pts = []
     radii = []
     n = segments
@@ -1143,11 +1192,10 @@ def mouth_arc(name, center, width, curve=0.28, thickness=0.02, face_bow=0.0,
         u = (i / float(n - 1)) * 2.0 - 1.0
         x = u * width * 0.5
         z = curve * width * 0.5 * (u * u - 0.35)
-        bow = -face_bow * (1.0 - u * u)
-        p = Vector(center) + Vector((x, 0.0, z)) + d * bow
+        p = (Vector(center) + side * x + up * z - d * (face_bow * u * u))
         pts.append(p)
         radii.append(thickness * (0.45 + 0.55 * math.cos(u * math.pi * 0.5) ** 0.7))
-    obj = tube_along(name, pts, radii, segments=ring, up=Vector((0, 1, 0)))
+    obj = tube_along(name, pts, radii, segments=ring, up=d)
     paint_flat(obj, color)
     return obj
 

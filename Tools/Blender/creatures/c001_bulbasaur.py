@@ -129,6 +129,9 @@ def build():
         brow=0.045, brow_z=0.18, brow_y=-0.30, brow_x=0.34,
         cheek=0.055, cheek_z=-0.06, jaw_width=1.08, chin=0.015,
         top_flat=0.42, face_flat=0.20, subsurf=1)
+    # explicit muzzle mass - the reference face is not a ball
+    C.bulge(head, (0.0, -0.098, -0.026), 0.082, 0.020, direction=(0, -1, -0.20),
+            ellipse=(1.25, 1.0, 0.85))
     B.head_place(head, plan.head_co)
 
     paws = []
@@ -181,10 +184,10 @@ def build():
 
     face, eye_centres = B.simple_face(
         "Bulbasaur", plan.head_co,
-        eye_offset=(0.092, -0.104, 0.034), eye_radius=0.0425,
-        eye_squash=(1.0, 0.48, 1.14), eye_tilt=8.0,
-        mouth_offset=(0.0, -0.140, -0.058), mouth_width=0.196, mouth_curve=0.52,
-        mouth_thickness=0.0105, face_bow=0.016, highlight=0.30)
+        head_size=plan.head_size, eye_angles=(30.0, 6.0), eye_radius=0.0430,
+        eye_squash=(1.0, 0.58, 1.12), eye_tilt=4.0, eye_sink=0.90,
+        mouth_angles=-24.0, mouth_width=0.156, mouth_curve=0.52,
+        mouth_thickness=0.0110, face_bow=0.024, highlight=0.30)
 
     bulb = _bulb("Bulbasaur_Bulb", (0.0, 0.045, 0.366), 0.132)
 
