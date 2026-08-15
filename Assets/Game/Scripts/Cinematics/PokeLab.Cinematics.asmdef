@@ -1,0 +1,14 @@
+{
+    "name": "PokeLab.Cinematics",
+    "rootNamespace": "PokeLab.Cinematics",
+    "references": ["PokeLab.Core", "Unity.Cinemachine", "Unity.Timeline"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

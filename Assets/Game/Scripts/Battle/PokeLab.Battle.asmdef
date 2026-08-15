@@ -1,0 +1,14 @@
+{
+    "name": "PokeLab.Battle",
+    "rootNamespace": "PokeLab.Battle",
+    "references": ["PokeLab.Core"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

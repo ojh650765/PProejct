@@ -1,0 +1,14 @@
+{
+    "name": "PokeLab.Overworld",
+    "rootNamespace": "PokeLab.Overworld",
+    "references": ["PokeLab.Core", "Unity.InputSystem", "Unity.AI.Navigation", "Unity.Cinemachine"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
