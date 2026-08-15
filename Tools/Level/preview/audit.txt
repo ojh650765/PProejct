@@ -1,0 +1,17 @@
+1. solid-vs-solid overlaps: 0
+2. objects buried inside a building footprint: 0
+3. pivots >2.2 m off every declared height plane (floating/sunken): 0
+4. solid objects inside the inner 65% of a walkable corridor: 0
+5. most repeated (asset, yaw rounded to 5 deg) -- a big number means a grid:
+     Env_Grass_Clump_A          yaw~315    x17
+     Env_Grass_Clump_A          yaw~140    x14
+     Env_Grass_Clump_C          yaw~290    x13
+     Env_Grass_Clump_A          yaw~225    x13
+     Env_Grass_Clump_A          yaw~130    x13
+     distinct scale values: 41, range 0.75-1.15
+6. 8x8 m cells inside a zone volume holding <4 objects: 1 of 155 cells
+     Hollow Deep  cell x= -64 z=  40  n=3
+7. triangles placed: 1,817,430 over 4682 objects (mean 388)
+   objects per zone: Cave=380, Lakeside=1080, Route=2140, Town=1082
+   distinct assets used: 81 of 81 usable (4 character FBX are retired)
+   unused: none
