@@ -52,7 +52,7 @@ CAST = [
     (21, 16, "Pidgey",     0.30),
     (25, 19, "Rattata",    0.30),
     (31, 25, "Pikachu",    0.40),
-    (47, 41, "Zubat",      0.80),   # 0.80 is wingspan, not height
+    (47, 41, "Zubat",      0.80),   # canonical Pokedex height
     (49, 43, "Oddish",     0.50),
     (66, 60, "Poliwag",    0.60),
     (73, 66, "Machop",     0.80),
