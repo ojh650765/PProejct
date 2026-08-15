@@ -1,0 +1,377 @@
+[
+  {
+    "name": "Env_Cliff_Wall_2m",
+    "family": "Terrain",
+    "subfamily": "Cliff",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Wall_2m.fbx",
+    "triangles": 536,
+    "lods": [],
+    "pivot": "module corner at origin, snaps on 0.5 m grid",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Cliff_Wall_4m",
+    "family": "Terrain",
+    "subfamily": "Cliff",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Wall_4m.fbx",
+    "triangles": 1016,
+    "lods": [],
+    "pivot": "module corner at origin, snaps on 0.5 m grid",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Cliff_Wall_6m",
+    "family": "Terrain",
+    "subfamily": "Cliff",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Wall_6m.fbx",
+    "triangles": 1496,
+    "lods": [],
+    "pivot": "module corner at origin, snaps on 0.5 m grid",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Cliff_Wall_Tall_4m",
+    "family": "Terrain",
+    "subfamily": "Cliff",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Wall_Tall_4m.fbx",
+    "triangles": 1696,
+    "lods": [],
+    "pivot": "module corner at origin, snaps on 0.5 m grid",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Cliff_Corner_Inner",
+    "family": "Terrain",
+    "subfamily": "Cliff",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Corner_Inner.fbx",
+    "triangles": 1072,
+    "lods": [],
+    "pivot": "module corner at origin, snaps on 0.5 m grid",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Cliff_Corner_Outer",
+    "family": "Terrain",
+    "subfamily": "Cliff",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Corner_Outer.fbx",
+    "triangles": 1072,
+    "lods": [],
+    "pivot": "module corner at origin, snaps on 0.5 m grid",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Rock_Boulder_A",
+    "family": "Terrain",
+    "subfamily": "Rock",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_A.fbx",
+    "triangles": 716,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Rock_Boulder_B",
+    "family": "Terrain",
+    "subfamily": "Rock",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_B.fbx",
+    "triangles": 566,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Rock_Boulder_C",
+    "family": "Terrain",
+    "subfamily": "Rock",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_C.fbx",
+    "triangles": 808,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Rock_Boulder_D",
+    "family": "Terrain",
+    "subfamily": "Rock",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_D.fbx",
+    "triangles": 926,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Rock_Boulder_Mossy_E",
+    "family": "Terrain",
+    "subfamily": "Rock",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_Mossy_E.fbx",
+    "triangles": 884,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Rock_Boulder_Wet_F",
+    "family": "Terrain",
+    "subfamily": "Rock",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_Wet_F.fbx",
+    "triangles": 888,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Rock_Scatter_A",
+    "family": "Terrain",
+    "subfamily": "Rock",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Scatter_A.fbx",
+    "triangles": 1170,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Rock_Scatter_B",
+    "family": "Terrain",
+    "subfamily": "Rock",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Scatter_B.fbx",
+    "triangles": 982,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Cave_Arch",
+    "family": "Terrain",
+    "subfamily": "Cave",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch.fbx",
+    "triangles": 940,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Cave_Stalactite_A",
+    "family": "Terrain",
+    "subfamily": "Cave",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Stalactite_A.fbx",
+    "triangles": 108,
+    "lods": [],
+    "pivot": "top anchor (hangs downward)",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Cave_Stalactite_B",
+    "family": "Terrain",
+    "subfamily": "Cave",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Stalactite_B.fbx",
+    "triangles": 94,
+    "lods": [],
+    "pivot": "top anchor (hangs downward)",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Cave_Stalagmite_A",
+    "family": "Terrain",
+    "subfamily": "Cave",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Stalagmite_A.fbx",
+    "triangles": 108,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Cave_Stalagmite_B",
+    "family": "Terrain",
+    "subfamily": "Cave",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Stalagmite_B.fbx",
+    "triangles": 94,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Cave_Rubble",
+    "family": "Terrain",
+    "subfamily": "Cave",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Rubble.fbx",
+    "triangles": 1934,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Riverbank_4m",
+    "family": "Terrain",
+    "subfamily": "Riverbank",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
+    "triangles": 790,
+    "lods": [],
+    "pivot": "module corner at origin, snaps on 0.5 m grid",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Riverbank_2m",
+    "family": "Terrain",
+    "subfamily": "Riverbank",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_2m.fbx",
+    "triangles": 808,
+    "lods": [],
+    "pivot": "module corner at origin, snaps on 0.5 m grid",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Waterfall_Shelf",
+    "family": "Terrain",
+    "subfamily": "Waterfall",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Waterfall_Shelf.fbx",
+    "triangles": 1588,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Stepping_Stones",
+    "family": "Terrain",
+    "subfamily": "Stepping",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Stepping_Stones.fbx",
+    "triangles": 1132,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Bridge_Wood",
+    "family": "Terrain",
+    "subfamily": "Bridge",
+    "path": "Assets/Game/Art/Environment/Terrain/Env_Bridge_Wood.fbx",
+    "triangles": 1044,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  }
+]

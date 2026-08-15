@@ -1,0 +1,301 @@
+[
+  {
+    "name": "Env_House_Cottage_A",
+    "family": "Town",
+    "subfamily": "House",
+    "path": "Assets/Game/Art/Environment/Town/Env_House_Cottage_A.fbx",
+    "triangles": 3048,
+    "lods": [
+      {
+        "level": 1,
+        "path": "Assets/Game/Art/Environment/Town/Env_House_Cottage_A_LOD1.fbx",
+        "triangles": 1218
+      },
+      {
+        "level": 2,
+        "path": "Assets/Game/Art/Environment/Town/Env_House_Cottage_A_LOD2.fbx",
+        "triangles": 456
+      }
+    ],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_House_Townhouse_B",
+    "family": "Town",
+    "subfamily": "House",
+    "path": "Assets/Game/Art/Environment/Town/Env_House_Townhouse_B.fbx",
+    "triangles": 3640,
+    "lods": [
+      {
+        "level": 1,
+        "path": "Assets/Game/Art/Environment/Town/Env_House_Townhouse_B_LOD1.fbx",
+        "triangles": 1456
+      },
+      {
+        "level": 2,
+        "path": "Assets/Game/Art/Environment/Town/Env_House_Townhouse_B_LOD2.fbx",
+        "triangles": 546
+      }
+    ],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_House_Farmhouse_C",
+    "family": "Town",
+    "subfamily": "House",
+    "path": "Assets/Game/Art/Environment/Town/Env_House_Farmhouse_C.fbx",
+    "triangles": 3480,
+    "lods": [
+      {
+        "level": 1,
+        "path": "Assets/Game/Art/Environment/Town/Env_House_Farmhouse_C_LOD1.fbx",
+        "triangles": 1392
+      },
+      {
+        "level": 2,
+        "path": "Assets/Game/Art/Environment/Town/Env_House_Farmhouse_C_LOD2.fbx",
+        "triangles": 522
+      }
+    ],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Building_PokeLab",
+    "family": "Town",
+    "subfamily": "Building",
+    "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeLab.fbx",
+    "triangles": 4936,
+    "lods": [
+      {
+        "level": 1,
+        "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeLab_LOD1.fbx",
+        "triangles": 1974
+      },
+      {
+        "level": 2,
+        "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeLab_LOD2.fbx",
+        "triangles": 740
+      }
+    ],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Fence_Picket_2m",
+    "family": "Town",
+    "subfamily": "Fence",
+    "path": "Assets/Game/Art/Environment/Town/Env_Fence_Picket_2m.fbx",
+    "triangles": 684,
+    "lods": [],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Fence_Picket_1m",
+    "family": "Town",
+    "subfamily": "Fence",
+    "path": "Assets/Game/Art/Environment/Town/Env_Fence_Picket_1m.fbx",
+    "triangles": 452,
+    "lods": [],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Lamp_Post",
+    "family": "Town",
+    "subfamily": "Lamp",
+    "path": "Assets/Game/Art/Environment/Town/Env_Lamp_Post.fbx",
+    "triangles": 672,
+    "lods": [],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Signpost",
+    "family": "Town",
+    "subfamily": "Signpost",
+    "path": "Assets/Game/Art/Environment/Town/Env_Signpost.fbx",
+    "triangles": 328,
+    "lods": [],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Bench",
+    "family": "Town",
+    "subfamily": "Bench",
+    "path": "Assets/Game/Art/Environment/Town/Env_Bench.fbx",
+    "triangles": 792,
+    "lods": [],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Crate",
+    "family": "Town",
+    "subfamily": "Crate",
+    "path": "Assets/Game/Art/Environment/Town/Env_Crate.fbx",
+    "triangles": 432,
+    "lods": [],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Barrel",
+    "family": "Town",
+    "subfamily": "Barrel",
+    "path": "Assets/Game/Art/Environment/Town/Env_Barrel.fbx",
+    "triangles": 384,
+    "lods": [],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Market_Stall",
+    "family": "Town",
+    "subfamily": "Market",
+    "path": "Assets/Game/Art/Environment/Town/Env_Market_Stall.fbx",
+    "triangles": 1242,
+    "lods": [],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Well",
+    "family": "Town",
+    "subfamily": "Well",
+    "path": "Assets/Game/Art/Environment/Town/Env_Well.fbx",
+    "triangles": 506,
+    "lods": [],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Planter",
+    "family": "Town",
+    "subfamily": "Planter",
+    "path": "Assets/Game/Art/Environment/Town/Env_Planter.fbx",
+    "triangles": 438,
+    "lods": [],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Path_Paved_2m",
+    "family": "Town",
+    "subfamily": "Path",
+    "path": "Assets/Game/Art/Environment/Town/Env_Path_Paved_2m.fbx",
+    "triangles": 268,
+    "lods": [],
+    "pivot": "ground level, footprint centred, snaps on 0.5 m grid",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Path_Paved_1m",
+    "family": "Town",
+    "subfamily": "Path",
+    "path": "Assets/Game/Art/Environment/Town/Env_Path_Paved_1m.fbx",
+    "triangles": 108,
+    "lods": [],
+    "pivot": "ground level, footprint centred, snaps on 0.5 m grid",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  },
+  {
+    "name": "Env_Path_Paved_Corner",
+    "family": "Town",
+    "subfamily": "Path",
+    "path": "Assets/Game/Art/Environment/Town/Env_Path_Paved_Corner.fbx",
+    "triangles": 172,
+    "lods": [],
+    "pivot": "ground level, footprint centred, snaps on 0.5 m grid",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": ""
+  }
+]

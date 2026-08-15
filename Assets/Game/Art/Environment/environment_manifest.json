@@ -1,0 +1,3043 @@
+{
+  "schema": "pokelab.environment.manifest/1",
+  "generatedBy": "Tools/Blender/environment (Blender 4.0.1, headless)",
+  "units": "1 Blender unit = 1 metre; models face +Z with Y up after the FBX axis conversion (-Y forward, Z up on export)",
+  "modularGrid": 0.5,
+  "triangleBudgets": {
+    "foliage": [
+      200,
+      1500
+    ],
+    "rock": [
+      300,
+      2000
+    ],
+    "building": [
+      1500,
+      6000
+    ],
+    "prop": [
+      300,
+      2000
+    ],
+    "character": [
+      3000,
+      8000
+    ]
+  },
+  "budgetExemptions": {
+    "Env_Grass_Blade": "single blade for dense scatter -- 10 tris is the point",
+    "Env_Lilypad_A": "flat floating pad",
+    "Env_Lilypad_B": "flat floating pad",
+    "Env_Cave_Stalactite_A": "tapered spike",
+    "Env_Cave_Stalactite_B": "tapered spike",
+    "Env_Cave_Stalagmite_A": "tapered spike",
+    "Env_Cave_Stalagmite_B": "tapered spike",
+    "Env_Path_Paved_1m": "1 m ground tile",
+    "Env_Path_Paved_2m": "2 m ground tile",
+    "Env_Path_Paved_Corner": "1x2 m ground tile"
+  },
+  "windVertexColors": {
+    "attribute": "Col",
+    "type": "FLOAT_COLOR, CORNER domain, exported colors_type=LINEAR",
+    "R": "sway mask, 0 at the trunk base rising to 1 at the leaf tips",
+    "G": "phase offset, randomised per leaf cluster",
+    "B": "high-frequency flutter mask (leaves and blades only)",
+    "A": "always 1",
+    "appliesTo": "every asset in the Foliage family",
+    "encoding": "Exported with colors_type=LINEAR, so the FBX carries the authored 0-1 mask values VERBATIM -- no gamma encode is applied on the way out. Measured: authoring (0.25, 0.50, 0.75) writes (0.25, 0.50, 0.75) to the file. Blender's own importer then decodes them as sRGB and shows (0.051, 0.216, 0.521), which is an artefact of that importer, not of the data. If Unity turns out to apply the same decode, either undo it in the shader with pow(c, 1/2.2) or flip envlib.export_fbx to colors_type='SRGB' and re-run build_all.py -- the choice is one line."
+  },
+  "atlases": {
+    "Foliage": {
+      "baseColor": "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "normal": "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png",
+      "resolution": 2048,
+      "grid": [
+        4,
+        4
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "name": "bark_broadleaf",
+          "uvRect": [
+            0.003,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.4399,
+            0.3331,
+            0.228
+          ]
+        },
+        {
+          "index": 1,
+          "name": "bark_conifer",
+          "uvRect": [
+            0.253,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3713,
+            0.2497,
+            0.1698
+          ]
+        },
+        {
+          "index": 2,
+          "name": "bark_birch",
+          "uvRect": [
+            0.503,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.6954,
+            0.6919,
+            0.6506
+          ]
+        },
+        {
+          "index": 3,
+          "name": "bark_palm",
+          "uvRect": [
+            0.753,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.5084,
+            0.4216,
+            0.2756
+          ]
+        },
+        {
+          "index": 4,
+          "name": "leaf_a",
+          "uvRect": [
+            0.003,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.4024,
+            0.6161,
+            0.2076
+          ]
+        },
+        {
+          "index": 5,
+          "name": "leaf_b",
+          "uvRect": [
+            0.253,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1583,
+            0.3718,
+            0.2531
+          ]
+        },
+        {
+          "index": 6,
+          "name": "leaf_autumn",
+          "uvRect": [
+            0.503,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.6943,
+            0.4437,
+            0.1368
+          ]
+        },
+        {
+          "index": 7,
+          "name": "needle",
+          "uvRect": [
+            0.753,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1302,
+            0.2802,
+            0.157
+          ]
+        },
+        {
+          "index": 8,
+          "name": "grass",
+          "uvRect": [
+            0.003,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3022,
+            0.4299,
+            0.1512
+          ]
+        },
+        {
+          "index": 9,
+          "name": "bush_leaf",
+          "uvRect": [
+            0.253,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3192,
+            0.5274,
+            0.1794
+          ]
+        },
+        {
+          "index": 10,
+          "name": "fern",
+          "uvRect": [
+            0.503,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1705,
+            0.3513,
+            0.1456
+          ]
+        },
+        {
+          "index": 11,
+          "name": "reed",
+          "uvRect": [
+            0.753,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3987,
+            0.4326,
+            0.1931
+          ]
+        },
+        {
+          "index": 12,
+          "name": "flower",
+          "uvRect": [
+            0.003,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.7647,
+            0.5694,
+            0.5695
+          ]
+        },
+        {
+          "index": 13,
+          "name": "lilypad",
+          "uvRect": [
+            0.253,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.2661,
+            0.4791,
+            0.2247
+          ]
+        },
+        {
+          "index": 14,
+          "name": "moss",
+          "uvRect": [
+            0.503,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3056,
+            0.4925,
+            0.2188
+          ]
+        },
+        {
+          "index": 15,
+          "name": "vine",
+          "uvRect": [
+            0.753,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.2814,
+            0.4893,
+            0.2087
+          ]
+        }
+      ]
+    },
+    "Terrain": {
+      "baseColor": "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+      "normal": "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png",
+      "resolution": 2048,
+      "grid": [
+        4,
+        4
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "name": "rock_grey",
+          "uvRect": [
+            0.003,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3682,
+            0.3773,
+            0.4089
+          ]
+        },
+        {
+          "index": 1,
+          "name": "rock_warm",
+          "uvRect": [
+            0.253,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.4346,
+            0.3652,
+            0.2887
+          ]
+        },
+        {
+          "index": 2,
+          "name": "cliff_strata",
+          "uvRect": [
+            0.503,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3488,
+            0.3069,
+            0.2532
+          ]
+        },
+        {
+          "index": 3,
+          "name": "cave_rock",
+          "uvRect": [
+            0.753,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.2384,
+            0.2502,
+            0.2934
+          ]
+        },
+        {
+          "index": 4,
+          "name": "dirt",
+          "uvRect": [
+            0.003,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.4106,
+            0.3139,
+            0.1951
+          ]
+        },
+        {
+          "index": 5,
+          "name": "sand",
+          "uvRect": [
+            0.253,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.7595,
+            0.6905,
+            0.5195
+          ]
+        },
+        {
+          "index": 6,
+          "name": "gravel",
+          "uvRect": [
+            0.503,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3811,
+            0.3649,
+            0.3296
+          ]
+        },
+        {
+          "index": 7,
+          "name": "stalactite",
+          "uvRect": [
+            0.753,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3658,
+            0.3479,
+            0.35
+          ]
+        },
+        {
+          "index": 8,
+          "name": "moss_rock",
+          "uvRect": [
+            0.003,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3319,
+            0.4683,
+            0.2239
+          ]
+        },
+        {
+          "index": 9,
+          "name": "wet_rock",
+          "uvRect": [
+            0.253,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.2433,
+            0.2694,
+            0.2952
+          ]
+        },
+        {
+          "index": 10,
+          "name": "wood_bridge",
+          "uvRect": [
+            0.503,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.4284,
+            0.3095,
+            0.1896
+          ]
+        },
+        {
+          "index": 11,
+          "name": "rope",
+          "uvRect": [
+            0.753,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.4361,
+            0.3521,
+            0.201
+          ]
+        },
+        {
+          "index": 12,
+          "name": "waterfall_stone",
+          "uvRect": [
+            0.003,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.2681,
+            0.3092,
+            0.3275
+          ]
+        },
+        {
+          "index": 13,
+          "name": "stepping",
+          "uvRect": [
+            0.253,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.4273,
+            0.4303,
+            0.4229
+          ]
+        },
+        {
+          "index": 14,
+          "name": "rubble",
+          "uvRect": [
+            0.503,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3208,
+            0.3163,
+            0.3244
+          ]
+        },
+        {
+          "index": 15,
+          "name": "earth_accent",
+          "uvRect": [
+            0.753,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3541,
+            0.3941,
+            0.2062
+          ]
+        }
+      ]
+    },
+    "Town": {
+      "baseColor": "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "normal": "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png",
+      "resolution": 2048,
+      "grid": [
+        4,
+        4
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "name": "plaster_cream",
+          "uvRect": [
+            0.003,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.8555,
+            0.79,
+            0.651
+          ]
+        },
+        {
+          "index": 1,
+          "name": "plaster_blue",
+          "uvRect": [
+            0.253,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.6261,
+            0.7358,
+            0.8287
+          ]
+        },
+        {
+          "index": 2,
+          "name": "plaster_red",
+          "uvRect": [
+            0.503,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.8321,
+            0.5742,
+            0.4828
+          ]
+        },
+        {
+          "index": 3,
+          "name": "wood_beam",
+          "uvRect": [
+            0.753,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3805,
+            0.2535,
+            0.1501
+          ]
+        },
+        {
+          "index": 4,
+          "name": "roof_red",
+          "uvRect": [
+            0.003,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.4464,
+            0.209,
+            0.141
+          ]
+        },
+        {
+          "index": 5,
+          "name": "roof_blue",
+          "uvRect": [
+            0.253,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1993,
+            0.2894,
+            0.4131
+          ]
+        },
+        {
+          "index": 6,
+          "name": "roof_green",
+          "uvRect": [
+            0.503,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.2554,
+            0.4422,
+            0.3034
+          ]
+        },
+        {
+          "index": 7,
+          "name": "metal_roof",
+          "uvRect": [
+            0.753,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.5151,
+            0.5807,
+            0.6416
+          ]
+        },
+        {
+          "index": 8,
+          "name": "window_glass",
+          "uvRect": [
+            0.003,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1673,
+            0.2772,
+            0.3572
+          ]
+        },
+        {
+          "index": 9,
+          "name": "door_wood",
+          "uvRect": [
+            0.253,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.4234,
+            0.2752,
+            0.1507
+          ]
+        },
+        {
+          "index": 10,
+          "name": "paving",
+          "uvRect": [
+            0.503,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.5168,
+            0.4983,
+            0.4646
+          ]
+        },
+        {
+          "index": 11,
+          "name": "stone_wall",
+          "uvRect": [
+            0.753,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.4664,
+            0.4531,
+            0.4289
+          ]
+        },
+        {
+          "index": 12,
+          "name": "fence_wood",
+          "uvRect": [
+            0.003,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.4491,
+            0.3432,
+            0.2144
+          ]
+        },
+        {
+          "index": 13,
+          "name": "lamp_metal",
+          "uvRect": [
+            0.253,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.2907,
+            0.3056,
+            0.3355
+          ]
+        },
+        {
+          "index": 14,
+          "name": "awning",
+          "uvRect": [
+            0.503,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.8447,
+            0.567,
+            0.5254
+          ]
+        },
+        {
+          "index": 15,
+          "name": "trim_white",
+          "uvRect": [
+            0.753,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.8558,
+            0.846,
+            0.8088
+          ]
+        }
+      ]
+    },
+    "Props": {
+      "baseColor": "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",
+      "normal": "Assets/Game/Art/Props/Textures/Env_Props_Atlas_Normal.png",
+      "resolution": 2048,
+      "grid": [
+        4,
+        4
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "name": "ball_red",
+          "uvRect": [
+            0.003,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.9005,
+            0.2582,
+            0.2183
+          ]
+        },
+        {
+          "index": 1,
+          "name": "ball_white",
+          "uvRect": [
+            0.253,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.9391,
+            0.946,
+            0.9625
+          ]
+        },
+        {
+          "index": 2,
+          "name": "ball_black",
+          "uvRect": [
+            0.503,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1726,
+            0.1776,
+            0.2026
+          ]
+        },
+        {
+          "index": 3,
+          "name": "ball_button",
+          "uvRect": [
+            0.753,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.9646,
+            0.9701,
+            0.9809
+          ]
+        },
+        {
+          "index": 4,
+          "name": "metal",
+          "uvRect": [
+            0.003,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.5072,
+            0.536,
+            0.5845
+          ]
+        },
+        {
+          "index": 5,
+          "name": "plastic_white",
+          "uvRect": [
+            0.253,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.9027,
+            0.9125,
+            0.9322
+          ]
+        },
+        {
+          "index": 6,
+          "name": "screen",
+          "uvRect": [
+            0.503,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.2428,
+            0.5724,
+            0.6712
+          ]
+        },
+        {
+          "index": 7,
+          "name": "rubber",
+          "uvRect": [
+            0.753,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1205,
+            0.1305,
+            0.1566
+          ]
+        },
+        {
+          "index": 8,
+          "name": "machine_teal",
+          "uvRect": [
+            0.003,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.2279,
+            0.6136,
+            0.6146
+          ]
+        },
+        {
+          "index": 9,
+          "name": "machine_yellow",
+          "uvRect": [
+            0.253,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.9237,
+            0.758,
+            0.2654
+          ]
+        },
+        {
+          "index": 10,
+          "name": "wood_desk",
+          "uvRect": [
+            0.503,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3876,
+            0.27,
+            0.1688
+          ]
+        },
+        {
+          "index": 11,
+          "name": "glass_tube",
+          "uvRect": [
+            0.753,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.701,
+            0.9014,
+            0.9344
+          ]
+        },
+        {
+          "index": 12,
+          "name": "lab_panel",
+          "uvRect": [
+            0.003,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.6949,
+            0.7231,
+            0.7607
+          ]
+        },
+        {
+          "index": 13,
+          "name": "accent_orange",
+          "uvRect": [
+            0.253,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.9258,
+            0.5358,
+            0.192
+          ]
+        },
+        {
+          "index": 14,
+          "name": "dark_grey",
+          "uvRect": [
+            0.503,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1992,
+            0.2081,
+            0.2357
+          ]
+        },
+        {
+          "index": 15,
+          "name": "emissive_cyan",
+          "uvRect": [
+            0.753,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.6584,
+            0.9994,
+            1.0
+          ]
+        }
+      ]
+    },
+    "Characters": {
+      "baseColor": "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
+      "normal": "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png",
+      "resolution": 2048,
+      "grid": [
+        4,
+        4
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "name": "skin_light",
+          "uvRect": [
+            0.003,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.9383,
+            0.7896,
+            0.6803
+          ]
+        },
+        {
+          "index": 1,
+          "name": "skin_mid",
+          "uvRect": [
+            0.253,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.8184,
+            0.6311,
+            0.4832
+          ]
+        },
+        {
+          "index": 2,
+          "name": "skin_dark",
+          "uvRect": [
+            0.503,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.5576,
+            0.3907,
+            0.2803
+          ]
+        },
+        {
+          "index": 3,
+          "name": "hair_brown",
+          "uvRect": [
+            0.753,
+            0.003,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.2436,
+            0.147,
+            0.0812
+          ]
+        },
+        {
+          "index": 4,
+          "name": "hair_black",
+          "uvRect": [
+            0.003,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1119,
+            0.1119,
+            0.1455
+          ]
+        },
+        {
+          "index": 5,
+          "name": "hair_blonde",
+          "uvRect": [
+            0.253,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.5487,
+            0.4392,
+            0.2048
+          ]
+        },
+        {
+          "index": 6,
+          "name": "shirt_red",
+          "uvRect": [
+            0.503,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.6829,
+            0.1916,
+            0.1797
+          ]
+        },
+        {
+          "index": 7,
+          "name": "shirt_blue",
+          "uvRect": [
+            0.753,
+            0.253,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1911,
+            0.3503,
+            0.6296
+          ]
+        },
+        {
+          "index": 8,
+          "name": "jacket_green",
+          "uvRect": [
+            0.003,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1724,
+            0.3848,
+            0.2765
+          ]
+        },
+        {
+          "index": 9,
+          "name": "denim",
+          "uvRect": [
+            0.253,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.2322,
+            0.3003,
+            0.4604
+          ]
+        },
+        {
+          "index": 10,
+          "name": "shoes",
+          "uvRect": [
+            0.503,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.5638,
+            0.5838,
+            0.6238
+          ]
+        },
+        {
+          "index": 11,
+          "name": "cap_red",
+          "uvRect": [
+            0.753,
+            0.503,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.7109,
+            0.1517,
+            0.1357
+          ]
+        },
+        {
+          "index": 12,
+          "name": "backpack",
+          "uvRect": [
+            0.003,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.6956,
+            0.4948,
+            0.1609
+          ]
+        },
+        {
+          "index": 13,
+          "name": "belt",
+          "uvRect": [
+            0.253,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.3442,
+            0.2269,
+            0.1408
+          ]
+        },
+        {
+          "index": 14,
+          "name": "face",
+          "uvRect": [
+            0.503,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.9466,
+            0.8345,
+            0.744
+          ]
+        },
+        {
+          "index": 15,
+          "name": "accent",
+          "uvRect": [
+            0.753,
+            0.753,
+            0.244,
+            0.244
+          ],
+          "averageColorLinear": [
+            0.1633,
+            0.1813,
+            0.2182
+          ]
+        }
+      ]
+    }
+  },
+  "unitySetup": {
+    "importScale": 1.0,
+    "convertUnits": false,
+    "normals": "Import (custom split normals are authored; do not recalculate)",
+    "tangents": "Calculate Mikktspace",
+    "materials": "One material per family atlas is enough: assign the family BaseColor + Normal to the shared stylised toon shader. Every mesh in a family is UV-packed into that one atlas.",
+    "lodGroups": "For any asset with a non-empty `lods` array, add a LODGroup with LOD0 = base mesh, LOD1 and LOD2 from the listed FBXs. Suggested screen-relative heights 0.45 / 0.16 / 0.03 with 30% fade transition width, Cross Fade animation mode.",
+    "characterRig": "Animation Type = Humanoid, Avatar Definition = Create From This Model on Env_Char_Player.fbx, then Copy From Other Avatar for the three NPCs (identical skeleton). Import the @Clip FBXs with Avatar Definition = Copy From Other Avatar.",
+    "colliders": "None authored. Cliff, path and riverbank modules are closed solids suitable for mesh colliders; foliage should use no collider or a capsule."
+  },
+  "assetCount": 85,
+  "assets": [
+    {
+      "name": "Env_Tree_Broadleaf_A",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
+      "triangles": 877,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "broadleaf",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Tree_Broadleaf_B",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
+      "triangles": 1149,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "broadleaf",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Tree_Broadleaf_C",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
+      "triangles": 1349,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "broadleaf",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Tree_Conifer_A",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
+      "triangles": 802,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "conifer",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Tree_Conifer_B",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
+      "triangles": 1022,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "conifer",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Tree_Conifer_C",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
+      "triangles": 1192,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "conifer",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Tree_Birch_A",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
+      "triangles": 1332,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "birch_multi",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Tree_Birch_B",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
+      "triangles": 1036,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "birch",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Tree_Birch_C",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_C.fbx",
+      "triangles": 1134,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "birch",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Tree_Willow_A",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
+      "triangles": 958,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "willow",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Tree_Willow_B",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
+      "triangles": 1259,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "willow",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Tree_Willow_C",
+      "family": "Foliage",
+      "subfamily": "Tree",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
+      "triangles": 1404,
+      "lods": [],
+      "pivot": "trunk base, XY centred on trunk",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "willow",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Grass_Clump_A",
+      "family": "Foliage",
+      "subfamily": "Grass",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_A.fbx",
+      "triangles": 270,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Grass_Clump_B",
+      "family": "Foliage",
+      "subfamily": "Grass",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_B.fbx",
+      "triangles": 320,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Grass_Clump_C",
+      "family": "Foliage",
+      "subfamily": "Grass",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_C.fbx",
+      "triangles": 240,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Grass_Clump_D",
+      "family": "Foliage",
+      "subfamily": "Grass",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_D.fbx",
+      "triangles": 380,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Grass_Blade",
+      "family": "Foliage",
+      "subfamily": "Grass",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Blade.fbx",
+      "triangles": 10,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true,
+      "budgetExempt": "single blade for dense scatter -- 10 tris is the point"
+    },
+    {
+      "name": "Env_Bush_A",
+      "family": "Foliage",
+      "subfamily": "Bush",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Bush_A.fbx",
+      "triangles": 438,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Bush_B",
+      "family": "Foliage",
+      "subfamily": "Bush",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Bush_B.fbx",
+      "triangles": 342,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Bush_C",
+      "family": "Foliage",
+      "subfamily": "Bush",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Bush_C.fbx",
+      "triangles": 552,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Fern_A",
+      "family": "Foliage",
+      "subfamily": "Fern",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Fern_A.fbx",
+      "triangles": 238,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Fern_B",
+      "family": "Foliage",
+      "subfamily": "Fern",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Fern_B.fbx",
+      "triangles": 210,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Reed_A",
+      "family": "Foliage",
+      "subfamily": "Reed",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Reed_A.fbx",
+      "triangles": 718,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Reed_B",
+      "family": "Foliage",
+      "subfamily": "Reed",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Reed_B.fbx",
+      "triangles": 372,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Lilypad_A",
+      "family": "Foliage",
+      "subfamily": "Lilypad",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Lilypad_A.fbx",
+      "triangles": 54,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true,
+      "budgetExempt": "flat floating pad"
+    },
+    {
+      "name": "Env_Lilypad_B",
+      "family": "Foliage",
+      "subfamily": "Lilypad",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Lilypad_B.fbx",
+      "triangles": 36,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true,
+      "budgetExempt": "flat floating pad"
+    },
+    {
+      "name": "Env_Moss_Cave_A",
+      "family": "Foliage",
+      "subfamily": "Moss",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Moss_Cave_A.fbx",
+      "triangles": 480,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Moss_Cave_B",
+      "family": "Foliage",
+      "subfamily": "Moss",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Moss_Cave_B.fbx",
+      "triangles": 288,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Vine_Hanging_A",
+      "family": "Foliage",
+      "subfamily": "Vine",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Vine_Hanging_A.fbx",
+      "triangles": 930,
+      "lods": [],
+      "pivot": "top anchor (hangs downward)",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Vine_Hanging_B",
+      "family": "Foliage",
+      "subfamily": "Vine",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Vine_Hanging_B.fbx",
+      "triangles": 582,
+      "lods": [],
+      "pivot": "top anchor (hangs downward)",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Flower_Red",
+      "family": "Foliage",
+      "subfamily": "Flower",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Flower_Red.fbx",
+      "triangles": 394,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Flower_Yellow",
+      "family": "Foliage",
+      "subfamily": "Flower",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Flower_Yellow.fbx",
+      "triangles": 388,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Flower_Purple",
+      "family": "Foliage",
+      "subfamily": "Flower",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Flower_Purple.fbx",
+      "triangles": 476,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Flower_White",
+      "family": "Foliage",
+      "subfamily": "Flower",
+      "path": "Assets/Game/Art/Environment/Foliage/Env_Flower_White.fbx",
+      "triangles": 494,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+      ],
+      "windVertexColors": true,
+      "notes": "",
+      "budgetClass": "foliage",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Cliff_Wall_2m",
+      "family": "Terrain",
+      "subfamily": "Cliff",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Wall_2m.fbx",
+      "triangles": 536,
+      "lods": [],
+      "pivot": "module corner at origin, snaps on 0.5 m grid",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Cliff_Wall_4m",
+      "family": "Terrain",
+      "subfamily": "Cliff",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Wall_4m.fbx",
+      "triangles": 1016,
+      "lods": [],
+      "pivot": "module corner at origin, snaps on 0.5 m grid",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Cliff_Wall_6m",
+      "family": "Terrain",
+      "subfamily": "Cliff",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Wall_6m.fbx",
+      "triangles": 1496,
+      "lods": [],
+      "pivot": "module corner at origin, snaps on 0.5 m grid",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Cliff_Wall_Tall_4m",
+      "family": "Terrain",
+      "subfamily": "Cliff",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Wall_Tall_4m.fbx",
+      "triangles": 1696,
+      "lods": [],
+      "pivot": "module corner at origin, snaps on 0.5 m grid",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Cliff_Corner_Inner",
+      "family": "Terrain",
+      "subfamily": "Cliff",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Corner_Inner.fbx",
+      "triangles": 1072,
+      "lods": [],
+      "pivot": "module corner at origin, snaps on 0.5 m grid",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Cliff_Corner_Outer",
+      "family": "Terrain",
+      "subfamily": "Cliff",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cliff_Corner_Outer.fbx",
+      "triangles": 1072,
+      "lods": [],
+      "pivot": "module corner at origin, snaps on 0.5 m grid",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Rock_Boulder_A",
+      "family": "Terrain",
+      "subfamily": "Rock",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_A.fbx",
+      "triangles": 716,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Rock_Boulder_B",
+      "family": "Terrain",
+      "subfamily": "Rock",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_B.fbx",
+      "triangles": 566,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Rock_Boulder_C",
+      "family": "Terrain",
+      "subfamily": "Rock",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_C.fbx",
+      "triangles": 808,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Rock_Boulder_D",
+      "family": "Terrain",
+      "subfamily": "Rock",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_D.fbx",
+      "triangles": 926,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Rock_Boulder_Mossy_E",
+      "family": "Terrain",
+      "subfamily": "Rock",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_Mossy_E.fbx",
+      "triangles": 884,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Rock_Boulder_Wet_F",
+      "family": "Terrain",
+      "subfamily": "Rock",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_Wet_F.fbx",
+      "triangles": 888,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Rock_Scatter_A",
+      "family": "Terrain",
+      "subfamily": "Rock",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Scatter_A.fbx",
+      "triangles": 1170,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Rock_Scatter_B",
+      "family": "Terrain",
+      "subfamily": "Rock",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Rock_Scatter_B.fbx",
+      "triangles": 982,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Cave_Arch",
+      "family": "Terrain",
+      "subfamily": "Cave",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch.fbx",
+      "triangles": 940,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Cave_Stalactite_A",
+      "family": "Terrain",
+      "subfamily": "Cave",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Stalactite_A.fbx",
+      "triangles": 108,
+      "lods": [],
+      "pivot": "top anchor (hangs downward)",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true,
+      "budgetExempt": "tapered spike"
+    },
+    {
+      "name": "Env_Cave_Stalactite_B",
+      "family": "Terrain",
+      "subfamily": "Cave",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Stalactite_B.fbx",
+      "triangles": 94,
+      "lods": [],
+      "pivot": "top anchor (hangs downward)",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true,
+      "budgetExempt": "tapered spike"
+    },
+    {
+      "name": "Env_Cave_Stalagmite_A",
+      "family": "Terrain",
+      "subfamily": "Cave",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Stalagmite_A.fbx",
+      "triangles": 108,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true,
+      "budgetExempt": "tapered spike"
+    },
+    {
+      "name": "Env_Cave_Stalagmite_B",
+      "family": "Terrain",
+      "subfamily": "Cave",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Stalagmite_B.fbx",
+      "triangles": 94,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true,
+      "budgetExempt": "tapered spike"
+    },
+    {
+      "name": "Env_Cave_Rubble",
+      "family": "Terrain",
+      "subfamily": "Cave",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Rubble.fbx",
+      "triangles": 1934,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Riverbank_4m",
+      "family": "Terrain",
+      "subfamily": "Riverbank",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
+      "triangles": 790,
+      "lods": [],
+      "pivot": "module corner at origin, snaps on 0.5 m grid",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Riverbank_2m",
+      "family": "Terrain",
+      "subfamily": "Riverbank",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_2m.fbx",
+      "triangles": 808,
+      "lods": [],
+      "pivot": "module corner at origin, snaps on 0.5 m grid",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Waterfall_Shelf",
+      "family": "Terrain",
+      "subfamily": "Waterfall",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Waterfall_Shelf.fbx",
+      "triangles": 1588,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Stepping_Stones",
+      "family": "Terrain",
+      "subfamily": "Stepping",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Stepping_Stones.fbx",
+      "triangles": 1132,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Bridge_Wood",
+      "family": "Terrain",
+      "subfamily": "Bridge",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Bridge_Wood.fbx",
+      "triangles": 1044,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_House_Cottage_A",
+      "family": "Town",
+      "subfamily": "House",
+      "path": "Assets/Game/Art/Environment/Town/Env_House_Cottage_A.fbx",
+      "triangles": 3048,
+      "lods": [
+        {
+          "level": 1,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Cottage_A_LOD1.fbx",
+          "triangles": 1218
+        },
+        {
+          "level": 2,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Cottage_A_LOD2.fbx",
+          "triangles": 456
+        }
+      ],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "building",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_House_Townhouse_B",
+      "family": "Town",
+      "subfamily": "House",
+      "path": "Assets/Game/Art/Environment/Town/Env_House_Townhouse_B.fbx",
+      "triangles": 3640,
+      "lods": [
+        {
+          "level": 1,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Townhouse_B_LOD1.fbx",
+          "triangles": 1456
+        },
+        {
+          "level": 2,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Townhouse_B_LOD2.fbx",
+          "triangles": 546
+        }
+      ],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "building",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_House_Farmhouse_C",
+      "family": "Town",
+      "subfamily": "House",
+      "path": "Assets/Game/Art/Environment/Town/Env_House_Farmhouse_C.fbx",
+      "triangles": 3480,
+      "lods": [
+        {
+          "level": 1,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Farmhouse_C_LOD1.fbx",
+          "triangles": 1392
+        },
+        {
+          "level": 2,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Farmhouse_C_LOD2.fbx",
+          "triangles": 522
+        }
+      ],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "building",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Building_PokeLab",
+      "family": "Town",
+      "subfamily": "Building",
+      "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeLab.fbx",
+      "triangles": 4936,
+      "lods": [
+        {
+          "level": 1,
+          "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeLab_LOD1.fbx",
+          "triangles": 1974
+        },
+        {
+          "level": 2,
+          "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeLab_LOD2.fbx",
+          "triangles": 740
+        }
+      ],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "building",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Fence_Picket_2m",
+      "family": "Town",
+      "subfamily": "Fence",
+      "path": "Assets/Game/Art/Environment/Town/Env_Fence_Picket_2m.fbx",
+      "triangles": 684,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Fence_Picket_1m",
+      "family": "Town",
+      "subfamily": "Fence",
+      "path": "Assets/Game/Art/Environment/Town/Env_Fence_Picket_1m.fbx",
+      "triangles": 452,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Lamp_Post",
+      "family": "Town",
+      "subfamily": "Lamp",
+      "path": "Assets/Game/Art/Environment/Town/Env_Lamp_Post.fbx",
+      "triangles": 672,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Signpost",
+      "family": "Town",
+      "subfamily": "Signpost",
+      "path": "Assets/Game/Art/Environment/Town/Env_Signpost.fbx",
+      "triangles": 328,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Bench",
+      "family": "Town",
+      "subfamily": "Bench",
+      "path": "Assets/Game/Art/Environment/Town/Env_Bench.fbx",
+      "triangles": 792,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Crate",
+      "family": "Town",
+      "subfamily": "Crate",
+      "path": "Assets/Game/Art/Environment/Town/Env_Crate.fbx",
+      "triangles": 432,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Barrel",
+      "family": "Town",
+      "subfamily": "Barrel",
+      "path": "Assets/Game/Art/Environment/Town/Env_Barrel.fbx",
+      "triangles": 384,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Market_Stall",
+      "family": "Town",
+      "subfamily": "Market",
+      "path": "Assets/Game/Art/Environment/Town/Env_Market_Stall.fbx",
+      "triangles": 1242,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Well",
+      "family": "Town",
+      "subfamily": "Well",
+      "path": "Assets/Game/Art/Environment/Town/Env_Well.fbx",
+      "triangles": 506,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Planter",
+      "family": "Town",
+      "subfamily": "Planter",
+      "path": "Assets/Game/Art/Environment/Town/Env_Planter.fbx",
+      "triangles": 438,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Path_Paved_2m",
+      "family": "Town",
+      "subfamily": "Path",
+      "path": "Assets/Game/Art/Environment/Town/Env_Path_Paved_2m.fbx",
+      "triangles": 268,
+      "lods": [],
+      "pivot": "ground level, footprint centred, snaps on 0.5 m grid",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true,
+      "budgetExempt": "2 m ground tile"
+    },
+    {
+      "name": "Env_Path_Paved_1m",
+      "family": "Town",
+      "subfamily": "Path",
+      "path": "Assets/Game/Art/Environment/Town/Env_Path_Paved_1m.fbx",
+      "triangles": 108,
+      "lods": [],
+      "pivot": "ground level, footprint centred, snaps on 0.5 m grid",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true,
+      "budgetExempt": "1 m ground tile"
+    },
+    {
+      "name": "Env_Path_Paved_Corner",
+      "family": "Town",
+      "subfamily": "Path",
+      "path": "Assets/Game/Art/Environment/Town/Env_Path_Paved_Corner.fbx",
+      "triangles": 172,
+      "lods": [],
+      "pivot": "ground level, footprint centred, snaps on 0.5 m grid",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true,
+      "budgetExempt": "1x2 m ground tile"
+    },
+    {
+      "name": "Env_Prop_CaptureBall",
+      "family": "Props",
+      "subfamily": "Prop",
+      "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall.fbx",
+      "triangles": 1962,
+      "lods": [],
+      "pivot": "volume centre (spins about its own axis)",
+      "textures": [
+        "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",
+        "Assets/Game/Art/Props/Textures/Env_Props_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Prop_CaptureBall_Open",
+      "family": "Props",
+      "subfamily": "Prop",
+      "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Open.fbx",
+      "triangles": 1890,
+      "lods": [],
+      "pivot": "volume centre (spins about its own axis)",
+      "textures": [
+        "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",
+        "Assets/Game/Art/Props/Textures/Env_Props_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Prop_HealingMachine",
+      "family": "Props",
+      "subfamily": "Prop",
+      "path": "Assets/Game/Art/Props/Env_Prop_HealingMachine.fbx",
+      "triangles": 1852,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",
+        "Assets/Game/Art/Props/Textures/Env_Props_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Prop_ResearchTerminal",
+      "family": "Props",
+      "subfamily": "Prop",
+      "path": "Assets/Game/Art/Props/Env_Prop_ResearchTerminal.fbx",
+      "triangles": 1582,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",
+        "Assets/Game/Art/Props/Textures/Env_Props_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Prop_Scanner",
+      "family": "Props",
+      "subfamily": "Prop",
+      "path": "Assets/Game/Art/Props/Env_Prop_Scanner.fbx",
+      "triangles": 1380,
+      "lods": [],
+      "pivot": "base, XY centred",
+      "textures": [
+        "Assets/Game/Art/Props/Textures/Env_Props_Atlas_BaseColor.png",
+        "Assets/Game/Art/Props/Textures/Env_Props_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Char_Player",
+      "family": "Characters",
+      "subfamily": "Character",
+      "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player.fbx",
+      "triangles": 3026,
+      "lods": [
+        {
+          "level": 1,
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player_LOD1.fbx",
+          "triangles": 1210
+        },
+        {
+          "level": 2,
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player_LOD2.fbx",
+          "triangles": 453
+        }
+      ],
+      "pivot": "between the feet at ground level, facing +Z",
+      "textures": [
+        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
+      "anchors": [
+        "Anchor_Head",
+        "Anchor_Body",
+        "Anchor_HandR",
+        "Anchor_HandL"
+      ],
+      "clips": [
+        {
+          "name": "Idle",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
+        },
+        {
+          "name": "Walk",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
+        },
+        {
+          "name": "Run",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
+        },
+        {
+          "name": "Turn",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
+        },
+        {
+          "name": "Talk",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
+        },
+        {
+          "name": "ThrowBall",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
+        },
+        {
+          "name": "Cheer",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
+        },
+        {
+          "name": "Surprised",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
+        },
+        {
+          "name": "RaiseScanner",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
+        }
+      ],
+      "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them.",
+      "budgetClass": "character",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Char_NPC_Townsfolk_A",
+      "family": "Characters",
+      "subfamily": "Character",
+      "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_A.fbx",
+      "triangles": 3000,
+      "lods": [
+        {
+          "level": 1,
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_A_LOD1.fbx",
+          "triangles": 1199
+        },
+        {
+          "level": 2,
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_A_LOD2.fbx",
+          "triangles": 449
+        }
+      ],
+      "pivot": "between the feet at ground level, facing +Z",
+      "textures": [
+        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
+      "anchors": [
+        "Anchor_Head",
+        "Anchor_Body",
+        "Anchor_HandR",
+        "Anchor_HandL"
+      ],
+      "clips": [
+        {
+          "name": "Idle",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
+        },
+        {
+          "name": "Walk",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
+        },
+        {
+          "name": "Run",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
+        },
+        {
+          "name": "Turn",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
+        },
+        {
+          "name": "Talk",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
+        },
+        {
+          "name": "ThrowBall",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
+        },
+        {
+          "name": "Cheer",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
+        },
+        {
+          "name": "Surprised",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
+        },
+        {
+          "name": "RaiseScanner",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
+        }
+      ],
+      "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them.",
+      "budgetClass": "character",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Char_NPC_Townsfolk_B",
+      "family": "Characters",
+      "subfamily": "Character",
+      "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_B.fbx",
+      "triangles": 3120,
+      "lods": [
+        {
+          "level": 1,
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_B_LOD1.fbx",
+          "triangles": 1248
+        },
+        {
+          "level": 2,
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Townsfolk_B_LOD2.fbx",
+          "triangles": 468
+        }
+      ],
+      "pivot": "between the feet at ground level, facing +Z",
+      "textures": [
+        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
+      "anchors": [
+        "Anchor_Head",
+        "Anchor_Body",
+        "Anchor_HandR",
+        "Anchor_HandL"
+      ],
+      "clips": [
+        {
+          "name": "Idle",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
+        },
+        {
+          "name": "Walk",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
+        },
+        {
+          "name": "Run",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
+        },
+        {
+          "name": "Turn",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
+        },
+        {
+          "name": "Talk",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
+        },
+        {
+          "name": "ThrowBall",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
+        },
+        {
+          "name": "Cheer",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
+        },
+        {
+          "name": "Surprised",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
+        },
+        {
+          "name": "RaiseScanner",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
+        }
+      ],
+      "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them.",
+      "budgetClass": "character",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Char_NPC_Rival",
+      "family": "Characters",
+      "subfamily": "Character",
+      "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Rival.fbx",
+      "triangles": 3224,
+      "lods": [
+        {
+          "level": 1,
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Rival_LOD1.fbx",
+          "triangles": 1288
+        },
+        {
+          "level": 2,
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_NPC_Rival_LOD2.fbx",
+          "triangles": 482
+        }
+      ],
+      "pivot": "between the feet at ground level, facing +Z",
+      "textures": [
+        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Characters/Textures/Env_Characters_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "rig": "Humanoid-compatible; T-pose rest; bones Hips/Spine/Chest/UpperChest/Neck/Head + Shoulder,UpperArm,LowerArm,Hand and UpperLeg,LowerLeg,Foot,Toes in .L/.R",
+      "anchors": [
+        "Anchor_Head",
+        "Anchor_Body",
+        "Anchor_HandR",
+        "Anchor_HandL"
+      ],
+      "clips": [
+        {
+          "name": "Idle",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Idle.fbx"
+        },
+        {
+          "name": "Walk",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Walk.fbx"
+        },
+        {
+          "name": "Run",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Run.fbx"
+        },
+        {
+          "name": "Turn",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Turn.fbx"
+        },
+        {
+          "name": "Talk",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Talk.fbx"
+        },
+        {
+          "name": "ThrowBall",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@ThrowBall.fbx"
+        },
+        {
+          "name": "Cheer",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Cheer.fbx"
+        },
+        {
+          "name": "Surprised",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@Surprised.fbx"
+        },
+        {
+          "name": "RaiseScanner",
+          "path": "Assets/Game/Art/Environment/Characters/Env_Char_Player@RaiseScanner.fbx"
+        }
+      ],
+      "notes": "Clips are authored once on the player rig; all four characters share identical bone names and proportions, so the same clips drive every one of them.",
+      "budgetClass": "character",
+      "withinBudget": true
+    }
+  ]
+}

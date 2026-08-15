@@ -105,3 +105,10 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Agent worktrees
+.claude/worktrees/
+
+# QA screenshot output (regenerated, not source)
+Assets/Screenshots/
+Assets/Screenshots.meta

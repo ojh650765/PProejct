@@ -1,0 +1,14 @@
+{
+    "name": "PokeLab.UI",
+    "rootNamespace": "PokeLab.UI",
+    "references": ["PokeLab.Core", "Unity.InputSystem", "UnityEngine.UI", "Unity.TextMeshPro"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

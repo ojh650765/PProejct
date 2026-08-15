@@ -1,0 +1,19 @@
+{
+    "name": "PokeLab.Audio.Editor",
+    "rootNamespace": "PokeLab.Audio.Editor",
+    "references": [
+        "PokeLab.Core",
+        "PokeLab.Audio"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
