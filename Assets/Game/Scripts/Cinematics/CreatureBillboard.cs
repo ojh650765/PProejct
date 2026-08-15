@@ -9,6 +9,10 @@ namespace PokeLab.Cinematics
         Front = 0,
         /// <summary>Drawn from behind. The player's creature, always, in a traditional battle.</summary>
         Back = 1,
+        /// <summary>Turned so the subject's left side is toward the lens.</summary>
+        Left = 2,
+        /// <summary>Turned so the subject's right side is toward the lens.</summary>
+        Right = 3,
     }
 
     /// <summary>How the horizontal mirror is chosen.</summary>
@@ -120,6 +124,14 @@ namespace PokeLab.Cinematics
         private Texture2D _backTexture;
         private SpriteSheetInfo _frontSheet;
         private SpriteSheetInfo _backSheet;
+
+        // Side views are optional. When a creature has none — which is every creature drawn
+        // from the official battle sprites — a side sector borrows front or back and mirrors
+        // it, and these record that choice so the sheet and the flip stay in agreement.
+        private SpriteSheetInfo _sideSheet;
+        private Texture2D _sideTexture;
+        private bool _sideBorrowsBack;
+        private bool _sideFlip;
 
         private SpriteFacing _facing = SpriteFacing.Front;
         private bool _flip;
@@ -468,14 +480,7 @@ namespace PokeLab.Cinematics
             if (forward.sqrMagnitude > 1e-6f)
             {
                 forward.Normalize();
-                float facingDot = Vector3.Dot(forward, toCamera);
-
-                // Hysteresis in both directions, so a beat that swings the creature past the
-                // boundary and back does not produce two facing changes.
-                if (_facing == SpriteFacing.Back && facingDot > facingHysteresis) _facing = SpriteFacing.Front;
-                else if (_facing == SpriteFacing.Front && facingDot < -facingHysteresis) _facing = SpriteFacing.Back;
-
-                UpdateMirror(forward, cam);
+                SelectFacing(forward, toCamera, cam);
             }
 
             // Face the camera, then tilt back by a fraction of its pitch. The tilt puts the
@@ -488,6 +493,61 @@ namespace PokeLab.Cinematics
             Quaternion tilt = Quaternion.AngleAxis(camPitch * groundTilt, Vector3.right);
             Quaternion roll = Quaternion.AngleAxis(_roll, Vector3.forward);
             transform.rotation = look * tilt * roll;
+        }
+
+        /// <summary>
+        /// Chooses which drawn view to show, as a discrete function of where the subject is
+        /// actually facing relative to the camera.
+        ///
+        /// The quad always turns to the lens, so on its own it would show the same picture no
+        /// matter which way the creature had turned — a character walking east would still be
+        /// looking straight out of the screen. Sprite games solve that by swapping the image
+        /// rather than rotating the geometry, and that is what this does.
+        ///
+        /// The angle is bucketed into four sectors rather than tested as a single dot product,
+        /// because two views cannot express a side-on stance: without a sector for it, a
+        /// creature turning through profile snaps directly from front to back. Sectors are
+        /// widened by <see cref="facingHysteresis"/> in whichever one is already held, so a
+        /// subject hovering on a boundary does not flutter between two images.
+        ///
+        /// With only front and back drawn, the side sectors borrow the nearer of the two and
+        /// mirror it. That is the classic compromise and it holds up because the official
+        /// sprites are drawn at a three-quarter, so they already read as slightly turned.
+        /// </summary>
+        private void SelectFacing(Vector3 forward, Vector3 toCamera, Camera cam)
+        {
+            // Signed angle from "facing the lens" — 0 means looking at the camera, ±180 away,
+            // +90 means the subject's right side is toward the camera.
+            float angle = Vector3.SignedAngle(toCamera, forward, Vector3.up);
+
+            // Hold the current sector a little past its true edge.
+            float bias = facingHysteresis * 45f;
+            float front = 45f + (_facing == SpriteFacing.Front ? bias : -bias);
+            float back = 135f - (_facing == SpriteFacing.Back ? bias : -bias);
+
+            float a = Mathf.Abs(angle);
+            if (a <= front) _facing = SpriteFacing.Front;
+            else if (a >= back) _facing = SpriteFacing.Back;
+            else _facing = angle > 0f ? SpriteFacing.Right : SpriteFacing.Left;
+
+            // A side sector with no drawn side view falls back to whichever of front and back
+            // it is nearer to, so the creature at least faces the correct half of the world.
+            if (_facing == SpriteFacing.Left || _facing == SpriteFacing.Right)
+            {
+                bool haveSide = SideSheet(_facing) != null;
+                if (!haveSide)
+                {
+                    _sideBorrowsBack = a > 90f;
+                    _sideFlip = _facing == SpriteFacing.Left;
+                }
+                else
+                {
+                    _sideBorrowsBack = false;
+                    _sideFlip = _facing == SpriteFacing.Left && SideSheet(SpriteFacing.Left) == SideSheet(SpriteFacing.Right);
+                }
+            }
+
+            UpdateMirror(forward, cam);
         }
 
         private void UpdateMirror(Vector3 forward, Camera cam)
@@ -519,9 +579,37 @@ namespace PokeLab.Cinematics
             return _camera;
         }
 
-        private SpriteSheetInfo ActiveSheet() => _facing == SpriteFacing.Back ? _backSheet : _frontSheet;
+        /// <summary>The drawn side view, or null when the creature has none.</summary>
+        private SpriteSheetInfo SideSheet(SpriteFacing facing) => _sideSheet;
 
-        private Texture2D ActiveTexture() => _facing == SpriteFacing.Back ? _backTexture : _frontTexture;
+        private bool IsSideSector => _facing == SpriteFacing.Left || _facing == SpriteFacing.Right;
+
+        private SpriteSheetInfo ActiveSheet()
+        {
+            if (IsSideSector)
+            {
+                if (_sideSheet != null) return _sideSheet;
+                return _sideBorrowsBack ? _backSheet : _frontSheet;
+            }
+            return _facing == SpriteFacing.Back ? _backSheet : _frontSheet;
+        }
+
+        private Texture2D ActiveTexture()
+        {
+            if (IsSideSector)
+            {
+                if (_sideTexture != null) return _sideTexture;
+                return _sideBorrowsBack ? _backTexture : _frontTexture;
+            }
+            return _facing == SpriteFacing.Back ? _backTexture : _frontTexture;
+        }
+
+        /// <summary>
+        /// The mirror actually applied: the authored mode's choice, flipped again when a side
+        /// sector is borrowing the opposite-handed view. Two flips cancel, which is correct —
+        /// a left-facing subject borrowing an already-mirrored front should end up unmirrored.
+        /// </summary>
+        private bool EffectiveFlip => IsSideSector ? _flip ^ _sideFlip : _flip;
 
         private void ApplyBlock()
         {
@@ -538,11 +626,11 @@ namespace PokeLab.Cinematics
             // wins when it exists.
             bool shaderFlips = _material != null && _material.HasProperty(ShaderProps.FlipX);
             Vector4 st = sheet != null
-                ? sheet.FrameST(sheet.CellAt(_frameIndex), !shaderFlips && _flip)
-                : (!shaderFlips && _flip ? new Vector4(-1f, 1f, 1f, 0f) : new Vector4(1f, 1f, 0f, 0f));
+                ? sheet.FrameST(sheet.CellAt(_frameIndex), !shaderFlips && EffectiveFlip)
+                : (!shaderFlips && EffectiveFlip ? new Vector4(-1f, 1f, 1f, 0f) : new Vector4(1f, 1f, 0f, 0f));
 
             _block.SetVector(ShaderProps.BaseMapST, st);
-            _block.SetFloat(ShaderProps.FlipX, shaderFlips && _flip ? 1f : 0f);
+            _block.SetFloat(ShaderProps.FlipX, shaderFlips && EffectiveFlip ? 1f : 0f);
             _block.SetFloat(ShaderProps.Roll, _roll);
             _block.SetFloat(ShaderProps.ContactFade, 1f);
 
