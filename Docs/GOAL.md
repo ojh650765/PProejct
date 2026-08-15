@@ -95,7 +95,8 @@ modes; continuous Play Mode screenshot sweeps hunting rendering and animation de
 independent impartial judge agent comparing against commercial creature-collection games, with its
 prompt not weakened.
 
-## Legal note
+## Scope
 
-The sprites are Nintendo/Game Freak copyright. The user has confirmed this direction; recorded here
-because it becomes a real constraint if distribution is ever considered.
+**Personal project, never distributed.** The user has stated this explicitly, so the Nintendo/Game Freak
+sprite assets are a private-use matter and not a constraint on the work. Recorded only so the decision
+is not silently reversed later — the note applies again the moment anything is shared.
