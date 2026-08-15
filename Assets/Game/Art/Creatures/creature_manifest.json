@@ -203,7 +203,7 @@
       "fbx": "Assets/Game/Art/Creatures/Creature_5_Charmander.fbx",
       "lod1": {
         "fbx": "Assets/Game/Art/Creatures/Creature_5_Charmander_LOD1.fbx",
-        "tris": 2712
+        "tris": 2606
       },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_5_Charmander_BaseColor.png",
@@ -215,22 +215,22 @@
         "axis": "z",
         "metres": 0.6
       },
-      "shoulderHeight": 0.4176,
+      "shoulderHeight": 0.4057,
       "boundsMetres": {
         "min": [
-          -0.1955,
-          -0.3082,
+          -0.1913,
+          -0.2985,
           0.0
         ],
         "max": [
-          0.1955,
-          0.3082,
+          0.1913,
+          0.2985,
           0.6
         ]
       },
-      "triangles": 6782,
-      "quadRatio": 0.817,
-      "bones": 22,
+      "triangles": 6518,
+      "quadRatio": 0.726,
+      "bones": 23,
       "anchors": [
         "Anchor_Body",
         "Anchor_Head",
@@ -344,28 +344,28 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 6782,
-        "quad_ratio": 0.817,
+        "tris": 6518,
+        "quad_ratio": 0.726,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.023545,
+        "signed_volume": 0.020994,
         "uv_bounds": [
-          0.009,
           0.0094,
-          0.9869,
-          0.991
+          0.0094,
+          0.9863,
+          0.9906
         ],
         "anchors": [
           "Anchor_Body",
           "Anchor_Head",
           "Anchor_Muzzle"
         ],
-        "bones": 22,
-        "single_influence_verts": 31,
-        "single_influence_pct": 0.9
+        "bones": 23,
+        "single_influence_verts": 0,
+        "single_influence_pct": 0.0
       },
       "problems": []
     },
