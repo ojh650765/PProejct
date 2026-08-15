@@ -1,0 +1,10 @@
+# The repo's .gitignore anchors /[Oo]bj/ at the root, so the verification harness's
+# build output needs excluding here.
+Verify/bin/
+Verify/obj/
+__pycache__/
+*.pyc
+
+# The root .gitignore drops *.csproj because Unity regenerates its own. This one is
+# hand-authored and is the only way to build the verification harness, so keep it.
+!Verify/Verify.csproj

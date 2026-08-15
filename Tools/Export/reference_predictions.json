@@ -1,0 +1,1865 @@
+{
+ "pairs": [
+  {
+   "first": 1,
+   "second": 5,
+   "firstName": "Bulbasaur",
+   "secondName": "Charmander",
+   "firstProbability": 0.001041666666666663,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 2.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 2.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": -20.0,
+     "probabilityPoints": -49.72916666666667
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 0.3654188811779022,
+     "probabilityPoints": -0.4057539682539746
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 15.0,
+     "probabilityPoints": -0.2500000000000002
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 5.0,
+     "probabilityPoints": -0.15277777777777946
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.133531391620636,
+     "probabilityPoints": 0.1041666666666663
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -3.0,
+     "probabilityPoints": -0.08333333333333526
+    },
+    {
+     "feature": "HP_diff",
+     "value": 6.0,
+     "probabilityPoints": 0.0
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 6.0,
+     "probabilityPoints": 0.0
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -0.20585206151008606,
+     "probabilityPoints": 0.0
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 0.07363636046648026,
+     "probabilityPoints": 0.0
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": -1.0,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 5,
+   "second": 10,
+   "firstName": "Charmander",
+   "secondName": "Squirtle",
+   "firstProbability": 0.9874851190476189,
+   "typeEffectFirst": 0.5,
+   "typeEffectSecond": 2.0,
+   "abilityTypeEffectFirst": 0.5,
+   "abilityTypeEffectSecond": 2.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": 22.0,
+     "probabilityPoints": 47.50892857142857
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -0.3030303120613098,
+     "probabilityPoints": 0.5514219576719381
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": -14.0,
+     "probabilityPoints": 0.47966269841268616
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 10.0,
+     "probabilityPoints": -0.34953703703705097
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": -0.05731523409485817,
+     "probabilityPoints": 0.22222222222221255
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 4.0,
+     "probabilityPoints": 0.20707070707068898
+    },
+    {
+     "feature": "HP_diff",
+     "value": -5.0,
+     "probabilityPoints": 0.14583333333332282
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": -2.0,
+     "probabilityPoints": -0.14100829725831598
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.15415067970752716,
+     "probabilityPoints": -0.046626984126996174
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -22.0,
+     "probabilityPoints": 0.03505291005291289
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -0.05651221051812172,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 10,
+   "second": 21,
+   "firstName": "Squirtle",
+   "secondName": "Pidgey",
+   "firstProbability": 0.007361111111111096,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 1.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": -13.0,
+     "probabilityPoints": -48.31597222222223
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 0.48891353607177734,
+     "probabilityPoints": -1.1188973063973096
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 15.0,
+     "probabilityPoints": -0.6562500000000027
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 0.8504273295402527,
+     "probabilityPoints": -0.41187169312169036
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 29.0,
+     "probabilityPoints": -0.24867724867725371
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": 1.566420555114746,
+     "probabilityPoints": -0.16666666666666496
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 25.0,
+     "probabilityPoints": 0.16319444444444775
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 3.0,
+     "probabilityPoints": -0.10416666666667185
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.40546509623527527,
+     "probabilityPoints": -0.07291666666666696
+    },
+    {
+     "feature": "HP_diff",
+     "value": 4.0,
+     "probabilityPoints": -0.02777777777778212
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 21,
+   "second": 25,
+   "firstName": "Pidgey",
+   "secondName": "Rattata",
+   "firstProbability": 0.011236772486772573,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 1.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 1,
+   "directFirstWins": 0,
+   "directSecondWins": 1,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": -16.0,
+     "probabilityPoints": -48.55555555555554
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 0.2777777910232544,
+     "probabilityPoints": 0.6712962962963032
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -0.11585365980863571,
+     "probabilityPoints": 0.4431216931217008
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 5.0,
+     "probabilityPoints": 0.33333333333334103
+    },
+    {
+     "feature": "HP_diff",
+     "value": 10.0,
+     "probabilityPoints": 0.2083333333333437
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 10.0,
+     "probabilityPoints": 0.16732804232804654
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -0.6390799880027771,
+     "probabilityPoints": -0.15873015873015262
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -11.0,
+     "probabilityPoints": -0.13194444444443176
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 0.0,
+     "probabilityPoints": 5.551115123125783e-15
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.0,
+     "probabilityPoints": 5.551115123125783e-15
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 0.0,
+     "probabilityPoints": 5.551115123125783e-15
+    }
+   ]
+  },
+  {
+   "first": 25,
+   "second": 31,
+   "firstName": "Rattata",
+   "secondName": "Pikachu",
+   "firstProbability": 0.020913600288600287,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 1.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": -18.0,
+     "probabilityPoints": -48.25983044733045
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": -0.2231435477733612,
+     "probabilityPoints": 0.9564393939394011
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -0.527354896068573,
+     "probabilityPoints": -0.7167658730158732
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": -15.0,
+     "probabilityPoints": 0.2996031746031691
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": -0.898692786693573,
+     "probabilityPoints": 0.28968253968253976
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 1.0,
+     "probabilityPoints": -0.2500000000000058
+    },
+    {
+     "feature": "HP_diff",
+     "value": -5.0,
+     "probabilityPoints": 0.1989850427350448
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -0.16192412376403809,
+     "probabilityPoints": -0.1942640692640607
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": -25.0,
+     "probabilityPoints": 0.10159632034631438
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -5.0,
+     "probabilityPoints": 0.052083333333335924
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 31,
+   "second": 47,
+   "firstName": "Pikachu",
+   "secondName": "Zubat",
+   "firstProbability": 0.9873809523809525,
+   "typeEffectFirst": 2.0,
+   "typeEffectSecond": 1.0,
+   "abilityTypeEffectFirst": 2.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": 35.0,
+     "probabilityPoints": 49.05059523809525
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 20.0,
+     "probabilityPoints": 0.943287037037055
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 10.0,
+     "probabilityPoints": 0.6850198412698516
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 0.6312769055366516,
+     "probabilityPoints": 0.6660203222703331
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 0.43021678924560547,
+     "probabilityPoints": 0.39004629629630916
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": -0.5877866744995117,
+     "probabilityPoints": -0.2657076719576712
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 1.0,
+     "probabilityPoints": -0.24999999999999467
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 10.0,
+     "probabilityPoints": -0.20750661375660284
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -0.21985948085784912,
+     "probabilityPoints": -0.16203703703703276
+    },
+    {
+     "feature": "HP_diff",
+     "value": -5.0,
+     "probabilityPoints": -0.10416666666666075
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 5.0,
+     "probabilityPoints": -0.0699404761904665
+    }
+   ]
+  },
+  {
+   "first": 47,
+   "second": 49,
+   "firstName": "Zubat",
+   "secondName": "Oddish",
+   "firstProbability": 0.9573063973063973,
+   "typeEffectFirst": 2.0,
+   "typeEffectSecond": 0.5,
+   "abilityTypeEffectFirst": 2.0,
+   "abilityTypeEffectSecond": 0.5,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": 25.0,
+     "probabilityPoints": 46.132425444925445
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -0.5853174328804016,
+     "probabilityPoints": -1.2905092592592537
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": 0.3234001696109772,
+     "probabilityPoints": -0.8874007936508055
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": -1.3747228384017944,
+     "probabilityPoints": -0.7284601972101901
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 2.0,
+     "probabilityPoints": -0.6547619047619024
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.40546509623527527,
+     "probabilityPoints": -0.6291486291486237
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": -25.0,
+     "probabilityPoints": 0.5500992063492083
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -20.0,
+     "probabilityPoints": 0.4904852092352252
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -5.0,
+     "probabilityPoints": -0.374999999999992
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": -45.0,
+     "probabilityPoints": -0.2582521645021596
+    },
+    {
+     "feature": "HP_diff",
+     "value": -5.0,
+     "probabilityPoints": -0.08333333333332416
+    }
+   ]
+  },
+  {
+   "first": 49,
+   "second": 66,
+   "firstName": "Oddish",
+   "secondName": "Poliwag",
+   "firstProbability": 0.1319025765900766,
+   "typeEffectFirst": 2.0,
+   "typeEffectSecond": 0.5,
+   "abilityTypeEffectFirst": 2.0,
+   "abilityTypeEffectSecond": 0.5,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": -60.0,
+     "probabilityPoints": -37.1138098013098
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 2.0,
+     "probabilityPoints": 8.098454785954784
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 25.0,
+     "probabilityPoints": -2.141369047619057
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": -0.15415067970752716,
+     "probabilityPoints": 1.2615844803344878
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 1.223207712173462,
+     "probabilityPoints": -1.248368529618532
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 15.0,
+     "probabilityPoints": -1.0589826839826733
+    },
+    {
+     "feature": "HP_diff",
+     "value": 5.0,
+     "probabilityPoints": 0.9992704055204082
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -0.8209805488586426,
+     "probabilityPoints": -0.9131493506493504
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 0.3266550600528717,
+     "probabilityPoints": -0.6075926388426356
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 35.0,
+     "probabilityPoints": -0.5348008473008425
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 66,
+   "second": 73,
+   "firstName": "Poliwag",
+   "secondName": "Machop",
+   "firstProbability": 0.8891914682539681,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 1.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": 55.0,
+     "probabilityPoints": 38.38045634920633
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -30.0,
+     "probabilityPoints": -5.185981842231868
+    },
+    {
+     "feature": "HP_diff",
+     "value": -30.0,
+     "probabilityPoints": -3.138768638768641
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -10.0,
+     "probabilityPoints": 2.221170033670017
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": -0.2513144314289093,
+     "probabilityPoints": -0.9039201539201569
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -0.44980090856552124,
+     "probabilityPoints": -0.8332130832130913
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -0.9708273410797119,
+     "probabilityPoints": 0.5858585858585674
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 5.0,
+     "probabilityPoints": -0.17849627224629794
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 0.2574525773525238,
+     "probabilityPoints": -0.13740079365079927
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 5.0,
+     "probabilityPoints": 0.027732683982684136
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 73,
+   "second": 81,
+   "firstName": "Machop",
+   "secondName": "Geodude",
+   "firstProbability": 0.9723359279609279,
+   "typeEffectFirst": 2.0,
+   "typeEffectSecond": 1.0,
+   "abilityTypeEffectFirst": 2.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": 15.0,
+     "probabilityPoints": 46.37198565323565
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.5877866744995117,
+     "probabilityPoints": -0.867597680097687
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 5.0,
+     "probabilityPoints": 0.6767017704517708
+    },
+    {
+     "feature": "HP_diff",
+     "value": 30.0,
+     "probabilityPoints": -0.5786435786435784
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 0.2956989109516144,
+     "probabilityPoints": 0.4787978225478273
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -0.7765482664108276,
+     "probabilityPoints": 0.24224386724387426
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 5.0,
+     "probabilityPoints": -0.2257326007326088
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -50.0,
+     "probabilityPoints": 0.17252886002885326
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 1.0,
+     "probabilityPoints": 0.05208333333333037
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -0.02519024908542633,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 81,
+   "second": 100,
+   "firstName": "Geodude",
+   "secondName": "Gastly",
+   "firstProbability": 0.7684740201927702,
+   "typeEffectFirst": 2.0,
+   "typeEffectSecond": 1.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 2.2341105937957764,
+     "probabilityPoints": 30.907102157102162
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 45.0,
+     "probabilityPoints": 28.417679848746026
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 70.0,
+     "probabilityPoints": 14.385209119584118
+    },
+    {
+     "feature": "Speed_diff",
+     "value": -60.0,
+     "probabilityPoints": 12.707193269693274
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": -2.3924732208251953,
+     "probabilityPoints": 7.454053469678468
+    },
+    {
+     "feature": "HP_diff",
+     "value": 10.0,
+     "probabilityPoints": 6.863543863543864
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": -70.0,
+     "probabilityPoints": 4.700197372072368
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": -1.0296194553375244,
+     "probabilityPoints": 3.9574927387427294
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 1.0,
+     "probabilityPoints": 3.616762866762868
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": 4.610157489776611,
+     "probabilityPoints": -1.6927834896584892
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": -5.0,
+     "probabilityPoints": -0.25391853516854024
+    }
+   ]
+  },
+  {
+   "first": 100,
+   "second": 1,
+   "firstName": "Gastly",
+   "secondName": "Bulbasaur",
+   "firstProbability": 0.9083685064935063,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 0.5,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 0.5,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": 35.0,
+     "probabilityPoints": 40.09979256854255
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -3.5553481578826904,
+     "probabilityPoints": -5.165740509490524
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -0.8806451559066772,
+     "probabilityPoints": 3.1432629870129625
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -19.0,
+     "probabilityPoints": 2.0656565656565484
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -14.0,
+     "probabilityPoints": -1.3481842231842345
+    },
+    {
+     "feature": "HP_diff",
+     "value": -15.0,
+     "probabilityPoints": -0.6341991341991537
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 1.0,
+     "probabilityPoints": 0.4652777777777617
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.5596157908439636,
+     "probabilityPoints": 0.3795845358345207
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": -0.2904040515422821,
+     "probabilityPoints": 0.3104707792207617
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": -30.0,
+     "probabilityPoints": -0.08395539645541517
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 35.0,
+     "probabilityPoints": 0.08196548821547411
+    }
+   ]
+  },
+  {
+   "first": 100,
+   "second": 81,
+   "firstName": "Gastly",
+   "secondName": "Geodude",
+   "firstProbability": 0.23152597980722978,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 2.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -2.2341105937957764,
+     "probabilityPoints": -30.907102157102162
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -45.0,
+     "probabilityPoints": -28.417679848746026
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -70.0,
+     "probabilityPoints": -14.385209119584118
+    },
+    {
+     "feature": "Speed_diff",
+     "value": 60.0,
+     "probabilityPoints": -12.707193269693274
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 2.3924732208251953,
+     "probabilityPoints": -7.454053469678479
+    },
+    {
+     "feature": "HP_diff",
+     "value": -10.0,
+     "probabilityPoints": -6.863543863543869
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 70.0,
+     "probabilityPoints": -4.700197372072373
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 1.0296194553375244,
+     "probabilityPoints": -3.9574927387427348
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": -1.0,
+     "probabilityPoints": -3.6167628667628735
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -4.610157489776611,
+     "probabilityPoints": 1.6927834896584948
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 5.0,
+     "probabilityPoints": 0.25391853516854024
+    }
+   ]
+  },
+  {
+   "first": 31,
+   "second": 81,
+   "firstName": "Pikachu",
+   "secondName": "Geodude",
+   "firstProbability": 0.34419598919598915,
+   "typeEffectFirst": 0.0,
+   "typeEffectSecond": 2.0,
+   "abilityTypeEffectFirst": 0.0,
+   "abilityTypeEffectSecond": 2.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": -4.0,
+     "probabilityPoints": -39.2392087079587
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 1.0246679782867432,
+     "probabilityPoints": -11.72219447219447
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -25.0,
+     "probabilityPoints": -10.769929144929163
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -1.4066650867462158,
+     "probabilityPoints": -10.56124142061643
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 20.0,
+     "probabilityPoints": -5.517373829873856
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -60.0,
+     "probabilityPoints": -5.383384555259574
+    },
+    {
+     "feature": "Speed_diff",
+     "value": 70.0,
+     "probabilityPoints": -4.339582870832881
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 20.0,
+     "probabilityPoints": -1.715200308950321
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -1.192431092262268,
+     "probabilityPoints": -1.3181066618566661
+    },
+    {
+     "feature": "HP_diff",
+     "value": -5.0,
+     "probabilityPoints": 0.09435471935471118
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.0,
+     "probabilityPoints": -1.1102230246251565e-14
+    }
+   ]
+  },
+  {
+   "first": 81,
+   "second": 31,
+   "firstName": "Geodude",
+   "secondName": "Pikachu",
+   "firstProbability": 0.6558040108040106,
+   "typeEffectFirst": 2.0,
+   "typeEffectSecond": 0.0,
+   "abilityTypeEffectFirst": 2.0,
+   "abilityTypeEffectSecond": 0.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 4.0,
+     "probabilityPoints": 39.23920870795869
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": -1.0246679782867432,
+     "probabilityPoints": 11.722194472194447
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 25.0,
+     "probabilityPoints": 10.769929144929137
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 1.4066650867462158,
+     "probabilityPoints": 10.561241420616396
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": -20.0,
+     "probabilityPoints": 5.517373829873817
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 60.0,
+     "probabilityPoints": 5.383384555259552
+    },
+    {
+     "feature": "Speed_diff",
+     "value": -70.0,
+     "probabilityPoints": 4.339582870832858
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": -20.0,
+     "probabilityPoints": 1.7152003089502932
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": 1.192431092262268,
+     "probabilityPoints": 1.318106661856655
+    },
+    {
+     "feature": "HP_diff",
+     "value": 5.0,
+     "probabilityPoints": -0.09435471935472783
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 1,
+   "second": 1,
+   "firstName": "Bulbasaur",
+   "secondName": "Bulbasaur",
+   "firstProbability": 0.5,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 1.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": []
+  },
+  {
+   "first": 73,
+   "second": 21,
+   "firstName": "Machop",
+   "secondName": "Pidgey",
+   "firstProbability": 0.0419042358104858,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 2.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 2.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": -21.0,
+     "probabilityPoints": -44.72219215969216
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 35.0,
+     "probabilityPoints": 1.928353475228478
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 1.0688666105270386,
+     "probabilityPoints": -1.7890211640211706
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 10.0,
+     "probabilityPoints": -0.9841269841269873
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": 2.3336756229400635,
+     "probabilityPoints": 0.6927233645983688
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.8109301924705505,
+     "probabilityPoints": -0.6048280423280428
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": -1.0,
+     "probabilityPoints": 0.55844907407408
+    },
+    {
+     "feature": "HP_diff",
+     "value": 30.0,
+     "probabilityPoints": 0.45439514189514196
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 0.0,
+     "probabilityPoints": 5.551115123125783e-15
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 0.0,
+     "probabilityPoints": 5.551115123125783e-15
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 0.0,
+     "probabilityPoints": 5.551115123125783e-15
+    }
+   ]
+  },
+  {
+   "first": 100,
+   "second": 25,
+   "firstName": "Gastly",
+   "secondName": "Rattata",
+   "firstProbability": 0.8511248242498242,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 0.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 0.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": 8.0,
+     "probabilityPoints": 33.65440462315462
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -2.890371799468994,
+     "probabilityPoints": -5.699464886964889
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 1.2527629137039185,
+     "probabilityPoints": -3.3473124098124196
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 3.0,
+     "probabilityPoints": -3.328536047286046
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -21.0,
+     "probabilityPoints": -1.9165730103230194
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -0.8342294096946716,
+     "probabilityPoints": -1.8651244588744675
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 75.0,
+     "probabilityPoints": -1.0925324675324588
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -5.0,
+     "probabilityPoints": 0.8506944444444553
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 2.0833332538604736,
+     "probabilityPoints": -0.5856377418877456
+    },
+    {
+     "feature": "HP_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 47,
+   "second": 73,
+   "firstName": "Zubat",
+   "secondName": "Machop",
+   "firstProbability": 0.9275015384941857,
+   "typeEffectFirst": 2.0,
+   "typeEffectSecond": 0.25,
+   "abilityTypeEffectFirst": 2.0,
+   "abilityTypeEffectSecond": 0.25,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": 20.0,
+     "probabilityPoints": 43.544466018730745
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 3.0,
+     "probabilityPoints": -1.4918654616796756
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -0.947381317615509,
+     "probabilityPoints": -1.223605098605074
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": -5.0,
+     "probabilityPoints": -1.1460877085877064
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -35.0,
+     "probabilityPoints": 1.016369047619059
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -1.3398692607879639,
+     "probabilityPoints": 0.8993287485934753
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -15.0,
+     "probabilityPoints": 0.783730158730167
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": -0.020325202494859695,
+     "probabilityPoints": 0.6327457264957426
+    },
+    {
+     "feature": "HP_diff",
+     "value": -30.0,
+     "probabilityPoints": 0.38111772486773
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 5.0,
+     "probabilityPoints": -0.21577380952378933
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.0,
+     "probabilityPoints": 1.1102230246251565e-14
+    }
+   ]
+  },
+  {
+   "first": 10,
+   "second": 1,
+   "firstName": "Squirtle",
+   "secondName": "Bulbasaur",
+   "firstProbability": 0.009338624338624313,
+   "typeEffectFirst": 0.5,
+   "typeEffectSecond": 2.0,
+   "abilityTypeEffectFirst": 0.5,
+   "abilityTypeEffectSecond": 2.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": -2.0,
+     "probabilityPoints": -49.37863756613756
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": -15.0,
+     "probabilityPoints": -1.1213924963924982
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 16.0,
+     "probabilityPoints": -0.48511904761904256
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": -0.28768208622932434,
+     "probabilityPoints": 0.48445767195767764
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": -0.24242424964904785,
+     "probabilityPoints": -0.34391534391535195
+    },
+    {
+     "feature": "HP_diff",
+     "value": -1.0,
+     "probabilityPoints": -0.27777777777778234
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 0.21757575869560242,
+     "probabilityPoints": 0.14616402116401916
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -1.0,
+     "probabilityPoints": -0.14225589225589919
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": -1.0,
+     "probabilityPoints": -0.05952380952380931
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": 0.2623642683029175,
+     "probabilityPoints": 0.0
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": -2.0,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 66,
+   "second": 31,
+   "firstName": "Poliwag",
+   "secondName": "Pikachu",
+   "firstProbability": 0.49023809523809525,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 2.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 2.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Sp_Atk_diff",
+     "value": -10.0,
+     "probabilityPoints": -0.8595085470085417
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": -10.0,
+     "probabilityPoints": 0.6349206349206382
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": 0.7174398899078369,
+     "probabilityPoints": -0.5000000000000004
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": -0.43519845604896545,
+     "probabilityPoints": -0.5000000000000004
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.3364722430706024,
+     "probabilityPoints": -0.3124999999999989
+    },
+    {
+     "feature": "HP_diff",
+     "value": 5.0,
+     "probabilityPoints": -0.19444444444444153
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -5.0,
+     "probabilityPoints": 0.052083333333335924
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": -1.0,
+     "probabilityPoints": -0.02827380952380998
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    },
+    {
+     "feature": "Speed_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -0.12195122241973877,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 49,
+   "second": 5,
+   "firstName": "Oddish",
+   "secondName": "Charmander",
+   "firstProbability": 0.006329365079365101,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 2.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 2.0,
+   "directBattles": 1,
+   "directFirstWins": 0,
+   "directSecondWins": 1,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": -35.0,
+     "probabilityPoints": -49.54067460317461
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 12.0,
+     "probabilityPoints": -0.9097222222222145
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 15.0,
+     "probabilityPoints": -0.8506944444444386
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 0.5614973306655884,
+     "probabilityPoints": -0.3933531746031671
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 0.20779220759868622,
+     "probabilityPoints": 0.36507936507936267
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 15.0,
+     "probabilityPoints": -0.2951388888888906
+    },
+    {
+     "feature": "HP_diff",
+     "value": 6.0,
+     "probabilityPoints": 0.2777777777777768
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -0.44701412320137024,
+     "probabilityPoints": -0.17195767195766765
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": -0.15415067970752716,
+     "probabilityPoints": -0.1289682539682535
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -2.0,
+     "probabilityPoints": 0.08333333333333526
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": -1.0,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 146,
+   "second": 1,
+   "firstName": "Vaporeon",
+   "secondName": "Bulbasaur",
+   "firstProbability": 0.9441475769600768,
+   "typeEffectFirst": 0.5,
+   "typeEffectSecond": 2.0,
+   "abilityTypeEffectFirst": 0.5,
+   "abilityTypeEffectSecond": 2.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": 20.0,
+     "probabilityPoints": 43.9193873256373
+    },
+    {
+     "feature": "HP_diff",
+     "value": 85.0,
+     "probabilityPoints": -3.5315806878307043
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 16.0,
+     "probabilityPoints": 2.830357142857143
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": 1.424828052520752,
+     "probabilityPoints": 2.3382936507936547
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 11.0,
+     "probabilityPoints": -1.1997053872053853
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 0.9895833134651184,
+     "probabilityPoints": 1.129449254449233
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.31845372915267944,
+     "probabilityPoints": 0.8774801587301484
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 30.0,
+     "probabilityPoints": -0.6693121693121751
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": -2.0,
+     "probabilityPoints": -0.573021885521896
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 45.0,
+     "probabilityPoints": 0.4419793169793018
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 0.4967212975025177,
+     "probabilityPoints": 0.19255050505051496
+    }
+   ]
+  },
+  {
+   "first": 445,
+   "second": 100,
+   "firstName": "Bidoof",
+   "secondName": "Gastly",
+   "firstProbability": 0.3282517366892368,
+   "typeEffectFirst": 0.0,
+   "typeEffectSecond": 1.0,
+   "abilityTypeEffectFirst": 0.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 1,
+   "directFirstWins": 1,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "LogWeight_diff",
+     "value": 4.610157489776611,
+     "probabilityPoints": 17.33448149073149
+    },
+    {
+     "feature": "Speed_diff",
+     "value": -49.0,
+     "probabilityPoints": -15.579023985273977
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": -3.0,
+     "probabilityPoints": 9.835495522995535
+    },
+    {
+     "feature": "HP_diff",
+     "value": 29.0,
+     "probabilityPoints": 7.059995559995574
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 10.0,
+     "probabilityPoints": 5.803958772708784
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": -1.4668021202087402,
+     "probabilityPoints": 4.675456487956481
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": -65.0,
+     "probabilityPoints": 4.439066720316731
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": -0.8472978472709656,
+     "probabilityPoints": 3.264108637463914
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 0.5979543924331665,
+     "probabilityPoints": 2.606549700299704
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 5.0,
+     "probabilityPoints": 1.3884830447330465
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 10.0,
+     "probabilityPoints": -1.2386849261849298
+    }
+   ]
+  },
+  {
+   "first": 400,
+   "second": 81,
+   "firstName": "Sealeo",
+   "secondName": "Geodude",
+   "firstProbability": 0.974751984126984,
+   "typeEffectFirst": 4.0,
+   "typeEffectSecond": 2.0,
+   "abilityTypeEffectFirst": 4.0,
+   "abilityTypeEffectSecond": 2.0,
+   "directBattles": 1,
+   "directFirstWins": 1,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": 25.0,
+     "probabilityPoints": 46.79852092352091
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.8754687309265137,
+     "probabilityPoints": 4.561810874310868
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 40.0,
+     "probabilityPoints": 2.6561147186147216
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 45.0,
+     "probabilityPoints": 2.2208994708994845
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 1.9968196153640747,
+     "probabilityPoints": 1.6520111832611928
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -0.5327011346817017,
+     "probabilityPoints": 0.8376322751322607
+    },
+    {
+     "feature": "HP_diff",
+     "value": 50.0,
+     "probabilityPoints": 0.8093133718133694
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -20.0,
+     "probabilityPoints": -0.12760040885040347
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": 1.473202109336853,
+     "probabilityPoints": 0.07664442039441166
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 1.0,
+     "probabilityPoints": -0.0694444444444553
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -30.0,
+     "probabilityPoints": 0.050595238095241246
+    }
+   ]
+  },
+  {
+   "first": 697,
+   "second": 1,
+   "firstName": "Hydreigon",
+   "secondName": "Bulbasaur",
+   "firstProbability": 0.9850243506493507,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 1.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": 53.0,
+     "probabilityPoints": 49.440265752765754
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": 1.5615384578704834,
+     "probabilityPoints": 3.4959161209161205
+    },
+    {
+     "feature": "Attack_diff",
+     "value": 56.0,
+     "probabilityPoints": 3.4624218374218363
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": 1.1796536445617676,
+     "probabilityPoints": 2.012686387686391
+    },
+    {
+     "feature": "HP_diff",
+     "value": 47.0,
+     "probabilityPoints": 1.192415223665222
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": 0.8649974465370178,
+     "probabilityPoints": 0.8929022366522488
+    },
+    {
+     "feature": "Defense_diff",
+     "value": 41.0,
+     "probabilityPoints": -0.34308862433862775
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": 3.1298885345458984,
+     "probabilityPoints": -0.031460437710428835
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": 25.0,
+     "probabilityPoints": 0.01235569985570395
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": 60.0,
+     "probabilityPoints": 0.0062379749879770685
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    }
+   ]
+  },
+  {
+   "first": 1,
+   "second": 697,
+   "firstName": "Bulbasaur",
+   "secondName": "Hydreigon",
+   "firstProbability": 0.014975649350649378,
+   "typeEffectFirst": 1.0,
+   "typeEffectSecond": 1.0,
+   "abilityTypeEffectFirst": 1.0,
+   "abilityTypeEffectSecond": 1.0,
+   "directBattles": 0,
+   "directFirstWins": 0,
+   "directSecondWins": 0,
+   "evidence": [
+    {
+     "feature": "Speed_diff",
+     "value": -53.0,
+     "probabilityPoints": -49.44026575276575
+    },
+    {
+     "feature": "PhysicalPressure_diff",
+     "value": -1.5615384578704834,
+     "probabilityPoints": -3.4959161209161316
+    },
+    {
+     "feature": "Attack_diff",
+     "value": -56.0,
+     "probabilityPoints": -3.462421837421825
+    },
+    {
+     "feature": "SpecialPressure_diff",
+     "value": -1.1796536445617676,
+     "probabilityPoints": -2.0126863876863856
+    },
+    {
+     "feature": "HP_diff",
+     "value": -47.0,
+     "probabilityPoints": -1.1924152236652164
+    },
+    {
+     "feature": "LogHeight_diff",
+     "value": -0.8649974465370178,
+     "probabilityPoints": -0.8929022366522377
+    },
+    {
+     "feature": "Defense_diff",
+     "value": -41.0,
+     "probabilityPoints": 0.34308862433862775
+    },
+    {
+     "feature": "LogWeight_diff",
+     "value": -3.1298885345458984,
+     "probabilityPoints": 0.031460437710428835
+    },
+    {
+     "feature": "Sp_Def_diff",
+     "value": -25.0,
+     "probabilityPoints": -0.01235569985570395
+    },
+    {
+     "feature": "Sp_Atk_diff",
+     "value": -60.0,
+     "probabilityPoints": -0.0062379749879770685
+    },
+    {
+     "feature": "TypeAdvantage_diff",
+     "value": 0.0,
+     "probabilityPoints": 0.0
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1179 @@
+{
+ "Moves": [
+  {
+   "Id": "tackle",
+   "NameEn": "Tackle",
+   "NameKo": "몸통박치기",
+   "Category": 0,
+   "Power": 40,
+   "Accuracy": 100,
+   "PowerPoints": 35,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_tackle",
+   "AnimationKey": "Attack_Physical",
+   "IsProjectile": false,
+   "MakesContact": true,
+   "Type": 0
+  },
+  {
+   "Id": "quick-attack",
+   "NameEn": "Quick Attack",
+   "NameKo": "전광석화",
+   "Category": 0,
+   "Power": 40,
+   "Accuracy": 100,
+   "PowerPoints": 30,
+   "Priority": 1,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_quick_attack",
+   "AnimationKey": "Attack_Dash",
+   "IsProjectile": false,
+   "MakesContact": true,
+   "Type": 0
+  },
+  {
+   "Id": "hyper-fang",
+   "NameEn": "Hyper Fang",
+   "NameKo": "이빨아파",
+   "Category": 0,
+   "Power": 80,
+   "Accuracy": 90,
+   "PowerPoints": 15,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 2,
+   "EffectChance": 10,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_hyper_fang",
+   "AnimationKey": "Attack_Bite",
+   "IsProjectile": false,
+   "MakesContact": true,
+   "Type": 0
+  },
+  {
+   "Id": "growl",
+   "NameEn": "Growl",
+   "NameKo": "울음소리",
+   "Category": 2,
+   "Power": 0,
+   "Accuracy": 100,
+   "PowerPoints": 40,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [
+    {
+     "Stat": 1,
+     "Stages": -1
+    }
+   ],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_growl",
+   "AnimationKey": "Cast_Debuff",
+   "IsProjectile": false,
+   "MakesContact": false,
+   "Type": 0
+  },
+  {
+   "Id": "tail-whip",
+   "NameEn": "Tail Whip",
+   "NameKo": "꼬리흔들기",
+   "Category": 2,
+   "Power": 0,
+   "Accuracy": 100,
+   "PowerPoints": 30,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [
+    {
+     "Stat": 2,
+     "Stages": -1
+    }
+   ],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_tail_whip",
+   "AnimationKey": "Cast_Debuff",
+   "IsProjectile": false,
+   "MakesContact": false,
+   "Type": 0
+  },
+  {
+   "Id": "vine-whip",
+   "NameEn": "Vine Whip",
+   "NameKo": "덩굴채찍",
+   "Category": 0,
+   "Power": 45,
+   "Accuracy": 100,
+   "PowerPoints": 25,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_vine_whip",
+   "AnimationKey": "Attack_Physical",
+   "IsProjectile": false,
+   "MakesContact": true,
+   "Type": 4
+  },
+  {
+   "Id": "razor-leaf",
+   "NameEn": "Razor Leaf",
+   "NameKo": "잎날가르기",
+   "Category": 0,
+   "Power": 55,
+   "Accuracy": 95,
+   "PowerPoints": 25,
+   "Priority": 0,
+   "CritStageBonus": 1,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_razor_leaf",
+   "AnimationKey": "Attack_Physical",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 4
+  },
+  {
+   "Id": "absorb",
+   "NameEn": "Absorb",
+   "NameKo": "흡수",
+   "Category": 1,
+   "Power": 20,
+   "Accuracy": 100,
+   "PowerPoints": 25,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.5,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_absorb",
+   "AnimationKey": "Attack_Special",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 4
+  },
+  {
+   "Id": "sleep-powder",
+   "NameEn": "Sleep Powder",
+   "NameKo": "수면가루",
+   "Category": 2,
+   "Power": 0,
+   "Accuracy": 75,
+   "PowerPoints": 15,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 6,
+   "InflictsVolatile": 0,
+   "EffectChance": 100,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_sleep_powder",
+   "AnimationKey": "Cast_Powder",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 4
+  },
+  {
+   "Id": "stun-spore",
+   "NameEn": "Stun Spore",
+   "NameKo": "저리가루",
+   "Category": 2,
+   "Power": 0,
+   "Accuracy": 75,
+   "PowerPoints": 30,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 3,
+   "InflictsVolatile": 0,
+   "EffectChance": 100,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_stun_spore",
+   "AnimationKey": "Cast_Powder",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 4
+  },
+  {
+   "Id": "poison-powder",
+   "NameEn": "Poison Powder",
+   "NameKo": "독가루",
+   "Category": 2,
+   "Power": 0,
+   "Accuracy": 75,
+   "PowerPoints": 35,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 4,
+   "InflictsVolatile": 0,
+   "EffectChance": 100,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_poison_powder",
+   "AnimationKey": "Cast_Powder",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 7
+  },
+  {
+   "Id": "poison-sting",
+   "NameEn": "Poison Sting",
+   "NameKo": "독침",
+   "Category": 0,
+   "Power": 15,
+   "Accuracy": 100,
+   "PowerPoints": 35,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 4,
+   "InflictsVolatile": 0,
+   "EffectChance": 30,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_poison_sting",
+   "AnimationKey": "Attack_Physical",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 7
+  },
+  {
+   "Id": "sludge",
+   "NameEn": "Sludge",
+   "NameKo": "오물",
+   "Category": 1,
+   "Power": 65,
+   "Accuracy": 100,
+   "PowerPoints": 20,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 4,
+   "InflictsVolatile": 0,
+   "EffectChance": 30,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_sludge",
+   "AnimationKey": "Attack_Special",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 7
+  },
+  {
+   "Id": "ember",
+   "NameEn": "Ember",
+   "NameKo": "불꽃세례",
+   "Category": 1,
+   "Power": 40,
+   "Accuracy": 100,
+   "PowerPoints": 25,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 1,
+   "InflictsVolatile": 0,
+   "EffectChance": 10,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_ember",
+   "AnimationKey": "Attack_Special",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 1
+  },
+  {
+   "Id": "flamethrower",
+   "NameEn": "Flamethrower",
+   "NameKo": "화염방사",
+   "Category": 1,
+   "Power": 90,
+   "Accuracy": 100,
+   "PowerPoints": 15,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 1,
+   "InflictsVolatile": 0,
+   "EffectChance": 10,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_flamethrower",
+   "AnimationKey": "Attack_Beam",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 1
+  },
+  {
+   "Id": "water-gun",
+   "NameEn": "Water Gun",
+   "NameKo": "물대포",
+   "Category": 1,
+   "Power": 40,
+   "Accuracy": 100,
+   "PowerPoints": 25,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_water_gun",
+   "AnimationKey": "Attack_Special",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 2
+  },
+  {
+   "Id": "bubble-beam",
+   "NameEn": "Bubble Beam",
+   "NameKo": "거품광선",
+   "Category": 1,
+   "Power": 65,
+   "Accuracy": 100,
+   "PowerPoints": 20,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 10,
+   "StatChanges": [
+    {
+     "Stat": 5,
+     "Stages": -1
+    }
+   ],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_bubble_beam",
+   "AnimationKey": "Attack_Beam",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 2
+  },
+  {
+   "Id": "withdraw",
+   "NameEn": "Withdraw",
+   "NameKo": "껍질에숨기",
+   "Category": 2,
+   "Power": 0,
+   "Accuracy": 100,
+   "PowerPoints": 40,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [
+    {
+     "Stat": 2,
+     "Stages": 1
+    }
+   ],
+   "TargetsSelf": true,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_withdraw",
+   "AnimationKey": "Cast_Buff",
+   "IsProjectile": false,
+   "MakesContact": false,
+   "Type": 2
+  },
+  {
+   "Id": "thunder-shock",
+   "NameEn": "Thunder Shock",
+   "NameKo": "전기충격",
+   "Category": 1,
+   "Power": 40,
+   "Accuracy": 100,
+   "PowerPoints": 30,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 3,
+   "InflictsVolatile": 0,
+   "EffectChance": 10,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_thunder_shock",
+   "AnimationKey": "Attack_Special",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 3
+  },
+  {
+   "Id": "thunderbolt",
+   "NameEn": "Thunderbolt",
+   "NameKo": "10만볼트",
+   "Category": 1,
+   "Power": 90,
+   "Accuracy": 100,
+   "PowerPoints": 15,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 3,
+   "InflictsVolatile": 0,
+   "EffectChance": 10,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_thunderbolt",
+   "AnimationKey": "Attack_Beam",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 3
+  },
+  {
+   "Id": "thunder-wave",
+   "NameEn": "Thunder Wave",
+   "NameKo": "전기자석파",
+   "Category": 2,
+   "Power": 0,
+   "Accuracy": 90,
+   "PowerPoints": 20,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 3,
+   "InflictsVolatile": 0,
+   "EffectChance": 100,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_thunder_wave",
+   "AnimationKey": "Cast_Debuff",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 3
+  },
+  {
+   "Id": "gust",
+   "NameEn": "Gust",
+   "NameKo": "바람일으키기",
+   "Category": 1,
+   "Power": 40,
+   "Accuracy": 100,
+   "PowerPoints": 35,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_gust",
+   "AnimationKey": "Attack_Special",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 9
+  },
+  {
+   "Id": "wing-attack",
+   "NameEn": "Wing Attack",
+   "NameKo": "날개치기",
+   "Category": 0,
+   "Power": 60,
+   "Accuracy": 100,
+   "PowerPoints": 35,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_wing_attack",
+   "AnimationKey": "Attack_Dash",
+   "IsProjectile": false,
+   "MakesContact": true,
+   "Type": 9
+  },
+  {
+   "Id": "karate-chop",
+   "NameEn": "Karate Chop",
+   "NameKo": "태권당수",
+   "Category": 0,
+   "Power": 50,
+   "Accuracy": 100,
+   "PowerPoints": 25,
+   "Priority": 0,
+   "CritStageBonus": 1,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_karate_chop",
+   "AnimationKey": "Attack_Physical",
+   "IsProjectile": false,
+   "MakesContact": true,
+   "Type": 6
+  },
+  {
+   "Id": "seismic-toss",
+   "NameEn": "Seismic Toss",
+   "NameKo": "지구던지기",
+   "Category": 0,
+   "Power": 60,
+   "Accuracy": 100,
+   "PowerPoints": 20,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_seismic_toss",
+   "AnimationKey": "Attack_Grapple",
+   "IsProjectile": false,
+   "MakesContact": true,
+   "Type": 6
+  },
+  {
+   "Id": "rock-throw",
+   "NameEn": "Rock Throw",
+   "NameKo": "돌떨어뜨리기",
+   "Category": 0,
+   "Power": 50,
+   "Accuracy": 90,
+   "PowerPoints": 15,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_rock_throw",
+   "AnimationKey": "Attack_Physical",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 12
+  },
+  {
+   "Id": "rock-blast",
+   "NameEn": "Rock Blast",
+   "NameKo": "락블레스트",
+   "Category": 0,
+   "Power": 25,
+   "Accuracy": 90,
+   "PowerPoints": 10,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 0,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 2,
+   "MaxHits": 5,
+   "VfxKey": "vfx_rock_blast",
+   "AnimationKey": "Attack_Physical",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 12
+  },
+  {
+   "Id": "mud-slap",
+   "NameEn": "Mud-Slap",
+   "NameKo": "진흙뿌리기",
+   "Category": 1,
+   "Power": 20,
+   "Accuracy": 100,
+   "PowerPoints": 10,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 0,
+   "EffectChance": 100,
+   "StatChanges": [
+    {
+     "Stat": 6,
+     "Stages": -1
+    }
+   ],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_mud_slap",
+   "AnimationKey": "Attack_Special",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 8
+  },
+  {
+   "Id": "lick",
+   "NameEn": "Lick",
+   "NameKo": "핥기",
+   "Category": 0,
+   "Power": 30,
+   "Accuracy": 100,
+   "PowerPoints": 30,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 3,
+   "InflictsVolatile": 0,
+   "EffectChance": 30,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_lick",
+   "AnimationKey": "Attack_Physical",
+   "IsProjectile": false,
+   "MakesContact": true,
+   "Type": 13
+  },
+  {
+   "Id": "confuse-ray",
+   "NameEn": "Confuse Ray",
+   "NameKo": "이상한빛",
+   "Category": 2,
+   "Power": 0,
+   "Accuracy": 100,
+   "PowerPoints": 10,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 1,
+   "EffectChance": 100,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_confuse_ray",
+   "AnimationKey": "Cast_Debuff",
+   "IsProjectile": true,
+   "MakesContact": false,
+   "Type": 13
+  },
+  {
+   "Id": "hypnosis",
+   "NameEn": "Hypnosis",
+   "NameKo": "최면술",
+   "Category": 2,
+   "Power": 0,
+   "Accuracy": 60,
+   "PowerPoints": 20,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 6,
+   "InflictsVolatile": 0,
+   "EffectChance": 100,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_hypnosis",
+   "AnimationKey": "Cast_Debuff",
+   "IsProjectile": false,
+   "MakesContact": false,
+   "Type": 10
+  },
+  {
+   "Id": "bite",
+   "NameEn": "Bite",
+   "NameKo": "물기",
+   "Category": 0,
+   "Power": 60,
+   "Accuracy": 100,
+   "PowerPoints": 25,
+   "Priority": 0,
+   "CritStageBonus": 0,
+   "InflictsStatus": 0,
+   "InflictsVolatile": 2,
+   "EffectChance": 30,
+   "StatChanges": [],
+   "TargetsSelf": false,
+   "DrainRatio": 0.0,
+   "RecoilRatio": 0.0,
+   "HealRatio": 0.0,
+   "MinHits": 0,
+   "MaxHits": 0,
+   "VfxKey": "vfx_bite",
+   "AnimationKey": "Attack_Bite",
+   "IsProjectile": false,
+   "MakesContact": true,
+   "Type": 15
+  }
+ ],
+ "Learnsets": [
+  {
+   "SpeciesId": 1,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "tackle"
+    },
+    {
+     "Level": 1,
+     "MoveId": "growl"
+    },
+    {
+     "Level": 3,
+     "MoveId": "vine-whip"
+    },
+    {
+     "Level": 7,
+     "MoveId": "absorb"
+    },
+    {
+     "Level": 13,
+     "MoveId": "poison-powder"
+    },
+    {
+     "Level": 15,
+     "MoveId": "sleep-powder"
+    },
+    {
+     "Level": 20,
+     "MoveId": "razor-leaf"
+    }
+   ]
+  },
+  {
+   "SpeciesId": 5,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "tackle"
+    },
+    {
+     "Level": 1,
+     "MoveId": "growl"
+    },
+    {
+     "Level": 4,
+     "MoveId": "ember"
+    },
+    {
+     "Level": 17,
+     "MoveId": "quick-attack"
+    },
+    {
+     "Level": 28,
+     "MoveId": "flamethrower"
+    }
+   ]
+  },
+  {
+   "SpeciesId": 10,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "tackle"
+    },
+    {
+     "Level": 1,
+     "MoveId": "tail-whip"
+    },
+    {
+     "Level": 4,
+     "MoveId": "water-gun"
+    },
+    {
+     "Level": 8,
+     "MoveId": "withdraw"
+    },
+    {
+     "Level": 13,
+     "MoveId": "bubble-beam"
+    },
+    {
+     "Level": 20,
+     "MoveId": "bite"
+    }
+   ]
+  },
+  {
+   "SpeciesId": 21,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "tackle"
+    },
+    {
+     "Level": 5,
+     "MoveId": "growl"
+    },
+    {
+     "Level": 9,
+     "MoveId": "gust"
+    },
+    {
+     "Level": 13,
+     "MoveId": "quick-attack"
+    },
+    {
+     "Level": 25,
+     "MoveId": "wing-attack"
+    }
+   ]
+  },
+  {
+   "SpeciesId": 25,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "tackle"
+    },
+    {
+     "Level": 1,
+     "MoveId": "tail-whip"
+    },
+    {
+     "Level": 4,
+     "MoveId": "quick-attack"
+    },
+    {
+     "Level": 7,
+     "MoveId": "bite"
+    },
+    {
+     "Level": 13,
+     "MoveId": "hyper-fang"
+    }
+   ]
+  },
+  {
+   "SpeciesId": 31,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "thunder-shock"
+    },
+    {
+     "Level": 1,
+     "MoveId": "growl"
+    },
+    {
+     "Level": 5,
+     "MoveId": "tail-whip"
+    },
+    {
+     "Level": 10,
+     "MoveId": "quick-attack"
+    },
+    {
+     "Level": 18,
+     "MoveId": "thunder-wave"
+    },
+    {
+     "Level": 26,
+     "MoveId": "thunderbolt"
+    }
+   ]
+  },
+  {
+   "SpeciesId": 47,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "tackle"
+    },
+    {
+     "Level": 9,
+     "MoveId": "gust"
+    },
+    {
+     "Level": 13,
+     "MoveId": "bite"
+    },
+    {
+     "Level": 17,
+     "MoveId": "wing-attack"
+    },
+    {
+     "Level": 21,
+     "MoveId": "confuse-ray"
+    },
+    {
+     "Level": 25,
+     "MoveId": "poison-sting"
+    }
+   ]
+  },
+  {
+   "SpeciesId": 49,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "absorb"
+    },
+    {
+     "Level": 5,
+     "MoveId": "sleep-powder"
+    },
+    {
+     "Level": 9,
+     "MoveId": "stun-spore"
+    },
+    {
+     "Level": 13,
+     "MoveId": "poison-powder"
+    },
+    {
+     "Level": 15,
+     "MoveId": "razor-leaf"
+    },
+    {
+     "Level": 21,
+     "MoveId": "vine-whip"
+    }
+   ]
+  },
+  {
+   "SpeciesId": 66,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "tackle"
+    },
+    {
+     "Level": 1,
+     "MoveId": "water-gun"
+    },
+    {
+     "Level": 5,
+     "MoveId": "hypnosis"
+    },
+    {
+     "Level": 13,
+     "MoveId": "bubble-beam"
+    },
+    {
+     "Level": 16,
+     "MoveId": "withdraw"
+    }
+   ]
+  },
+  {
+   "SpeciesId": 73,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "tackle"
+    },
+    {
+     "Level": 1,
+     "MoveId": "growl"
+    },
+    {
+     "Level": 7,
+     "MoveId": "karate-chop"
+    },
+    {
+     "Level": 13,
+     "MoveId": "seismic-toss"
+    },
+    {
+     "Level": 19,
+     "MoveId": "rock-throw"
+    }
+   ]
+  },
+  {
+   "SpeciesId": 81,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "tackle"
+    },
+    {
+     "Level": 4,
+     "MoveId": "mud-slap"
+    },
+    {
+     "Level": 8,
+     "MoveId": "rock-throw"
+    },
+    {
+     "Level": 16,
+     "MoveId": "rock-blast"
+    }
+   ]
+  },
+  {
+   "SpeciesId": 100,
+   "Entries": [
+    {
+     "Level": 1,
+     "MoveId": "lick"
+    },
+    {
+     "Level": 1,
+     "MoveId": "hypnosis"
+    },
+    {
+     "Level": 19,
+     "MoveId": "confuse-ray"
+    },
+    {
+     "Level": 25,
+     "MoveId": "sludge"
+    }
+   ]
+  }
+ ]
+}
