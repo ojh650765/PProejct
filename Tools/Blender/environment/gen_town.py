@@ -529,6 +529,209 @@ def poke_lab(bm, rng):
     TL.door_furniture(bm, o_door, DOOR, TRIM, PAVING, th)
 
 
+
+# --------------------------------------------------------------------------
+# More street kit.  Cheapest density per triangle a town has: a market square
+# with one stall reads as a set dressing, with two it reads as a market, and a
+# fence run that ends in mid air reads as neither.
+#
+# Everything here is built from closed solids and overlaps whatever it sits on,
+# for the same reasons the buildings are -- see townlib's header.
+# --------------------------------------------------------------------------
+
+def market_stall_b(bm, rng):
+    """A second stall: a lean-to against a wall rather than a free-standing
+    canopy, so two of them in a square do not read as a repeat."""
+    w, d, h = 2.0, 1.15, 2.15
+    for sx in (-1, 1):
+        TL.solid_box(bm, (sx * (w * 0.5 - 0.06), -d * 0.5 + 0.06, h * 0.5),
+                     (0.10, 0.10, h), BEAM)
+        TL.solid_box(bm, (sx * (w * 0.5 - 0.06), d * 0.5 - 0.06, 1.30),
+                     (0.09, 0.09, 2.60), BEAM)
+    # sloped canopy with real thickness
+    TL.solid_from_quad(bm, [
+        (-w * 0.5 - 0.18, -d * 0.5 - 0.10, h),
+        (w * 0.5 + 0.18, -d * 0.5 - 0.10, h),
+        (w * 0.5 + 0.18, d * 0.5 + 0.12, 2.62),
+        (-w * 0.5 - 0.18, d * 0.5 + 0.12, 2.62)], 0.07, AWNING, up=(0, 0, 1))
+    # counter: a solid, with a lip, at a believable 0.95 m
+    TL.solid_box(bm, (0, -0.06, 0.86), (w - 0.10, d - 0.22, 0.10), BEAM)
+    TL.solid_box(bm, (0, -d * 0.5 + 0.10, 0.44), (w - 0.30, 0.07, 0.86), BEAM)
+    TL.solid_box(bm, (0, -0.06, 0.94), (w + 0.06, d - 0.10, 0.07), TRIM)
+    # crates of produce, so the counter is not bare
+    for i in range(3):
+        x = -0.62 + i * 0.62
+        TL.solid_box(bm, (x, 0.02, 1.07), (0.42, 0.36, 0.20), BEAM)
+        TL.solid_box(bm, (x, 0.02, 1.20), (0.34, 0.28, 0.10), AWNING)
+    # a hanging sign on the front rail
+    TL.solid_box(bm, (0, -d * 0.5 - 0.12, 1.86), (1.10, 0.05, 0.34), AWNING)
+    TL.solid_box(bm, (0, -d * 0.5 - 0.16, 1.86), (0.94, 0.03, 0.22), TRIM)
+
+
+def wall_lamp(bm, rng):
+    """A lamp that mounts on a wall instead of standing in the street.
+
+    Pivot at the wall face, arm along -Y, so it hangs off a facade with no
+    ground footprint -- which is the point: a town square with six lamp posts
+    in it looks like a car park.
+    """
+    TL.solid_box(bm, (0, 0.05, 0.0), (0.22, 0.10, 0.42), LAMP)
+    TL.solid_box(bm, (0, -0.20, 0.10), (0.07, 0.52, 0.07), LAMP)
+    # diagonal brace, so the arm is carried rather than cantilevered by magic
+    TL.solid_from_quad(bm, [
+        (-0.025, 0.02, -0.16), (0.025, 0.02, -0.16),
+        (0.025, -0.34, 0.07), (-0.025, -0.34, 0.07)], 0.04, LAMP, up=(1, 0, 0))
+    TL.solid_box(bm, (0, -0.42, 0.02), (0.11, 0.11, 0.10), LAMP)
+    # lantern: glazed box with a cap and a finial
+    TL.solid_box(bm, (0, -0.42, -0.20), (0.24, 0.24, 0.34), GLASS)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            TL.solid_box(bm, (sx * 0.115, -0.42 + sy * 0.115, -0.20),
+                         (0.035, 0.035, 0.36), LAMP)
+    TL.solid_box(bm, (0, -0.42, -0.01), (0.32, 0.32, 0.06), LAMP)
+    TL.solid_box(bm, (0, -0.42, -0.40), (0.20, 0.20, 0.06), LAMP)
+    TL.solid_box(bm, (0, -0.42, -0.47), (0.07, 0.07, 0.09), LAMP)
+
+
+def notice_board(bm, rng):
+    """Town notice board: two posts, a glazed case with a pitched cap."""
+    for sx in (-1, 1):
+        TL.solid_box(bm, (sx * 0.62, 0.0, 0.72), (0.11, 0.11, 1.44), BEAM)
+        TL.solid_box(bm, (sx * 0.62, 0.0, 0.06), (0.20, 0.20, 0.12), STONE_WALL)
+    TL.solid_box(bm, (0, 0.0, 1.26), (1.46, 0.13, 0.86), BEAM)
+    TL.solid_box(bm, (0, -0.075, 1.26), (1.26, 0.03, 0.68), GLASS)
+    TL.solid_box(bm, (0, -0.10, 1.26), (1.18, 0.02, 0.60), TRIM)
+    # pitched cap with thickness, so the top is not a card
+    for sy in (-1, 1):
+        TL.solid_from_quad(bm, [
+            (-0.84, 0.0, 1.86), (0.84, 0.0, 1.86),
+            (0.84, sy * 0.30, 1.74), (-0.84, sy * 0.30, 1.74)],
+            0.05, ROOF_RED, up=(0, 0, 1))
+    TL.solid_box(bm, (0, 0.0, 1.90), (1.74, 0.10, 0.07), TRIM)
+    # a few pinned notices, at angles, because a tidy board looks unused
+    for (dx, dz, a) in ((-0.34, 0.10, 0.05), (0.10, -0.04, -0.07),
+                        (0.42, 0.14, 0.03)):
+        TL.solid_box(bm, (dx, -0.115, 1.26 + dz), (0.26, 0.01, 0.32), TRIM,
+                     rot_z=a)
+
+
+def cart(bm, rng):
+    """A two-wheeled handcart, parked. Bed, sides, shafts, spoked wheels."""
+    bed_z = 0.62
+    TL.solid_box(bm, (0, 0, bed_z), (1.70, 0.96, 0.10), BEAM)
+    for sy in (-1, 1):
+        TL.solid_box(bm, (0, sy * 0.47, bed_z + 0.22), (1.70, 0.07, 0.36), BEAM)
+    TL.solid_box(bm, (-0.86, 0, bed_z + 0.22), (0.07, 0.96, 0.36), BEAM)
+    # shafts, angled down to the ground so the cart is parked, not floating
+    for sy in (-1, 1):
+        TL.solid_from_quad(bm, [
+            (0.82, sy * 0.34 - 0.035, bed_z + 0.02),
+            (0.82, sy * 0.34 + 0.035, bed_z + 0.02),
+            (1.86, sy * 0.34 + 0.035, 0.20),
+            (1.86, sy * 0.34 - 0.035, 0.20)], 0.06, BEAM, up=(0, 0, 1))
+    TL.solid_box(bm, (1.86, 0, 0.19), (0.10, 0.76, 0.08), BEAM)
+    # wheels in their own plane -- see townlib.cart_wheel for why this is not
+    # a ring of solid_box calls
+    for sy in (-1, 1):
+        TL.cart_wheel(bm, (0.0, sy * 0.55, 0.42), 0.42, 0.33, 0.10,
+                      BEAM, LAMP, seg=12, spokes=5)
+    # cargo
+    TL.solid_box(bm, (-0.30, 0, bed_z + 0.28), (0.52, 0.52, 0.46), AWNING)
+    TL.solid_box(bm, (0.36, 0, bed_z + 0.20), (0.46, 0.62, 0.30), BEAM)
+
+
+def trough(bm, rng):
+    """A stone water trough: a hollow, not a box with a blue lid.
+
+    Built as four closed walls and a floor with the water surface set down
+    inside them, so the water reads as being IN something.
+    """
+    w, d, h, t = 1.60, 0.72, 0.56, 0.11
+    TL.solid_box(bm, (0, 0, t * 0.5), (w, d, t), STONE_WALL)
+    for sx in (-1, 1):
+        TL.solid_box(bm, (sx * (w * 0.5 - t * 0.5), 0, h * 0.5),
+                     (t, d, h), STONE_WALL)
+    for sy in (-1, 1):
+        TL.solid_box(bm, (0, sy * (d * 0.5 - t * 0.5), h * 0.5),
+                     (w - t * 2, t, h), STONE_WALL)
+    # water, 6 cm below the rim, inset so it never touches the stone faces
+    TL.solid_box(bm, (0, 0, (h - 0.06) * 0.5 + t * 0.4),
+                 (w - t * 2 - 0.01, d - t * 2 - 0.01, h - 0.06 - t * 0.4),
+                 GLASS)
+    # a coping course and a mossy foot, so it is not a plain rectangle
+    TL.solid_box(bm, (0, 0, h - 0.02), (w + 0.09, d + 0.09, 0.07), STONE_WALL)
+    for sx in (-1, 1):
+        TL.solid_box(bm, (sx * (w * 0.5 - 0.18), 0, 0.05),
+                     (0.30, d + 0.10, 0.10), STONE_WALL)
+
+
+def gate(bm, rng):
+    """A gate for the fence run. Two posts, a hung leaf, a latch.
+
+    The layout runs 29 fence sections and has nowhere to walk through them.
+    """
+    ph, pw = 1.42, 0.15
+    for sx in (-1, 1):
+        TL.solid_box(bm, (sx * 0.95, 0, ph * 0.5), (pw, pw, ph), FENCE)
+        TL.solid_box(bm, (sx * 0.95, 0, ph + 0.05), (pw + 0.09, pw + 0.09, 0.10),
+                     FENCE)
+        TL.solid_box(bm, (sx * 0.95, 0, ph + 0.14), (0.09, 0.09, 0.10), FENCE)
+    # leaf, swung a few degrees open so it reads as a gate and not a panel
+    ang = math.radians(9.0)
+    ca, sa = math.cos(ang), math.sin(ang)
+
+    def leaf_box(lx, lz, sx_, sz_, mat):
+        x = -0.86 + lx * ca
+        y = lx * sa
+        TL.solid_box(bm, (x, y, lz), (sx_, 0.055, sz_), mat, rot_z=ang)
+
+    for i in range(6):
+        leaf_box(0.13 + i * 0.29, 0.62, 0.075, 1.10, FENCE)
+    for z in (0.22, 0.98):
+        leaf_box(0.86, z, 1.72, 0.09, FENCE)
+    # diagonal brace: a gate without one sags, and everyone knows it
+    TL.solid_from_quad(bm, [
+        (-0.82, 0.0, 0.16), (-0.74, 0.02, 0.16),
+        (0.78, 0.26, 1.04), (0.70, 0.24, 1.04)], 0.05, FENCE, up=(0, 1, 0))
+    TL.solid_box(bm, (0.86, 0.14, 1.02), (0.20, 0.05, 0.05), LAMP, rot_z=ang)
+
+
+def stone_wall_module(bm, rng, length=2.0):
+    """A 2 m dry-stone wall module with a coping course.
+
+    Built as a solid with the courses stepped in and out rather than a slab
+    with a texture: at a 6-12 m camera the read comes from the shadow line
+    between courses.
+    """
+    h, base_t, top_t = 0.92, 0.44, 0.30
+    courses = 4
+    rng2 = random.Random(11)
+    for c in range(courses):
+        z0 = c * (h / courses)
+        z1 = z0 + (h / courses)
+        t = base_t + (top_t - base_t) * (c / float(courses - 1))
+        # break each course into stones so the wall is not four extrusions
+        stones = max(2, int(round(length / (0.52 + rng2.random() * 0.22))))
+        x = -length * 0.5
+        for i in range(stones):
+            sw = length / stones * rng2.uniform(0.86, 1.14)
+            sw = min(sw, length * 0.5 + length * 0.5 - x)
+            if sw < 0.08:
+                break
+            jitter = rng2.uniform(-0.018, 0.018)
+            TL.solid_box(bm, (x + sw * 0.5, jitter, (z0 + z1) * 0.5),
+                         (sw * 0.99, t + rng2.uniform(-0.03, 0.03),
+                          (z1 - z0) * 1.02), STONE_WALL)
+            x += sw
+    # coping: stones on edge along the top, the signature of a dry-stone wall
+    n = max(3, int(round(length / 0.28)))
+    for i in range(n):
+        x = -length * 0.5 + (i + 0.5) * (length / n)
+        TL.solid_box(bm, (x, rng2.uniform(-0.02, 0.02), h + 0.09),
+                     (length / n * 0.92, top_t + 0.06, 0.20), STONE_WALL,
+                     rot_z=rng2.uniform(-0.06, 0.06))
+
+
 # --------------------------------------------------------------------------
 # street kit
 # --------------------------------------------------------------------------
@@ -830,6 +1033,17 @@ ASSETS = [
      lambda bm, rng: path_tile(bm, rng, 1.0, 1.0)),
     ("Env_Path_Paved_Corner", 4273, (150, 2000),
      lambda bm, rng: path_tile(bm, rng, 2.0, 1.0)),
+    # second pass: the pieces a town square actually needs
+    ("Env_Market_Stall_B", 4242, (300, 3000), market_stall_b),
+    ("Env_Lamp_Wall", 4213, (150, 2000), wall_lamp),
+    ("Env_Notice_Board", 4214, (200, 2000), notice_board),
+    ("Env_Cart", 4281, (300, 2500), cart),
+    ("Env_Trough", 4282, (150, 2000), trough),
+    ("Env_Fence_Gate", 4203, (200, 2000), gate),
+    ("Env_Wall_Stone_2m", 4291, (300, 2500),
+     lambda bm, rng: stone_wall_module(bm, rng, 2.0)),
+    ("Env_Wall_Stone_1m", 4292, (150, 2000),
+     lambda bm, rng: stone_wall_module(bm, rng, 1.0)),
 ]
 
 BUILDINGS = {"Env_House_Cottage_A", "Env_House_Townhouse_B",

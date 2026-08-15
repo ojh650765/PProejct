@@ -43,7 +43,7 @@ BUDGETS = {
     # placed, and a route deck covering 68 x 38 m cannot be held to a prop's
     # 2,000 tris without either a staircase boundary or a height field the
     # layout's 4,682 placements no longer sit on.
-    "ground": [60, 26000],
+    "ground": [30, 26000],
     # Scatter foliage drawn with GPU instancing: one mesh, one material, no
     # LODs, and a tight ceiling because the triangles multiply by the instance
     # count directly.
@@ -147,8 +147,12 @@ def main():
     doc = {
         "schema": "pokelab.environment.manifest/1",
         "generatedBy": "Tools/Blender/environment (Blender 4.0.1, headless)",
-        "units": "1 Blender unit = 1 metre; models face +Z with Y up after "
-                 "the FBX axis conversion (-Y forward, Z up on export)",
+        "units": "1 metre. The FBX declares UnitScaleFactor 100 and carries "
+                 "real metres, Y up, with the axis conversion baked into the "
+                 "vertex data (export: axis_forward='-Z', axis_up='Y', "
+                 "apply_scale_options='FBX_SCALE_UNITS', "
+                 "bake_space_transform on anything without an armature). "
+                 "Models face +Z with Y up in Unity, on stock import settings.",
         "modularGrid": 0.5,
         "triangleBudgets": BUDGETS,
         "budgetExemptions": EXEMPT,

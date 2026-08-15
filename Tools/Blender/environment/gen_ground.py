@@ -1131,6 +1131,74 @@ def plunge_ring(bm, centre, radius, mat=0, rings=3, seg=20, rise=0.16):
     return faces
 
 
+
+# --------------------------------------------------------------------------
+# Modular pieces.  The world-placed ledges and waterfall above are one-offs for
+# the shipped layout; these are the kit versions -- pivot at the snapping
+# corner, lengths on the 0.5 m grid, ready to be run along any edge.
+# --------------------------------------------------------------------------
+
+def module_ledge(bm, length, drop=1.0, cap_depth=1.15, mat=0, seed=0):
+    """A one-way hop-down module, built along +X from the origin corner.
+
+    The hop-down is core Pokemon vocabulary and the layout currently fakes one
+    by burying two metres of a three-metre cliff, which gives the player a 3 m
+    visual drop for a 1 m gameplay drop.  A 1 m module with a grass cap says
+    what it does.
+    """
+    return ledge_solid(bm, (0.0, drop, 0.0), (length, drop, 0.0), drop,
+                       cap_depth, mat, seed=seed)
+
+
+def module_ledge_corner(bm, arm=1.5, drop=1.0, cap_depth=1.15, mat=0, seed=0):
+    """An outside corner, so a ledge run can turn without leaving a gap."""
+    ledge_solid(bm, (0.0, drop, 0.0), (arm, drop, 0.0), drop, cap_depth, mat,
+                seed=seed)
+    return ledge_solid(bm, (arm, drop, 0.0), (arm, drop, arm), drop, cap_depth,
+                       mat, seed=seed + 1)
+
+
+def module_fall_sheet(bm, width=2.0, height=4.0, mat=0, cols=7, rows=14,
+                      seed=5):
+    """A tileable falling sheet, built in the XZ plane at y=0.
+
+    Tileable both ways: the left and right edge profiles are the same function
+    of u so two sheets butt without a seam, and the top and bottom edges are
+    straight so they stack.  The interior is rippled, which is what stops a
+    2 x 4 m sheet of water reading as a rectangle of glass.
+    """
+    def edge(u):
+        return (0.055 * math.sin(2.0 * math.pi * u) +
+                0.022 * math.sin(6.0 * math.pi * u + 1.3))
+
+    grid = []
+    for i in range(rows + 1):
+        t = i / rows
+        row = []
+        for j in range(cols + 1):
+            u = j / cols
+            x = -width * 0.5 + width * u
+            z = height * (1.0 - t)
+            y = (edge(u) * (1.0 - 0.45 * t) +
+                 0.035 * math.sin(u * 11.0 + t * 9.0) * (0.4 + t))
+            row.append(bm.verts.new((x, y, z)))
+        grid.append(row)
+    faces = []
+    for i in range(rows):
+        for j in range(cols):
+            f = bm.faces.new((grid[i][j], grid[i][j + 1],
+                              grid[i + 1][j + 1], grid[i + 1][j]))
+            f.material_index = mat
+            f.smooth = True
+            faces.append(f)
+    return faces
+
+
+def module_plunge(bm, radius=1.9, mat=0, rings=4, seg=22):
+    """The foam ring where a fall lands.  Pivot at the centre, sits at y=0."""
+    return plunge_ring(bm, (0.0, 0.0, 0.0), radius, mat, rings, seg, rise=0.14)
+
+
 # --------------------------------------------------------------------------
 # height verification -- the handover risk the layout worker flagged
 # --------------------------------------------------------------------------
@@ -1411,7 +1479,7 @@ def verify_heights(decks, report_path, tol=0.05, grid_samples=3000):
 
 GROUND_BUDGET = (100, 26000)
 WATER_BUDGET = (100, 12000)
-PIECE_BUDGET = (60, 6000)
+PIECE_BUDGET = (30, 6000)
 
 
 def main():
@@ -1624,6 +1692,98 @@ def main():
     emit(obj, tris, probs, "Waterfall", "world origin (0,0,0)",
          "Foam ring at the plunge pool, sitting 3 cm proud of the lake "
          "surface. World space, matched to Waterfall_Main's bottom point.",
+         "PokeLab/Water (foam) or a VFX sheet")
+    made.append(obj)
+
+    # ---- modular kit pieces ---------------------------------------------
+    def ledge_weights(x, z, y, nz):
+        return (1.6 if nz > 0.6 else 0.02, 0.22, 0.03,
+                0.1 + 1.6 * (1.0 - clamp((nz - 0.5) / 0.4)))
+
+    for (name, length, seed, note) in (
+        ("Env_Ledge_2m", 2.0, 61,
+         "2 m one-way hop-down, 1.0 m drop, grass cap overhanging the face."),
+        ("Env_Ledge_4m", 4.0, 62,
+         "4 m one-way hop-down, 1.0 m drop. Same end profile as Env_Ledge_2m, "
+         "so a run of them is seamless."),
+    ):
+        bm = E.bm_new()
+        module_ledge(bm, length, 1.0, 1.15, 0, seed=seed)
+        bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+        obj = E.bm_to_obj(bm, name, [mat_ground])
+        E.finalize(obj, smooth_angle=24.0)
+        E.pivot_to_base(obj, xy='corner')
+        E.apply_transforms(obj)
+        E.uv_box_walls(obj)
+        paint_weights(obj, ledge_weights)
+        tris, probs = E.validate(obj, budget=PIECE_BUDGET, need_vcol=True,
+                                 strict=False, closed=True)
+        emit(obj, tris, probs, "Ledge",
+             "module corner at origin, snaps on 0.5 m grid, runs along +X",
+             note + " The layout fakes its hop-downs by burying 2 m of a 3 m "
+             "cliff, which gives a 3 m visual drop for a 1 m gameplay drop; "
+             "this is the piece that stops doing that.",
+             "PokeLab/TerrainBlend", BLEND_VC)
+        made.append(obj)
+
+    bm = E.bm_new()
+    module_ledge_corner(bm, 1.5, 1.0, 1.15, 0, seed=63)
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+    obj = E.bm_to_obj(bm, "Env_Ledge_Corner", [mat_ground])
+    E.finalize(obj, smooth_angle=24.0)
+    E.pivot_to_base(obj, xy='corner')
+    E.apply_transforms(obj)
+    E.uv_box_walls(obj)
+    paint_weights(obj, ledge_weights)
+    tris, probs = E.validate(obj, budget=PIECE_BUDGET, need_vcol=True,
+                             strict=False)
+    emit(obj, tris, probs, "Ledge",
+         "module corner at origin, snaps on 0.5 m grid",
+         "Outside corner for a ledge run, 1.5 m arms, so a run can turn a "
+         "corner without leaving a gap.",
+         "PokeLab/TerrainBlend", BLEND_VC)
+    made.append(obj)
+
+    for (name, w, h, seed, note) in (
+        ("Env_Waterfall_Sheet_2x4", 2.0, 4.0, 71,
+         "Tileable falling sheet, 2 m wide by 4 m tall, in the XZ plane at "
+         "y=0 with the pivot at the top centre. Left and right edge profiles "
+         "are the same function of u so sheets butt seamlessly, and the top "
+         "and bottom edges are straight so they stack. Env_Waterfall_Shelf is "
+         "the lip; this is the fall."),
+        ("Env_Waterfall_Sheet_1x4", 1.0, 4.0, 72,
+         "Half-width sheet, for narrower falls and for breaking the seam line "
+         "on a wide one."),
+    ):
+        bm = E.bm_new()
+        module_fall_sheet(bm, w, h, 0, seed=seed)
+        bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+        obj = E.bm_to_obj(bm, name, [mat_fall])
+        E.finalize(obj, smooth_angle=80.0)
+        E.set_pivot(obj, (0.0, 0.0, max(v.co.z for v in obj.data.vertices)))
+        E.apply_transforms(obj)
+        E.uv_planar(obj)
+        E.wind_vcol_from_height(obj, power=1.0)
+        tris, probs = E.validate(obj, budget=PIECE_BUDGET, need_vcol=True,
+                                 strict=False)
+        emit(obj, tris, probs, "Waterfall",
+             "top centre of the sheet (hangs downward), snaps on 0.5 m grid",
+             note, "PokeLab/Water (scrolling) or a VFX sheet")
+        made.append(obj)
+
+    bm = E.bm_new()
+    module_plunge(bm, 1.9, 0)
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+    obj = E.bm_to_obj(bm, "Env_Waterfall_Plunge", [mat_fall])
+    E.finalize(obj, smooth_angle=80.0)
+    E.apply_transforms(obj)
+    E.uv_planar(obj)
+    E.wind_vcol_from_height(obj, power=1.0)
+    tris, probs = E.validate(obj, budget=PIECE_BUDGET, need_vcol=True,
+                             strict=False)
+    emit(obj, tris, probs, "Waterfall", "centre, sits on the water surface",
+         "Foam ring for the base of any fall. Place it 2-4 cm proud of the "
+         "water surface so it is never coplanar with it.",
          "PokeLab/Water (foam) or a VFX sheet")
     made.append(obj)
 

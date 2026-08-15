@@ -1,7 +1,7 @@
 {
   "schema": "pokelab.environment.manifest/1",
   "generatedBy": "Tools/Blender/environment (Blender 4.0.1, headless)",
-  "units": "1 Blender unit = 1 metre; models face +Z with Y up after the FBX axis conversion (-Y forward, Z up on export)",
+  "units": "1 metre. The FBX declares UnitScaleFactor 100 and carries real metres, Y up, with the axis conversion baked into the vertex data (export: axis_forward='-Z', axis_up='Y', apply_scale_options='FBX_SCALE_UNITS', bake_space_transform on anything without an armature). Models face +Z with Y up in Unity, on stock import settings.",
   "modularGrid": 0.5,
   "triangleBudgets": {
     "foliage": [
@@ -25,7 +25,7 @@
       8000
     ],
     "ground": [
-      60,
+      30,
       26000
     ],
     "scatter": [
@@ -1096,7 +1096,7 @@
     "worldSpaceAssets": "Every asset whose `pivot` reads 'world origin (0,0,0)' is authored in level world space: instantiate it at position (0,0,0) with identity rotation and scale 1, and it lands exactly where slice_layout.json's terrain block says it should. Do not re-position it.",
     "colliders": "Ground decks, ramps and ledges are closed solids -- boundary skirted to a floor and capped -- so a MeshCollider straight on the imported mesh is watertight; leave Convex OFF. Cliff, path and riverbank modules are likewise closed solids. Water surfaces want a trigger collider on the Water layer, not a solid one. Foliage should use no collider, or a capsule on the tall-grass patches if encounters are driven by trigger volumes."
   },
-  "assetCount": 104,
+  "assetCount": 118,
   "assets": [
     {
       "name": "Env_Tree_Broadleaf_A",
@@ -2484,6 +2484,99 @@
       "withinBudget": true
     },
     {
+      "name": "Env_Ledge_2m",
+      "family": "Terrain",
+      "subfamily": "Ledge",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ledge_2m.fbx",
+      "triangles": 36,
+      "lods": [],
+      "pivot": "module corner at origin, snaps on 0.5 m grid, runs along +X",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "2 m one-way hop-down, 1.0 m drop, grass cap overhanging the face. The layout fakes its hop-downs by burying 2 m of a 3 m cliff, which gives a 3 m visual drop for a 1 m gameplay drop; this is the piece that stops doing that.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ledge_4m",
+      "family": "Terrain",
+      "subfamily": "Ledge",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ledge_4m.fbx",
+      "triangles": 68,
+      "lods": [],
+      "pivot": "module corner at origin, snaps on 0.5 m grid, runs along +X",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "4 m one-way hop-down, 1.0 m drop. Same end profile as Env_Ledge_2m, so a run of them is seamless. The layout fakes its hop-downs by burying 2 m of a 3 m cliff, which gives a 3 m visual drop for a 1 m gameplay drop; this is the piece that stops doing that.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Ledge_Corner",
+      "family": "Terrain",
+      "subfamily": "Ledge",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Ledge_Corner.fbx",
+      "triangles": 56,
+      "lods": [],
+      "pivot": "module corner at origin, snaps on 0.5 m grid",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Outside corner for a ledge run, 1.5 m arms, so a run can turn a corner without leaving a gap.",
+      "unityMaterial": "PokeLab/TerrainBlend",
+      "budgetClass": "ground",
+      "vertexColors": "PokeLabTerrainBlend layer weights, normalised: R grass, G dirt, B sand, A rock",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Waterfall_Sheet_2x4",
+      "family": "Terrain",
+      "subfamily": "Waterfall",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Waterfall_Sheet_2x4.fbx",
+      "triangles": 196,
+      "lods": [],
+      "pivot": "top centre of the sheet (hangs downward), snaps on 0.5 m grid",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Tileable falling sheet, 2 m wide by 4 m tall, in the XZ plane at y=0 with the pivot at the top centre. Left and right edge profiles are the same function of u so sheets butt seamlessly, and the top and bottom edges are straight so they stack. Env_Waterfall_Shelf is the lip; this is the fall.",
+      "unityMaterial": "PokeLab/Water (scrolling) or a VFX sheet",
+      "budgetClass": "ground",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Waterfall_Sheet_1x4",
+      "family": "Terrain",
+      "subfamily": "Waterfall",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Waterfall_Sheet_1x4.fbx",
+      "triangles": 196,
+      "lods": [],
+      "pivot": "top centre of the sheet (hangs downward), snaps on 0.5 m grid",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Half-width sheet, for narrower falls and for breaking the seam line on a wide one.",
+      "unityMaterial": "PokeLab/Water (scrolling) or a VFX sheet",
+      "budgetClass": "ground",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Waterfall_Plunge",
+      "family": "Terrain",
+      "subfamily": "Waterfall",
+      "path": "Assets/Game/Art/Environment/Terrain/Env_Waterfall_Plunge.fbx",
+      "triangles": 176,
+      "lods": [],
+      "pivot": "centre, sits on the water surface",
+      "textures": [],
+      "windVertexColors": false,
+      "notes": "Foam ring for the base of any fall. Place it 2-4 cm proud of the water surface so it is never coplanar with it.",
+      "unityMaterial": "PokeLab/Water (foam) or a VFX sheet",
+      "budgetClass": "ground",
+      "withinBudget": true
+    },
+    {
       "name": "Env_House_Cottage_A",
       "family": "Town",
       "subfamily": "House",
@@ -2785,6 +2878,142 @@
       "budgetClass": "prop",
       "withinBudget": true,
       "budgetExempt": "1x2 m ground tile"
+    },
+    {
+      "name": "Env_Market_Stall_B",
+      "family": "Town",
+      "subfamily": "Market",
+      "path": "Assets/Game/Art/Environment/Town/Env_Market_Stall_B.fbx",
+      "triangles": 704,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Lamp_Wall",
+      "family": "Town",
+      "subfamily": "Lamp",
+      "path": "Assets/Game/Art/Environment/Town/Env_Lamp_Wall.fbx",
+      "triangles": 528,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Notice_Board",
+      "family": "Town",
+      "subfamily": "Notice",
+      "path": "Assets/Game/Art/Environment/Town/Env_Notice_Board.fbx",
+      "triangles": 524,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Cart",
+      "family": "Town",
+      "subfamily": "Cart",
+      "path": "Assets/Game/Art/Environment/Town/Env_Cart.fbx",
+      "triangles": 1308,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Trough",
+      "family": "Town",
+      "subfamily": "Trough",
+      "path": "Assets/Game/Art/Environment/Town/Env_Trough.fbx",
+      "triangles": 388,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Fence_Gate",
+      "family": "Town",
+      "subfamily": "Fence",
+      "path": "Assets/Game/Art/Environment/Town/Env_Fence_Gate.fbx",
+      "triangles": 696,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Wall_Stone_2m",
+      "family": "Town",
+      "subfamily": "Wall",
+      "path": "Assets/Game/Art/Environment/Town/Env_Wall_Stone_2m.fbx",
+      "triangles": 924,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Wall_Stone_1m",
+      "family": "Town",
+      "subfamily": "Wall",
+      "path": "Assets/Game/Art/Environment/Town/Env_Wall_Stone_1m.fbx",
+      "triangles": 528,
+      "lods": [],
+      "pivot": "ground level, footprint centred",
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "windVertexColors": false,
+      "notes": "",
+      "budgetClass": "prop",
+      "withinBudget": true
     },
     {
       "name": "Env_Prop_CaptureBall",

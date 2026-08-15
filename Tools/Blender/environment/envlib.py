@@ -4,7 +4,9 @@ envlib -- shared authoring library for the Poke Lab stylised environment kit.
 Conventions enforced here (see Docs/CONTRACTS.md, "Art conventions"):
   * 1 Blender unit = 1 metre.
   * Models face +Z, Y up, pivot at the base (or at the snapping corner for modules).
-  * FBX export uses axis_forward='-Y', axis_up='Z'.
+  * FBX export writes real metres, Y up, axis conversion baked:
+    axis_forward='-Z', axis_up='Y', apply_scale_options='FBX_SCALE_UNITS'.
+    Verify any file with fbx_probe.py. See export_fbx for the history.
   * One UV set, non-overlapping, inside 0-1, packed into a per-family atlas cell.
   * Wind vertex colours: R = sway mask (0 at trunk base -> 1 at leaf tips),
     G = per-cluster phase offset, B = secondary/flutter mask, A = 1.

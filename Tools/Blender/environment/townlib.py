@@ -701,6 +701,60 @@ def beams_around(bm, shell, seg, z, thickness_z, depth, mat, margin=0.10,
     return faces
 
 
+
+def cart_wheel(bm, centre, r_out, r_in, width, mat_rim, mat_hub, seg=12,
+               spokes=6):
+    """A wheel lying in the XZ plane, turning about Y.
+
+    solid_box only rotates about Z, so a rim assembled from boxes leaves every
+    segment axis-aligned and the wheel reads as a ring of loose blocks. This
+    builds the rim as a closed annulus and puts the spokes in the wheel's own
+    plane, which is the only way it looks like a wheel.
+    """
+    cx, cy, cz = centre
+    faces = []
+    loops = []
+    for r in (r_out, r_in):
+        for sy in (-1, 1):
+            ring = []
+            for i in range(seg):
+                a = 2.0 * math.pi * i / seg
+                ring.append(bm.verts.new((cx + math.cos(a) * r,
+                                          cy + sy * width * 0.5,
+                                          cz + math.sin(a) * r)))
+            loops.append(ring)
+    o_lo, o_hi, i_lo, i_hi = loops
+
+    def strip(a, b):
+        for i in range(seg):
+            j = (i + 1) % seg
+            f = bm.faces.new((a[i], a[j], b[j], b[i]))
+            f.material_index = mat_rim
+            f.smooth = False
+            faces.append(f)
+
+    strip(o_lo, o_hi)          # tread
+    strip(i_hi, i_lo)          # inner face of the rim
+    strip(o_hi, i_hi)          # cheek
+    strip(i_lo, o_lo)          # cheek
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+
+    hub_r = r_in * 0.42
+    for k in range(spokes):
+        a = math.pi * k / spokes
+        dx, dz = math.cos(a), math.sin(a)
+        px, pz = -dz, dx
+        t = 0.035
+        quad_pts = [(cx - dx * r_in + px * t, cy, cz - dz * r_in + pz * t),
+                    (cx + dx * r_in + px * t, cy, cz + dz * r_in + pz * t),
+                    (cx + dx * r_in - px * t, cy, cz + dz * r_in - pz * t),
+                    (cx - dx * r_in - px * t, cy, cz - dz * r_in - pz * t)]
+        faces += solid_from_quad(bm, quad_pts, width * 0.55, mat_rim,
+                                 up=(0, 1, 0))
+    faces += solid_box(bm, (cx, cy, cz), (hub_r * 2, width * 1.5, hub_r * 2),
+                       mat_hub)
+    return faces
+
 def corner_posts(bm, poly, z0, z1, size, mat, embed=0.06):
     """Posts on the actual plan corners.
 
