@@ -226,16 +226,19 @@ def build():
         ((0.000, -0.012, 0.402), 0.038, 0.038),   # neck - the head sits on this
     ]
     # a real elbow: the upper arm swings back and out, the forearm comes forward
+    # Limb radii run a shade heavier than the reference silhouette: the weld pass
+    # voxelises and then Laplacian-smooths the skin, and smoothing pulls a convex
+    # tube in. Authoring thin here and hoping is how you get pipe-cleaner arms.
     plan.arms = [
-        ((0.050, -0.010, 0.338), 0.036, 0.036),
-        ((0.098,  0.004, 0.296), 0.032, 0.032),   # elbow, swung back
-        ((0.132, -0.046, 0.276), 0.024, 0.024),   # forearm, swung forward
-        ((0.152, -0.074, 0.262), 0.020, 0.020),   # wrist
+        ((0.050, -0.010, 0.338), 0.040, 0.040),
+        ((0.098,  0.004, 0.296), 0.036, 0.036),   # elbow, swung back
+        ((0.132, -0.046, 0.276), 0.029, 0.029),   # forearm, swung forward
+        ((0.152, -0.074, 0.262), 0.025, 0.025),   # wrist
     ]
     plan.legs = [
-        ((0.052,  0.006, 0.182), 0.052, 0.052),
-        ((0.062, -0.006, 0.114), 0.044, 0.044),
-        ((0.066, -0.012, 0.044), 0.040, 0.036),
+        ((0.052,  0.006, 0.182), 0.057, 0.057),
+        ((0.062, -0.006, 0.114), 0.049, 0.049),
+        ((0.066, -0.012, 0.044), 0.044, 0.040),
     ]
     # thick tail sweeping back then up - the flame has to sit on something
     plan.tail = [

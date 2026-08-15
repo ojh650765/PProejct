@@ -91,8 +91,11 @@ def build():
         ((-0.80, 0.44, 0.42), 0.216, 0.090),
     )
     for i, (direction, ln, wd) in enumerate(fan):
+        # Thicker than the reference silhouette suggests on purpose: a 6 mm blade
+        # photographs as a paper card, and it is too thin to survive the weld
+        # pass's 2.7 mm voxel with any volume left.
         lf = C.leaf_blade("Oddish_Leaf_%d" % i, length=ln, width=wd,
-                          thickness=0.0062, curl=0.26, segments=8, taper=2.2)
+                          thickness=0.0135, curl=0.26, segments=8, taper=2.2)
         C.paint(lf, lambda co, n, i2, _l=ln: C.mix(
             LEAF_DARK, C.mix(LEAF, LEAF_LIGHT, 0.55), C.smoothstep(co.y / _l)))
         B.place_along(lf, (0.0, 0.026, 0.272), direction)

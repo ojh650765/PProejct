@@ -26,7 +26,7 @@
       "fbx": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur.fbx",
       "lod1": {
         "fbx": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur_LOD1.fbx",
-        "tris": 2414
+        "tris": 2850
       },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur_BaseColor.png",
@@ -38,21 +38,21 @@
         "axis": "z",
         "metres": 0.7
       },
-      "shoulderHeight": 0.348,
+      "shoulderHeight": 0.3359,
       "boundsMetres": {
         "min": [
-          -0.2533,
-          -0.4677,
+          -0.2457,
+          -0.4513,
           0.0
         ],
         "max": [
-          0.2533,
-          0.4677,
+          0.2457,
+          0.4513,
           0.7
         ]
       },
-      "triangles": 6038,
-      "quadRatio": 0.839,
+      "triangles": 7128,
+      "quadRatio": 0.803,
       "bones": 19,
       "anchors": [
         "Anchor_Body",
@@ -167,19 +167,19 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 6038,
-        "quad_ratio": 0.839,
+        "tris": 7128,
+        "quad_ratio": 0.803,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.171531,
+        "signed_volume": 0.112535,
         "uv_bounds": [
-          0.0088,
-          0.0089,
-          0.9891,
-          0.9912
+          0.0083,
+          0.0084,
+          0.9897,
+          0.9917
         ],
         "anchors": [
           "Anchor_Body",
@@ -203,7 +203,7 @@
       "fbx": "Assets/Game/Art/Creatures/Creature_5_Charmander.fbx",
       "lod1": {
         "fbx": "Assets/Game/Art/Creatures/Creature_5_Charmander_LOD1.fbx",
-        "tris": 2606
+        "tris": 2992
       },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_5_Charmander_BaseColor.png",
@@ -215,21 +215,21 @@
         "axis": "z",
         "metres": 0.6
       },
-      "shoulderHeight": 0.4057,
+      "shoulderHeight": 0.4069,
       "boundsMetres": {
         "min": [
-          -0.1913,
-          -0.2985,
+          -0.1903,
+          -0.2961,
           0.0
         ],
         "max": [
-          0.1913,
-          0.2985,
+          0.1903,
+          0.2961,
           0.6
         ]
       },
-      "triangles": 6518,
-      "quadRatio": 0.726,
+      "triangles": 7480,
+      "quadRatio": 0.745,
       "bones": 23,
       "anchors": [
         "Anchor_Body",
@@ -344,19 +344,19 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 6518,
-        "quad_ratio": 0.726,
+        "tris": 7480,
+        "quad_ratio": 0.745,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.020994,
+        "signed_volume": 0.018786,
         "uv_bounds": [
-          0.0094,
-          0.0094,
-          0.9863,
-          0.9906
+          0.0089,
+          0.0091,
+          0.989,
+          0.9911
         ],
         "anchors": [
           "Anchor_Body",
@@ -380,7 +380,7 @@
       "fbx": "Assets/Game/Art/Creatures/Creature_10_Squirtle.fbx",
       "lod1": {
         "fbx": "Assets/Game/Art/Creatures/Creature_10_Squirtle_LOD1.fbx",
-        "tris": 2480
+        "tris": 2608
       },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_10_Squirtle_BaseColor.png",
@@ -392,21 +392,21 @@
         "axis": "z",
         "metres": 0.5
       },
-      "shoulderHeight": 0.3148,
+      "shoulderHeight": 0.3144,
       "boundsMetres": {
         "min": [
-          -0.146,
+          -0.1456,
           -0.1943,
           0.0
         ],
         "max": [
-          0.146,
+          0.1456,
           0.1943,
           0.5
         ]
       },
-      "triangles": 6200,
-      "quadRatio": 0.834,
+      "triangles": 6520,
+      "quadRatio": 0.822,
       "bones": 21,
       "anchors": [
         "Anchor_Body",
@@ -521,19 +521,19 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 6200,
-        "quad_ratio": 0.834,
+        "tris": 6520,
+        "quad_ratio": 0.822,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.02581,
+        "signed_volume": 0.017418,
         "uv_bounds": [
-          0.0094,
-          0.0094,
-          0.9907,
-          0.9907
+          0.0076,
+          0.0076,
+          0.9854,
+          0.9924
         ],
         "anchors": [
           "Anchor_Body",
@@ -556,7 +556,10 @@
       "design": "plump cream-and-brown bird with a swept crest and a pink beak",
       "bodyPlan": "avian",
       "fbx": "Assets/Game/Art/Creatures/Creature_21_Pidgey.fbx",
-      "lod1": null,
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_21_Pidgey_LOD1.fbx",
+        "tris": 2998
+      },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_21_Pidgey_BaseColor.png",
         "normal": "Assets/Game/Art/Creatures/Creature_21_Pidgey_Normal.png"
@@ -567,21 +570,21 @@
         "axis": "z",
         "metres": 0.3
       },
-      "shoulderHeight": 0.1713,
+      "shoulderHeight": 0.187,
       "boundsMetres": {
         "min": [
-          -0.1451,
-          -0.204,
+          -0.1574,
+          -0.2146,
           0.0
         ],
         "max": [
-          0.1451,
-          0.204,
+          0.1574,
+          0.2146,
           0.3
         ]
       },
-      "triangles": 4636,
-      "quadRatio": 0.795,
+      "triangles": 7498,
+      "quadRatio": 0.837,
       "bones": 18,
       "anchors": [
         "Anchor_Body",
@@ -696,19 +699,19 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 4636,
-        "quad_ratio": 0.795,
+        "tris": 7498,
+        "quad_ratio": 0.837,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.005318,
+        "signed_volume": 0.006224,
         "uv_bounds": [
-          0.0091,
-          0.0092,
-          0.9869,
-          0.991
+          0.0074,
+          0.0074,
+          0.9926,
+          0.9926
         ],
         "anchors": [
           "Anchor_Body",
@@ -730,7 +733,10 @@
       "design": "low purple rodent with big ears, buck teeth and a curling tail",
       "bodyPlan": "quadruped",
       "fbx": "Assets/Game/Art/Creatures/Creature_25_Rattata.fbx",
-      "lod1": null,
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_25_Rattata_LOD1.fbx",
+        "tris": 2872
+      },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_25_Rattata_BaseColor.png",
         "normal": "Assets/Game/Art/Creatures/Creature_25_Rattata_Normal.png"
@@ -741,21 +747,21 @@
         "axis": "z",
         "metres": 0.3
       },
-      "shoulderHeight": 0.1506,
+      "shoulderHeight": 0.184,
       "boundsMetres": {
         "min": [
-          -0.1073,
-          -0.325,
+          -0.1318,
+          -0.3328,
           0.0
         ],
         "max": [
-          0.1073,
-          0.325,
+          0.1318,
+          0.3328,
           0.3
         ]
       },
-      "triangles": 4744,
-      "quadRatio": 0.76,
+      "triangles": 7184,
+      "quadRatio": 0.844,
       "bones": 26,
       "anchors": [
         "Anchor_Body",
@@ -870,19 +876,19 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 4744,
-        "quad_ratio": 0.76,
+        "tris": 7184,
+        "quad_ratio": 0.844,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.007633,
+        "signed_volume": 0.012708,
         "uv_bounds": [
-          0.0088,
-          0.0086,
-          0.9873,
-          0.9914
+          0.0078,
+          0.0078,
+          0.9882,
+          0.9922
         ],
         "anchors": [
           "Anchor_Body",
@@ -904,7 +910,10 @@
       "design": "chubby yellow biped with black-tipped ears, red cheeks and a bolt tail",
       "bodyPlan": "biped",
       "fbx": "Assets/Game/Art/Creatures/Creature_31_Pikachu.fbx",
-      "lod1": null,
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_31_Pikachu_LOD1.fbx",
+        "tris": 2730
+      },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_31_Pikachu_BaseColor.png",
         "normal": "Assets/Game/Art/Creatures/Creature_31_Pikachu_Normal.png"
@@ -915,20 +924,20 @@
         "axis": "z",
         "metres": 0.4
       },
-      "shoulderHeight": 0.1939,
+      "shoulderHeight": 0.2025,
       "boundsMetres": {
         "min": [
-          -0.0938,
-          -0.126,
+          -0.1462,
+          -0.1533,
           0.0
         ],
         "max": [
-          0.0938,
-          0.126,
+          0.1462,
+          0.1533,
           0.4
         ]
       },
-      "triangles": 4956,
+      "triangles": 6826,
       "quadRatio": 0.772,
       "bones": 17,
       "anchors": [
@@ -1044,19 +1053,19 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 4956,
+        "tris": 6826,
         "quad_ratio": 0.772,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.00291,
+        "signed_volume": 0.007128,
         "uv_bounds": [
-          0.0091,
-          0.0089,
-          0.9871,
-          0.9911
+          0.0082,
+          0.0081,
+          0.9862,
+          0.992
         ],
         "anchors": [
           "Anchor_Body",
@@ -1079,32 +1088,35 @@
       "design": "eyeless blue bat with purple wing membranes and a fanged open mouth",
       "bodyPlan": "biped",
       "fbx": "Assets/Game/Art/Creatures/Creature_47_Zubat.fbx",
-      "lod1": null,
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_47_Zubat_LOD1.fbx",
+        "tris": 2924
+      },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_47_Zubat_BaseColor.png",
         "normal": "Assets/Game/Art/Creatures/Creature_47_Zubat_Normal.png"
       },
       "portrait": "Assets/Game/Art/Creatures/Creature_47_Zubat_Portrait.png",
-      "displayHeight": 0.6094,
+      "displayHeight": 0.4669,
       "authoredSize": {
         "axis": "x",
         "metres": 0.8
       },
-      "shoulderHeight": 0.3739,
+      "shoulderHeight": 0.2568,
       "boundsMetres": {
         "min": [
           -0.4,
-          -0.0973,
+          -0.0969,
           0.0
         ],
         "max": [
           0.4,
-          0.0973,
-          0.6094
+          0.0969,
+          0.4669
         ]
       },
-      "triangles": 4472,
-      "quadRatio": 0.894,
+      "triangles": 7314,
+      "quadRatio": 0.796,
       "bones": 11,
       "anchors": [
         "Anchor_Body",
@@ -1216,19 +1228,19 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 4472,
-        "quad_ratio": 0.894,
+        "tris": 7314,
+        "quad_ratio": 0.796,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.00777,
+        "signed_volume": 0.007469,
         "uv_bounds": [
-          0.0079,
-          0.0079,
-          0.9901,
-          0.9921
+          0.0076,
+          0.0077,
+          0.9904,
+          0.9924
         ],
         "anchors": [
           "Anchor_Body",
@@ -1236,8 +1248,8 @@
           "Anchor_Muzzle"
         ],
         "bones": 11,
-        "single_influence_verts": 20,
-        "single_influence_pct": 0.9
+        "single_influence_verts": 168,
+        "single_influence_pct": 4.6
       },
       "problems": []
     },
@@ -1251,7 +1263,10 @@
       "design": "round navy body with stubby feet and five broad green head leaves",
       "bodyPlan": "biped",
       "fbx": "Assets/Game/Art/Creatures/Creature_49_Oddish.fbx",
-      "lod1": null,
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_49_Oddish_LOD1.fbx",
+        "tris": 3100
+      },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_49_Oddish_BaseColor.png",
         "normal": "Assets/Game/Art/Creatures/Creature_49_Oddish_Normal.png"
@@ -1262,21 +1277,21 @@
         "axis": "z",
         "metres": 0.5
       },
-      "shoulderHeight": 0.1988,
+      "shoulderHeight": 0.1952,
       "boundsMetres": {
         "min": [
-          -0.2121,
-          -0.2104,
+          -0.2082,
+          -0.2055,
           0.0
         ],
         "max": [
-          0.2121,
-          0.2104,
+          0.2082,
+          0.2055,
           0.5
         ]
       },
-      "triangles": 4738,
-      "quadRatio": 0.895,
+      "triangles": 7754,
+      "quadRatio": 0.82,
       "bones": 10,
       "anchors": [
         "Anchor_Body",
@@ -1391,19 +1406,19 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 4738,
-        "quad_ratio": 0.895,
+        "tris": 7754,
+        "quad_ratio": 0.82,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.01225,
+        "signed_volume": 0.012278,
         "uv_bounds": [
-          0.0075,
-          0.0075,
-          0.9925,
-          0.9925
+          0.0073,
+          0.0072,
+          0.9893,
+          0.9929
         ],
         "anchors": [
           "Anchor_Body",
@@ -1411,8 +1426,8 @@
           "Anchor_Muzzle"
         ],
         "bones": 10,
-        "single_influence_verts": 197,
-        "single_influence_pct": 8.2
+        "single_influence_verts": 618,
+        "single_influence_pct": 15.9
       },
       "problems": []
     },
@@ -1425,7 +1440,10 @@
       "design": "spherical blue tadpole with a spiral belly and a long finned tail",
       "bodyPlan": "biped",
       "fbx": "Assets/Game/Art/Creatures/Creature_66_Poliwag.fbx",
-      "lod1": null,
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_66_Poliwag_LOD1.fbx",
+        "tris": 3076
+      },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_66_Poliwag_BaseColor.png",
         "normal": "Assets/Game/Art/Creatures/Creature_66_Poliwag_Normal.png"
@@ -1436,21 +1454,21 @@
         "axis": "z",
         "metres": 0.6
       },
-      "shoulderHeight": 0.448,
+      "shoulderHeight": 0.4483,
       "boundsMetres": {
         "min": [
-          -0.2202,
-          -0.3852,
+          -0.2197,
+          -0.3856,
           0.0
         ],
         "max": [
-          0.2202,
-          0.3852,
+          0.2197,
+          0.3856,
           0.6
         ]
       },
-      "triangles": 4276,
-      "quadRatio": 0.872,
+      "triangles": 7692,
+      "quadRatio": 0.897,
       "bones": 13,
       "anchors": [
         "Anchor_Body",
@@ -1565,18 +1583,18 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 4276,
-        "quad_ratio": 0.872,
+        "tris": 7692,
+        "quad_ratio": 0.897,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.049929,
+        "signed_volume": 0.045162,
         "uv_bounds": [
-          0.008,
-          0.008,
-          0.9776,
+          0.0078,
+          0.0077,
+          0.9886,
           0.9923
         ],
         "anchors": [
@@ -1601,7 +1619,7 @@
       "fbx": "Assets/Game/Art/Creatures/Creature_73_Machop.fbx",
       "lod1": {
         "fbx": "Assets/Game/Art/Creatures/Creature_73_Machop_LOD1.fbx",
-        "tris": 2048
+        "tris": 2904
       },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_73_Machop_BaseColor.png",
@@ -1613,22 +1631,22 @@
         "axis": "z",
         "metres": 0.8
       },
-      "shoulderHeight": 0.5842,
+      "shoulderHeight": 0.5716,
       "boundsMetres": {
         "min": [
-          -0.3199,
-          -0.1762,
+          -0.3582,
+          -0.172,
           0.0
         ],
         "max": [
-          0.3199,
-          0.1762,
+          0.3582,
+          0.172,
           0.8
         ]
       },
-      "triangles": 5122,
-      "quadRatio": 0.861,
-      "bones": 19,
+      "triangles": 7260,
+      "quadRatio": 0.824,
+      "bones": 20,
       "anchors": [
         "Anchor_Body",
         "Anchor_Head",
@@ -1742,26 +1760,26 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 5122,
-        "quad_ratio": 0.861,
+        "tris": 7260,
+        "quad_ratio": 0.824,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.028565,
+        "signed_volume": 0.02769,
         "uv_bounds": [
-          0.0088,
-          0.0088,
-          0.9876,
-          0.9914
+          0.0086,
+          0.0084,
+          0.9916,
+          0.9877
         ],
         "anchors": [
           "Anchor_Body",
           "Anchor_Head",
           "Anchor_Muzzle"
         ],
-        "bones": 19,
+        "bones": 20,
         "single_influence_verts": 0,
         "single_influence_pct": 0.0
       },
@@ -1777,7 +1795,10 @@
       "design": "rough grey boulder with a heavy brow and two muscular stone arms",
       "bodyPlan": "biped",
       "fbx": "Assets/Game/Art/Creatures/Creature_81_Geodude.fbx",
-      "lod1": null,
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_81_Geodude_LOD1.fbx",
+        "tris": 2966
+      },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_81_Geodude_BaseColor.png",
         "normal": "Assets/Game/Art/Creatures/Creature_81_Geodude_Normal.png"
@@ -1788,21 +1809,21 @@
         "axis": "z",
         "metres": 0.4
       },
-      "shoulderHeight": 0.2518,
+      "shoulderHeight": 0.2528,
       "boundsMetres": {
         "min": [
-          -0.3803,
+          -0.3812,
           -0.1811,
           0.0
         ],
         "max": [
-          0.3803,
+          0.3812,
           0.1811,
           0.4
         ]
       },
-      "triangles": 2658,
-      "quadRatio": 0.782,
+      "triangles": 7416,
+      "quadRatio": 0.927,
       "bones": 12,
       "anchors": [
         "Anchor_Body",
@@ -1917,19 +1938,19 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 2658,
-        "quad_ratio": 0.782,
+        "tris": 7416,
+        "quad_ratio": 0.927,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.041489,
+        "signed_volume": 0.026314,
         "uv_bounds": [
-          0.0076,
-          0.0075,
-          0.9857,
-          0.9925
+          0.0069,
+          0.007,
+          0.9915,
+          0.9932
         ],
         "anchors": [
           "Anchor_Body",
@@ -1952,7 +1973,10 @@
       "design": "black gas core wreathed in a ragged purple cloud, pale angular eyes",
       "bodyPlan": "floater",
       "fbx": "Assets/Game/Art/Creatures/Creature_100_Gastly.fbx",
-      "lod1": null,
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_100_Gastly_LOD1.fbx",
+        "tris": 2908
+      },
       "textures": {
         "baseColor": "Assets/Game/Art/Creatures/Creature_100_Gastly_BaseColor.png",
         "normal": "Assets/Game/Art/Creatures/Creature_100_Gastly_Normal.png"
@@ -1963,21 +1987,21 @@
         "axis": "z",
         "metres": 1.3
       },
-      "shoulderHeight": 0.7615,
+      "shoulderHeight": 0.7583,
       "boundsMetres": {
         "min": [
-          -0.7375,
-          -0.5333,
+          -0.7331,
+          -0.5367,
           0.0
         ],
         "max": [
-          0.7375,
-          0.5333,
+          0.7331,
+          0.5367,
           1.3
         ]
       },
-      "triangles": 4130,
-      "quadRatio": 0.921,
+      "triangles": 7272,
+      "quadRatio": 0.888,
       "bones": 4,
       "anchors": [
         "Anchor_Body",
@@ -2092,19 +2116,19 @@
       ],
       "missingClips": [],
       "validation": {
-        "tris": 4130,
-        "quad_ratio": 0.921,
+        "tris": 7272,
+        "quad_ratio": 0.888,
         "ngons": 0,
         "loose_verts": 0,
         "loose_edges": 0,
         "zero_area_faces": 0,
         "boundary_edges": 0,
-        "signed_volume": 0.517377,
+        "signed_volume": 0.482367,
         "uv_bounds": [
-          0.0086,
-          0.0086,
-          0.9752,
-          0.9914
+          0.0087,
+          0.0089,
+          0.9875,
+          0.9913
         ],
         "anchors": [
           "Anchor_Body",
@@ -2112,8 +2136,8 @@
           "Anchor_Muzzle"
         ],
         "bones": 4,
-        "single_influence_verts": 836,
-        "single_influence_pct": 39.7
+        "single_influence_verts": 1806,
+        "single_influence_pct": 49.4
       },
       "problems": []
     }
