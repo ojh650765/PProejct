@@ -22,6 +22,7 @@ from mathutils import Vector, Matrix
 
 import envlib as E
 import textures as T
+import townlib as TL
 
 FAM = "Town"
 OUT = E.FAMILY_DIR[FAM]
@@ -32,6 +33,12 @@ GLASS, DOOR, PAVING, STONE_WALL = 8, 9, 10, 11
 FENCE, LAMP, AWNING, TRIM = 12, 13, 14, 15
 
 GRID = 0.5
+
+# Filled by every building as it is built: the result of firing a ray through
+# each authored opening on the bare shell. A non-empty list means a window or
+# door frame is sitting on unbroken wall, which is the defect this rebuild
+# exists to remove, so main() treats it as a hard failure.
+HOLE_CHECKS = []
 
 
 # --------------------------------------------------------------------------
@@ -259,209 +266,267 @@ def chimney(bm, x, y, base_z, top_z, w=0.44, mat=STONE_WALL):
 # --------------------------------------------------------------------------
 
 def house_a(bm, rng):
-    """Cottage: L-shaped plan, steep gable, dormer, half-timbered gable end."""
-    w, d, eave = 4.5, 4.0, 2.5
-    poly = [(-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2 - 1.2),
-            (w / 2 - 1.5, d / 2 - 1.2), (w / 2 - 1.5, d / 2), (-w / 2, d / 2)]
-    walls, top = prism_wall(bm, poly, eave, PLASTER_C)
-    # stone plinth course
-    for (i, (x, y)) in enumerate(poly):
-        pass
-    plinth = [(x * 1.02, y * 1.02) for (x, y) in poly]
-    prism_wall(bm, plinth, 0.42, STONE_WALL)
-    gable_roof(bm, w, d, eave, 1.55, 0.36, ROOF_RED, TRIM, ridge_along_x=True)
-    # corner boards -- medium tier
-    for (sx, sy) in ((-1, -1), (1, -1), (-1, 1)):
-        box(bm, (sx * (w / 2 - 0.02), sy * (d / 2 - 0.02), eave * 0.5),
-            (0.16, 0.16, eave), BEAM)
-    # half timbering on the front gable, zoned: front only
-    for k in range(4):
-        z = 0.55 + k * 0.62
-        box(bm, (0, -d / 2 - 0.015, z), (w - 0.30, 0.06, 0.11), BEAM)
-    for k in (-1, 1):
-        box(bm, (k * 1.05, -d / 2 - 0.015, eave * 0.5),
-            (0.10, 0.06, eave - 0.2), BEAM)
-    window(bm, walls, (-1.15, -d / 2, 1.55), (0.85, 0.95), (0, -1, 0))
-    window(bm, walls, (1.30, -d / 2, 1.55), (0.85, 0.95), (0, -1, 0))
-    window(bm, walls, (-w / 2, 0.20, 1.60), (0.80, 0.90), (-1, 0, 0))
-    door(bm, (0.05, -d / 2, 1.05), (0.95, 2.05), (0, -1, 0))
-    # dormer on the rear pitch
-    box(bm, (-1.0, 0.55, eave + 0.62), (1.15, 1.0, 1.0), PLASTER_C)
-    gable_roof(bm, 1.35, 1.2, eave + 1.12, 0.44, 0.14, ROOF_RED, TRIM,
-               ridge_along_x=False)
-    window(bm, walls, (-1.0, 0.05, eave + 0.72), (0.60, 0.62), (0, -1, 0),
-           sill=False)
-    chimney(bm, w / 2 - 0.9, 0.9, 1.0, eave + 2.15)
+    """Cottage: rectangular plan, steep gable, half-timbered street gable.
+
+    Rebuilt on townlib.Shell. The previous L-shaped plan bought a silhouette at
+    the cost of a wall the extrusion never closed; a clean rectangle with three
+    real openings reads better and is watertight. The plan is deliberately
+    simple because the interest is meant to come from the openings and the
+    roof, not from more slabs.
+    """
+    w, d, eave, th = 4.5, 4.0, 2.55, 0.26
+    poly = [(-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2), (-w / 2, d / 2)]
+
+    sh = TL.Shell(bm, poly, 0.0, eave, th, PLASTER_C, PLASTER_C)
+    # segment 0 is the -Y street face for a CCW rectangle starting at (-w/2,-d/2)
+    front, right, back, left = 0, 1, 2, 3
+    o_door = sh.add_opening(front, 1.00, 2.05, 0.0, 0.34, "door")
+    o_w1 = sh.add_opening(front, 0.85, 0.95, 1.10, 0.68, "window")
+    o_w2 = sh.add_opening(left, 0.80, 0.90, 1.15, 0.50, "window")
+    o_w3 = sh.add_opening(back, 0.85, 0.90, 1.15, 0.55, "window")
+    sh.build()
+    HOLE_CHECKS.extend(sh.assert_openings())
+
+    # stone plinth: a closed prism that swallows the wall foot rather than
+    # sitting flush against it
+    TL.solid_prism(bm, [(x * 1.03, y * 1.035) for (x, y) in poly],
+                   -0.02, 0.44, STONE_WALL)
+
+    TL.gable_roof(bm, poly, eave, 1.70, 0.38, 0.16, ROOF_RED, TRIM,
+                  ridge_along_x=True, gable_mat=PLASTER_C)
+
+    TL.corner_posts(bm, poly, 0.0, eave, 0.15, BEAM)
+
+    # half timbering on the street face only, and it stops at the openings
+    for z in (0.62, 1.86, 2.34):
+        TL.beams_around(bm, sh, front, z, 0.13, 0.07, BEAM)
+    TL.beams_around(bm, sh, front, eave - 0.09, 0.16, 0.09, BEAM)
+
+    TL.window_furniture(bm, o_w1, TRIM, GLASS, th)
+    TL.window_furniture(bm, o_w2, TRIM, GLASS, th)
+    TL.window_furniture(bm, o_w3, TRIM, GLASS, th, mullion=False)
+    TL.door_furniture(bm, o_door, DOOR, TRIM, PAVING, th)
+
+    # dormer on the street pitch: a small shell of its own, with a real
+    # window cut through it, so it reads as a room rather than a bump
+    dw, dd = 1.30, 1.10
+    dpoly = [(-1.15 - dw / 2, -d / 2 - 0.05), (-1.15 + dw / 2, -d / 2 - 0.05),
+             (-1.15 + dw / 2, -d / 2 + dd), (-1.15 - dw / 2, -d / 2 + dd)]
+    dsh = TL.Shell(bm, dpoly, eave + 0.10, 0.95, 0.16, PLASTER_C, PLASTER_C)
+    o_dorm = dsh.add_opening(0, 0.62, 0.66, eave + 0.28, 0.5, "window")
+    dsh.build()
+    HOLE_CHECKS.extend(dsh.assert_openings())
+    TL.gable_roof(bm, dpoly, eave + 1.05, 0.46, 0.16, 0.10, ROOF_RED, TRIM,
+                  ridge_along_x=False, gable_mat=PLASTER_C)
+    TL.window_furniture(bm, o_dorm, TRIM, GLASS, 0.16, mullion=False,
+                        sill=False)
+
+    # window box under the street window -- cheap, and it says "lived in"
+    TL.solid_box(bm, (o_w1.centre.x, -d / 2 - 0.16,
+                      o_w1.centre.z - o_w1.height * 0.5 - 0.18),
+                 (o_w1.width + 0.24, 0.26, 0.20), BEAM)
+
+    chimney(bm, w / 2 - 0.95, 0.9, 0.6, eave + 2.30)
 
 
 def house_b(bm, rng):
-    """Two-storey townhouse: hip roof, jettied first floor, shopfront awning."""
-    w, d, e1, e2 = 4.0, 4.4, 2.45, 4.75
-    poly = [(-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2), (-w / 2, d / 2)]
-    prism_wall(bm, poly, e1, PLASTER_B)
-    # jetty: upper floor oversails by 22 cm on the street side
-    j = 0.22
-    poly2 = [(-w / 2 - j, -d / 2 - j), (w / 2 + j, -d / 2 - j),
+    """Two-storey townhouse: jettied upper floor, shopfront, hipped-look roof.
+
+    Two stacked shells, the upper one oversailing on the street side. Both are
+    closed volumes, so the jetty has a real soffit and the building has a back.
+    """
+    w, d, e1, e2, th = 4.0, 4.4, 2.55, 4.90, 0.24
+    j = 0.24
+    lower = [(-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2), (-w / 2, d / 2)]
+    upper = [(-w / 2 - j, -d / 2 - j), (w / 2 + j, -d / 2 - j),
              (w / 2 + j, d / 2), (-w / 2 - j, d / 2)]
-    prism_wall(bm, poly2, e2 - e1, PLASTER_C, z0=e1)
-    # jetty bracket beams
+
+    s1 = TL.Shell(bm, lower, 0.0, e1, th, PLASTER_B, PLASTER_B)
+    o_shop = s1.add_opening(0, 1.30, 1.35, 0.90, 0.30, "window")
+    o_door = s1.add_opening(0, 1.05, 2.10, 0.0, 0.70, "door")
+    o_side = s1.add_opening(1, 0.75, 0.95, 1.10, 0.55, "window")
+    s1.build()
+    HOLE_CHECKS.extend(s1.assert_openings())
+
+    s2 = TL.Shell(bm, upper, e1, e2 - e1, th, PLASTER_C, PLASTER_C)
+    # spaced so the shutters do not run into each other: 0.70 window plus two
+    # 0.26 shutters is 1.30 m of frontage, and the wall is 4.48 m
+    ups = [s2.add_opening(0, 0.70, 1.00, e1 + 0.65, cs, "window")
+           for cs in (0.175, 0.5, 0.825)]
+    o_up_side = s2.add_opening(1, 0.70, 1.00, e1 + 0.65, 0.55, "window")
+    s2.build()
+    HOLE_CHECKS.extend(s2.assert_openings())
+
+    # jetty brackets, each biting into both shells
     for x in (-1.35, 0.0, 1.35):
-        box(bm, (x, -d / 2 - j * 0.5, e1 + 0.04), (0.14, j + 0.10, 0.16), BEAM)
-    box(bm, (0, -d / 2 - j, e1 + 0.14), (w + 2 * j + 0.06, 0.10, 0.16), BEAM)
-    gable_roof(bm, w + 2 * j, d + j, e2, 1.15, 0.36, ROOF_BLUE, TRIM,
-               ridge_along_x=True)
-    for (sx, sy) in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-        box(bm, (sx * (w / 2 - 0.02), sy * (d / 2 - 0.02), e1 * 0.5),
-            (0.15, 0.15, e1), BEAM)
-    # ground floor shopfront
-    window(bm, None, (-1.05, -d / 2, 1.45), (1.15, 1.25), (0, -1, 0))
-    door(bm, (1.15, -d / 2, 1.05), (1.0, 2.05), (0, -1, 0))
-    # awning over the shopfront
-    for i in range(6):
-        x = -1.85 + i * 0.32
-        box(bm, (x, -d / 2 - 0.42, 2.12 - 0.10), (0.30, 0.90, 0.05), AWNING,
-            rot_z=0.0)
-    box(bm, (0, -d / 2 - 0.86, 1.94), (2.10, 0.06, 0.14), TRIM)
-    # upper floor windows
-    for x in (-1.15, 0.0, 1.15):
-        window(bm, None, (x, -d / 2 - j, e1 + 1.10), (0.68, 0.95), (0, -1, 0))
-    window(bm, None, (w / 2, 0.4, e1 + 1.10), (0.68, 0.95), (1, 0, 0))
-    chimney(bm, -w / 2 + 0.55, 1.2, e1, e2 + 1.55, 0.40)
+        TL.solid_box(bm, (x, -d / 2 - j * 0.45, e1 - 0.02),
+                     (0.15, j + 0.20, 0.20), BEAM)
+    TL.solid_box(bm, (0, -d / 2 - j + 0.03, e1 + 0.13),
+                 (w + 2 * j + 0.04, 0.14, 0.18), BEAM)
+
+    TL.gable_roof(bm, upper, e2, 1.25, 0.40, 0.16, ROOF_BLUE, TRIM,
+                  ridge_along_x=True, gable_mat=PLASTER_C)
+    TL.corner_posts(bm, lower, 0.0, e1, 0.15, BEAM)
+
+    # shopfront awning: a thick solid on two brackets, clear of the window head
+    TL.solid_from_quad(bm, [
+        (-1.95, -d / 2 - 0.06, 2.42), (0.55, -d / 2 - 0.06, 2.42),
+        (0.55, -d / 2 - 1.05, 2.06), (-1.95, -d / 2 - 1.05, 2.06)],
+        0.08, AWNING, up=(0, 0, 1))
+    TL.solid_box(bm, (-0.70, -d / 2 - 1.05, 2.00), (2.60, 0.10, 0.16), TRIM)
+    for sx in (-1.90, 0.50):
+        TL.solid_box(bm, (sx, -d / 2 - 0.5, 2.30), (0.08, 1.05, 0.09), TRIM)
+
+    TL.window_furniture(bm, o_shop, TRIM, GLASS, th, sill=True)
+    TL.window_furniture(bm, o_side, TRIM, GLASS, th)
+    TL.door_furniture(bm, o_door, DOOR, TRIM, PAVING, th)
+    for o in ups:
+        TL.window_furniture(bm, o, TRIM, GLASS, th, shutters=True,
+                            mat_shutter=BEAM)
+    TL.window_furniture(bm, o_up_side, TRIM, GLASS, th)
+
+    chimney(bm, -w / 2 + 0.60, 1.2, e1, e2 + 1.60, 0.40)
 
 
 def house_c(bm, rng):
-    """Long low farmhouse: shallow pitch, porch on posts, shuttered windows."""
-    w, d, eave = 6.0, 3.6, 2.35
+    """Long low farmhouse: shallow pitch, porch on real posts, shutters."""
+    w, d, eave, th = 6.0, 3.6, 2.45, 0.26
     poly = [(-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2), (-w / 2, d / 2)]
-    prism_wall(bm, poly, eave, PLASTER_R)
-    prism_wall(bm, [(x * 1.015, y * 1.02) for (x, y) in poly], 0.34, STONE_WALL)
-    gable_roof(bm, w, d, eave, 1.05, 0.46, ROOF_GREEN, TRIM, ridge_along_x=True)
-    # porch: real posts, a beam and its own lean-to roof
-    py = -d / 2 - 1.15
-    for x in (-1.55, 0.0, 1.55):
-        E.bm_polytube(bm, [Vector((x, py, 0.06)), Vector((x, py, 2.20))],
-                      [0.085, 0.075], 6, BEAM, cap_start=True, cap_end=True,
-                      smooth=False)
-        box(bm, (x, py, 2.10), (0.30, 0.30, 0.12), BEAM)
-    box(bm, (0, py, 2.28), (3.6, 0.14, 0.16), BEAM)
-    vs = []
-    for (x, y, z) in ((-2.1, py - 0.30, 2.34), (2.1, py - 0.30, 2.34),
-                      (2.1, -d / 2 + 0.05, 2.86), (-2.1, -d / 2 + 0.05, 2.86)):
-        vs.append(bm.verts.new((x, y, z)))
-    vt = [bm.verts.new(v.co + Vector((0, 0, 0.09))) for v in vs]
-    fs = [bm.faces.new(vt), bm.faces.new(list(reversed(vs)))]
-    for i in range(4):
-        j = (i + 1) % 4
-        fs.append(bm.faces.new((vs[i], vs[j], vt[j], vt[i])))
-    for f in fs:
-        f.material_index = ROOF_GREEN
-        f.smooth = False
-    bmesh.ops.recalc_face_normals(bm, faces=fs)
-    for x in (-2.05, -0.6, 0.9, 2.2):
-        window(bm, None, (x, -d / 2, 1.50), (0.72, 0.92), (0, -1, 0))
-        for sx in (-1, 1):
-            box(bm, (x + sx * 0.55, -d / 2 - 0.06, 1.50), (0.30, 0.07, 0.98),
-                BEAM)
-    door(bm, (0.15, -d / 2, 1.08), (1.0, 2.10), (0, -1, 0))
-    for (sx, sy) in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-        box(bm, (sx * (w / 2 - 0.02), sy * (d / 2 - 0.02), eave * 0.5),
-            (0.15, 0.15, eave), BEAM)
-    chimney(bm, -1.9, 0.5, eave - 0.4, eave + 1.55, 0.46)
+
+    sh = TL.Shell(bm, poly, 0.0, eave, th, PLASTER_R, PLASTER_R)
+    o_door = sh.add_opening(0, 1.05, 2.10, 0.0, 0.52, "door")
+    front_w = [sh.add_opening(0, 0.75, 0.95, 1.15, cs, "window")
+               for cs in (0.14, 0.30, 0.74, 0.90)]
+    o_end = sh.add_opening(1, 0.70, 0.90, 1.20, 0.5, "window")
+    o_back = sh.add_opening(2, 0.80, 0.90, 1.20, 0.35, "window")
+    sh.build()
+    HOLE_CHECKS.extend(sh.assert_openings())
+
+    TL.solid_prism(bm, [(x * 1.02, y * 1.035) for (x, y) in poly],
+                   -0.02, 0.36, STONE_WALL)
+    TL.gable_roof(bm, poly, eave, 1.15, 0.50, 0.16, ROOF_GREEN, TRIM,
+                  ridge_along_x=True, gable_mat=PLASTER_R)
+    TL.corner_posts(bm, poly, 0.0, eave, 0.15, BEAM)
+
+    # porch: posts, a head beam and a lean-to roof with real thickness
+    py = -d / 2 - 1.20
+    for x in (-1.75, 0.0, 1.75):
+        TL.solid_box(bm, (x, py, 1.15), (0.15, 0.15, 2.30), BEAM)
+        TL.solid_box(bm, (x, py, 2.24), (0.32, 0.32, 0.14), BEAM)
+    TL.solid_box(bm, (0, py, 2.38), (3.85, 0.16, 0.18), BEAM)
+    TL.solid_from_quad(bm, [
+        (-2.25, py - 0.32, 2.44), (2.25, py - 0.32, 2.44),
+        (2.25, -d / 2 + 0.06, 2.98), (-2.25, -d / 2 + 0.06, 2.98)],
+        0.11, ROOF_GREEN, up=(0, 0, 1))
+
+    for o in front_w:
+        TL.window_furniture(bm, o, TRIM, GLASS, th, shutters=True,
+                            mat_shutter=BEAM)
+    TL.window_furniture(bm, o_end, TRIM, GLASS, th)
+    TL.window_furniture(bm, o_back, TRIM, GLASS, th, mullion=False)
+    TL.door_furniture(bm, o_door, DOOR, TRIM, PAVING, th)
+
+    chimney(bm, -1.9, 0.5, eave - 0.5, eave + 1.65, 0.46)
 
 
 def poke_lab(bm, rng):
-    """The civic building.  It has to read as the most interesting thing in
-    town, so: a wide stone base, a two-storey glazed drum, a shallow domed
-    metal roof, a projecting entrance canopy on columns, rooftop instruments."""
-    R = 3.3
-    sides = 16
-    # stepped stone podium
-    for (r, z0, h, m) in ((R + 1.05, 0.0, 0.20, PAVING),
-                          (R + 0.72, 0.20, 0.20, PAVING),
-                          (R + 0.42, 0.40, 0.30, STONE_WALL)):
-        poly = [(math.cos(2 * math.pi * i / sides) * r,
-                 math.sin(2 * math.pi * i / sides) * r) for i in range(sides)]
-        prism_wall(bm, poly, h, m, z0=z0)
+    """The civic building: stone podium, a faceted drum with real glazed bays,
+    a glazed clerestory, a shallow dome and a canopied entrance.
+
+    The drum is a Shell like every other wall here, so its bays are cut through
+    the stone rather than painted on it, and the podium and cornices are closed
+    prisms rather than open extrusions.
+    """
+    # 12 facets, not 16: at R = 3.6 that gives a 1.86 m facet, wide enough to
+    # take a 1.55 m civic entrance as a real opening in one wall. A 16-gon's
+    # 1.33 m facet cannot, and forcing it was what deleted the wall.
+    R = 3.6
+    sides = 12
+    th = 0.30
+
+    def ring(r, phase=0.0):
+        return [(math.cos(2 * math.pi * (i + phase) / sides) * r,
+                 math.sin(2 * math.pi * (i + phase) / sides) * r)
+                for i in range(sides)]
+
+    for (r, z0, z1, m) in ((R + 1.10, -0.02, 0.20, PAVING),
+                           (R + 0.76, 0.18, 0.42, PAVING),
+                           (R + 0.44, 0.40, 0.72, STONE_WALL)):
+        TL.solid_prism(bm, ring(r), z0, z1, m)
 
     base_z = 0.70
-    # ground storey: solid plaster with deep window bays
-    poly = [(math.cos(2 * math.pi * i / sides) * R,
-             math.sin(2 * math.pi * i / sides) * R) for i in range(sides)]
-    prism_wall(bm, poly, 2.65, PLASTER_C, z0=base_z)
-    # glazed upper drum, mullions every other facet
-    poly2 = [(math.cos(2 * math.pi * i / sides) * (R - 0.22),
-              math.sin(2 * math.pi * i / sides) * (R - 0.22))
-             for i in range(sides)]
-    prism_wall(bm, poly2, 2.05, GLASS, z0=base_z + 2.65)
+    drum = ring(R)
+    sh = TL.Shell(bm, drum, base_z, 2.85, th, PLASTER_C, PLASTER_C)
+    # facet 9 of a 12-gon starting at angle 0 faces -Y, which is the street
+    door_seg = 9
+    o_door = sh.add_opening(door_seg, 1.55, 2.35, base_z, 0.5, "door")
+    bays = [sh.add_opening(seg, 1.15, 1.45, base_z + 0.85, 0.5, "window")
+            for seg in (7, 8, 10, 11, 1, 4)]
+    sh.build()
+    HOLE_CHECKS.extend(sh.assert_openings())
+
+    # floor band
+    TL.solid_prism(bm, ring(R + 0.14), base_z + 2.72, base_z + 2.98, TRIM)
+
+    # glazed clerestory drum: a closed prism of glass with mullions biting in
+    cz0 = base_z + 2.94
+    cz1 = cz0 + 2.05
+    TL.solid_prism(bm, ring(R - 0.20), cz0, cz1, GLASS)
     for i in range(sides):
         a = 2 * math.pi * (i + 0.5) / sides
-        box(bm, (math.cos(a) * (R - 0.18), math.sin(a) * (R - 0.18),
-                 base_z + 2.65 + 1.02), (0.13, 0.13, 2.05), TRIM, rot_z=a)
-    # floor band between storeys and a cornice
-    for (z, r, h, m) in ((base_z + 2.65, R + 0.13, 0.24, TRIM),
-                         (base_z + 4.70, R + 0.20, 0.26, TRIM)):
-        p = [(math.cos(2 * math.pi * i / sides) * r,
-              math.sin(2 * math.pi * i / sides) * r) for i in range(sides)]
-        prism_wall(bm, p, h, m, z0=z - h * 0.5)
+        TL.solid_box(bm, (math.cos(a) * (R - 0.17), math.sin(a) * (R - 0.17),
+                          (cz0 + cz1) * 0.5), (0.14, 0.14, cz1 - cz0), TRIM,
+                     rot_z=a)
+    TL.solid_prism(bm, ring(R + 0.22), cz1 - 0.06, cz1 + 0.24, TRIM)
 
-    # shallow dome, lofted in rings so it is a real surface
-    dome_z = base_z + 4.96
-    rings = []
+    # dome: closed, with a floor ring so it is a solid and not a lid
+    dome_z = cz1 + 0.22
     steps = 5
+    rings = []
     for k in range(steps + 1):
         t = k / float(steps)
-        r = (R + 0.20) * math.cos(t * math.pi * 0.42)
-        z = dome_z + math.sin(t * math.pi * 0.42) * 1.30
+        r = (R + 0.22) * math.cos(t * math.pi * 0.44)
+        z = dome_z + math.sin(t * math.pi * 0.44) * 1.30
         rings.append([bm.verts.new((math.cos(2 * math.pi * i / sides) * r,
                                     math.sin(2 * math.pi * i / sides) * r, z))
                       for i in range(sides)])
+    dome_faces = []
     for k in range(steps):
         for i in range(sides):
             j = (i + 1) % sides
-            f = bm.faces.new((rings[k][i], rings[k][j],
-                              rings[k + 1][j], rings[k + 1][i]))
-            f.material_index = METAL_ROOF
-            f.smooth = False
-    f = bm.faces.new(rings[-1])
-    f.material_index = METAL_ROOF
-    f.smooth = False
-    bmesh.ops.recalc_face_normals(bm, faces=[f])
-    # lantern and aerial on top
-    box(bm, (0, 0, dome_z + 1.44), (0.72, 0.72, 0.52), TRIM)
-    box(bm, (0, 0, dome_z + 1.76), (0.92, 0.92, 0.12), METAL_ROOF)
-    E.bm_polytube(bm, [Vector((0, 0, dome_z + 1.80)),
-                       Vector((0, 0, dome_z + 3.10))],
-                  [0.055, 0.022], 5, LAMP, cap_start=True, cap_end=True,
-                  smooth=False)
-    for k in range(3):
-        z = dome_z + 2.25 + k * 0.28
-        box(bm, (0, 0, z), (0.46 - k * 0.11, 0.05, 0.035), LAMP)
+            dome_faces.append(bm.faces.new((rings[k][i], rings[k][j],
+                                            rings[k + 1][j], rings[k + 1][i])))
+    dome_faces.append(bm.faces.new(rings[-1]))
+    dome_faces.append(bm.faces.new(list(reversed(rings[0]))))
+    for f in dome_faces:
+        f.material_index = METAL_ROOF
+        f.smooth = False
+    bmesh.ops.recalc_face_normals(bm, faces=dome_faces)
 
-    # entrance canopy on the -Y face, projecting forward
-    cy = -R - 0.95
-    for sx in (-1, 1):
-        E.bm_polytube(bm, [Vector((sx * 1.30, cy, 0.20)),
-                           Vector((sx * 1.30, cy, 2.95))],
-                      [0.16, 0.13], 8, TRIM, cap_start=True, cap_end=True,
-                      smooth=False)
-        box(bm, (sx * 1.30, cy, 0.32), (0.44, 0.44, 0.24), STONE_WALL)
-        box(bm, (sx * 1.30, cy, 2.88), (0.38, 0.38, 0.16), TRIM)
-    box(bm, (0, cy + 0.35, 3.06), (3.30, 1.90, 0.20), METAL_ROOF)
-    box(bm, (0, cy - 0.55, 3.02), (3.34, 0.14, 0.30), TRIM)
-    # sign board over the entrance
-    box(bm, (0, cy - 0.62, 2.55), (2.10, 0.10, 0.52), AWNING)
-    box(bm, (0, cy - 0.68, 2.55), (1.86, 0.05, 0.34), TRIM)
-    # steps up to the doors
+    top = dome_z + 1.30
+    TL.solid_box(bm, (0, 0, top + 0.24), (0.74, 0.74, 0.56), TRIM)
+    TL.solid_box(bm, (0, 0, top + 0.58), (0.94, 0.94, 0.13), METAL_ROOF)
+    TL.solid_box(bm, (0, 0, top + 1.35), (0.09, 0.09, 1.50), LAMP)
     for k in range(3):
-        box(bm, (0, cy + 0.55 + k * 0.30, 0.055 + k * 0.11),
-            (3.0 - k * 0.22, 0.34, 0.11 + k * 0.0), PAVING)
-    door(bm, (0, -R + 0.02, 1.82), (1.9, 2.25), (0, -1, 0), step=False)
-    # big ground-floor bays, zoned: three on the front, plain around the back
-    for a_deg in (-52, 52, -104, 104, 180):
-        a = math.radians(a_deg - 90)
-        n = Vector((math.cos(a), math.sin(a), 0))
-        window(bm, None, tuple(n * (R - 0.02) + Vector((0, 0, 1.95))),
-               (1.10, 1.45), tuple(n))
+        TL.solid_box(bm, (0, 0, top + 1.05 + k * 0.30),
+                     (0.48 - k * 0.12, 0.06, 0.04), LAMP)
+
+    # entrance canopy: posts, a thick slab, a sign, and steps that are solids
+    cy = -R - 1.00
+    for sx in (-1, 1):
+        TL.solid_box(bm, (sx * 1.35, cy, 1.55), (0.26, 0.26, 3.10), TRIM)
+        TL.solid_box(bm, (sx * 1.35, cy, 0.26), (0.48, 0.48, 0.52), STONE_WALL)
+    TL.solid_box(bm, (0, cy + 0.40, 3.16), (3.40, 2.05, 0.22), METAL_ROOF)
+    TL.solid_box(bm, (0, cy - 0.58, 3.10), (3.44, 0.16, 0.34), TRIM)
+    TL.solid_box(bm, (0, cy - 0.64, 2.58), (2.15, 0.12, 0.54), AWNING)
+    TL.solid_box(bm, (0, cy - 0.71, 2.58), (1.90, 0.06, 0.36), TRIM)
+    for k in range(3):
+        TL.solid_box(bm, (0, cy + 0.62 + k * 0.32, 0.06 + k * 0.13),
+                     (3.1 - k * 0.24, 0.40, 0.14 + k * 0.10), PAVING)
+
+    for o in bays:
+        TL.window_furniture(bm, o, TRIM, GLASS, th, mullion=True)
+    TL.door_furniture(bm, o_door, DOOR, TRIM, PAVING, th)
 
 
 # --------------------------------------------------------------------------
@@ -743,10 +808,10 @@ def path_tile(bm, rng, w=2.0, d=2.0, worn=True):
 
 
 ASSETS = [
-    ("Env_House_Cottage_A", 4101, (1500, 6000), house_a),
-    ("Env_House_Townhouse_B", 4102, (1500, 6000), house_b),
-    ("Env_House_Farmhouse_C", 4103, (1500, 6000), house_c),
-    ("Env_Building_PokeLab", 4104, (1500, 6000), poke_lab),
+    ("Env_House_Cottage_A", 4101, (900, 6000), house_a),
+    ("Env_House_Townhouse_B", 4102, (900, 6000), house_b),
+    ("Env_House_Farmhouse_C", 4103, (900, 6000), house_c),
+    ("Env_Building_PokeLab", 4104, (900, 6000), poke_lab),
     ("Env_Fence_Picket_2m", 4201, (200, 2000),
      lambda bm, rng: fence_section(bm, rng, 2.0, 1.05, 7)),
     ("Env_Fence_Picket_1m", 4202, (150, 2000),
@@ -763,7 +828,7 @@ ASSETS = [
      lambda bm, rng: path_tile(bm, rng, 2.0, 2.0)),
     ("Env_Path_Paved_1m", 4272, (100, 2000),
      lambda bm, rng: path_tile(bm, rng, 1.0, 1.0)),
-    ("Env_Path_Paved_Corner", 4273, (200, 2000),
+    ("Env_Path_Paved_Corner", 4273, (150, 2000),
      lambda bm, rng: path_tile(bm, rng, 2.0, 1.0)),
 ]
 
@@ -783,20 +848,36 @@ def main():
     for (name, seed, budget, fn) in ASSETS:
         rng = random.Random(seed)
         bm = E.bm_new()
+        del HOLE_CHECKS[:]
         fn(bm, rng)
-        # bevel every hard edge -- but only after the mesh is complete, and
-        # small enough that a 6 cm trim board does not swallow itself
-        E.bevel_sharp(bm, width=0.012, segments=1, angle_deg=38.0,
-                      mat_break=False)
+        if HOLE_CHECKS:
+            problems.append((name, ["OPENING NOT PIERCED: " + m
+                                    for m in HOLE_CHECKS]))
+        # Bevel every hard edge on the street kit -- but not on the buildings.
+        # A building is an assembly of interpenetrating closed solids, and
+        # bevelling across those intersections collapses faces to zero area;
+        # cleanup then deletes them and the hull is no longer closed. The
+        # buildings get their edge definition from real wall thickness and real
+        # reveals instead, which is a better source of it anyway.
+        if name not in BUILDINGS:
+            E.bevel_sharp(bm, width=0.012, segments=1, angle_deg=38.0,
+                          mat_break=False)
         obj = E.bm_to_obj(bm, name, ms.materials())
-        E.finalize(obj, smooth_angle=22.0)
+        E.finalize(obj, smooth_angle=22.0,
+                   merge=0.0 if name in BUILDINGS else 1e-5)
         E.pivot_to_base(obj, xy='center' if name not in
                         ("Env_Path_Paved_2m", "Env_Path_Paved_1m",
                          "Env_Path_Paved_Corner") else 'center')
         E.apply_transforms(obj)
         E.uv_all(obj, ms, angle=58.0, margin=0.010)
+        # Buildings are held to a harder standard than the street kit: a
+        # closed hull (the missing rear wall would have shown up here) and no
+        # coplanar duplicate faces (the wall z-fighting would have).
         tris, probs = E.validate(obj, budget=budget, need_vcol=False,
-                                 strict=False)
+                                 strict=False,
+                                 closed=name in BUILDINGS,
+                                 max_coplanar_dupes=0 if name in BUILDINGS
+                                 else None)
         path = os.path.join(OUT, name + ".fbx")
         lods = []
         if tris > 2000:

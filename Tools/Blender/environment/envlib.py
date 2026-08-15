@@ -625,7 +625,13 @@ def bevel_sharp(bm, width=0.012, segments=2, angle_deg=32.0, mat_break=True):
 
 
 def cleanup(bm, merge=1e-5, tri_limit=None):
-    bmesh.ops.remove_doubles(bm, verts=list(bm.verts), dist=merge)
+    # merge <= 0 means "this mesh was authored, not scanned -- there are no
+    # accidental doubles to remove". Welding matters for organic builders that
+    # stamp overlapping primitives; on a building assembled from closed solids
+    # it only fuses two solids that happen to touch on an exact coordinate,
+    # turning a clean pair of manifolds into one non-manifold mesh.
+    if merge > 0.0:
+        bmesh.ops.remove_doubles(bm, verts=list(bm.verts), dist=merge)
     # kill zero-area faces and loose geometry
     bad = [f for f in bm.faces if f.calc_area() < 1e-9]
     if bad:

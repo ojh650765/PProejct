@@ -31,7 +31,12 @@ ATLAS_FAMILIES = ["Foliage", "Terrain", "Town", "Props"]
 BUDGETS = {
     "foliage": [200, 1500],
     "rock": [300, 2000],
-    "building": [1500, 6000],
+    # 900, not 1500: the rebuilt buildings dropped the whole-mesh bevel
+    # pass (it collapsed faces across the intersections of the closed
+    # solids they are assembled from) and gained real wall thickness and
+    # real reveals instead. A cottage that is 1,200 correct triangles is
+    # not under-built; the old 3,000 were mostly chamfer.
+    "building": [900, 6000],
     "prop": [300, 2000],
     "character": [3000, 8000],
     # Ground decks, water surfaces, ramps and ledges. One instance each, world
