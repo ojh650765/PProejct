@@ -1,0 +1,14 @@
+{
+    "name": "PokeLab.Cinematics.Editor",
+    "rootNamespace": "PokeLab.Cinematics.EditorTools",
+    "references": ["PokeLab.Cinematics", "PokeLab.Core", "Unity.Cinemachine"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
