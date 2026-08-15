@@ -4,48 +4,8 @@ using PokeLab.Core;
 
 namespace PokeLab.Cinematics
 {
-    /// <summary>
-    /// A VFX cue fired from inside a choreographed beat.
-    ///
-    /// The VFX worker subscribes to the same <see cref="BattleEvent"/> stream we do and
-    /// plays its own response independently — that is the whole point of the seam. This
-    /// interface exists only for the handful of moments where the effect must land at a
-    /// frame the event stream cannot express: the instant a travelling projectile reaches
-    /// the target, the frame a capture ball clicks shut, the peak of a lunge.
-    ///
-    /// Every call site treats this as optional and no-ops when nothing is registered.
-    /// </summary>
-    public interface ICinematicVfxHook
-    {
-        /// <summary>Spawn a one-shot effect identified by the engine's VfxKey.</summary>
-        void PlayVfx(string vfxKey, Vector3 position, Quaternion rotation);
 
-        /// <summary>Attach a persistent effect to a transform, returning a handle to stop it.</summary>
-        GameObject AttachVfx(string vfxKey, Transform parent);
-    }
 
-    /// <summary>Frame-accurate audio cues from inside a beat. See <see cref="ICinematicVfxHook"/>.</summary>
-    public interface ICinematicAudioHook
-    {
-        void PlayCue(string cueId, Vector3 position);
-
-        /// <summary>The creature's species cry, used at send-out and on the victory beat.</summary>
-        void PlayCry(int speciesId, Vector3 position);
-    }
-
-    /// <summary>
-    /// HUD beats the choreography drives directly: flying the battle HUD in when the
-    /// creatures have taken their marks, hiding it for a set piece, and dimming it during
-    /// the capture sequence.
-    /// </summary>
-    public interface ICinematicHudHook
-    {
-        /// <summary>Fly the battle HUD in or out over the given duration. Never a hard toggle.</summary>
-        void SetHudVisible(bool visible, float duration);
-
-        /// <summary>A named emphasis beat, e.g. "critical", "supereffective", "levelup".</summary>
-        void PlayHudBeat(string beatId, float intensity);
-    }
 
     /// <summary>
     /// Resolves the optional presentation hooks and swallows their absence.

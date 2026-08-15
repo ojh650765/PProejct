@@ -172,13 +172,4 @@ namespace PokeLab.Audio
         Water = 4,
     }
 
-    /// <summary>Mixer routing groups. Maps one-to-one onto the groups in GameMixer.mixer.</summary>
-    public enum AudioBus
-    {
-        Master = 0,
-        Music = 1,
-        Sfx = 2,
-        Ambience = 3,
-        Ui = 4,
-    }
 }

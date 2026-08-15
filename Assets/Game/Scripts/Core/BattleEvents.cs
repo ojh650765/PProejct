@@ -166,6 +166,13 @@ namespace PokeLab.Core
     /// <summary>One shake of a thrown ball. Four in a row with <see cref="Succeeded"/> means a catch.</summary>
     public sealed class CaptureAttemptEvent : BattleEvent
     {
+        /// <summary>
+        /// Which side is being captured. Always <see cref="BattleSide.Opponent"/> in the current
+        /// slice, but stated explicitly: the choreography has to know where to throw the ball,
+        /// and inferring it silently breaks the moment anything on the player's side is catchable.
+        /// </summary>
+        public BattleSide Target = BattleSide.Opponent;
+
         public string BallId;
         public int Shakes;
         public bool Succeeded;

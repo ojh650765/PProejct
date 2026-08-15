@@ -7,37 +7,6 @@ using UnityEngine.Audio;
 
 namespace PokeLab.Audio
 {
-    /// <summary>
-    /// The public face of the audio system for every other worker.
-    ///
-    /// It lives in this assembly rather than in Core because Core has no audio contract
-    /// yet. Systems that already reference PokeLab.Audio resolve it with
-    /// <c>ServiceHub.TryGet&lt;IGameAudio&gt;(out var audio)</c>; systems that must not
-    /// take an assembly reference can use the string cue bus described on
-    /// <see cref="AudioDirector"/> instead. Both degrade to silence rather than throwing.
-    /// </summary>
-    public interface IGameAudio
-    {
-        void PlaySfx(string clipName, float volume = 1f, float pitch = 1f);
-        void PlaySfxAt(string clipName, Vector3 worldPosition, float volume = 1f, float pitch = 1f);
-        void PlayUi(string clipName, float volume = 1f, float pitch = 1f);
-
-        /// <summary>Starts a looping clip on the given bus. Returns null if the clip is missing.</summary>
-        AudioSource PlayLoop(string clipName, AudioBus bus, float volume = 1f, bool spatial = false);
-        void StopLoop(AudioSource source, float fadeSeconds = 0.25f);
-
-        /// <summary>Linear 0-1; converted to a logarithmic dB curve before it reaches the mixer.</summary>
-        void SetBusVolume(AudioBus bus, float linear01);
-        float GetBusVolume(AudioBus bus);
-
-        /// <summary>Dips music for a fixed time, e.g. under the victory fanfare.</summary>
-        void DuckMusic(float amount01, float attack, float hold, float release);
-
-        /// <summary>Holds music down until the returned handle is disposed, e.g. for a dialogue run.</summary>
-        IDisposable DuckMusicScope(float amount01 = 0.55f, float attack = 0.25f, float release = 0.6f);
-
-        bool HasClip(string clipName);
-    }
 
     /// <summary>
     /// Owns the mixer, the volume model, the ducking state and every pooled AudioSource.
