@@ -1,0 +1,19 @@
+{
+    "name": "PokeLab.Boot",
+    "rootNamespace": "PokeLab.Boot",
+    "references": [
+        "PokeLab.Core",
+        "PokeLab.Intelligence",
+        "PokeLab.Battle",
+        "PokeLab.Overworld"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
