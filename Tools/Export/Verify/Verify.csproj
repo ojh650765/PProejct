@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Compiles the Poke Lab numeric core outside Unity so the port can actually be proven
+    against Python rather than asserted. Only the UnityEngine-free sources are pulled in;
+    PokeLabBootstrap.cs and Core/GameFlow.cs are excluded because they need the engine.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>9.0</LangVersion>
+    <AssemblyName>PokeLabVerify</AssemblyName>
+    <RootNamespace>PokeLab.Verify</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Scenarios.cs" />
+
+    <!-- The battle test double is shared with the EditMode tests so both drive the same one. -->
+    <Compile Include="../../../Assets/Tests/PokeLab/FakeBattle.cs" />
+
+    <!-- Frozen contract, compiled read-only. GameFlow.cs and ServiceHub.cs need UnityEngine. -->
+    <Compile Include="../../../Assets/Game/Scripts/Core/Types.cs" />
+    <Compile Include="../../../Assets/Game/Scripts/Core/SpeciesData.cs" />
+    <Compile Include="../../../Assets/Game/Scripts/Core/BattleEvents.cs" />
+    <Compile Include="../../../Assets/Game/Scripts/Core/BattleContracts.cs" />
+    <Compile Include="../../../Assets/Game/Scripts/Core/PokeLabContracts.cs" />
+
+    <!-- The intelligence layer, minus the Unity-facing bootstrap. -->
+    <Compile Include="../../../Assets/Game/Scripts/PokeLab/PokeLabStrings.cs" />
+    <Compile Include="../../../Assets/Game/Scripts/PokeLab/PokeLabOracle.cs" />
+    <Compile Include="../../../Assets/Game/Scripts/PokeLab/Data/*.cs" />
+    <Compile Include="../../../Assets/Game/Scripts/PokeLab/Model/*.cs" />
+    <Compile Include="../../../Assets/Game/Scripts/PokeLab/Tactics/*.cs" />
+  </ItemGroup>
+
+</Project>
