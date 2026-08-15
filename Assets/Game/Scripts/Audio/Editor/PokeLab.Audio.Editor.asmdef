@@ -1,10 +1,13 @@
 {
-    "name": "PokeLab.Audio",
-    "rootNamespace": "PokeLab.Audio",
+    "name": "PokeLab.Audio.Editor",
+    "rootNamespace": "PokeLab.Audio.Editor",
     "references": [
-        "PokeLab.Core"
+        "PokeLab.Core",
+        "PokeLab.Audio"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
