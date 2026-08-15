@@ -298,7 +298,7 @@ Shader "PokeLab/PropGroundBlend"
                 half3 rimColour = _RimColor.rgb + _PL_RimTint.rgb * _PL_RimBoost;
                 colour += rimColour * rim * (_RimStrength + _PL_RimBoost) * occlusion;
 
-                colour = MixFog(colour, input.fogFactor);
+                colour = MixFog(colour, input.fogAndHeight.x);
                 colour += PL_AdaptiveDither(svPosition, 1.0 / 255.0);
 
                 return half4(colour, alpha);
