@@ -1,0 +1,196 @@
+{
+  "$schema": "poke-lab creature art manifest v1",
+  "generator": "Tools/Blender/build_all.py (Blender 4.0.1)",
+  "conventions": {
+    "units": "1 blender unit = 1 metre; creatures authored at true size",
+    "orientation": "modelled facing -Y with +Z up, exported with axis_forward='-Y', axis_up='Z' so the FBX declares UpAxis=+Z / FrontAxis=+Y / CoordAxis=-X and Unity's axis conversion lands the creature facing +Z, Y up, feet at the origin (see Tools/Blender/previews/axis_probe.txt)",
+    "fps": 30,
+    "anchors": [
+      "Anchor_Head",
+      "Anchor_Body",
+      "Anchor_Muzzle"
+    ],
+    "clipNaming": "one action per CreatureAnimation enum value",
+    "rootMotion": "none - locomotion clips are in place"
+  },
+  "creatures": {
+    "1": {
+      "id": 1,
+      "nameEn": "Bulbasaur",
+      "types": [
+        "Grass",
+        "Poison"
+      ],
+      "design": "squat seafoam quadruped with dark blotches and a closed green bulb",
+      "bodyPlan": "quadruped",
+      "fbx": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur.fbx",
+      "lod1": {
+        "fbx": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur_LOD1.fbx",
+        "tris": 2414
+      },
+      "textures": {
+        "baseColor": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur_BaseColor.png",
+        "normal": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur_Normal.png"
+      },
+      "portrait": "Assets/Game/Art/Creatures/Creature_1_Bulbasaur_Portrait.png",
+      "displayHeight": 0.7,
+      "authoredSize": {
+        "axis": "z",
+        "metres": 0.7
+      },
+      "shoulderHeight": 0.348,
+      "boundsMetres": {
+        "min": [
+          -0.2533,
+          -0.465,
+          0.0
+        ],
+        "max": [
+          0.2533,
+          0.465,
+          0.7
+        ]
+      },
+      "triangles": 6038,
+      "quadRatio": 0.839,
+      "bones": 19,
+      "anchors": [
+        "Anchor_Body",
+        "Anchor_Head",
+        "Anchor_Muzzle"
+      ],
+      "shapeKeys": [
+        "Blink",
+        "Squint"
+      ],
+      "clips": [
+        "Idle",
+        "IdleBattle",
+        "Walk",
+        "Run",
+        "AttackPhysical",
+        "AttackSpecial",
+        "AttackStatus",
+        "Hit",
+        "Dodge",
+        "Faint",
+        "Celebrate",
+        "SentOut",
+        "Recalled",
+        "Sleep"
+      ],
+      "clipDetail": [
+        {
+          "name": "Idle",
+          "frames": 113,
+          "loop": true,
+          "seconds": 3.767
+        },
+        {
+          "name": "IdleBattle",
+          "frames": 85,
+          "loop": true,
+          "seconds": 2.833
+        },
+        {
+          "name": "Walk",
+          "frames": 47,
+          "loop": true,
+          "seconds": 1.567
+        },
+        {
+          "name": "Run",
+          "frames": 28,
+          "loop": true,
+          "seconds": 0.933
+        },
+        {
+          "name": "AttackPhysical",
+          "frames": 42,
+          "loop": false,
+          "seconds": 1.4
+        },
+        {
+          "name": "AttackSpecial",
+          "frames": 56,
+          "loop": false,
+          "seconds": 1.867
+        },
+        {
+          "name": "AttackStatus",
+          "frames": 49,
+          "loop": false,
+          "seconds": 1.633
+        },
+        {
+          "name": "Hit",
+          "frames": 31,
+          "loop": false,
+          "seconds": 1.033
+        },
+        {
+          "name": "Dodge",
+          "frames": 28,
+          "loop": false,
+          "seconds": 0.933
+        },
+        {
+          "name": "Faint",
+          "frames": 64,
+          "loop": false,
+          "seconds": 2.133
+        },
+        {
+          "name": "Celebrate",
+          "frames": 78,
+          "loop": false,
+          "seconds": 2.6
+        },
+        {
+          "name": "SentOut",
+          "frames": 49,
+          "loop": false,
+          "seconds": 1.633
+        },
+        {
+          "name": "Recalled",
+          "frames": 31,
+          "loop": false,
+          "seconds": 1.033
+        },
+        {
+          "name": "Sleep",
+          "frames": 130,
+          "loop": true,
+          "seconds": 4.333
+        }
+      ],
+      "missingClips": [],
+      "validation": {
+        "tris": 6038,
+        "quad_ratio": 0.839,
+        "ngons": 0,
+        "loose_verts": 0,
+        "loose_edges": 0,
+        "zero_area_faces": 0,
+        "boundary_edges": 0,
+        "signed_volume": 0.171312,
+        "uv_bounds": [
+          0.009,
+          0.009,
+          0.9871,
+          0.9912
+        ],
+        "anchors": [
+          "Anchor_Body",
+          "Anchor_Head",
+          "Anchor_Muzzle"
+        ],
+        "bones": 19,
+        "single_influence_verts": 0,
+        "single_influence_pct": 0.0
+      },
+      "problems": []
+    }
+  }
+}
