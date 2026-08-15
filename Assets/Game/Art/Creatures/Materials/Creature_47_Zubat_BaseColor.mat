@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Creature_47_Zubat_BaseColor
-  m_Shader: {fileID: 4800000, guid: 933532a4fcc9baf4fa0491de14d08ed7, type: 3}
+  m_Shader: {fileID: 4800000, guid: 8009f54db0d0fcc505a69bcd653d7b17, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
@@ -18,8 +18,7 @@ Material:
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
-  stringTagMap:
-    RenderType: Opaque
+  stringTagMap: {}
   disabledShaderPasses:
   - MOTIONVECTORS
   m_LockedProperties: 
@@ -52,6 +51,10 @@ Material:
         m_Offset: {x: 0, y: 0}
     - _MainTex:
         m_Texture: {fileID: 2800000, guid: a400d9a5df7a1274291728b69b85dcb4, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MaskMap:
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -96,31 +99,62 @@ Material:
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
     - _DetailNormalMapScale: 1
+    - _DissolveAmount: 0
+    - _DissolveEdgeWidth: 0.08
+    - _DissolveScale: 9
     - _DstBlend: 0
     - _DstBlendAlpha: 0
+    - _EmissionPulse: 0
     - _EnvironmentReflections: 1
+    - _FlashAmount: 0
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
     - _Metallic: 0
-    - _OcclusionStrength: 1
+    - _OcclusionStrength: 0.6
+    - _OutlineFadeEnd: 40
+    - _OutlineFadeStart: 22
+    - _OutlineWidth: 1.4
     - _Parallax: 0.005
     - _QueueOffset: 0
     - _ReceiveShadows: 1
+    - _RimLightAlign: 0.6
+    - _RimPower: 3.2
+    - _RimStrength: 0.9
+    - _RimThreshold: 0.22
+    - _ShadeSoftness: 0.07
+    - _ShadeSteps: 3
+    - _ShadeWrap: 0.3
+    - _ShadowStrength: 0.75
     - _Smoothness: 0.5
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
+    - _SpecularSharpness: 24
+    - _SpecularStep: 0.45
+    - _SpecularStrength: 0.35
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
+    - _SssPower: 4
+    - _SssStrength: 0.5
     - _Surface: 0
     - _WorkflowMode: 1
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
-    - _BaseColor: {r: 0.8, g: 0.8, b: 0.8, a: 1}
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 0.8, g: 0.8, b: 0.8, a: 1}
+    - _DissolveEdgeColor: {r: 1.6, g: 0.9, b: 0.25, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _FlashColor: {r: 1, g: 1, b: 1, a: 1}
+    - _OutlineColor: {r: 0.079999976, g: 0.06999998, b: 0.11999995, a: 1}
+    - _RimColor: {r: 1, g: 0.95, b: 0.85, a: 1}
+    - _ShadeColor: {r: 0.42, g: 0.47, b: 0.66, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
+    - _SpecularColor: {r: 1, g: 0.98, b: 0.92, a: 1}
+    - _SssColor: {r: 1, g: 0.45, b: 0.35, a: 1}
+    - _TintA: {r: 1, g: 1, b: 1, a: 1}
+    - _TintB: {r: 1, g: 1, b: 1, a: 1}
+    - _TintC: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &7979940045116509222
