@@ -1,0 +1,512 @@
+[
+  {
+    "name": "Env_Tree_Broadleaf_A",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
+    "triangles": 877,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "broadleaf"
+  },
+  {
+    "name": "Env_Tree_Broadleaf_B",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
+    "triangles": 1149,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "broadleaf"
+  },
+  {
+    "name": "Env_Tree_Broadleaf_C",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
+    "triangles": 1349,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "broadleaf"
+  },
+  {
+    "name": "Env_Tree_Conifer_A",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
+    "triangles": 802,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "conifer"
+  },
+  {
+    "name": "Env_Tree_Conifer_B",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
+    "triangles": 1022,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "conifer"
+  },
+  {
+    "name": "Env_Tree_Conifer_C",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
+    "triangles": 1192,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "conifer"
+  },
+  {
+    "name": "Env_Tree_Birch_A",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
+    "triangles": 1332,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "birch_multi"
+  },
+  {
+    "name": "Env_Tree_Birch_B",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
+    "triangles": 1036,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "birch"
+  },
+  {
+    "name": "Env_Tree_Birch_C",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_C.fbx",
+    "triangles": 1134,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "birch"
+  },
+  {
+    "name": "Env_Tree_Willow_A",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
+    "triangles": 958,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "willow"
+  },
+  {
+    "name": "Env_Tree_Willow_B",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
+    "triangles": 1259,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "willow"
+  },
+  {
+    "name": "Env_Tree_Willow_C",
+    "family": "Foliage",
+    "subfamily": "Tree",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
+    "triangles": 1404,
+    "lods": [],
+    "pivot": "trunk base, XY centred on trunk",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": "willow"
+  },
+  {
+    "name": "Env_Grass_Clump_A",
+    "family": "Foliage",
+    "subfamily": "Grass",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_A.fbx",
+    "triangles": 270,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Grass_Clump_B",
+    "family": "Foliage",
+    "subfamily": "Grass",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_B.fbx",
+    "triangles": 320,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Grass_Clump_C",
+    "family": "Foliage",
+    "subfamily": "Grass",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_C.fbx",
+    "triangles": 240,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Grass_Clump_D",
+    "family": "Foliage",
+    "subfamily": "Grass",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_D.fbx",
+    "triangles": 380,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Grass_Blade",
+    "family": "Foliage",
+    "subfamily": "Grass",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Blade.fbx",
+    "triangles": 10,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Bush_A",
+    "family": "Foliage",
+    "subfamily": "Bush",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Bush_A.fbx",
+    "triangles": 438,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Bush_B",
+    "family": "Foliage",
+    "subfamily": "Bush",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Bush_B.fbx",
+    "triangles": 342,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Bush_C",
+    "family": "Foliage",
+    "subfamily": "Bush",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Bush_C.fbx",
+    "triangles": 552,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Fern_A",
+    "family": "Foliage",
+    "subfamily": "Fern",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Fern_A.fbx",
+    "triangles": 238,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Fern_B",
+    "family": "Foliage",
+    "subfamily": "Fern",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Fern_B.fbx",
+    "triangles": 210,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Reed_A",
+    "family": "Foliage",
+    "subfamily": "Reed",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Reed_A.fbx",
+    "triangles": 718,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Reed_B",
+    "family": "Foliage",
+    "subfamily": "Reed",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Reed_B.fbx",
+    "triangles": 372,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Lilypad_A",
+    "family": "Foliage",
+    "subfamily": "Lilypad",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Lilypad_A.fbx",
+    "triangles": 54,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Lilypad_B",
+    "family": "Foliage",
+    "subfamily": "Lilypad",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Lilypad_B.fbx",
+    "triangles": 36,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Moss_Cave_A",
+    "family": "Foliage",
+    "subfamily": "Moss",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Moss_Cave_A.fbx",
+    "triangles": 480,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Moss_Cave_B",
+    "family": "Foliage",
+    "subfamily": "Moss",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Moss_Cave_B.fbx",
+    "triangles": 288,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Vine_Hanging_A",
+    "family": "Foliage",
+    "subfamily": "Vine",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Vine_Hanging_A.fbx",
+    "triangles": 930,
+    "lods": [],
+    "pivot": "top anchor (hangs downward)",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Vine_Hanging_B",
+    "family": "Foliage",
+    "subfamily": "Vine",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Vine_Hanging_B.fbx",
+    "triangles": 582,
+    "lods": [],
+    "pivot": "top anchor (hangs downward)",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Flower_Red",
+    "family": "Foliage",
+    "subfamily": "Flower",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Flower_Red.fbx",
+    "triangles": 394,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Flower_Yellow",
+    "family": "Foliage",
+    "subfamily": "Flower",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Flower_Yellow.fbx",
+    "triangles": 388,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Flower_Purple",
+    "family": "Foliage",
+    "subfamily": "Flower",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Flower_Purple.fbx",
+    "triangles": 476,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  },
+  {
+    "name": "Env_Flower_White",
+    "family": "Foliage",
+    "subfamily": "Flower",
+    "path": "Assets/Game/Art/Environment/Foliage/Env_Flower_White.fbx",
+    "triangles": 494,
+    "lods": [],
+    "pivot": "base, XY centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Foliage/Textures/Env_Foliage_Atlas_Normal.png"
+    ],
+    "windVertexColors": true,
+    "notes": ""
+  }
+]
