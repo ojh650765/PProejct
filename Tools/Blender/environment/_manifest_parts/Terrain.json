@@ -214,8 +214,19 @@
     "family": "Terrain",
     "subfamily": "Cave",
     "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch.fbx",
-    "triangles": 940,
-    "lods": [],
+    "triangles": 5421,
+    "lods": [
+      {
+        "level": 1,
+        "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch_LOD1.fbx",
+        "triangles": 2167
+      },
+      {
+        "level": 2,
+        "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch_LOD2.fbx",
+        "triangles": 812
+      }
+    ],
     "pivot": "base, XY centred",
     "textures": [
       "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
@@ -364,8 +375,19 @@
     "family": "Terrain",
     "subfamily": "Bridge",
     "path": "Assets/Game/Art/Environment/Terrain/Env_Bridge_Wood.fbx",
-    "triangles": 1044,
-    "lods": [],
+    "triangles": 3034,
+    "lods": [
+      {
+        "level": 1,
+        "path": "Assets/Game/Art/Environment/Terrain/Env_Bridge_Wood_LOD1.fbx",
+        "triangles": 1212
+      },
+      {
+        "level": 2,
+        "path": "Assets/Game/Art/Environment/Terrain/Env_Bridge_Wood_LOD2.fbx",
+        "triangles": 454
+      }
+    ],
     "pivot": "base, XY centred",
     "textures": [
       "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",

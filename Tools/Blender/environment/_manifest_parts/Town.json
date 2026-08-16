@@ -195,7 +195,7 @@
     "family": "Town",
     "subfamily": "Well",
     "path": "Assets/Game/Art/Environment/Town/Env_Well.fbx",
-    "triangles": 506,
+    "triangles": 1068,
     "lods": [],
     "pivot": "ground level, footprint centred",
     "textures": [

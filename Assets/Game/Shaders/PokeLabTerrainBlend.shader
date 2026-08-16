@@ -275,7 +275,17 @@ Shader "PokeLab/TerrainBlend"
 
                 // --- Macro variation. Large low-frequency colour drift stops the
                 // tiling from reading, which is the other big giveaway on terrain.
-                float macro = PL_Fbm(positionWS.xz / max(_MacroScale, 0.01));
+                //
+                // Sampled in three planes, not one. PL_Fbm takes a float2, and feeding
+                // it positionWS.xz gives every point on a vertical line the same value:
+                // the only anti-tiling term in the shader was *constant down a cliff
+                // face*, which is exactly where the one triplanar layer repeats several
+                // times over a single wall. XZ stays dominant so flat ground is
+                // unchanged; the other two planes only exist to vary with height.
+                float3 mp = positionWS / max(_MacroScale, 0.01);
+                float macro = PL_Fbm(mp.xz) * 0.55
+                            + PL_Fbm(mp.zy * 1.7 + 11.3) * 0.27
+                            + PL_Fbm(mp.xy * 2.6 + 29.1) * 0.18;
                 albedo *= lerp(1.0, 0.72 + macro * 0.56, _MacroVariation);
 
                 // --- Wetness and puddles ----------------------------------------

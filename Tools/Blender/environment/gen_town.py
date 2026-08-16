@@ -1086,7 +1086,7 @@ WELL_WATER_Z = 0.200        # dark water, 0.890 m below the rim
 WELL_SHAFT_R = 0.588        # inner face of the shaft
 WELL_POST_X = 0.700         # posts stand on the coping annulus (0.610..0.792)
 WELL_SOFFIT_Z = 2.208       # flat underside of the roof's ridge cap
-WELL_RIDGE_Z = 2.350        # top of the ridge -> the asset's height
+WELL_RIDGE_Z = 2.3449       # top of the ridge == the shipped asset's height
 
 
 def well(bm, rng):
@@ -1135,16 +1135,24 @@ def well(bm, rng):
                                 WELL_RIM_Z, WELL_SOFFIT_Z, 0.140, 0.110, BEAM)
 
     # --- windlass: axle butting the posts' inner faces, crank outside ----
+    # The axle's iron collars are steps in the axle's own radius profile, not
+    # separate rings dropped over it: a ring around a shaft is a lap joint, and
+    # this asset is meant to contain none.
     axle_z = 1.780
     inner = WELL_POST_X - half_at[1](axle_z)
-    E.bm_polytube(bm, [Vector((-inner, 0, axle_z)), Vector((inner, 0, axle_z))],
-                  [0.072, 0.072], 8, BEAM, cap_start=True, cap_end=True,
-                  smooth=False)
-    for t in (-0.34, 0.34):
-        E.bm_polytube(bm, [Vector((t, 0, axle_z - 0.006)),
-                           Vector((t, 0, axle_z + 0.006))],
-                      [0.090, 0.090], 8, LAMP, cap_start=True, cap_end=True,
-                      smooth=False)
+    axle_r = []
+    axle_p = []
+    for (t, r) in ((-inner, 0.072), (-0.352, 0.072), (-0.328, 0.090),
+                   (-0.316, 0.090), (-0.292, 0.072), (0.292, 0.072),
+                   (0.316, 0.090), (0.328, 0.090), (0.352, 0.072),
+                   (inner, 0.072)):
+        axle_p.append(Vector((t, 0, axle_z)))
+        axle_r.append(r)
+    afaces, _ = E.bm_polytube(bm, axle_p, axle_r, 8, BEAM, cap_start=True,
+                              cap_end=True, smooth=False)
+    for k in (2, 6):                       # the two collar bands go to iron
+        for f in afaces[k * 8:(k + 1) * 8]:
+            f.material_index = LAMP
     outer = WELL_POST_X + half_at[1](axle_z)
     E.bm_polytube(bm, [Vector((outer, 0, axle_z)),
                        Vector((outer + 0.09, 0, axle_z)),
@@ -1162,14 +1170,22 @@ def well(bm, rng):
                        Vector((bx, 0, 1.250))],
                   [0.011] * 3, 4, LAMP, cap_start=False, cap_end=False,
                   smooth=True)
-    E.bm_polytube(bm, [Vector((bx, 0, 1.250)), Vector((bx, 0, 0.985))],
-                  [0.165, 0.205], 10, BEAM, cap_start=True, cap_end=True,
-                  smooth=False)
-    for (zz, rr) in ((1.215, 0.176), (1.020, 0.199)):
-        E.bm_polytube(bm, [Vector((bx, 0, zz - 0.018)),
-                           Vector((bx, 0, zz + 0.018))],
-                      [rr + 0.012] * 2, 10, LAMP, cap_start=False,
-                      cap_end=False, smooth=False)
+    # Same treatment for the pail: the two iron hoops are a bulge in its own
+    # radius profile, so they sit ON the staves instead of floating a
+    # centimetre off them with a see-through slot at each rim.
+    pail_z = (1.250, 1.234, 1.198, 1.182, 1.038, 1.002, 0.985)
+    pail_r = []
+    for z in pail_z:
+        t = (1.250 - z) / (1.250 - 0.985)
+        pail_r.append(0.165 + 0.040 * t)
+    for k in (1, 2, 4, 5):
+        pail_r[k] += 0.013
+    bfaces, _ = E.bm_polytube(bm, [Vector((bx, 0, z)) for z in pail_z],
+                              pail_r, 10, BEAM, cap_start=True, cap_end=True,
+                              smooth=False)
+    for k in (1, 4):
+        for f in bfaces[k * 10:(k + 1) * 10]:
+            f.material_index = LAMP
 
 
 

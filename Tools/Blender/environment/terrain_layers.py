@@ -57,6 +57,10 @@ import zlib
 import numpy as np
 
 SIZE = 1024
+# Rock alone is 2048. Its tile covers 6.67 m against grass's 2.86, and a cliff is
+# met face on at a couple of metres where the ground never is, so at 1024 it would
+# be the one layer the player can stand close enough to see soften.
+ROCK_SIZE = 2048
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
@@ -67,7 +71,7 @@ PREVIEW_DIR = os.path.join(HERE, "previews")
 # Metres of world covered by one tile of each layer, i.e. 1 / _LayerNScale.
 # Only used to keep the feature sizes below honest and to print them.
 TILE_METRES = {"Grass": 1 / 0.35, "Dirt": 1 / 0.5, "Sand": 1 / 0.6,
-               "Rock": 1 / 0.26}
+               "Rock": 1 / 0.15}
 
 # Mean of the height channel per layer. These are relative values and they are
 # the whole point of the alpha channel: where two layers have equal weight the
@@ -177,7 +181,7 @@ def pridge(freq, seed, octaves=4, size=SIZE):
     return total / norm
 
 
-def pvoronoi(n, seed, jitter=1.0, size=SIZE):
+def pvoronoi(n, seed, jitter=1.0, size=SIZE, weight=0.0):
     """Worley on a torus. `n` is either a count or an (nx, ny) pair.
 
     Returns (d1, d2, cell_id, ox, oy). Distances are in cell units, so a cell is
@@ -191,8 +195,20 @@ def pvoronoi(n, seed, jitter=1.0, size=SIZE):
     blocks with dark joints between them read as dried mud rather than as a
     cliff no matter how the tones are graded.
 
+    `weight` subtracts a per-site bonus from its distance, which is what turns a
+    lattice into something that reads as natural. Jitter alone moves sites about
+    but leaves every cell roughly the same size, so the diagram keeps one pitch
+    -- and one pitch, tiled across a cliff, is seen as a pattern no matter how
+    the tones are graded. It came back from the first engine review as fish
+    scales for exactly this reason. A weighted site captures more ground than an
+    unweighted one, so cells come out at a spread of sizes and the pitch stops
+    existing. Weight is in cell units; 0.4 gives blocks from about half to twice
+    the nominal size.
+
     Only the 3x3 neighbourhood of each pixel's own cell is searched, so this
-    stays linear in pixels however fine the lattice gets.
+    stays linear in pixels however fine the lattice gets. That bounds `weight`:
+    much beyond 0.5 and a site can capture ground outside the searched
+    neighbourhood, which shows up as a straight clipped edge.
     """
     if isinstance(n, (tuple, list)):
         nx, ny = int(n[0]), int(n[1])
@@ -203,6 +219,7 @@ def pvoronoi(n, seed, jitter=1.0, size=SIZE):
     r = _rng(seed)
     px = (np.arange(nx)[None, :] + 0.5 + (r.rand(ny, nx) - 0.5) * jitter) / nx
     py = (np.arange(ny)[:, None] + 0.5 + (r.rand(ny, nx) - 0.5) * jitter) / ny
+    pw = (r.rand(ny, nx) - 0.5) * 2.0 * min(float(weight), 0.5)
 
     t = (np.arange(size) + 0.5) / size
     ci = np.floor(t * nx).astype(int) % nx
@@ -226,7 +243,7 @@ def pvoronoi(n, seed, jitter=1.0, size=SIZE):
             dy -= np.round(dy)
             dx = dx * nx
             dy = dy * ny
-            d = np.sqrt(dx * dx + dy * dy)
+            d = np.sqrt(dx * dx + dy * dy) - pw[jj, ii]
             closer = d < d1
             d2 = np.where(closer, d1, np.minimum(d2, d))
             cid = np.where(closer, jj * nx + ii, cid)
@@ -338,6 +355,19 @@ def warp(field, dx, dy):
     c = field[y1, x0]
     d = field[y1, x1]
     return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
+
+
+def _vertex_fade(d1, start=0.42, end=0.80):
+    """Thin the Worley joint where three or more cells meet.
+
+    `d2 - d1` goes to zero over a wide area at a vertex, not just along the edge,
+    so a joint drawn from it pools into a dark blob at every junction. On a tiling
+    map that blob is the worst thing there is: it is high contrast, it is unique
+    within the tile, and the moment the tile repeats the eye joins the blobs into
+    a grid. A vertex is also the point furthest from its own site, so fading the
+    joint by that distance closes the blob and leaves the edges alone.
+    """
+    return np.clip(1.0 - (d1 - start) / (end - start), 0.25, 1.0)
 
 
 def damp_lowfreq(x, knee=2.5, floor=0.35):
@@ -504,12 +534,12 @@ def build_dirt(seed=902, size=SIZE):
                               size * 0.0014, size * 0.0034, dome=0.8)
 
     # bed of compacted earth
-    bed = pfbm(9, seed + 3, 5) - 0.5
-    fine = pfbm(70, seed + 5, 3) - 0.5
+    bed = pfbm(9, seed + 3, 5, size=size) - 0.5
+    fine = pfbm(70, seed + 5, 3, size=size) - 0.5
     # granular crust between the stones. Without it the earth between the
     # gravel is glassy smooth, and a smooth road with pebbles sitting on it
     # reads as pebbles on a floor rather than as gravel worked into a surface.
-    crust = pridge(30, seed + 9, 3) - 0.42
+    crust = pridge(30, seed + 9, 3, size=size) - 0.42
 
     # drag marks: many directions, low contrast, so nothing aligns to an axis
     scuff = splat(size, 1100, seed + 23, size * 0.070, size * 0.009)
@@ -519,7 +549,7 @@ def build_dirt(seed=902, size=SIZE):
     # texture of cracked mud, not of a road that happens to crack in places.
     c1, c2, ccid, _, _ = pvoronoi(7, seed + 41, jitter=1.0, size=size)
     crack = np.clip(1.0 - (c2 - c1) * 18.0, 0, 1) ** 1.4
-    crack = crack * np.clip(pfbm(9, seed + 43, 3) * 2.6 - 1.45, 0, 1)
+    crack = crack * np.clip(pfbm(9, seed + 43, 3, size=size) * 2.6 - 1.45, 0, 1)
 
     # Pebble albedo stays quiet on purpose. A stone 2 cm across is three screen
     # pixels; give it real contrast and a road turns into static. Its presence
@@ -569,8 +599,8 @@ def build_sand(seed=903, size=SIZE):
     # down the tile and the number the crests drift across it have to be whole
     # numbers or the ripples step at the wrap, which is exactly the artefact
     # that makes a beach read as corduroy.
-    warp_a = (pfbm(6, seed + 71, 4) - 0.5) * 1.7
-    warp_b = (pfbm(6, seed + 73, 4) - 0.5) * 1.1
+    warp_a = (pfbm(6, seed + 71, 4, size=size) - 0.5) * 1.7
+    warp_b = (pfbm(6, seed + 73, 4, size=size) - 0.5) * 1.1
 
     yn = np.arange(size)[:, None] / size + np.zeros((size, size))
     xn = np.arange(size)[None, :] / size + np.zeros((size, size))
@@ -586,12 +616,12 @@ def build_sand(seed=903, size=SIZE):
     # them the sand is smooth, or churned by feet. Without this mask the whole
     # beach is one continuous corduroy, which is the single loudest way to make
     # a tiling ground texture announce itself.
-    combed = np.clip(pfbm(5, seed + 77, 3) * 2.2 - 0.65, 0, 1)
+    combed = np.clip(pfbm(5, seed + 77, 3, size=size) * 2.2 - 0.65, 0, 1)
     ripple = ripple * combed
     swell = swell * (0.35 + 0.65 * combed)
 
-    grain = pfbm(200, seed + 5, 2) - 0.5
-    drift = pfbm(8, seed + 7, 4) - 0.5
+    grain = pfbm(200, seed + 5, 2, size=size) - 0.5
+    drift = pfbm(8, seed + 7, 4, size=size) - 0.5
 
     shell_tone, shell_h = discs(size, 1100, seed + 91,
                                 size * 0.0018, size * 0.0050, dome=0.9)
@@ -616,10 +646,10 @@ def build_sand(seed=903, size=SIZE):
 
 
 # ---------------------------------------------------------------------------
-# layer 3 -- rock, triplanar, ~3.8 m per tile. The cliffs.
+# layer 3 -- rock, triplanar, 6.67 m per tile. The cliffs.
 # ---------------------------------------------------------------------------
 
-def build_rock(seed=904, size=SIZE):
+def build_rock(seed=904, size=ROCK_SIZE):
     """Stratified, fractured cliff stone.
 
     This layer is sampled triplanar, so the same image lands on the ZY, XZ and
@@ -635,19 +665,44 @@ def build_rock(seed=904, size=SIZE):
     camouflage; a field of tilted facets reads as broken stone, and it does so
     at every distance, which matters because these faces are visible from right
     across the map.
+
+    Everything below is written against a hard constraint the other three layers
+    do not have. Grass is seen from above, so a tile repeats across a screenful
+    and the eye slides over it. A cliff is seen face on and the slice's faces run
+    10 to 25 m, so the tile repeats several times *up a single wall* -- and the
+    shader's anti-tiling macro variation is an fbm of positionWS.xz, which is
+    constant along a vertical, so it does nothing to break that up. Until that is
+    fixed in the shader, this map has to be its own defence:
+
+      * no landmark. One distinctly dark crevice or bright slab per tile is all
+        the eye needs to count the repeat, so the low frequencies are damped
+        hard and the joints are capped where they meet.
+      * no level lines. The bedding is the honest character of the layer and
+        also the fastest way to draw brick courses across a whole cliff, so the
+        beds are warped by more than a full band across the tile.
     """
-    # Two scales of warp. The coarse one pulls the lattice off its grid; the
-    # fine one makes the fracture lines wander instead of running dead straight
-    # between two sites, which is most of the difference between "broken stone"
-    # and "polygon mesh".
+    # Two warps, and the difference between them is the whole lesson of the
+    # first cliff review. A warp whose wavelength is much *longer* than the cell
+    # it is warping slides the lattice around bodily and leaves its local
+    # regularity completely intact -- which is why the first version still came
+    # back from engine reading as fish scales at the chip pitch even though it
+    # was warped. To destroy a lattice the warp has to run at roughly the cell's
+    # own frequency, with an amplitude of a good fraction of a cell, so that
+    # neighbouring cells are displaced by different amounts.
+    #
+    # `wx`/`wy` (long) is for the 1.7 m blocks; `cx`/`cy` (chip frequency, about
+    # half a chip of throw) is for the 0.6 m chips.
     wx = ((pfbm(4, seed + 501, 3, size=size) - 0.5) * size * 0.055 +
           (pfbm(22, seed + 505, 2, size=size) - 0.5) * size * 0.012)
     wy = ((pfbm(4, seed + 503, 3, size=size) - 0.5) * size * 0.055 +
           (pfbm(22, seed + 507, 2, size=size) - 0.5) * size * 0.012)
+    cx = wx + (pfbm(9, seed + 511, 2, size=size) - 0.5) * size * 0.048
+    cy = wy + (pfbm(9, seed + 513, 2, size=size) - 0.5) * size * 0.048
 
-    # --- big blocks. 4 x 7 sites, so a block is about 0.95 m wide and 0.55 m
-    # tall: a slab, which is how bedded rock breaks.
-    b1, b2, bcid, box, boy = pvoronoi((4, 7), seed, jitter=0.9, size=size)
+    # --- big blocks. 4 x 7 sites over a 6.67 m tile, so a block is about 1.7 m
+    # wide and 0.95 m tall: a slab, which is how bedded rock breaks.
+    b1, b2, bcid, box, boy = pvoronoi((4, 7), seed, jitter=0.9, size=size,
+                                      weight=0.42)
     btone = cell_random(bcid, seed + 11)
     r = _rng(seed + 12)
     tilt = r.rand(int(bcid.max()) + 2, 2) * 2.0 - 1.0
@@ -656,17 +711,31 @@ def build_rock(seed=904, size=SIZE):
     # units puts the dark line at about a tenth of a block, roughly 10 cm of
     # shadowed fissure. The first pass used 3.4, which spread it over half a
     # metre and turned the cliff into a wall of cobbles set in mortar.
-    bjoint = np.clip(1.0 - (b2 - b1) * 9.0, 0, 1) ** 1.3
+    bjoint = np.clip(1.0 - (b2 - b1) * 9.0, 0, 1) ** 1.3 * _vertex_fade(b1)
     bfacet, btone, bjoint = (warp(f, wx, wy) for f in (bfacet, btone, bjoint))
 
     # --- smaller chips broken off the blocks ----------------------------
-    s1, s2, scid, sox, soy = pvoronoi((11, 17), seed + 400, jitter=1.0, size=size)
+    # Two lattices at deliberately incommensurate densities rather than one. A
+    # single lattice has one pitch, and one pitch across a whole cliff face is a
+    # pattern however well it is warped; 11x17 against 16x23 share no common
+    # rhythm, so the joints they draw never line up into rows.
+    s1, s2, scid, sox, soy = pvoronoi((11, 17), seed + 400, jitter=1.0,
+                                      size=size, weight=0.40)
     stone = cell_random(scid, seed + 411)
     r2 = _rng(seed + 412)
     tilt2 = r2.rand(int(scid.max()) + 2, 2) * 2.0 - 1.0
     sfacet = tilt2[scid, 0] * sox + tilt2[scid, 1] * soy
-    sjoint = np.clip(1.0 - (s2 - s1) * 11.0, 0, 1) ** 1.3
-    sfacet, stone, sjoint = (warp(f, wx, wy) for f in (sfacet, stone, sjoint))
+    sjoint = np.clip(1.0 - (s2 - s1) * 11.0, 0, 1) ** 1.3 * _vertex_fade(s1)
+    sfacet, stone, sjoint = (warp(f, cx, cy) for f in (sfacet, stone, sjoint))
+
+    t1, t2, tcid, tox, toy = pvoronoi((16, 23), seed + 440, jitter=1.0,
+                                      size=size, weight=0.38)
+    tjoint = np.clip(1.0 - (t2 - t1) * 13.0, 0, 1) ** 1.3 * _vertex_fade(t1)
+    r3 = _rng(seed + 442)
+    tilt3 = r3.rand(int(tcid.max()) + 2, 2) * 2.0 - 1.0
+    tfacet = tilt3[tcid, 0] * tox + tilt3[tcid, 1] * toy
+    tfacet, tjoint = (warp(f, cy, cx) for f in (tfacet, tjoint))
+    tjoint = tjoint * np.clip(pfbm(13, seed + 445, 4, size=size) * 2.4 - 0.95, 0, 1)
 
     # Fractures terminate. A joint network where every single cell is fully
     # outlined is the signature of cracked mud, and it is what the eye uses to
@@ -677,7 +746,15 @@ def build_rock(seed=904, size=SIZE):
     sjoint = sjoint * np.clip(pfbm(17, seed + 423, 4, size=size) * 2.3 - 0.75, 0, 1)
 
     # --- bedding planes, varying down the image = horizontal on a face ---
-    bed_warp = (pfbm(5, seed + 21, 5) - 0.5) * 1.5
+    # Beds must not come out level. A bed drawn as a level line continues
+    # straight into the next tile and the one after, so seven of them turn a
+    # whole cliff into courses of brickwork at a fixed 0.95 m pitch -- the exact
+    # "grid" that came back from the review. The warp is therefore dominated by
+    # its lowest octave and swings more than a full band across the tile, which
+    # makes each bed dip and rise enough that it never reads as a ruled line.
+    # It stays periodic, so it still costs nothing at the wrap.
+    bed_warp = ((pfbm(2, seed + 21, 2, size=size) - 0.5) * 2.6 +
+                (pfbm(6, seed + 25, 4, size=size) - 0.5) * 1.3)
     yy = np.arange(size)[:, None] / size + np.zeros((size, size))
     # A whole number of beds per tile, no linear tilt term, and the per-bed tone
     # indexed modulo that same whole number. All three are required together.
@@ -705,37 +782,60 @@ def build_rock(seed=904, size=SIZE):
     # low contrast: this map has to survive being projected three ways.
     runnel = splat(size, 320, seed + 33, size * 0.11, size * 0.010,
                    angle=math.pi * 0.5, spread=0.28)
-    fract = pridge(7, seed + 37, 5) - 0.35
-    grit = pfbm(130, seed + 39, 3) - 0.5
-    lichen = np.clip(pfbm(9, seed + 55, 4) * 2.2 - 1.15, 0, 1)
+    fract = pridge(6, seed + 37, 6, size=size) - 0.35
+    grit = pfbm(130, seed + 39, 3, size=size) - 0.5
+    lichen = np.clip(pfbm(9, seed + 55, 4, size=size) * 2.2 - 1.15, 0, 1)
 
-    value = (bfacet * 0.34
-             + (btone - 0.5) * 0.20
-             - bjoint * 0.55
-             + sfacet * 0.28
-             + (stone - 0.5) * 0.20
-             - sjoint * 0.26
-             + (bedtone - 0.5) * 0.16
-             - bseam * 0.55
-             + blip * 0.30
-             + fract * 0.26
-             + runnel * 0.20
+    # Block-scale contrast lives in the height channel, not in the albedo.
+    # A 1.7 m slab that is simply painted brighter than its neighbours is the
+    # same brighter slab in every repeat, and that is what the eye counts. The
+    # same slab expressed as relief is shaded by its own normal against the sun
+    # and against the curve of the wall it sits on, so two repeats of it on
+    # different parts of a cliff do not come out the same value. The albedo is
+    # left carrying the chip-scale and fracture detail, which is small enough
+    # not to register as a landmark.
+    # sfacet is held down hard. Shading every chip as a tilted plane is what
+    # made the wall read as fish scales in engine: a facet gradient repeated at
+    # one pitch is a scale, however the tones are graded. The lattice-free terms
+    # -- ridged fracture, grit, runnels -- carry the detail instead.
+    # Hierarchy, and it took three passes to get here. A cliff has to be a few
+    # big forms with detail subordinate to them. Loading up the mid frequencies
+    # -- fine chips, ridged fracture, grit, all at similar strength -- produces a
+    # surface with texture at every point and structure at none, which came out
+    # of the engine looking like knitted fabric. So the 1.7 m blocks and their
+    # fissures carry the read, the chips only break their edges, and the
+    # lattice-free noise is background.
+    value = (bfacet * 0.38
+             + (btone - 0.5) * 0.15
+             - bjoint * 0.95
+             + sfacet * 0.20
+             + (stone - 0.5) * 0.14
+             - sjoint * 0.30
+             + tfacet * 0.07
+             - tjoint * 0.14
+             + (bedtone - 0.5) * 0.12
+             - bseam * 0.42
+             + blip * 0.24
+             + fract * 0.16
+             + runnel * 0.18
              + grit * 0.10
              - lichen * 0.09)
 
-    height = (bfacet * 0.50
-              + (btone - 0.5) * 0.45
-              - bjoint * 1.30
-              + sfacet * 0.38
+    height = (bfacet * 0.75
+              + (btone - 0.5) * 0.55
+              - bjoint * 1.55
+              + sfacet * 0.30
               + (stone - 0.5) * 0.24
-              - sjoint * 0.65
-              - bseam * 0.95
+              - sjoint * 0.55
+              + tfacet * 0.20
+              - tjoint * 0.45
+              - bseam * 0.70
               + blip * 0.35
               + (bedtone - 0.5) * 0.30
               + fract * 0.30
               + grit * 0.08)
 
-    grey = level(damp_lowfreq(value, 3.0, 0.28), 0.76, 0.68)
+    grey = level(damp_lowfreq(value, 5.0, 0.20), 0.76, 0.68)
     rgb = tint(grey, lichen - bedtone * 0.4, 0.030)
     hgt = level(height, TARGET_HEIGHT["Rock"], 0.92)
     # The strongest relief of the four. This layer is seen edge-on on faces up
@@ -840,14 +940,15 @@ def lit_preview(rgb, nrm, name, elev=38.0):
 
 # ---------------------------------------------------------------------------
 
-def build(names=None, verify=False, size=SIZE):
+def build(names=None, verify=False, size=None):
     os.makedirs(OUT_DIR, exist_ok=True)
     names = names or list(BUILDERS.keys())
     worst = 0.0
     for name in names:
-        log("%s  (%.2f m per tile, %.0f px/m)" %
-            (name, TILE_METRES[name], size / TILE_METRES[name]))
-        rgb, hgt, nstrength = BUILDERS[name](size=size)
+        res = size or (ROCK_SIZE if name == "Rock" else SIZE)
+        log("%s  (%.2f m per tile, %d px, %.0f px/m)" %
+            (name, TILE_METRES[name], res, res / TILE_METRES[name]))
+        rgb, hgt, nstrength = BUILDERS[name](size=res)
 
         rgba = np.concatenate([u8(rgb), u8(hgt)[..., None]], axis=-1)
         base = os.path.join(OUT_DIR, "Env_Terrain_%s_BaseColor.png" % name)
@@ -867,11 +968,19 @@ def build(names=None, verify=False, size=SIZE):
             os.makedirs(PREVIEW_DIR, exist_ok=True)
             lit = lit_preview(rgb, nrm, name)
             key = name.lower()
-            # tiled and lit: the grid check, at roughly the on-screen size
+            # Tiled and lit: the grid check, framed the way the engine frames
+            # it. Rock gets 2x2 because its tile is 6.67 m and the cliff faces
+            # fill about 13 m of frame -- reviewing it at 4x4 shrinks every
+            # feature to a fifth of its on-screen size, and at that reduction
+            # any rock reads as uniform grain, which hid a defect the engine
+            # then showed straight back.
+            reps = 2 if name == "Rock" else 3
             tile_sheet(os.path.join(PREVIEW_DIR,
-                                    "terrain_layer_%s_tile3x3.png" % key), lit)
+                                    "terrain_layer_%s_tile%dx%d.png"
+                                    % (key, reps, reps)), lit, reps=reps,
+                       out=900)
             # one tile at 1:1, which is close to the near-field pixel size
-            half = size // 2
+            half = res // 2
             write_rgb(os.path.join(PREVIEW_DIR,
                                    "terrain_layer_%s_detail.png" % key),
                       u8(lit[:half, :half]))

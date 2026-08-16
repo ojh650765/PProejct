@@ -411,7 +411,10 @@ def build_stream(body, grid):
     half = float(body.get("halfWidth", 1.5))
     # Cap the search so a rung crossing an unusually flat bank cannot run away across
     # the meadow; past this the bank is too shallow for the trick to help anyway.
-    reach, step = 3.5, 0.25
+    # Kept short. The point is to bury the seam inside the bank, not to flood it: at
+    # 3.5 m the ribbon marched out to 10.4 m wide wherever the bank was shallow, which
+    # is wider than the bridge that has to span it.
+    reach, step = 1.1, 0.2
 
     def edge(x, z, nx, nz, y):
         d = half

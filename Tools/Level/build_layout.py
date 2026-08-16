@@ -371,8 +371,11 @@ HOUSES = [
 # mouth, which is what makes a cave read as set into a bluff rather than as a hole in
 # a hillside.
 CAVE_MOUTH_X, CAVE_MOUTH_Z, CAVE_MOUTH_YAW = 5.0, 51.0, 190.0
-CAVE_OUTCROP_RISE = 1.4
-CAVE_OUTCROP_RADIUS = 5.5
+# The shelf sits in front of the opening, not under the whole mouth: the cliff
+# immediately behind the arch is what makes it a cave.
+CAVE_SHELF_OFFSET = 2.6
+CAVE_SHELF_HALF_X = 3.4
+CAVE_SHELF_HALF_Z = 2.0
 
 CONFORM_SKIPS = [((13.6, 18.2), 2.1, "Bridge_Stream"),
                  ((33.2, 15.6), 1.9, "SteppingStones_Stream")]
@@ -433,15 +436,23 @@ def shore_band(lake_poly, keep, inner, outer):
 
 
 def add_cave_outcrop(field):
-    """A small shoulder under the cave mouth, so the arch sits in a bluff.
+    """A small shelf in front of the cave mouth, so there is something to stand on.
 
-    Added as a pad rather than a mass because it must be flat on top -- the player
-    stands on it to enter -- while a mass would dome it.
+    Pushed *forward* of the mouth and kept short, which the first version was not: a
+    5.5 m pad with a 5.5 m blend levelled about eleven metres of ground around the
+    mouth and flattened away the very cliff the site was chosen for. The arch then
+    stood as a free hoop in the middle of the gorge with sky behind it. The rock
+    immediately behind the opening is the whole point, so the pad must not reach it.
+
+    Flat rather than a mass because the player stands on it to enter; a mass would
+    dome it.
     """
-    height = field.height(CAVE_MOUTH_X, CAVE_MOUTH_Z) + CAVE_OUTCROP_RISE
-    field.add_pad(CAVE_MOUTH_X, CAVE_MOUTH_Z,
-                  CAVE_OUTCROP_RADIUS * 0.55, CAVE_OUTCROP_RADIUS * 0.45,
-                  height, CAVE_OUTCROP_RADIUS)
+    r = math.radians(CAVE_MOUTH_YAW)
+    fx, fz = math.sin(r), math.cos(r)          # out of the hill
+    cx = CAVE_MOUTH_X + fx * CAVE_SHELF_OFFSET
+    cz = CAVE_MOUTH_Z + fz * CAVE_SHELF_OFFSET
+    height = field.height(CAVE_MOUTH_X, CAVE_MOUTH_Z)
+    field.add_pad(cx, cz, CAVE_SHELF_HALF_X, CAVE_SHELF_HALF_Z, height, 1.6)
 
 
 def add_building_pads(field, bounds):

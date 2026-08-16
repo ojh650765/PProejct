@@ -19,6 +19,10 @@ BLENDER = os.environ.get(
 
 STAGES = [
     ("atlases", "build_atlases.py", ["--", "--force"]),
+    # The four tiling terrain layer maps for M_Ground_TerrainBlend. Not atlas
+    # cells and not built by build_atlases: those layers sample a wrapping UV,
+    # so an atlas cell's neighbours would bleed in on the first repeat.
+    ("terrain_layers", "terrain_layers.py", ["--", "--verify"]),
     ("foliage", "gen_foliage.py", []),
     ("terrain", "gen_terrain.py", []),
     # ground must follow terrain: both write into the Terrain family folder and
