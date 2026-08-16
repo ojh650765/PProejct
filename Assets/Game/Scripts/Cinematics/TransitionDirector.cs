@@ -506,6 +506,7 @@ namespace PokeLab.Cinematics
 
             BattleZone zone = BattleArena.ZoneFor(request != null ? request.BiomeId : null);
             arena.Dress(zone);
+            arena.Stage.SetTrainers(PlayerPersonKey, OpponentPersonKey(request));
 
             _biomeBeforeBattle = request != null && !string.IsNullOrEmpty(request.BiomeId)
                 ? request.BiomeId

@@ -489,7 +489,7 @@ namespace PokeLab.Boot.Editor
         private static void BuildRoute(Transform root)
         {
             BuildFloor(root, "Floor_Route", 70f, -70f, 70f,
-                BattleFieldSurface.Grass, BattleFieldSurface.Dirt, 34f);
+                BattleFieldSurface.Grass, BattleFieldSurface.Dirt, 30f, 60f);
 
             // Two rings at different radii and scales. One ring reads as a fence of trees; two
             // gives the treeline a near edge and a far one, which is what makes it depth rather
@@ -504,7 +504,7 @@ namespace PokeLab.Boot.Editor
         private static void BuildTown(Transform root)
         {
             BuildFloor(root, "Floor_Town", 70f, -70f, 70f,
-                BattleFieldSurface.Dirt, BattleFieldSurface.Grass, 30f);
+                BattleFieldSurface.Dirt, BattleFieldSurface.Grass, 12f, 30f);
 
             // Buildings face the field. A ring of houses all pointing at world +Z would show the
             // player three gable ends and one front door.
@@ -518,7 +518,7 @@ namespace PokeLab.Boot.Editor
         private static void BuildCave(Transform root)
         {
             BuildFloor(root, "Floor_Cave", 40f, -40f, 40f,
-                BattleFieldSurface.Rock, BattleFieldSurface.Dirt, 18f);
+                BattleFieldSurface.Rock, BattleFieldSurface.Dirt, 14f, 34f);
 
             // A ceiling, and it is what makes the room a cave rather than a quarry at night. It
             // hangs above the camera's own height, so it frames the top of the shot without ever
@@ -538,7 +538,7 @@ namespace PokeLab.Boot.Editor
             // continued would z-fight the lake surface along the whole waterline, which is the
             // most visible artefact this dressing could have.
             BuildFloor(root, "Floor_Shore", 70f, -70f, 13f,
-                BattleFieldSurface.Grass, BattleFieldSurface.Sand, 4f);
+                BattleFieldSurface.Sand, BattleFieldSurface.Grass, 8f, 24f);
             BuildWater(root, "Water_Lake", 150f, 11.5f, 150f, -0.35f);
 
             Scatter(root, "Reeds", Reeds, 34, 8f, 12.5f, 0.8f, 1.4f, 31, arcFrom: -70f, arcTo: 70f);
@@ -787,7 +787,8 @@ namespace PokeLab.Boot.Editor
         /// through the world for the length of the battle.
         /// </summary>
         private static void BuildFloor(Transform parent, string name, float halfWidth,
-            float zNear, float zFar, BattleFieldSurface core, BattleFieldSurface edge, float blendFrom)
+            float zNear, float zFar, BattleFieldSurface core, BattleFieldSurface edge,
+            float blendFrom, float blendTo)
         {
             const int Steps = 24;
 
@@ -812,9 +813,12 @@ namespace PokeLab.Boot.Editor
                     normals[i] = Vector3.up;
                     uvs[i] = new Vector2(px, pz);
 
-                    float distance = Mathf.Max(Mathf.Abs(px), Mathf.Abs(pz));
+                    // Radial, measured from the field centre rather than from the mesh's own
+                    // edges: the camera only ever looks outward from the middle, so the ring the
+                    // player sees the change happen in is the one that has to be controlled.
+                    float distance = new Vector2(px, pz).magnitude;
                     float blend = Mathf.SmoothStep(0f, 1f,
-                        Mathf.InverseLerp(blendFrom, Mathf.Max(blendFrom + 1f, halfWidth), distance));
+                        Mathf.InverseLerp(blendFrom, Mathf.Max(blendFrom + 1f, blendTo), distance));
                     colours[i] = Color.Lerp(coreWeights, edgeWeights, blend);
                 }
             }

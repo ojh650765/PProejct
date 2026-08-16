@@ -168,6 +168,16 @@ namespace PokeLab.Overworld.People
             // archetype alone. Walking in from the right drops the placement and keeps the
             // person, so a trainer moved from the route to the lake keeps their sprite
             // instead of silently losing it.
+            // A trailing instance number is placement too: npc_professor_01 and
+            // NPC_House_02 both name one of something, and the art is drawn per role.
+            var tail = key.LastIndexOf('_');
+            if (tail > 0 && int.TryParse(key.Substring(tail + 1), out _))
+            {
+                var withoutIndex = key.Substring(0, tail);
+                if (_byKey.TryGetValue(withoutIndex, out entry)) return entry;
+                key = withoutIndex;
+            }
+
             var trimmed = key;
             while (true)
             {
@@ -196,6 +206,14 @@ namespace PokeLab.Overworld.People
                 case "girl": yield return "lass"; break;
                 case "boy": yield return "youngster"; break;
                 case "oak": case "prof": yield return "professor"; break;
+
+                // The cast names some speakers by where they stand rather than by what they
+                // are — npc_gate_01, npc_market_01 — and cast.json carries the real mapping
+                // in its own spriteKey field. These three are that mapping, so a place name
+                // still finds the person who works there.
+                case "gate": yield return "townsman"; break;
+                case "market": yield return "shopkeeper"; break;
+                case "garden": yield return "gardener"; break;
                 default: yield break;
             }
         }

@@ -1,7 +1,7 @@
 {
     "name": "PokeLab.Cinematics",
     "rootNamespace": "PokeLab.Cinematics",
-    "references": ["PokeLab.Core", "PokeLab.Battle", "Unity.Cinemachine", "Unity.Timeline"],
+    "references": ["PokeLab.Core", "PokeLab.Battle", "PokeLab.Overworld", "Unity.Cinemachine", "Unity.Timeline"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

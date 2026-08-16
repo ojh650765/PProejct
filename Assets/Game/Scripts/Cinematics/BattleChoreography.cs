@@ -20,6 +20,12 @@ namespace PokeLab.Cinematics
     public sealed class BattleChoreography
     {
         [Header("Send-out")]
+        [Tooltip("Trainer walks in from off frame before the wind-up starts. Short: this is the " +
+                 "beat the player is waiting through to see their creature, not a beat of its own.")]
+        public float TrainerEnter = 0.34f;
+        [Tooltip("Trainer walks back out of frame once the creature is on its feet. Longer than " +
+                 "the entrance because nothing is waiting on it — the camera has already moved on.")]
+        public float TrainerExit = 0.5f;
         [Tooltip("Trainer wind-up before the ball leaves their hand.")]
         public float ThrowWindUp = 0.30f;
         [Tooltip("Ball flight time from trainer to the creature's mark.")]

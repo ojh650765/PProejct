@@ -182,12 +182,18 @@ namespace PokeLab.Boot
         /// </summary>
         private static string ResolvePersonKey(DialogueLine line)
         {
-            if (!string.IsNullOrEmpty(line.PortraitKey)) return line.PortraitKey;
-
-            var id = line.SpeakerId;
+            // Normalised whichever field it came from. PortraitKey used to be returned raw,
+            // and the book fills it with the SpeakerId — npc_professor_01 — so the lookup
+            // asked the sprite library for a key it does not have and the plate stayed empty
+            // while the name and the line beside it were correct.
+            var id = !string.IsNullOrEmpty(line.PortraitKey) ? line.PortraitKey : line.SpeakerId;
             if (string.IsNullOrEmpty(id)) return null;
 
             if (id.StartsWith("npc_", System.StringComparison.Ordinal)) id = id.Substring(4);
+            if (id.StartsWith("prop_", System.StringComparison.Ordinal)) id = id.Substring(5);
+
+            // Drop a trailing instance number: the cast names speakers per instance and the
+            // art is drawn per role.
             var tail = id.LastIndexOf('_');
             if (tail > 0 && int.TryParse(id.Substring(tail + 1), out _)) id = id.Substring(0, tail);
             return id;

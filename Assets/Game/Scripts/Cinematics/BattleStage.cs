@@ -50,6 +50,11 @@ namespace PokeLab.Cinematics
         [SerializeField] private CreatureView playerView;
         [SerializeField] private CreatureView opponentView;
 
+        [Tooltip("The people who throw the balls. Created on the trainer marks when empty, and " +
+                 "drawn only while their side is throwing.")]
+        [SerializeField] private TrainerView playerTrainerView;
+        [SerializeField] private TrainerView opponentTrainerView;
+
         [Header("Field")]
         [Tooltip("The lit patch each combatant stands on. Optional; the arena reads fine without " +
                  "them and the creatures lose their contact with the ground.")]
@@ -111,6 +116,9 @@ namespace PokeLab.Cinematics
 
             playerView = EnsureView(playerView, playerCreatureMark, "CreatureView_Player");
             opponentView = EnsureView(opponentView, opponentCreatureMark, "CreatureView_Opponent");
+
+            playerTrainerView = EnsureTrainer(playerTrainerView, playerTrainerMark, "TrainerView_Player");
+            opponentTrainerView = EnsureTrainer(opponentTrainerView, opponentTrainerMark, "TrainerView_Opponent");
         }
 
         private Transform EnsureMark(Transform existing, string markName, Vector3 localPosition)
@@ -130,6 +138,16 @@ namespace PokeLab.Cinematics
             go.transform.localPosition = Vector3.zero;
             go.transform.localRotation = Quaternion.identity;
             return go.AddComponent<CreatureView>();
+        }
+
+        private static TrainerView EnsureTrainer(TrainerView existing, Transform mark, string viewName)
+        {
+            if (existing != null) return existing;
+            var go = new GameObject(viewName);
+            go.transform.SetParent(mark, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            return go.AddComponent<TrainerView>();
         }
 
         private static Quaternion LookAlong(Vector3 direction)
@@ -161,6 +179,37 @@ namespace PokeLab.Cinematics
         {
             EnsureBuilt();
             return side == BattleSide.Player ? playerTrainerMark : opponentTrainerMark;
+        }
+
+        /// <summary>The person who throws for a side. Never null; ask <c>HasArt</c> before using it.</summary>
+        public TrainerView TrainerViewOf(BattleSide side)
+        {
+            EnsureBuilt();
+            return side == BattleSide.Player ? playerTrainerView : opponentTrainerView;
+        }
+
+        /// <summary>
+        /// Says who is standing at each mark for this battle.
+        ///
+        /// A null or empty <paramref name="opponentKey"/> is what makes an encounter wild, and it
+        /// is the only thing that does. The asymmetry it produces is deliberate and is the
+        /// series': the player throws, and the wild creature is simply already there. A wild
+        /// creature that arrives out of a ball reads as somebody else's — the one thing a wild
+        /// encounter must not look like.
+        /// </summary>
+        public void SetTrainers(string playerKey, string opponentKey)
+        {
+            EnsureBuilt();
+            playerTrainerView.Bind(playerKey);
+            opponentTrainerView.Bind(opponentKey);
+        }
+
+        /// <summary>Takes both trainers off the field. Called when a battle is torn down.</summary>
+        public void HideTrainers()
+        {
+            EnsureBuilt();
+            playerTrainerView.Hide();
+            opponentTrainerView.Hide();
         }
 
         /// <summary>The side opposite the given one.</summary>

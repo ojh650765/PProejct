@@ -464,35 +464,61 @@ namespace PokeLab.Cinematics
             Transform trainer = Stage.TrainerMarkOf(side);
             Vector3 burstPoint = Stage.BurstPointOf(side);
 
-            // Wind-up. Nothing moves yet — this is what makes the throw read as a throw.
-            yield return CinematicRunner.Wait(timing.ThrowWindUp * scale);
+            // Who, if anyone, throws for this side. A wild creature has nobody standing behind
+            // it, and that is the whole difference between the two kinds of encounter: the
+            // player's creature is thrown out of a ball, the wild one is already standing there.
+            // A wild creature that burst out of a ball would read as somebody else's.
+            TrainerView thrower = Stage.TrainerViewOf(side);
+            bool thrown = thrower != null && thrower.HasArt;
 
-            var ball = BallActor.Spawn(ballPrefab, trainer.position + Vector3.up * 1.25f);
-            yield return ball.Throw(burstPoint, timing.BallFlight * scale, 1.3f);
-            yield return ball.Open(timing.BallOpen * scale);
+            if (thrown)
+            {
+                yield return thrower.Enter(timing.TrainerEnter * scale);
 
-            view.SetModelVisible(true);
-            view.Play(CreatureAnimation.SentOut, 0f);
-            ball.Dismiss();
+                // Wind-up. Nothing moves yet — this is what makes the throw read as a throw, and
+                // it only reads at all now that there is a person to wind up.
+                yield return CinematicRunner.Wait(timing.ThrowWindUp * scale);
 
-            CinematicHooks.Vfx(CinematicVfxKeys.BallBurst, burstPoint, Quaternion.identity);
+                var ball = BallActor.Spawn(ballPrefab, trainer.position + Vector3.up * 1.25f);
+                yield return ball.Throw(burstPoint, timing.BallFlight * scale, 1.3f);
+                yield return ball.Open(timing.BallOpen * scale);
 
-            // Fall and land with weight. The compression on contact is the beat that sells
-            // the creature as a physical object rather than a spawned prop.
-            float fallHeight = Mathf.Max(0.8f, burstPoint.y - Stage.MarkOf(side).position.y);
-            yield return view.PlayEntrance(fallHeight, timing.LandFall * scale, timing.LandSettle * scale);
+                view.SetModelVisible(true);
+                view.Play(CreatureAnimation.SentOut, 0f);
+                ball.Dismiss();
 
-            Rig.Shake?.Bump(view.transform.position, Mathf.Clamp(view.DisplayHeight * 0.35f, 0.12f, 0.6f));
-            CinematicHooks.Vfx(CinematicVfxKeys.LandingDust, view.transform.position, Quaternion.identity);
-            CinematicHooks.Audio(CinematicAudioCues.CreatureLand, view.transform.position);
+                CinematicHooks.Vfx(CinematicVfxKeys.BallBurst, burstPoint, Quaternion.identity);
+
+                // Fall and land with weight. The compression on contact is the beat that sells
+                // the creature as a physical object rather than a spawned prop.
+                float fallHeight = Mathf.Max(0.8f, burstPoint.y - Stage.MarkOf(side).position.y);
+                yield return view.PlayEntrance(fallHeight, timing.LandFall * scale, timing.LandSettle * scale);
+
+                Rig.Shake?.Bump(view.transform.position, Mathf.Clamp(view.DisplayHeight * 0.35f, 0.12f, 0.6f));
+                CinematicHooks.Vfx(CinematicVfxKeys.LandingDust, view.transform.position, Quaternion.identity);
+                CinematicHooks.Audio(CinematicAudioCues.CreatureLand, view.transform.position);
+            }
+            else
+            {
+                // No ball, no fall, no landing dust. The creature is revealed where it stands,
+                // which is what the player walked into.
+                view.SetModelVisible(true);
+                view.Play(CreatureAnimation.SentOut, 0f);
+                yield return CinematicRunner.Wait(timing.LandSettle * scale);
+            }
 
             view.PlayAuthored(CreatureAnimation.IdleBattle);
             CinematicHooks.Cry(e.Creature?.SpeciesId ?? 0, view.transform.position);
             yield return CinematicRunner.Wait(timing.CryHold * scale);
 
+            // The trainer leaves alongside the face-off rather than before it, so the shot is
+            // never held on an empty mark waiting for somebody to finish walking.
+            Coroutine leaving = thrown ? CinematicRunner.Run(thrower.Exit(timing.TrainerExit * scale)) : null;
+
             // Turn to face the opponent last, as a deliberate act, not as part of landing.
             Vector3 facing = Stage.MarkOf(BattleStage.Opposite(side)).position;
             yield return view.FaceTowardsAndWait(facing, timing.FaceOffTurn * scale);
+            if (leaving != null) yield return leaving;
 
             Rig.Release();
         }
@@ -1028,6 +1054,11 @@ namespace PokeLab.Cinematics
             Transform trainer = Stage.TrainerMarkOf(BattleSide.Player);
             Vector3 groundPoint = Stage.MarkOf(targetSide).position;
 
+            // The player steps back into frame for the throw and leaves once the ball is down.
+            // Always the player's side: a capture is the one throw that is never the opponent's.
+            TrainerView thrower = Stage.TrainerViewOf(BattleSide.Player);
+            yield return thrower.Enter(timing.TrainerEnter);
+
             yield return CinematicRunner.Wait(timing.CaptureThrowWindUp);
 
             var ball = BallActor.Spawn(ballPrefab, trainer.position + Vector3.up * 1.3f);
@@ -1039,6 +1070,10 @@ namespace PokeLab.Cinematics
             yield return ball.FallAndSettle(groundPoint, timing.CaptureFall);
 
             Rig.Shake?.Bump(ball.Position, 0.14f);
+
+            // The trainer goes before the shakes, not after. The shakes are the tense beat of the
+            // whole battle and the frame has to be the ball and nothing else.
+            yield return thrower.Exit(timing.TrainerExit);
 
             // The loaded silence before the first shake.
             yield return CinematicRunner.Wait(timing.CaptureSettleHold);
@@ -1214,6 +1249,9 @@ namespace PokeLab.Cinematics
             _active.Clear();
             _declaredMove = null;
             _outcome = BattleOutcome.InProgress;
+            // A flushed queue can strand a trainer mid-exit, and the arena is reused: the next
+            // battle would open on somebody standing off to one side of the field.
+            Stage.HideTrainers();
             Rig.SetRestingShot(BattleShot.Field);
             Rig.Release();
         }
