@@ -518,8 +518,73 @@ namespace PokeLab.Boot.Editor
                 box.center = new Vector3(0f, box.size.y * 0.5f, 0f);
                 box.isTrigger = true;
 
+                // The trigger was the whole of it, so walking into a cave did nothing.
+                if (!string.IsNullOrEmpty(entrance.scene))
+                    go.AddComponent<LevelTransition>().Configure(entrance.scene, "Spawn_FromOverworld");
+
                 SetLayer(go, "ZoneTrigger");
+                BuildCaveBlackout(entrance, go.transform);
             }
+        }
+
+        /// <summary>
+        /// Fills the cave mouth with black.
+        ///
+        /// The arch is a real tunnel — the mesh runs out over the lip and back down inside,
+        /// so you can see up it — and behind that tunnel is nothing at all, because the
+        /// interior is a separate scene and the height grid here describes the outside of the
+        /// mountain. Looking into the mouth therefore showed the far wall of the arch and then
+        /// the world beyond it, which reads as a prop stuck on a hill rather than as a way in.
+        ///
+        /// Unlit black rather than a dark material: a lit surface picks up the sun and the
+        /// LightingDirector's ambient, and "very dark grey that changes through the day" is
+        /// exactly the thing a player reads as a wall they might get past. This is the same
+        /// mechanism as the building doors and the town gate.
+        /// </summary>
+        private static void BuildCaveBlackout(CaveEntrance entrance, Transform mouth)
+        {
+            var size = ToVector(entrance.size, Vector3.one);
+
+            var go = new GameObject("Blackout");
+            go.transform.SetParent(mouth, false);
+            // Set back into the opening so the arch's own stone frames it. Flush with the
+            // mouth it reads as a painted disc on the cliff.
+            go.transform.localPosition = new Vector3(0f, size.y * 0.5f, 0.9f);
+            go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+
+            var mesh = new Mesh { name = "CaveBlackout" };
+            var halfX = size.x * 0.5f;
+            var halfY = size.y * 0.5f;
+            mesh.vertices = new[]
+            {
+                new Vector3(-halfX, -halfY, 0f), new Vector3(halfX, -halfY, 0f),
+                new Vector3(-halfX,  halfY, 0f), new Vector3(halfX,  halfY, 0f),
+            };
+            mesh.uv = new[] { Vector2.zero, Vector2.right, Vector2.up, Vector2.one };
+            // Wound both ways. The mouth is approached from outside but a scene link can put
+            // the player behind it, and a one-sided plane is invisible from there.
+            mesh.triangles = new[] { 0, 2, 1, 2, 3, 1, 1, 2, 0, 1, 3, 2 };
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = go.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = BlackoutMaterial();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        private static Material s_blackout;
+
+        private static Material BlackoutMaterial()
+        {
+            if (s_blackout != null) return s_blackout;
+
+            var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
+            s_blackout = new Material(shader) { name = "~Blackout" };
+            if (s_blackout.HasProperty("_BaseColor")) s_blackout.SetColor("_BaseColor", Color.black);
+            if (s_blackout.HasProperty("_Color")) s_blackout.SetColor("_Color", Color.black);
+            return s_blackout;
         }
 
         /// <summary>
