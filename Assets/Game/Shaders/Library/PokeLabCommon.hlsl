@@ -101,12 +101,26 @@ float PL_ValueNoise(float2 p)
 }
 
 // Four fixed octaves. Unrolled by hand so no compiler has an excuse to keep a loop.
+//
+// Each octave is rotated as well as scaled. Value noise is built on an
+// axis-aligned lattice, so its cells are square and lined up with world X and Z;
+// stacking octaves that all share that alignment leaves the grid legible, and on a
+// large flat surface seen from above — a lake — it reads as a regular pattern of
+// blobs rather than as noise. Rotating by an angle that is not a fraction of a
+// right angle means no two octaves agree on an axis and there is no direction for
+// the eye to find. The same lattice was what made the cliff rock read as a grid.
 float PL_Fbm(float2 p)
 {
+    // cos/sin of ~36.87 degrees. Compounding it gives each octave its own angle.
+    const float2x2 rot = float2x2(0.80, -0.60, 0.60, 0.80);
+
     float v = 0.0;
     v += 0.5000 * PL_ValueNoise(p);
+    p = mul(rot, p);
     v += 0.2500 * PL_ValueNoise(p * 2.03 + 17.3);
+    p = mul(rot, p);
     v += 0.1250 * PL_ValueNoise(p * 4.01 + 31.7);
+    p = mul(rot, p);
     v += 0.0625 * PL_ValueNoise(p * 8.05 + 53.1);
     return v / 0.9375;
 }

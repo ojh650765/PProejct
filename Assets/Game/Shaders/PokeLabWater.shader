@@ -234,8 +234,17 @@ Shader "PokeLab/Water"
             // far more convincingly than a single layer, for the same two samples.
             float PokeLabCaustic(float2 p, float t)
             {
+                // The second layer is rotated, not just scaled. Both samples come off
+                // the same axis-aligned value-noise lattice, so leaving them parallel
+                // makes the ridge between them run along world X and Z: a regular grid
+                // of soft blobs across the whole lake instead of filaments. A rotation
+                // that is not a fraction of a right angle gives the ridge no axis to
+                // line up on.
+                const float2x2 rot = float2x2(0.80, -0.60, 0.60, 0.80);
+
                 float a = PL_ValueNoise(p * _CausticScale + float2(t * _CausticSpeed, 0));
-                float b = PL_ValueNoise(p * _CausticScale * 1.31 -
+                float2 q = mul(rot, p);
+                float b = PL_ValueNoise(q * _CausticScale * 1.31 -
                                         float2(0, t * _CausticSpeed * 0.87) + 13.7);
                 float c = 1.0 - abs(a - b) * 2.4;
                 return pow(saturate(c), 6.0);
