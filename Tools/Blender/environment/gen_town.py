@@ -357,9 +357,15 @@ def house_b(bm, rng):
     s2.build()
     HOLE_CHECKS.extend(s2.assert_openings())
 
-    # jetty brackets, each biting into both shells
+    # Jetty brackets, each biting into both shells.  Sat at e1 - 0.02 in the
+    # first pass, which left their soffit at z 2.430 -- only 92 mm above the
+    # top of the shop window's lintel course at z 2.338.  A shopfront awning
+    # cannot be built with a real slab thickness and real clearance top and
+    # bottom in 92 mm, so the brackets are lifted 50 mm.  At e1 + 0.03 they
+    # still bite 70 mm into the lower shell and 130 mm into the upper, which
+    # is the whole reason they are here.
     for x in (-1.35, 0.0, 1.35):
-        TL.solid_box(bm, (x, -d / 2 - j * 0.45, e1 - 0.02),
+        TL.solid_box(bm, (x, -d / 2 - j * 0.45, e1 + 0.03),
                      (0.15, j + 0.20, 0.20), BEAM)
     TL.solid_box(bm, (0, -d / 2 - j + 0.03, e1 + 0.13),
                  (w + 2 * j + 0.04, 0.14, 0.18), BEAM)
@@ -368,14 +374,62 @@ def house_b(bm, rng):
                   ridge_along_x=True, gable_mat=PLASTER_C)
     TL.corner_posts(bm, lower, 0.0, e1, 0.15, BEAM)
 
-    # shopfront awning: a thick solid on two brackets, clear of the window head
+    # ----------------------------------------------------------------------
+    # Shopfront awning.
+    #
+    # The first pass authored this as a slab floating 33-60 mm off the wall,
+    # a valance 50 mm wider than the slab it hung on, and two horizontal
+    # "struts" that crossed out through the canopy and then lay 158 mm above
+    # its top surface in open air -- which is precisely what the game's
+    # three-quarter overhead camera looks straight down at.  Rebuilt as a
+    # piece of construction:
+    #
+    #   * the canopy's back edge is buried 10-28 mm INSIDE the wall face, so
+    #     there is no gap to close anywhere along the head;
+    #   * it is carried on two diagonal knee brackets running from a cleat on
+    #     the wall out and up into the soffit -- a load path a real awning
+    #     could use -- and every part of them stops 15 mm inside the wall
+    #     face, 225 mm short of the inner skin, so nothing shows in the room;
+    #   * measured clearances: 17 mm under the jetty brackets above, 20 mm
+    #     over the shop window's lintel course below, and the knee brackets
+    #     stop 40 mm short of punching through the canopy's TOP surface;
+    #   * the valance, its piping and the scalloped hem are all inset inside
+    #     the canopy's own x range, so no trim overhangs what it is nailed to.
+    #
+    # It is centred on the shop window at x = -0.80 rather than on the facade.
+    # That is deliberate, not a slip: the window is the shop and the door at
+    # x = +0.80 has to stay walkable, so an awning that framed the whole
+    # frontage would read as a porch.  The old span (-1.95..0.55) was centred
+    # on neither -- it stabbed 47 mm into the front corner post at one end and
+    # half-covered the door at the other, which is what made it read as a
+    # mistake rather than as a shopfront.
+    aw_x0, aw_x1 = -1.75, 0.15                 # 1.90 m, centred on the window
+    aw_y0, aw_y1 = -d / 2 + 0.01, -d / 2 - 0.91    # -2.19 into the wall, -3.11
+    aw_z0, aw_z1 = 2.463, 2.150                # head and eave of the top face
+    aw_cx = (aw_x0 + aw_x1) * 0.5
     TL.solid_from_quad(bm, [
-        (-1.95, -d / 2 - 0.06, 2.42), (0.55, -d / 2 - 0.06, 2.42),
-        (0.55, -d / 2 - 1.05, 2.06), (-1.95, -d / 2 - 1.05, 2.06)],
-        0.08, AWNING, up=(0, 0, 1))
-    TL.solid_box(bm, (-0.70, -d / 2 - 1.05, 2.00), (2.60, 0.10, 0.16), TRIM)
-    for sx in (-1.90, 0.50):
-        TL.solid_box(bm, (sx, -d / 2 - 0.5, 2.30), (0.08, 1.05, 0.09), TRIM)
+        (aw_x0, aw_y0, aw_z0), (aw_x1, aw_y0, aw_z0),
+        (aw_x1, aw_y1, aw_z1), (aw_x0, aw_y1, aw_z1)],
+        0.057, AWNING, up=(0, 0, 1))
+    # valance on the eave, inset 20 mm inside the canopy at both ends
+    val_w = (aw_x1 - aw_x0) - 0.04
+    TL.solid_box(bm, (aw_cx, aw_y1 + 0.027, 1.995), (val_w, 0.075, 0.24),
+                 AWNING)
+    TL.solid_box(bm, (aw_cx, aw_y1 + 0.012, 2.105), (val_w + 0.02, 0.055, 0.05),
+                 TRIM)
+    # scalloped hem: what makes it read as a shop awning at ten metres
+    for k in range(7):
+        sx = aw_x0 + 0.13 + k * ((aw_x1 - aw_x0) - 0.26) / 6.0
+        TL.solid_box(bm, (sx, aw_y1 + 0.027, 1.845), (0.215, 0.065, 0.12),
+                     AWNING)
+    # knee brackets: a cleat bedded in the wall and a diagonal into the soffit
+    for sx in (-1.66, 0.06):
+        TL.solid_box(bm, (sx, -d / 2 - 0.035, 1.965), (0.14, 0.11, 0.19), BEAM)
+        TL.solid_from_quad(bm, [
+            (sx - 0.045, -d / 2 + 0.015, 1.990),
+            (sx + 0.045, -d / 2 + 0.015, 1.990),
+            (sx + 0.045, -2.860, 2.195),
+            (sx - 0.045, -2.860, 2.195)], 0.07, BEAM, up=(0, 0, 1))
 
     TL.window_furniture(bm, o_shop, TRIM, GLASS, th, sill=True)
     TL.window_furniture(bm, o_side, TRIM, GLASS, th)
@@ -511,15 +565,27 @@ def poke_lab(bm, rng):
         TL.solid_box(bm, (0, 0, top + 1.05 + k * 0.30),
                      (0.48 - k * 0.12, 0.06, 0.04), LAMP)
 
-    # entrance canopy: posts, a thick slab, a sign, and steps that are solids
+    # Entrance canopy: posts, a thick slab, a sign, and steps that are solids.
+    #
+    # Three measured defects fixed here.  (1) The slab used to stop at
+    # y = -3.175, and the drum's wall at the slab's own ends (x = +-1.70) is
+    # at y = -3.144 -- so the outer 114 mm of each end hung free with up to
+    # 30 mm of daylight behind it while the middle buried itself 425 mm in.
+    # The back edge now runs to y = -3.10, which is inside the wall by 45 mm
+    # at the ends and 500 mm at the centre: contact along the whole head.
+    # (2) The fascia was 3.44 m against a 3.40 m slab, 20 mm proud at each
+    # end; it is now inset 20 mm instead.  (3) The sign board sat at
+    # z 2.310..2.850 with the fascia soffit at 2.930 -- an 80 mm gap to the
+    # only thing near it, i.e. a board hanging on nothing.  It is lifted to
+    # butt 60 mm up into the fascia.
     cy = -R - 1.00
     for sx in (-1, 1):
         TL.solid_box(bm, (sx * 1.35, cy, 1.55), (0.26, 0.26, 3.10), TRIM)
         TL.solid_box(bm, (sx * 1.35, cy, 0.26), (0.48, 0.48, 0.52), STONE_WALL)
-    TL.solid_box(bm, (0, cy + 0.40, 3.16), (3.40, 2.05, 0.22), METAL_ROOF)
-    TL.solid_box(bm, (0, cy - 0.58, 3.10), (3.44, 0.16, 0.34), TRIM)
-    TL.solid_box(bm, (0, cy - 0.64, 2.58), (2.15, 0.12, 0.54), AWNING)
-    TL.solid_box(bm, (0, cy - 0.71, 2.58), (1.90, 0.06, 0.36), TRIM)
+    TL.solid_box(bm, (0, cy + 0.4375, 3.16), (3.40, 2.125, 0.22), METAL_ROOF)
+    TL.solid_box(bm, (0, cy - 0.58, 3.10), (3.36, 0.16, 0.34), TRIM)
+    TL.solid_box(bm, (0, cy - 0.64, 2.72), (2.15, 0.12, 0.54), AWNING)
+    TL.solid_box(bm, (0, cy - 0.71, 2.72), (1.90, 0.06, 0.36), TRIM)
     for k in range(3):
         TL.solid_box(bm, (0, cy + 0.62 + k * 0.32, 0.06 + k * 0.13),
                      (3.1 - k * 0.24, 0.40, 0.14 + k * 0.10), PAVING)
@@ -546,8 +612,13 @@ def market_stall_b(bm, rng):
     for sx in (-1, 1):
         TL.solid_box(bm, (sx * (w * 0.5 - 0.06), -d * 0.5 + 0.06, h * 0.5),
                      (0.10, 0.10, h), BEAM)
-        TL.solid_box(bm, (sx * (w * 0.5 - 0.06), d * 0.5 - 0.06, 1.30),
-                     (0.09, 0.09, 2.60), BEAM)
+        # The back posts were 2.60 tall against a canopy whose TOP surface is
+        # at 2.543..2.574 over their footprint, so 26-57 mm of post stood up
+        # through the awning -- visible from the overhead camera as two stubs
+        # in the middle of the cloth.  At 2.52 the post is bedded 12-43 mm
+        # into the canopy and still 23-54 mm below its top face.
+        TL.solid_box(bm, (sx * (w * 0.5 - 0.06), d * 0.5 - 0.06, 1.26),
+                     (0.09, 0.09, 2.52), BEAM)
     # sloped canopy with real thickness
     TL.solid_from_quad(bm, [
         (-w * 0.5 - 0.18, -d * 0.5 - 0.10, h),
@@ -563,9 +634,16 @@ def market_stall_b(bm, rng):
         x = -0.62 + i * 0.62
         TL.solid_box(bm, (x, 0.02, 1.07), (0.42, 0.36, 0.20), BEAM)
         TL.solid_box(bm, (x, 0.02, 1.20), (0.34, 0.28, 0.10), AWNING)
-    # a hanging sign on the front rail
+    # A hanging sign -- hanging on something.  It used to float 54 mm below
+    # the canopy's front edge with no solid within 150 mm of it in any
+    # direction; two straps now run from the sign up into the canopy's front
+    # edge, biting 36 mm into the soffit and stopping 30 mm short of its top
+    # face so nothing pokes through the cloth.
     TL.solid_box(bm, (0, -d * 0.5 - 0.12, 1.86), (1.10, 0.05, 0.34), AWNING)
     TL.solid_box(bm, (0, -d * 0.5 - 0.16, 1.86), (0.94, 0.03, 0.22), TRIM)
+    for sx in (-1, 1):
+        TL.solid_box(bm, (sx * 0.42, -d * 0.5 - 0.095, 2.04),
+                     (0.05, 0.05, 0.16), BEAM)
 
 
 def wall_lamp(bm, rng):
@@ -869,9 +947,16 @@ def barrel(bm, rng, h=0.86, r=0.30):
 
 def market_stall(bm, rng):
     w, d, h = 2.4, 1.5, 2.15
+    # The canopy's eave is at z = h but the eave line is at |y| = 1.03, while
+    # the posts stand at |y| = 0.75 -- so the pitched cloth is already 150 mm
+    # above z = h where the posts actually are.  Posts stopped at h in the
+    # first pass and the whole canopy floated 150 mm clear of all four of
+    # them.  post_top puts them into the cloth: 30 mm of bite, and still
+    # 15 mm short of pushing through the top surface at 2.3445.
+    post_top = h + 0.18
     for (sx, sy) in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
         E.bm_polytube(bm, [Vector((sx * w * .5, sy * d * .5, 0)),
-                           Vector((sx * w * .5, sy * d * .5, h))],
+                           Vector((sx * w * .5, sy * d * .5, post_top))],
                       [0.065, 0.055], 6, BEAM, cap_start=True, cap_end=True,
                       smooth=False)
     box(bm, (0, 0, 0.90), (w - 0.05, d - 0.05, 0.07), BEAM)
@@ -892,9 +977,14 @@ def market_stall(bm, rng):
             f.material_index = AWNING
             f.smooth = False
         bmesh.ops.recalc_face_normals(bm, faces=fs)
+        # Scalloped valance.  It used to hang at |y| = 1.02 with its top at
+        # z = h = 2.15 while the cloth soffit over it runs 2.155..2.169 --
+        # 5 to 19 mm of daylight between the hem and the awning it hangs
+        # from.  Pulled 20 mm inboard and lifted 40 mm, each tab now bites
+        # 10-37 mm into the soffit and stays 8-34 mm below the top face.
         for k in range(7):
             x = -w * .5 - 0.10 + k * (w + 0.20) / 6.0
-            box(bm, (x, sy * (d * .5 + 0.27), h - 0.10), (0.22, 0.05, 0.20),
+            box(bm, (x, sy * (d * .5 + 0.25), h - 0.06), (0.22, 0.05, 0.20),
                 AWNING)
     # goods on the counter
     for k in range(5):

@@ -19,7 +19,7 @@
     "family": "Town",
     "subfamily": "House",
     "path": "Assets/Game/Art/Environment/Town/Env_House_Townhouse_B.fbx",
-    "triangles": 1600,
+    "triangles": 1720,
     "lods": [],
     "pivot": "ground level, footprint centred",
     "textures": [
@@ -270,7 +270,7 @@
     "family": "Town",
     "subfamily": "Market",
     "path": "Assets/Game/Art/Environment/Town/Env_Market_Stall_B.fbx",
-    "triangles": 704,
+    "triangles": 792,
     "lods": [],
     "pivot": "ground level, footprint centred",
     "textures": [
