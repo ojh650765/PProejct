@@ -224,6 +224,11 @@ namespace PokeLab.Cinematics
 
                 yield return overlay.CoverOut(revealDuration, WipeStyle.SplitWipe);
 
+                // The battle may perform now. Released here rather than before the wipe because
+                // the send-out is the one beat the player only ever sees once per encounter, and
+                // behind an opaque cover it is spent on nothing.
+                if (battlePresenter != null) battlePresenter.ReleasePerformance();
+
                 // Marks: trainers and creatures settle before anything else is asked of the frame.
                 yield return CinematicRunner.Wait(marksHold);
 
@@ -332,7 +337,17 @@ namespace PokeLab.Cinematics
             if (battleRoot != null) battleRoot.SetActive(true);
             if (overworldRoot != null && battleRoot != null && overworldRoot != battleRoot)
                 overworldRoot.SetActive(false);
-            if (battlePresenter != null) battlePresenter.ResetForNewBattle();
+
+            // The reveal leaves the follow rig on 100 on the way out, which outranks every
+            // battle camera in the rig. Left alone, the first encounter of a session is framed
+            // correctly and every one after it is framed by the exploration camera, looking at a
+            // player standing in a world that has just been switched off.
+            if (overworldFollowCamera != null) overworldFollowCamera.Priority = 0;
+
+            if (battlePresenter == null) return;
+            battlePresenter.ResetForNewBattle();
+            // Ordered after the reset, which clears any hold left by a previous encounter.
+            battlePresenter.HoldPerformance(coverDuration + stagingHold + revealDuration + 4f);
         }
 
         /// <summary>

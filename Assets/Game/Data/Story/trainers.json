@@ -58,7 +58,7 @@
   ],
 
   "npcDialogueBindings": {
-    "note": "Not trainers -- the three plain NPCs whose lines change with the story. NpcController supports exactly one alternate (_alternateDialogue + _alternateFlag), and Bram needs two. That is the one extension this section asks for: a list of (flag, sequenceId) tested in order, falling through to the default.",
+    "note": "SUPERSEDED -- kept as the design record. The extension this section asked for (a list of (flag, sequenceId) tested in order, falling through to a default) exists now as NpcController._dialogueStates, and the live copy of the table below lives in dialogue.json under NpcBindings. It moved because the town is generated: NpcController looks its own npcId up in the book, so nothing has to survive a rebuild of the scene. Edit dialogue.json, not this.",
     "npc_gate_01": {
       "default": "gate_block_no_starter",
       "states": [

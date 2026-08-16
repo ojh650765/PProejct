@@ -1,17 +1,37 @@
 {
   "schema": {
-    "version": 1,
+    "version": 2,
     "authoredBy": "narrative-design",
-    "shapedFor": "Assets/Game/Scripts/Overworld/Npc/DialogueData.cs -- DialogueSequence / DialogueLine / DialogueChoice",
-    "note": "Every Lines[] entry is field-for-field a DialogueLine, so a loader can read this straight into DialogueSequence.FromLines and never touch a ScriptableObject asset. 'Tone' is an integer because JsonUtility deserialises enums from numbers; 'ToneName' sits beside it for humans and is ignored. Choices jump by line index and -1 ends the sequence, exactly as the struct documents.",
+    "shapedFor": "Assets/Game/Scripts/Overworld/Npc/DialogueBook.cs -- DialogueBookEntry / DialogueBookLine / DialogueBookChoice / DialogueBookBinding",
+    "npcBindings": "Which sequence each townsperson speaks, and which flag switches them to the next one. It lives here rather than on the NPC because the level is generated from slice_layout.json: a sequence id dragged onto an NPC in the scene is thrown away by the next rebuild, and every one of these characters had exactly nothing to say as a result. NpcController reads this whenever its own fields are empty.",
+    "note": "Every Lines[] entry is a DialogueBookLine: a DialogueLine plus its Korean half. DialogueBook.Build collapses the pair to the single-language DialogueLine the runner and the UI already render, so the language choice is made once, at the seam, and nothing downstream carries two texts around. 'Tone' is an integer because JsonUtility deserialises enums from numbers; 'ToneName' sits beside it for humans and is ignored. Choices jump by line index and -1 ends the sequence, exactly as the struct documents.",
     "tones": { "0": "Neutral", "1": "Friendly", "2": "Excited", "3": "Worried", "4": "Hostile", "5": "System" },
     "conventions": {
-      "PortraitKey": "Left empty everywhere on purpose. Tools/Sprites/people.py produces 32px overworld sheets and no portraits at all, and DialogueView's portrait frame is 116x172. The frame collapses when the sprite is null, so an empty key renders correctly today. When busts exist, the key is the SpeakerId.",
-      "{PLAYER}": "Substituted with PlayerProfile.TrainerName. Nothing substitutes it yet.",
+      "PortraitKey": "The SpeakerId, on every line that has a speaker. Narration keeps an empty key because it is the world talking, not a person. THE ARTWORK DOES NOT EXIST: Tools/Sprites/people.py produces 32px overworld sheets and nothing else, so DialoguePortraits finds nothing and DialogueView collapses the frame -- which is exactly what it does today. The key is filled in anyway so that dropping five illustrations into Assets/Game/Art/Sprites/Resources/Portraits/ is the whole of the remaining work; see DialoguePortraits for the file names.",
+      "{PLAYER}": "Substituted with PlayerProfile.TrainerName, in both languages -- DialogueBook.Build runs the substitution after it has picked a language, so the token works wherever it is written.",
       "AutoAdvanceSeconds": "Non-zero only where the scene should play itself -- the prologue over black and the plaza bulletin. Everything a character says to the player's face waits for a press.",
-      "lineLength": "Kept under ~150 characters. DialogueView's body band is two lines of 30pt across a 1480px measure; longer than that scrolls out of the scrim."
+      "lineLength": "Kept under ~150 characters. DialogueView's body band is two lines of 30pt across a 1480px measure; longer than that scrolls out of the scrim. Korean runs shorter than the English for the same content, which is the normal ratio and not a sign anything was dropped.",
+      "korean": "Written as a Korean game writes, not as the English put through a translator: no '그것은', no '~하는 것이다', no padding adverbs, and a long English sentence is split rather than joined with '그리고'. Register is per speaker and does not drift -- Linden is a dry 해라체 elder, Kes is clipped 반말, Bram is short and firm, Sela is warm 반말, Odell muses, and the terminal is 합쇼체 because it is a public announcement. Series terms win over literal ones: 포켓몬, 도감, 몬스터볼, 상처약, 해독제. Species names come from Assets/StreamingAssets/pokelab/species.json NameKo.",
+      "koreanNumbers": "Figures, not words. English spells quantities out and Korean does not, so 'four hundred years' is 400년 and never 사백 년 -- a spelled-out number is one of the most reliable signs a line came through a translator. Applies to ages, years, distances, item counts, percentages and anything above about ten. The exception is a small count with its counter, which is how Korean actually says it: 세 마리, 한 번, 두 번째 -- writing 3마리 there is worse than the problem it fixes.",
+      "koreanPunctuation": "No em-dashes and no semicolons. They are English joins; Korean splits the sentence or uses a comma, and an interrupted or trailing line takes … instead. Emphasis lives in the verb ending and the particle, never in typography."
     }
   },
+
+  "NpcBindings": [
+    { "NpcId": "npc_gate_01", "DefaultSequenceId": "gate_block_no_starter",
+      "Note": "Bram's three states. Most progressed first: testing story.starter_chosen before story.pokedex would leave him refusing to open a gate he has already opened.",
+      "States": [
+        { "Flag": "story.pokedex", "SequenceId": "gate_open" },
+        { "Flag": "story.starter_chosen", "SequenceId": "gate_block_no_dex" }
+      ] },
+    { "NpcId": "npc_market_01", "DefaultSequenceId": "sela_hint",
+      "States": [ { "Flag": "story.pokedex", "SequenceId": "sela_after" } ] },
+    { "NpcId": "npc_garden_01", "DefaultSequenceId": "odell_flavour",
+      "States": [] },
+    { "NpcId": "npc_rival_01", "DefaultSequenceId": "",
+      "Note": "No default on purpose. Until the battle is done Kes is driven by the episodes -- opening_departure is triggered off him -- and a townsperson line offered at the same time would be a second way to talk to him that says something the scene has not reached yet.",
+      "States": [ { "Flag": "story.rival_battle_done", "SequenceId": "riv_idle" } ] }
+  ],
 
   "Sequences": [
     {
@@ -19,24 +39,31 @@
       "PlaysOnlyOnce": true,
       "Note": "Over black. Diamond/Pearl's title-screen professor monologue: state the world, state the problem, ask who the player is. Auto-advancing until the two questions.",
       "Lines": [
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.2, "EventId": "", "Choices": [],
-          "Text": "People have kept records of this valley for four hundred years. Rainfall. Harvests. The depth of the lake in spring." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.0, "EventId": "", "Choices": [],
-          "Text": "And in the margin of every one of them, in a different hand, somebody has drawn a creature." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.0, "EventId": "", "Choices": [],
-          "Text": "Pokémon. We have lived beside them the entire time and written them down last." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.0, "EventId": "", "Choices": [],
-          "Text": "I intend to correct the order of that list. But I am seventy-one, and the valley is large." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.4, "EventId": "", "Choices": [],
-          "Text": "So I have been waiting for somebody to come and stand in front of me. It appears to be you." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "",
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.2, "EventId": "", "Choices": [],
+          "Text": "People have kept records of this valley for four hundred years. Rainfall. Harvests. The depth of the lake in spring.",
+          "TextKo": "이 골짜기의 기록은 400년을 이어왔다. 강수량. 수확량. 봄철 호수의 수심." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.0, "EventId": "", "Choices": [],
+          "Text": "And in the margin of every one of them, in a different hand, somebody has drawn a creature.",
+          "TextKo": "어느 장부든 여백에는 그림이 있다. 필체는 매번 다르고, 그려진 건 늘 생물이다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.0, "EventId": "", "Choices": [],
+          "Text": "Pokémon. We have lived beside them the entire time and written them down last.",
+          "TextKo": "포켓몬. 내내 곁에 두고 살면서, 기록은 가장 나중에 했다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.0, "EventId": "", "Choices": [],
+          "Text": "I intend to correct the order of that list. But I am seventy-one, and the valley is large.",
+          "TextKo": "그 순서를 바로잡을 생각이다. 다만 나이가 71이고, 골짜기는 넓다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.4, "EventId": "", "Choices": [],
+          "Text": "So I have been waiting for somebody to come and stand in front of me. It appears to be you.",
+          "TextKo": "그래서 누군가 내 앞에 서 주기를 기다렸다. 네가 그 사람인 모양이다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "",
           "Text": "Before anything else. How do you see yourself?",
+          "TextKo": "그 전에 하나만 묻자. 스스로를 어떻게 생각하지?",
           "Choices": [
-            { "Text": "A boy.", "GoToLine": 6, "ResultEventId": "profile.body.male" },
-            { "Text": "A girl.", "GoToLine": 6, "ResultEventId": "profile.body.female" }
+            { "Text": "A boy.", "TextKo": "남자아이.", "GoToLine": 6, "ResultEventId": "profile.body.male" },
+            { "Text": "A girl.", "TextKo": "여자아이.", "GoToLine": 6, "ResultEventId": "profile.body.female" }
           ] },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Good. Then tell me your name." }
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Good. Then tell me your name.",
+          "TextKo": "좋다. 그럼 이름을 말해라." }
       ]
     },
 
@@ -45,24 +72,29 @@
       "PlaysOnlyOnce": true,
       "Note": "Two lines, still over black. The second one is the cue for the fade.",
       "Lines": [
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 1.8, "EventId": "", "Choices": [],
-          "Text": "{PLAYER}. Yes. That will do." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Open your eyes, then. It is already morning, and the valley does not record itself." }
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 1.8, "EventId": "", "Choices": [],
+          "Text": "{PLAYER}. Yes. That will do.",
+          "TextKo": "{PLAYER}. 그래. 그 이름이면 됐다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Open your eyes, then. It is already morning, and the valley does not record itself.",
+          "TextKo": "그럼 눈을 떠라. 벌써 아침이고, 골짜기는 저절로 기록되지 않는다." }
       ]
     },
 
     {
       "SequenceId": "op_broadcast",
       "PlaysOnlyOnce": true,
-      "Note": "Diamond/Pearl's television report, moved to the plaza research terminal because this game has no house interiors. Its job is identical: name the anomaly, point at the lake, and be the only thing in the scene that has told the player anything.",
+      "Note": "Diamond/Pearl's television report, moved to the plaza research terminal because this game has no house interiors. Its job is identical: name the anomaly, point at the lake, and be the only thing in the scene that has told the player anything. Korean is 합쇼체 -- this is the one speaker in the book that is addressing a town rather than a person.",
       "Lines": [
-        { "SpeakerId": "prop_research_terminal", "SpeakerName": "Aster Field Lab", "SpeakerSubtitle": "Morning Bulletin", "PortraitKey": "", "Tone": 5, "ToneName": "System", "AutoAdvanceSeconds": 4.2, "EventId": "", "Choices": [],
-          "Text": "— and repeating the notice. The lake rose eleven centimetres overnight. There was no rain." },
-        { "SpeakerId": "prop_research_terminal", "SpeakerName": "Aster Field Lab", "SpeakerSubtitle": "Morning Bulletin", "PortraitKey": "", "Tone": 5, "ToneName": "System", "AutoAdvanceSeconds": 3.8, "EventId": "", "Choices": [],
-          "Text": "Residents are asked to keep clear of the basin until the survey team has been down." },
-        { "SpeakerId": "prop_research_terminal", "SpeakerName": "Aster Field Lab", "SpeakerSubtitle": "Morning Bulletin", "PortraitKey": "", "Tone": 5, "ToneName": "System", "AutoAdvanceSeconds": 3.0, "EventId": "", "Choices": [],
-          "Text": "That is all. Have a pleasant morning." }
+        { "SpeakerId": "prop_research_terminal", "SpeakerName": "Aster Field Lab", "SpeakerNameKo": "아스터 필드 연구소", "SpeakerSubtitle": "Morning Bulletin", "SpeakerSubtitleKo": "아침 방송", "PortraitKey": "prop_research_terminal", "Tone": 5, "ToneName": "System", "AutoAdvanceSeconds": 4.2, "EventId": "", "Choices": [],
+          "Text": "— and repeating the notice. The lake rose eleven centimetres overnight. There was no rain.",
+          "TextKo": "…안내를 다시 전해 드립니다. 간밤에 호수 수위가 11센티미터 올랐습니다. 비는 오지 않았습니다." },
+        { "SpeakerId": "prop_research_terminal", "SpeakerName": "Aster Field Lab", "SpeakerNameKo": "아스터 필드 연구소", "SpeakerSubtitle": "Morning Bulletin", "SpeakerSubtitleKo": "아침 방송", "PortraitKey": "prop_research_terminal", "Tone": 5, "ToneName": "System", "AutoAdvanceSeconds": 3.8, "EventId": "", "Choices": [],
+          "Text": "Residents are asked to keep clear of the basin until the survey team has been down.",
+          "TextKo": "조사팀이 내려가기 전까지 주민 여러분은 호수 분지에 접근하지 마십시오." },
+        { "SpeakerId": "prop_research_terminal", "SpeakerName": "Aster Field Lab", "SpeakerNameKo": "아스터 필드 연구소", "SpeakerSubtitle": "Morning Bulletin", "SpeakerSubtitleKo": "아침 방송", "PortraitKey": "prop_research_terminal", "Tone": 5, "ToneName": "System", "AutoAdvanceSeconds": 3.0, "EventId": "", "Choices": [],
+          "Text": "That is all. Have a pleasant morning.",
+          "TextKo": "이상입니다. 좋은 아침 되십시오." }
       ]
     },
 
@@ -71,18 +103,22 @@
       "PlaysOnlyOnce": true,
       "Note": "Kes is Barry's function: he supplies the momentum the player has not earned yet. The choice on line 2 is cosmetic -- both answers land on line 3 -- because DP does not let you decline and offering a refusal you cannot take is worse than not asking.",
       "Lines": [
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Eleven centimetres. With no rain. You heard it too — tell me you heard it." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "The entire street heard that and went back to their bread." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "",
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Eleven centimetres. With no rain. You heard it too — tell me you heard it.",
+          "TextKo": "11센티미터. 비도 안 왔는데. 너도 들었지. 들었다고 말해." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "The entire street heard that and went back to their bread.",
+          "TextKo": "온 동네가 다 듣고도 그냥 빵이나 먹더라." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "",
           "Text": "I'm going down to the lake. Now, before the survey crew gets there and puts rope round it.",
+          "TextKo": "나 호수로 내려간다. 지금. 조사팀이 줄 쳐 놓기 전에.",
           "Choices": [
-            { "Text": "I'm right behind you.", "GoToLine": 3, "ResultEventId": "rival.answer.eager" },
-            { "Text": "You're going to fall in.", "GoToLine": 3, "ResultEventId": "rival.answer.dry" }
+            { "Text": "I'm right behind you.", "TextKo": "바로 따라갈게.", "GoToLine": 3, "ResultEventId": "rival.answer.eager" },
+            { "Text": "You're going to fall in.", "TextKo": "너 빠질걸.", "GoToLine": 3, "ResultEventId": "rival.answer.dry" }
           ] },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Then keep up. If I'm at the ramp and you aren't, I'm counting out loud." }
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Then keep up. If I'm at the ramp and you aren't, I'm counting out loud.",
+          "TextKo": "그럼 따라와. 내가 비탈에 먼저 도착하면, 소리 내서 셀 거다." }
       ]
     },
 
@@ -91,16 +127,21 @@
       "PlaysOnlyOnce": true,
       "Note": "DP's mother warning you out of the tall grass, given to the NPC the layout already stood at the gate. Bram states the rule the whole first act is built on, in one sentence, before the player has any reason to resent it.",
       "Lines": [
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Stop. Both of you. Stop." },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "That ramp goes down into grass that comes up past your chest, and there is something living in every metre of it." },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "I don't stand here for the view. Nobody goes down without a Pokémon. The rule is short so that people remember it." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "The lake is right there —" },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "It has been right there your whole life." }
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Stop. Both of you. Stop.",
+          "TextKo": "멈춰. 둘 다. 멈추라고." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "That ramp goes down into grass that comes up past your chest, and there is something living in every metre of it.",
+          "TextKo": "저 비탈 아래는 가슴까지 오는 풀숲이다. 그 안엔 한 뼘마다 뭔가가 산다." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "I don't stand here for the view. Nobody goes down without a Pokémon. The rule is short so that people remember it.",
+          "TextKo": "내가 경치 보려고 여기 서 있는 게 아니다. 포켓몬 없이는 아무도 못 내려간다. 규칙이 짧은 건 다들 기억하라고 그런 거다." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "The lake is right there —",
+          "TextKo": "호수 바로 저긴데…" },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "It has been right there your whole life.",
+          "TextKo": "네가 태어났을 때부터 거기 있었다." }
       ]
     },
 
@@ -109,16 +150,21 @@
       "PlaysOnlyOnce": true,
       "Note": "DP's two wild Starly, restaged as a scare instead of a battle. In DP the birds are the reason the briefcase gets opened; keeping that logic and dropping the fight means this opening has exactly one battle in it, and it is the one that matters. Line 0 is unattributed narration -- DialogueView drops the name plate and rule when SpeakerName is empty, which is what makes it read as the world rather than as a person.",
       "Lines": [
-        { "SpeakerId": "", "SpeakerName": "", "SpeakerSubtitle": "", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "vfx.flock_startle", "Choices": [],
-          "Text": "Something came up out of the grass below the ramp. A dozen of them, brown, shrieking, straight over the gate and gone north." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "...okay. That's new." },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "That is not new. That is Pidgey. They go up like that when something bigger walks under them." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "So what's walking under them?" },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Ask me again when I know." }
+        { "SpeakerId": "", "SpeakerName": "", "SpeakerNameKo": "", "SpeakerSubtitle": "", "SpeakerSubtitleKo": "", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "vfx.flock_startle", "Choices": [],
+          "Text": "Something came up out of the grass below the ramp. A dozen of them, brown, shrieking, straight over the gate and gone north.",
+          "TextKo": "비탈 아래 풀숲에서 무언가가 솟구쳤다. 갈색 덩어리 열몇 마리가 울부짖으며 관문 위를 넘어 북쪽으로 사라졌다." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "...okay. That's new.",
+          "TextKo": "…어. 저건 처음 본다." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "That is not new. That is Pidgey. They go up like that when something bigger walks under them.",
+          "TextKo": "처음 아니다. 구구다. 저것보다 큰 게 밑으로 지나가면 저렇게 튀어 오른다." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "So what's walking under them?",
+          "TextKo": "그럼 밑으로 지나간 게 뭔데?" },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Ask me again when I know.",
+          "TextKo": "내가 알게 되면 다시 물어라." }
       ]
     },
 
@@ -127,24 +173,33 @@
       "PlaysOnlyOnce": true,
       "Note": "DP's Rowan arriving to call the rival reckless, and then handing over the case anyway. Line 7 carries story.case_open for the VFX and sting.",
       "Lines": [
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Bram. Let them past." },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Professor —" },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "I heard the birds from the lane. I have waited a long time for that lake to do something, and it has picked this morning." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Kes. You were going down there with nothing." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "I was going down there fast." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Yes. That is the part that worries me." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "I was carrying these down to the basin myself. I am not carrying them and keeping up with you. So." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "story.case_open", "Choices": [],
-          "Text": "Three. Born at the lab, healthy, and not one of them has ever been outside that building." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Take one. Then you may both go down that ramp, with my blessing and with Bram's." }
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Bram. Let them past.",
+          "TextKo": "브람. 보내 줘라." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Professor —",
+          "TextKo": "박사님…" },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "I heard the birds from the lane. I have waited a long time for that lake to do something, and it has picked this morning.",
+          "TextKo": "골목까지 새소리가 들리더군. 저 호수가 뭐라도 하기를 오래 기다렸다. 하필 오늘 아침을 골랐구나." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Kes. You were going down there with nothing.",
+          "TextKo": "케스. 아무것도 없이 내려가려고 했지." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "I was going down there fast.",
+          "TextKo": "빨리 내려가려던 건데요." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Yes. That is the part that worries me.",
+          "TextKo": "그래. 걱정되는 게 바로 그 부분이다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "I was carrying these down to the basin myself. I am not carrying them and keeping up with you. So.",
+          "TextKo": "이걸 직접 분지까지 들고 갈 참이었다. 이걸 들고 너희를 따라잡을 수는 없다. 그러니." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "story.case_open", "Choices": [],
+          "Text": "Three. Born at the lab, healthy, and not one of them has ever been outside that building.",
+          "TextKo": "세 마리다. 연구소에서 태어났고, 건강하고, 셋 다 그 건물 밖으로 나가 본 적이 없다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Take one. Then you may both go down that ramp, with my blessing and with Bram's.",
+          "TextKo": "하나 골라라. 그러면 둘 다 저 비탈로 내려가도 된다. 내 허락도, 브람의 허락도 있다." }
       ]
     },
 
@@ -153,8 +208,9 @@
       "PlaysOnlyOnce": true,
       "Note": "One line, then the balls. Short on purpose -- at this moment the player should be reading labels, not dialogue.",
       "Lines": [
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Take your time over it. It is a long walk with the wrong one." }
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Take your time over it. It is a long walk with the wrong one.",
+          "TextKo": "천천히 골라라. 잘못 고르면 길이 길어진다." }
       ]
     },
 
@@ -163,10 +219,12 @@
       "PlaysOnlyOnce": true,
       "Note": "Player took Bulbasaur (game id 1). Kes takes Charmander (game id 5).",
       "Lines": [
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Bulbasaur. Grass and poison, with a garden strapped to its back. It does not win quickly. It declines to be finished." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Then I'm taking the one that sets gardens on fire. Charmander. Sorry. Not really sorry." }
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Bulbasaur. Grass and poison, with a garden strapped to its back. It does not win quickly. It declines to be finished.",
+          "TextKo": "이상해씨. 풀과 독, 등에 정원을 지고 다닌다. 빨리 이기지는 못한다. 대신 좀처럼 끝나지 않는다." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Then I'm taking the one that sets gardens on fire. Charmander. Sorry. Not really sorry.",
+          "TextKo": "그럼 난 정원에 불 지르는 쪽. 파이리. 미안. 사실 안 미안해." }
       ]
     },
 
@@ -175,10 +233,12 @@
       "PlaysOnlyOnce": true,
       "Note": "Player took Charmander (game id 5). Kes takes Squirtle (game id 10).",
       "Lines": [
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Charmander. Fire, and not a great deal else yet. Keep that tail out of the rain and in six months you will not recognise it." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Water puts out fire. Squirtle, please. That isn't me being clever, that's just how it works." }
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Charmander. Fire, and not a great deal else yet. Keep that tail out of the rain and in six months you will not recognise it.",
+          "TextKo": "파이리. 불꽃, 아직은 그게 전부다. 꼬리를 비에 적시지 마라. 반년이면 못 알아볼 만큼 달라진다." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Water puts out fire. Squirtle, please. That isn't me being clever, that's just how it works.",
+          "TextKo": "물은 불을 끄지. 난 꼬부기. 머리 쓴 거 아니고, 원래 그런 거야." }
       ]
     },
 
@@ -187,10 +247,12 @@
       "PlaysOnlyOnce": true,
       "Note": "Player took Squirtle (game id 10). Kes takes Bulbasaur (game id 1).",
       "Lines": [
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Squirtle. Water, and a roof it can climb inside when the day goes badly — which is more than most of us manage." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "And a plant drinks water. Bulbasaur, then. See? I do read." }
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Squirtle. Water, and a roof it can climb inside when the day goes badly — which is more than most of us manage.",
+          "TextKo": "꼬부기. 물, 그리고 하루가 험할 때 들어갈 지붕이 있다. 우리 대부분은 그것도 없다." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "And a plant drinks water. Bulbasaur, then. See? I do read.",
+          "TextKo": "식물은 물을 마시고. 그럼 난 이상해씨. 봐, 나도 책 읽는다고." }
       ]
     },
 
@@ -199,16 +261,21 @@
       "PlaysOnlyOnce": true,
       "Note": "The loan, not the gift. This is Diamond/Pearl exactly: at the lake the starter is only borrowed, and it becomes formally yours when Rowan registers it at the Sandgem lab. Keeping that distinction is what gives 'leaving_town' something to be about.",
       "Lines": [
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "It is yours to carry. Not yours to keep — not yet." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Come up to the lab when you have had your look at the lake and I will put it in the register in ink. Then it is a gift." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Bram. The ramp." },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "The ramp is open." },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Mind the second step. It stays wet all morning." }
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "It is yours to carry. Not yours to keep — not yet.",
+          "TextKo": "데리고 다니는 건 네 몫이다. 네 것은 아니다. 아직은." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Come up to the lab when you have had your look at the lake and I will put it in the register in ink. Then it is a gift.",
+          "TextKo": "호수를 보고 나면 연구소로 올라와라. 장부에 잉크로 적어 주마. 그때부터 네 것이다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Bram. The ramp.",
+          "TextKo": "브람. 비탈." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "The ramp is open.",
+          "TextKo": "비탈은 열렸다." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Mind the second step. It stays wet all morning.",
+          "TextKo": "두 번째 계단 조심해라. 아침 내내 젖어 있다." }
       ]
     },
 
@@ -217,16 +284,21 @@
       "PlaysOnlyOnce": false,
       "Note": "TrainerDefinition.PreBattle for trainer_rival_01. Played by TrainerController after the exclamation and the approach walk, so it starts mid-motion and does not need to re-establish anything.",
       "Lines": [
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Wait. Wait, wait, wait." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "We are not walking down there with two brand-new Pokémon and no idea which of us is better at this." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "One battle. Here, at the gate, where Bram can watch it and tell the whole street." },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "I will not be telling anybody." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "He'll tell everybody. Go!" }
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Wait. Wait, wait, wait.",
+          "TextKo": "잠깐. 잠깐, 잠깐, 잠깐." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "We are not walking down there with two brand-new Pokémon and no idea which of us is better at this.",
+          "TextKo": "갓 받은 포켓몬 두 마리 데리고, 누가 더 잘하는지도 모르고 내려갈 순 없지." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "One battle. Here, at the gate, where Bram can watch it and tell the whole street.",
+          "TextKo": "한 판. 여기 관문에서. 브람이 보고 온 동네에 떠들 수 있게." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "I will not be telling anybody.",
+          "TextKo": "난 아무한테도 말 안 한다." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "He'll tell everybody. Go!",
+          "TextKo": "다 떠들걸. 간다!" }
       ]
     },
 
@@ -235,12 +307,15 @@
       "PlaysOnlyOnce": false,
       "Note": "TrainerDefinition.OnDefeat -- the player won.",
       "Lines": [
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "...huh." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "No — that's fine. That's information. Now I know." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Next time I'm not going first." }
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "...huh.",
+          "TextKo": "…어." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "No — that's fine. That's information. Now I know.",
+          "TextKo": "아니, 괜찮아. 이것도 정보야. 이제 알았으니까." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Next time I'm not going first.",
+          "TextKo": "다음엔 내가 먼저 안 나가." }
       ]
     },
 
@@ -249,12 +324,15 @@
       "PlaysOnlyOnce": false,
       "Note": "TrainerDefinition.OnPlayerDefeat -- the player lost. The rival battle is uphill by design (Kes always holds the type advantage), so this branch is likely and must not feel like a failure state. He points at the healing machine on the plaza, which is 3m from the spawn.",
       "Lines": [
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "HA! Ha!" },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Don't look like that. It was four moves. Four moves is barely a battle." },
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Go and use the machine on the plaza. I'll wait. I'll even wait quietly." }
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "HA! Ha!",
+          "TextKo": "하! 하!" },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Don't look like that. It was four moves. Four moves is barely a battle.",
+          "TextKo": "그런 표정 하지 마. 네 번 만에 끝났잖아. 네 번이면 배틀도 아니지." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Go and use the machine on the plaza. I'll wait. I'll even wait quietly.",
+          "TextKo": "광장 회복 기계 쓰고 와. 기다릴게. 조용히 기다려 줄게." }
       ]
     },
 
@@ -263,8 +341,9 @@
       "PlaysOnlyOnce": false,
       "Note": "TrainerDefinition.AfterDefeat -- talking to him again once the fight is over.",
       "Lines": [
-        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Lake. As soon as you're ready. I'm not going down there on my own, obviously." }
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerNameKo": "케스", "SpeakerSubtitle": "Aster Town", "SpeakerSubtitleKo": "아스터 마을", "PortraitKey": "npc_rival_01", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Lake. As soon as you're ready. I'm not going down there on my own, obviously.",
+          "TextKo": "호수. 준비되면 바로. 나 혼자 내려갈 생각은 당연히 없어." }
       ]
     },
 
@@ -273,12 +352,15 @@
       "PlaysOnlyOnce": true,
       "Note": "Played by the episode after the battle resolves, on BOTH branches. Written so it does not know or care who won -- Linden is commenting on the fact of the battle, not the result, which is what lets one sequence serve both outcomes without a branch the runner would have to carry.",
       "Lines": [
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "There. That is the thing I cannot teach and would not want to." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Two of them, five minutes old, and they already know what they are for." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Go on. And come up to the lab afterwards — I meant what I said about the ink." }
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "There. That is the thing I cannot teach and would not want to.",
+          "TextKo": "저거다. 내가 가르칠 수 없고, 가르치고 싶지도 않은 것." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Two of them, five minutes old, and they already know what they are for.",
+          "TextKo": "받은 지 5분 된 두 마리가 벌써 제 몫을 안다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Go on. And come up to the lab afterwards — I meant what I said about the ink.",
+          "TextKo": "가 봐라. 끝나면 연구소로 올라와라. 잉크 이야기는 빈말이 아니다." }
       ]
     },
 
@@ -287,22 +369,30 @@
       "PlaysOnlyOnce": true,
       "Note": "Diamond/Pearl's Sandgem lab scene, one town closer. The bag inventory in line 5 is not flavour: PlayerProfile.InitialiseNewGame grants exactly 10 poke-ball, 5 potion and 2 antidote at the moment of choosing, so this line names what the player already has rather than inventing a second handout that would not match the save.",
       "Lines": [
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "You came back up the hill. Half the people I hand a Pokémon to never do." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "story.starter_registered", "Choices": [],
-          "Text": "Registered. Signed for, in ink. It is yours now, properly, and nobody gets to take it back." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "story.dex_given", "Choices": [],
-          "Text": "And this. Hold it steady — it takes a moment to wake up." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "It records what you meet. Not what you catch — what you meet. Look at something long enough for it to look back and the entry writes itself." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "There are more kinds living between this gate and the lake than I have entries for. I have been meaning to fix that for eleven years." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Your bag: ten balls, five potions, two antidotes. Standard kit. It comes off the lab's budget and I would like the empty tins back." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Take these as well. Repels. They keep the small ones off you while you work out which end of a battle you are on." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "That is everything. Bram has been told." }
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "You came back up the hill. Half the people I hand a Pokémon to never do.",
+          "TextKo": "언덕을 다시 올라왔군. 내가 포켓몬을 쥐여 준 사람 중 절반은 안 온다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "story.starter_registered", "Choices": [],
+          "Text": "Registered. Signed for, in ink. It is yours now, properly, and nobody gets to take it back.",
+          "TextKo": "등록됐다. 잉크로 서명까지. 이제 정식으로 네 것이고, 누구도 되가져갈 수 없다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "story.dex_given", "Choices": [],
+          "Text": "And this. Hold it steady — it takes a moment to wake up.",
+          "TextKo": "그리고 이것. 흔들지 말고 들어라. 깨어나는 데 잠깐 걸린다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "It records what you meet. Not what you catch — what you meet. Look at something long enough for it to look back and the entry writes itself.",
+          "TextKo": "만난 것을 기록한다. 잡은 게 아니라 만난 것. 상대가 마주 볼 만큼 오래 바라보면 항목은 저절로 채워진다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "There are more kinds living between this gate and the lake than I have entries for. I have been meaning to fix that for eleven years.",
+          "TextKo": "이 관문에서 호수까지, 내 도감의 항목보다 많은 종이 산다. 11년째 고치려고만 하고 있다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Your bag: ten balls, five potions, two antidotes. Standard kit. It comes off the lab's budget and I would like the empty tins back.",
+          "TextKo": "가방을 보자. 몬스터볼 10개, 상처약 5개, 해독제 2개. 기본 장비다. 연구소 예산에서 나가니 빈 통은 돌려다오." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Take these as well. Repels. They keep the small ones off you while you work out which end of a battle you are on.",
+          "TextKo": "이것도 가져가라. 벌레회피스프레이다. 배틀이 어떻게 돌아가는지 익힐 동안 작은 것들이 안 달라붙는다." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "That is everything. Bram has been told.",
+          "TextKo": "이게 전부다. 브람에게는 말해 뒀다." }
       ]
     },
 
@@ -311,10 +401,12 @@
       "PlaysOnlyOnce": true,
       "Note": "The last thing said before the ramp opens. It restates the anomaly from the morning bulletin, which is the only piece of plot the player is carrying.",
       "Lines": [
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Go and look at the lake for me, {PLAYER}. Eleven centimetres." },
-        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "And write down what you see before you decide what it means. That order. Always that order." }
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Go and look at the lake for me, {PLAYER}. Eleven centimetres.",
+          "TextKo": "{PLAYER}. 가서 호수를 봐 다오. 11센티미터." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerNameKo": "린든", "SpeakerSubtitle": "Aster Field Lab", "SpeakerSubtitleKo": "아스터 필드 연구소", "PortraitKey": "npc_professor_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "And write down what you see before you decide what it means. That order. Always that order.",
+          "TextKo": "무슨 뜻인지 정하기 전에 본 것을 먼저 적어라. 그 순서다. 언제나 그 순서." }
       ]
     },
 
@@ -323,10 +415,12 @@
       "PlaysOnlyOnce": false,
       "Note": "Bram, state 1 of 3. NpcController._defaultDialogue. Active until story.starter_chosen.",
       "Lines": [
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Not without a Pokémon. It isn't personal and it isn't negotiable." },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "The professor is up at the lab. Go and be charming at him." }
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Not without a Pokémon. It isn't personal and it isn't negotiable.",
+          "TextKo": "포켓몬 없이는 안 된다. 감정도 아니고, 흥정할 일도 아니다." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "The professor is up at the lab. Go and be charming at him.",
+          "TextKo": "박사님은 연구소에 계신다. 가서 잘 좀 굴어 봐라." }
       ]
     },
 
@@ -335,10 +429,12 @@
       "PlaysOnlyOnce": false,
       "Note": "Bram, state 2 of 3. Active on story.starter_chosen, until story.pokedex. This is the state that actually gates leaving town, and it exists so the reason is a person with an opinion rather than an invisible wall.",
       "Lines": [
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "You've got one. Good. That's my rule satisfied." },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "The professor's rule isn't. He wants you at the lab first — something about ink. It's a two-minute walk." }
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "You've got one. Good. That's my rule satisfied.",
+          "TextKo": "한 마리 있군. 좋다. 내 규칙은 됐다." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "The professor's rule isn't. He wants you at the lab first — something about ink. It's a two-minute walk.",
+          "TextKo": "박사님 규칙은 아직이다. 연구소부터 들르라시더군. 잉크가 어쩌고 하시던데. 걸어서 2분이다." }
       ]
     },
 
@@ -347,10 +443,12 @@
       "PlaysOnlyOnce": false,
       "Note": "Bram, state 3 of 3. Active on story.pokedex.",
       "Lines": [
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Ramp's yours. Mind the second step." },
-        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "And come back through here now and then. It's a quiet job." }
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Ramp's yours. Mind the second step.",
+          "TextKo": "비탈은 네 거다. 두 번째 계단 조심하고." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerNameKo": "브람", "SpeakerSubtitle": "Aster Gate", "SpeakerSubtitleKo": "아스터 관문", "PortraitKey": "npc_gate_01", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "And come back through here now and then. It's a quiet job.",
+          "TextKo": "가끔은 이쪽으로 돌아와라. 한가한 자리라서." }
       ]
     },
 
@@ -359,10 +457,12 @@
       "PlaysOnlyOnce": false,
       "Note": "Stallholder, default. DP's mother telling you Barry came round and it was an emergency -- the pointer that stops a player who has control and no idea what to do with it.",
       "Lines": [
-        { "SpeakerId": "npc_market_01", "SpeakerName": "Sela", "SpeakerSubtitle": "Aster Market", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Your friend came through at a run, took an apple, said he'd pay me Tuesday, and went straight up the lab lane." },
-        { "SpeakerId": "npc_market_01", "SpeakerName": "Sela", "SpeakerSubtitle": "Aster Market", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "He's still up there. He has not stopped talking since he arrived." }
+        { "SpeakerId": "npc_market_01", "SpeakerName": "Sela", "SpeakerNameKo": "셀라", "SpeakerSubtitle": "Aster Market", "SpeakerSubtitleKo": "아스터 시장", "PortraitKey": "npc_market_01", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Your friend came through at a run, took an apple, said he'd pay me Tuesday, and went straight up the lab lane.",
+          "TextKo": "네 친구가 뛰어서 지나갔어. 사과 하나 집어 가고, 화요일에 갚는다더니, 곧장 연구소 골목으로 올라갔지." },
+        { "SpeakerId": "npc_market_01", "SpeakerName": "Sela", "SpeakerNameKo": "셀라", "SpeakerSubtitle": "Aster Market", "SpeakerSubtitleKo": "아스터 시장", "PortraitKey": "npc_market_01", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "He's still up there. He has not stopped talking since he arrived.",
+          "TextKo": "아직 거기 있을걸. 도착해서 지금까지 입을 안 쉬더라." }
       ]
     },
 
@@ -371,8 +471,9 @@
       "PlaysOnlyOnce": false,
       "Note": "Stallholder, alternate on story.pokedex.",
       "Lines": [
-        { "SpeakerId": "npc_market_01", "SpeakerName": "Sela", "SpeakerSubtitle": "Aster Market", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Off, then. Bring me back something with feathers on it and I'll paint it on the sign." }
+        { "SpeakerId": "npc_market_01", "SpeakerName": "Sela", "SpeakerNameKo": "셀라", "SpeakerSubtitle": "Aster Market", "SpeakerSubtitleKo": "아스터 시장", "PortraitKey": "npc_market_01", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Off, then. Bring me back something with feathers on it and I'll paint it on the sign.",
+          "TextKo": "그럼 잘 다녀와. 깃털 달린 거 하나 데려오면 간판에 그려 줄게." }
       ]
     },
 
@@ -381,8 +482,9 @@
       "PlaysOnlyOnce": false,
       "Note": "Gardener, default. One line, and its only job is to make the bulletin's eleven centimetres sound strange to somebody who would know.",
       "Lines": [
-        { "SpeakerId": "npc_garden_01", "SpeakerName": "Odell", "SpeakerSubtitle": "Town Gardens", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
-          "Text": "Eleven centimetres. I've put a stick in that lake every spring for thirty years and it has never once done that." }
+        { "SpeakerId": "npc_garden_01", "SpeakerName": "Odell", "SpeakerNameKo": "오델", "SpeakerSubtitle": "Town Gardens", "SpeakerSubtitleKo": "마을 정원", "PortraitKey": "npc_garden_01", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Eleven centimetres. I've put a stick in that lake every spring for thirty years and it has never once done that.",
+          "TextKo": "11센티미터라니. 30년째 봄마다 저 호수에 막대를 꽂아 봤는데, 저런 적은 한 번도 없었어." }
       ]
     }
   ]

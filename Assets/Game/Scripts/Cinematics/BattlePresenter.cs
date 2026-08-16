@@ -2,7 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using PokeLab.Battle;
 using PokeLab.Core;
+using Simulation = PokeLab.Battle.BattleStage;
 
 namespace PokeLab.Cinematics
 {
@@ -43,6 +45,17 @@ namespace PokeLab.Cinematics
         [Header("Timing")]
         [SerializeField] private BattleChoreography timing = new BattleChoreography();
 
+        [Header("Simulation")]
+        [Tooltip("Claim the registered battle stage and drive it a turn at a time. Turn this off " +
+                 "only for a presenter fed by the synthetic stream, never for one in a playable scene.")]
+        [SerializeField] private bool claimStagedBattles = true;
+        [Tooltip("Seconds a turn's beats may take to perform before the driver stops waiting on them " +
+                 "and asks for the next turn anyway.")]
+        [SerializeField] private float turnPerformanceTimeout = 45f;
+        [Tooltip("Unscaled seconds a claimed battle may run before it is aborted. A last resort: the " +
+                 "player is frozen until the stage resolves, so a driver that stalls has to give up.")]
+        [SerializeField] private float claimedBattleTimeout = 300f;
+
         [Header("Diagnostics")]
         [Tooltip("Log every event as it is performed, with its measured beat length.")]
         [SerializeField] private bool logBeats;
@@ -55,6 +68,10 @@ namespace PokeLab.Cinematics
         private Coroutine _pump;
         private MoveDeclaredEvent _declaredMove;
         private BattleOutcome _outcome = BattleOutcome.InProgress;
+
+        private Simulation _simulation;
+        private Coroutine _driver;
+        private float _holdUntil;
 
         /// <summary>True when the queue is empty and no beat is playing. Gate turn input on this.</summary>
         public bool IsIdle => _pump == null && _pending.Count == 0;
@@ -79,6 +96,16 @@ namespace PokeLab.Cinematics
             EnsureWired();
         }
 
+        private void OnEnable()
+        {
+            if (claimStagedBattles) ClaimSimulation();
+        }
+
+        private void OnDisable()
+        {
+            ReleaseSimulation();
+        }
+
         private void EnsureWired()
         {
             if (stage == null) stage = GetComponent<BattleStage>();
@@ -91,6 +118,138 @@ namespace PokeLab.Cinematics
 
             timing ??= new BattleChoreography();
         }
+
+        // --- Claiming the simulation --------------------------------------------------------
+
+        /// <summary>
+        /// Subscribes to the registered battle stage, which is what claims the battle.
+        ///
+        /// The stage checks whether anything is listening to <c>BattleStaged</c> at the moment
+        /// an encounter begins: with a listener it waits to be driven a turn at a time, and
+        /// without one it plays both sides out itself in a single synchronous loop and reports
+        /// the result. That second path is the one every encounter took — correct simulation,
+        /// no performance, a frozen screen for the duration. So this has to be subscribed
+        /// <i>before</i> the flow calls <c>BeginEncounter</c>, which it is: the arena is
+        /// activated behind the transition cover a frame earlier, and the stage host registers
+        /// itself several hundred execution-order steps ahead of this component.
+        ///
+        /// The event stream is subscribed here too, and it must be: the stage publishes the
+        /// opening events before it raises <c>BattleStaged</c>, so a presenter that only
+        /// subscribed on being claimed would miss the battle start and both send-outs.
+        /// </summary>
+        private void ClaimSimulation()
+        {
+            if (_simulation != null) return;
+
+            if (!ServiceHub.TryGet<IBattleStage>(out var registered) || !(registered is Simulation stage))
+            {
+                Debug.LogWarning("[BattlePresenter] No PokeLab.Battle.BattleStage is registered, so this " +
+                                 "presenter cannot claim encounters and every battle will resolve as an " +
+                                 "unattended simulation. Add a BattleStageHost to the scene.", this);
+                return;
+            }
+
+            _simulation = stage;
+            _simulation.EventsProduced += OnBattleEvents;
+            _simulation.BattleStaged += OnBattleStaged;
+        }
+
+        private void ReleaseSimulation()
+        {
+            if (_driver != null) { CinematicRunner.Halt(_driver); _driver = null; }
+
+            if (_simulation == null) return;
+            _simulation.EventsProduced -= OnBattleEvents;
+            _simulation.BattleStaged -= OnBattleStaged;
+
+            // The driver has just been stopped, so nothing is left to submit turns and the flow
+            // controller would wait out its whole battle timeout. Aborting reports a flee, which
+            // is the only honest result available once the arena has gone away mid-battle.
+            if (_simulation.IsBattleActive)
+                _simulation.Abort("The battle arena was deactivated while a battle was running.");
+
+            _simulation = null;
+        }
+
+        private void OnBattleStaged(Simulation staged)
+        {
+            if (_driver != null) CinematicRunner.Halt(_driver);
+            _driver = CinematicRunner.Run(DriveBattle(staged));
+        }
+
+        /// <summary>
+        /// Asks for one turn, performs everything it produces, and asks for the next.
+        ///
+        /// The pacing is the whole reason for claiming: the stage resolves a turn synchronously
+        /// and hands back the entire event stream, so left to itself it resolves the whole
+        /// battle in one frame. Waiting for the queue to drain between turns is what turns that
+        /// stream back into a battle happening at a watchable speed.
+        ///
+        /// Runs on <see cref="CinematicRunner"/> rather than on this component, so a beat that
+        /// disables the arena cannot kill the loop that has to keep the flow released. Both
+        /// exits — the deadline and the empty stream — end in <c>Abort</c> rather than in a
+        /// return, because the flow controller is holding the player frozen until the stage
+        /// resolves and there is no other way to release it.
+        /// </summary>
+        private IEnumerator DriveBattle(Simulation battle)
+        {
+            float deadline = Time.unscaledTime + Mathf.Max(10f, claimedBattleTimeout);
+
+            while (battle.IsBattleActive && Time.unscaledTime < deadline)
+            {
+                yield return WaitUntilIdle(Mathf.Max(1f, turnPerformanceTimeout));
+                if (!battle.IsBattleActive) break;
+
+                if (battle.Engine == null)
+                {
+                    battle.Abort("The stage reported a live battle with no engine behind it.");
+                    break;
+                }
+
+                var stream = battle.SubmitAction(ChooseAction(battle));
+                if (stream.Count == 0 && battle.IsBattleActive)
+                {
+                    // A live battle that produces no events for a turn cannot be advanced by
+                    // asking again — the loop would spin at frame rate until the deadline.
+                    battle.Abort("A turn resolved to an empty event stream.");
+                    break;
+                }
+            }
+
+            if (battle.IsBattleActive)
+            {
+                Debug.LogError($"[BattlePresenter] The battle ran past {claimedBattleTimeout:0}s without " +
+                               "resolving; aborting so the player is released.", this);
+                battle.Abort("The performance exceeded its time budget.");
+            }
+
+            _driver = null;
+        }
+
+        /// <summary>
+        /// The player's action for a turn.
+        ///
+        /// Claiming the battle takes the player's side away from the stage's auto-play, and no
+        /// command UI exists to fill the gap yet — so the same policy the stage would have used
+        /// is asked for the choice, one turn at a time, paced by the performance. That is the
+        /// honest interim: the alternative is not claiming, and not claiming is the invisible
+        /// battle. <see cref="ActionSource"/> is the seam the battle UI replaces this through,
+        /// and nothing else here has to change when it does.
+        /// </summary>
+        private BattleAction ChooseAction(Simulation battle)
+        {
+            var source = ActionSource;
+            if (source != null) return source(battle.Engine);
+
+            var policy = battle.AutoPlayPolicy ?? new BattleAi(AiDifficulty.Standard);
+            return policy.ChooseAction(battle.Engine, BattleSide.Player);
+        }
+
+        /// <summary>
+        /// Supplies the player's action for each turn. Set by the battle UI once it can ask the
+        /// player; until then the stage's own policy answers.
+        /// </summary>
+        public Func<BattleEngine, BattleAction> ActionSource { get; set; }
 
         // --- Queue -----------------------------------------------------------------------
 
@@ -131,12 +290,37 @@ namespace PokeLab.Cinematics
         {
             _pending.Clear();
             if (_pump != null) { CinematicRunner.Halt(_pump); _pump = null; }
+            ReleasePerformance();
         }
+
+        /// <summary>
+        /// Stops beats being performed for up to <paramref name="maxSeconds"/>, without
+        /// dropping any.
+        ///
+        /// The transition director holds the performance while the screen is covered. Without
+        /// it the stage begins publishing the moment the flow calls it, and the send-out — the
+        /// ball throw, the burst, the landing — plays out in full behind an opaque wipe; the
+        /// first thing the player ever sees is two creatures already standing there.
+        ///
+        /// The hold expires on its own rather than waiting to be released, because the only
+        /// caller is a transition sequence that can be stopped mid-run, and a hold that
+        /// outlived its holder would freeze the battle and with it the player.
+        /// </summary>
+        public void HoldPerformance(float maxSeconds)
+            => _holdUntil = Time.unscaledTime + Mathf.Max(0f, maxSeconds);
+
+        /// <summary>Ends a hold early. Safe when nothing is held.</summary>
+        public void ReleasePerformance() => _holdUntil = 0f;
+
+        /// <summary>True while beats are queued but deliberately not being performed.</summary>
+        public bool IsHeld => Time.unscaledTime < _holdUntil;
 
         private IEnumerator Pump()
         {
             while (_pending.Count > 0)
             {
+                while (IsHeld) yield return null;
+
                 BattleEvent evt = _pending[0];
                 _pending.RemoveAt(0);
 

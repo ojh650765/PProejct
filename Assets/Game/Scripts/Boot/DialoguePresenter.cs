@@ -135,7 +135,18 @@ namespace PokeLab.Boot
             if (string.IsNullOrEmpty(key)) return null;
             if (_portraits.TryGetValue(key, out var cached)) return cached;
 
-            Sprite portrait = null;
+            // The drawn illustration first. DialoguePortraits loads a half-body from
+            // Resources/Portraits and is what the box is really designed around; the
+            // sprite-sheet face below is what shows until that art exists, so neither
+            // path has to wait for the other.
+            var portrait = DialoguePortraits.For(line.PortraitKey);
+            if (portrait == null) portrait = DialoguePortraits.For(line.SpeakerName);
+            if (portrait != null)
+            {
+                _portraits[key] = portrait;
+                return portrait;
+            }
+
             var entry = PersonSpriteLibrary.Shared.Find(key);
             var clip = entry?.frontIdle;
             if (clip != null && clip.IsValid)
