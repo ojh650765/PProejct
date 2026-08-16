@@ -123,5 +123,7 @@ Assets/Screenshots.meta
 
 # Temporary editor harnesses. A worker that needs one to trigger a code path is
 # expected to delete it; this stops one surviving a `git add -A` if they do not.
-**/Temp*Harness.cs
-**/Temp*Harness.cs.meta
+**/*Harness.cs
+**/*Harness.cs.meta
+**/TEMP_*
+**/Temp_*
