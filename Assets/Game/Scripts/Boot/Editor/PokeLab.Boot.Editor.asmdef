@@ -11,7 +11,9 @@
         "Unity.TextMeshPro",
         "Unity.TextMeshPro.Editor",
         "Unity.AI.Navigation",
-        "Unity.AI.Navigation.Editor"
+        "Unity.AI.Navigation.Editor",
+        "Unity.Cinemachine",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [
         "Editor"
