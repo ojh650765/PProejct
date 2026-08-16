@@ -361,6 +361,19 @@ HOUSES = [
     ("Env_House_Cottage_A", -27.5, -27.5, 42.0),      # the player's house, on the corner
 ]
 
+# The cave mouth. Measured rather than eyeballed: the authored (2.2, 50.2) sat on a
+# 47.3 degree face, so the arch hung out of a slope instead of standing in one. A
+# search over the gorge for a spot with a real cliff behind it, a shelf underfoot and
+# a clear approach put the best site 2.9 m away at (5.0, 51.0) -- 9.8 m of cliff
+# behind, 8.4 degrees underfoot, 3.8 m off the cave path.
+#
+# The terrain there has no outcrop, so one is authored: a small shoulder raised at the
+# mouth, which is what makes a cave read as set into a bluff rather than as a hole in
+# a hillside.
+CAVE_MOUTH_X, CAVE_MOUTH_Z, CAVE_MOUTH_YAW = 5.0, 51.0, 190.0
+CAVE_OUTCROP_RISE = 1.4
+CAVE_OUTCROP_RADIUS = 5.5
+
 CONFORM_SKIPS = [((13.6, 18.2), 2.1, "Bridge_Stream"),
                  ((33.2, 15.6), 1.9, "SteppingStones_Stream")]
 
@@ -417,6 +430,18 @@ def shore_band(lake_poly, keep, inner, outer):
     near = [push(p, inner) for p in arc]
     far = [push(p, outer) for p in reversed(arc)]
     return near + far
+
+
+def add_cave_outcrop(field):
+    """A small shoulder under the cave mouth, so the arch sits in a bluff.
+
+    Added as a pad rather than a mass because it must be flat on top -- the player
+    stands on it to enter -- while a mass would dome it.
+    """
+    height = field.height(CAVE_MOUTH_X, CAVE_MOUTH_Z) + CAVE_OUTCROP_RISE
+    field.add_pad(CAVE_MOUTH_X, CAVE_MOUTH_Z,
+                  CAVE_OUTCROP_RADIUS * 0.55, CAVE_OUTCROP_RADIUS * 0.45,
+                  height, CAVE_OUTCROP_RADIUS)
 
 
 def add_building_pads(field, bounds):
@@ -705,6 +730,7 @@ def build():
     field_h, paths, stream = build_height_field()
     apply_skips(field_h)
     add_building_pads(field_h, bounds)
+    add_cave_outcrop(field_h)
     baked = BakedField(field_h, X0, X1, Z0, Z1, GRID_STEP)
     b = Builder(bounds, baked, paths, rng)
 
@@ -1038,7 +1064,7 @@ def build():
     CAVE = "Cave"
     cave_floor = [(6.5, 49.0), (4.0, 53.5), (-2.0, 57.5), (-9.0, 61.0), (-16.0, 64.5),
                   (-21.5, 63.0), (-20.0, 57.0), (-13.0, 54.0), (-5.0, 51.5), (1.0, 47.5)]
-    b.place("Env_Cave_Arch", 2.2, 50.2, 194.0, CAVE + "/Terrain", "Cave_Arch",
+    b.place("Env_Cave_Arch", CAVE_MOUTH_X, CAVE_MOUTH_Z, CAVE_MOUTH_YAW, CAVE + "/Terrain", "Cave_Arch",
             y=baked.at(2.2, 49.4))
 
     # Everything past the arch sits on the cave's own floor, not the massif's surface.
@@ -1491,7 +1517,8 @@ def terrain_block(baked, paths, stream, lake_poly, stream_poly, plaza, cave_floo
             {"name": "Cave_AsterGrotto", "floorY": Y_CAVE, "ceilingY": 8.9,
              "floorPolygon": [list(p) for p in cave_floor],
              "insideMass": "Mass_MassifWest",
-             "mouth": {"position": [2.2, Y_CAVE, 50.2], "facingYaw": 194.0,
+             "mouth": {"position": [CAVE_MOUTH_X, Y_CAVE, CAVE_MOUTH_Z],
+                       "facingYaw": CAVE_MOUTH_YAW,
                        "widthMetres": 5.4, "heightMetres": 4.3},
              "material": {"floor": "cave_gravel", "wall": "cave_rock", "ceiling": "cave_rock"},
              "note": ("A hollow inside Mass_MassifWest: subtract this volume from the "

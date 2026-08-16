@@ -833,7 +833,7 @@ def main():
     PLANTED = ("Env_Tree_", "Env_Bush_", "Env_Fern_", "Env_Flower_",
                "Env_Grass_", "Env_TallGrass_", "Env_Reed_")
 
-    objects, interior, cliffside = [], 0, 0
+    objects, interior, cliffside, drowned = [], 0, 0, 0
     for o in layout.get("objects", []):
         pos = o.get("position") or [0.0, 0.0, 0.0]
         x, y, z = float(pos[0]), float(pos[1]), float(pos[2])
@@ -847,8 +847,20 @@ def main():
             interior += 1
             continue
         asset = o.get("prefab", "").split("/")[-1]
-        if asset.startswith(PLANTED) and grid.slope_degrees(x, z) > MAX_PLANT_SLOPE:
+        slope = grid.slope_degrees(x, z)
+        if asset.startswith(PLANTED) and slope > MAX_PLANT_SLOPE:
             cliffside += 1
+            continue
+        # Nothing at all stands on a face this steep. A bench on 60 degrees is not a
+        # seating error to be corrected downward, it is a bench on a cliff.
+        if slope > 40.0 and not is_entrance(o.get("prefab", "")):
+            cliffside += 1
+            continue
+        # Props standing in the lake. Same rule as the foliage: the waterline is known,
+        # so a tree with its trunk under it is a placement fault, not scenery.
+        depth = water_test.depth_at(x, z, grid.at(x, z))
+        if depth is not None and depth > 0.05 and not is_entrance(o.get("prefab", ""))                 and not any(k in asset for k in ("Bridge", "Stepping", "Lilypad", "Reed")):
+            drowned += 1
             continue
 
         o = dict(o)
@@ -898,8 +910,8 @@ def main():
         print("  foliage    %-24s %5d instances, %d group(s), rejected: %d paved / %d water / %d slope"
               % (f["name"], f["placed"], len(f["groups"]), f["rejectedOnPaving"], f["rejectedInWater"], f["rejectedOnSlope"]))
     print("  foliage total %d instances" % total_inst)
-    print("  objects %d  (%d held for cave scenes, %d removed from rock faces)"
-          % (len(objects), interior, cliffside))
+    print("  objects %d  (%d held for cave scenes, %d off rock faces, %d out of the water)"
+          % (len(objects), interior, cliffside, drowned))
     print("  anchors %d  grass triggers %d  cave entrances %d  spawn %s"
           % (len(out["ambientAnchors"]), len(out["tallGrass"]),
              len(out["caveEntrances"]), spawn_pos))
