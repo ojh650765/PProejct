@@ -16,16 +16,26 @@ namespace PokeLab.Overworld
     /// </summary>
     public static class FieldItems
     {
-        public const string PokeBall = "poke_ball";
-        public const string GreatBall = "great_ball";
+        // Hyphenated, to match ItemCatalog. These two tables key the same dictionary --
+        // IPlayerProfile.Inventory is written here and read by the battle engine -- and
+        // they disagreed on every multi-word id: the overworld handed out "poke_ball"
+        // while the engine spent "poke-ball", so a ball picked up in the field could
+        // never be thrown in a battle, and the same held for every potion and status
+        // heal. ItemCatalog is the registry the engine resolves against, so it wins.
+        //
+        // Any save written before this carries the old keys and will read as an empty
+        // bag. That is the right trade during development; a migration would be worth
+        // more than the bag it recovers only after the game ships.
+        public const string PokeBall = "poke-ball";
+        public const string GreatBall = "great-ball";
         public const string Potion = "potion";
-        public const string SuperPotion = "super_potion";
+        public const string SuperPotion = "super-potion";
         public const string Antidote = "antidote";
-        public const string ParalyzeHeal = "paralyze_heal";
+        public const string ParalyzeHeal = "paralyze-heal";
         public const string Awakening = "awakening";
-        public const string BurnHeal = "burn_heal";
-        public const string IceHeal = "ice_heal";
-        public const string FullHeal = "full_heal";
+        public const string BurnHeal = "burn-heal";
+        public const string IceHeal = "ice-heal";
+        public const string FullHeal = "full-heal";
         public const string Revive = "revive";
         public const string Repel = "repel";
 
