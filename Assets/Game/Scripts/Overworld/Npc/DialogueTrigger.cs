@@ -23,7 +23,9 @@ namespace PokeLab.Overworld
     {
         [Header("Content")]
         [SerializeField] private DialogueSequence _sequence;
-        [SerializeField] private string _prompt = "Read";
+        [Tooltip("String table key, not the text. Signs and notice boards are the surface a " +
+                 "player reads first, so the verb on them has to be in the game's language.")]
+        [SerializeField] private string _promptKey = "sign.read";
 
         [Header("Trigger")]
         [SerializeField] private DialogueTriggerMode _mode = DialogueTriggerMode.Interact;
@@ -39,7 +41,7 @@ namespace PokeLab.Overworld
 
         private bool _firedThisSession;
 
-        public string InteractionPrompt => _prompt;
+        public string InteractionPrompt => Loc.Get(_promptKey);
 
         public bool CanInteract(GameObject instigator) =>
             _mode == DialogueTriggerMode.Interact && _sequence != null && IsAvailable();

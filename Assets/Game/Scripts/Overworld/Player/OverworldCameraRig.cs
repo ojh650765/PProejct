@@ -126,8 +126,6 @@ namespace PokeLab.Overworld
             _currentDistance = _restDistance;
             ApplyDistance(_restDistance);
             ApplyStartingPitch();
-
-            if (_captureCursor && !_lockYaw) SetCursorCaptured(true);
         }
 
         /// <summary>
@@ -148,6 +146,28 @@ namespace PokeLab.Overworld
             _orbital.VerticalAxis = vertical;
         }
 
+        /// <summary>
+        /// Holds the cursor only while the player is actually steering.
+        ///
+        /// Mouse look needs a captured cursor; a menu needs a real one. Capturing it once at
+        /// startup and leaving it captured meant the dialogue box's choice buttons could not
+        /// be clicked at all — the pointer was locked to the centre of the screen and
+        /// invisible, so the boy/girl question in the prologue had no answerable answer and
+        /// the opening waited on a choice the player had no way to make.
+        ///
+        /// Tied to InputEnabled rather than to a menu flag, because that is already the one
+        /// thing every system sets when it takes control: dialogue, transitions, episodes and
+        /// battles all go through it.
+        /// </summary>
+        private void UpdateCursorCapture()
+        {
+            if (!_captureCursor || _lockYaw) return;
+
+            var steering = ControlEnabled && (_input == null || _input.InputEnabled);
+            if (steering == (Cursor.lockState == CursorLockMode.Locked)) return;
+            SetCursorCaptured(steering);
+        }
+
         private static void SetCursorCaptured(bool captured)
         {
             Cursor.lockState = captured ? CursorLockMode.Locked : CursorLockMode.None;
@@ -159,6 +179,7 @@ namespace PokeLab.Overworld
             var dt = Time.deltaTime;
             if (dt <= 0f) return;
 
+            UpdateCursorCapture();
             ApplyLookInput(dt);
             if (_clampToGround) ClampPitchToGround();
             if (_avoidObstacles) SolveOcclusion(dt);

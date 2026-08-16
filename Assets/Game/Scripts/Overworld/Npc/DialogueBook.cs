@@ -101,10 +101,27 @@ namespace PokeLab.Overworld
         public DialogueBookLine[] Lines = Array.Empty<DialogueBookLine>();
     }
 
+    /// <summary>
+    /// Which sequence a townsperson speaks, and what moves them on to the next one.
+    ///
+    /// Authored beside the lines rather than on the NPC because the town is generated: a
+    /// sequence dragged onto an NPC in the scene does not survive the next rebuild from
+    /// slice_layout.json, and the observable result was that not one NPC in the level could be
+    /// talked to at all.
+    /// </summary>
+    [Serializable]
+    public sealed class DialogueBookBinding
+    {
+        public string NpcId;
+        public string DefaultSequenceId;
+        public NpcDialogueState[] States = Array.Empty<NpcDialogueState>();
+    }
+
     [Serializable]
     public sealed class DialogueBookFile
     {
         public List<DialogueBookEntry> Sequences = new List<DialogueBookEntry>();
+        public List<DialogueBookBinding> NpcBindings = new List<DialogueBookBinding>();
     }
 
     /// <summary>
@@ -129,8 +146,29 @@ namespace PokeLab.Overworld
     /// </summary>
     public sealed class DialogueBook
     {
+        /// <summary>Where the book lives. The one path every consumer defaults to.</summary>
+        public const string DefaultPath = "Assets/Game/Data/Story/dialogue.json";
+
         private readonly Dictionary<string, DialogueBookEntry> _entries =
             new Dictionary<string, DialogueBookEntry>(StringComparer.Ordinal);
+
+        private readonly Dictionary<string, DialogueBookBinding> _bindings =
+            new Dictionary<string, DialogueBookBinding>(StringComparer.Ordinal);
+
+        private static DialogueBook _shared;
+
+        /// <summary>
+        /// The book at <see cref="DefaultPath"/>, parsed once for the whole scene.
+        ///
+        /// Five NPCs each calling <see cref="Load"/> would parse a 50 KB file five times on the
+        /// first frame anyone walks near a townsperson, and the result would be five identical
+        /// copies of it in memory. Sharing is safe because a book is read-only after load and
+        /// <see cref="Build"/> allocates everything it hands out.
+        /// </summary>
+        public static DialogueBook Shared => _shared ??= Load(DefaultPath);
+
+        /// <summary>Drops the shared copy so an edited book is picked up without a restart.</summary>
+        public static void ResetShared() => _shared = null;
 
         public int Count => _entries.Count;
 
@@ -182,8 +220,18 @@ namespace PokeLab.Overworld
                 book._entries[entry.SequenceId] = entry;
             }
 
+            foreach (var binding in file?.NpcBindings ?? new List<DialogueBookBinding>())
+            {
+                if (binding == null || string.IsNullOrEmpty(binding.NpcId)) continue;
+                book._bindings[binding.NpcId] = binding;
+            }
+
             return book;
         }
+
+        /// <summary>The line sets bound to an NPC id, or null when nothing is authored for it.</summary>
+        public DialogueBookBinding BindingFor(string npcId) =>
+            !string.IsNullOrEmpty(npcId) && _bindings.TryGetValue(npcId, out var binding) ? binding : null;
 
         /// <summary>
         /// Builds a playable sequence, or null when the id is not in the book.

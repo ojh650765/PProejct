@@ -142,7 +142,7 @@ namespace PokeLab.UI
             if (_emptyLabel != null)
             {
                 _emptyLabel.gameObject.SetActive(_filtered.Count == 0);
-                _emptyLabel.SetText("Nothing in this pocket.");
+                _emptyLabel.SetText(Core.Loc.Get("bag.empty_pocket"));
             }
 
             SelectItem(_filtered.Count > 0 ? _filtered[0].Key : null);
@@ -158,7 +158,7 @@ namespace PokeLab.UI
             if (_detailName != null) _detailName.SetText(has ? DisplayName(itemId) : "—");
             if (_detailBody != null)
             {
-                _detailBody.SetText(has ? Description(itemId) : "Select an item.");
+                _detailBody.SetText(has ? Description(itemId) : Core.Loc.Get("bag.select_item"));
             }
             if (_useButton != null) _useButton.interactable = has;
             if (_useLabel != null) _useLabel.color = has ? UiPalette.TextPrimary : UiPalette.TextMuted;
@@ -227,6 +227,15 @@ namespace PokeLab.UI
             return BagCategory.Key;
         }
 
+        /// <summary>Table key for a tab, so the four names live beside the rest of the copy.</summary>
+        private static string TabLabel(BagCategory category) => Core.Loc.Get(category switch
+        {
+            BagCategory.Balls => "bag.category.balls",
+            BagCategory.Medicine => "bag.category.medicine",
+            BagCategory.Battle => "bag.category.battle",
+            _ => "bag.category.key",
+        });
+
         /// <summary>Display name derived from the id until an item data contract exists.</summary>
         public static string DisplayName(string itemId) =>
             string.IsNullOrEmpty(itemId) ? "—" : UiServices.Titleise(itemId.Replace('_', ' '));
@@ -240,11 +249,11 @@ namespace PokeLab.UI
         {
             if (string.IsNullOrEmpty(itemId)) return string.Empty;
             var id = itemId.ToLowerInvariant();
-            if (id.Contains("ball")) return "Thrown at a wild creature to attempt a capture.";
-            if (id.Contains("potion")) return "Restores health to one party member.";
-            if (id.Contains("revive")) return "Revives a fainted party member.";
-            if (id.Contains("antidote")) return "Cures poison.";
-            return "No description recorded yet.";
+            if (id.Contains("ball")) return Core.Loc.Get("bag.desc.ball");
+            if (id.Contains("potion")) return Core.Loc.Get("bag.desc.potion");
+            if (id.Contains("revive")) return Core.Loc.Get("bag.desc.revive");
+            if (id.Contains("antidote")) return Core.Loc.Get("bag.desc.antidote");
+            return Core.Loc.Get("bag.desc.unknown");
         }
 
         // -------------------------------------------------------------------- build
@@ -265,7 +274,7 @@ namespace PokeLab.UI
 
             var safe = UiBuilder.SafeArea(root, 96f, 56f);
 
-            _title = UiBuilder.Text("Title", safe, "Bag", UiTextRole.Title, UiPalette.TextPrimary);
+            _title = UiBuilder.Text("Title", safe, Core.Loc.Get("bag.title"), UiTextRole.Title, UiPalette.TextPrimary);
             UiBuilder.Anchor(_title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 44f));
 
@@ -312,7 +321,10 @@ namespace PokeLab.UI
             UiBuilder.Stretch(background.rectTransform);
             _tabBackgrounds.Add(background);
 
-            var label = UiBuilder.Text("Label", root, category.ToString().ToUpperInvariant(), UiTextRole.Overline,
+            // The tab name is a table lookup rather than the enum's own name upper-cased: the
+            // Overline role forces caps, which does nothing to Hangul, so an untranslated tab
+            // would sit in the row looking like a different control.
+            var label = UiBuilder.Text("Label", root, TabLabel(category), UiTextRole.Overline,
                 UiPalette.TextMuted, TextAlignmentOptions.Center);
             label.fontSize = 11f;
             UiBuilder.Stretch(label.rectTransform);
@@ -348,7 +360,7 @@ namespace PokeLab.UI
             var useBg = UiBuilder.Image("Bg", useRoot, UiSprites.Panel(12),
                 UiPalette.ScannerCyan.WithAlpha(0.18f), Image.Type.Sliced, true);
             UiBuilder.Stretch(useBg.rectTransform);
-            _useLabel = UiBuilder.Text("Label", useRoot, "USE", UiTextRole.Overline, UiPalette.TextPrimary,
+            _useLabel = UiBuilder.Text("Label", useRoot, Core.Loc.Get("ui.use"), UiTextRole.Overline, UiPalette.TextPrimary,
                 TextAlignmentOptions.Center);
             _useLabel.fontSize = 13f;
             UiBuilder.Stretch(_useLabel.rectTransform);

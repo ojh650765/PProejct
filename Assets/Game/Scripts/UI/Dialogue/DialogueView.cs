@@ -76,10 +76,16 @@ namespace PokeLab.UI
         private const float CaretSize = 36f;
         private const float CaretRightMargin = 150f;
         private const float CaretY = 84f;
-        private const float PortraitLeft = 26f;
-        private const float PortraitWidth = 116f;
-        private const float PortraitBottom = 54f;
-        private const float PortraitHeight = 172f;
+        // The character illustration. Sized and placed as a drawn half-body standing at the
+        // right of frame, not as the 116x172 pixel bust that used to sit in the left margin:
+        // the two are different pictures doing different jobs, and a 32px overworld sprite blown
+        // up to speaking size is a mosaic. Right rather than left because the name plate, the
+        // rule and the body copy all share the left edge — a figure there would have to be
+        // small enough to stay out of them, which is the composition this replaces.
+        private const float PortraitRight = 60f;
+        private const float PortraitWidth = 440f;
+        private const float PortraitBottom = 232f;
+        private const float PortraitHeight = 700f;
         private const float ChoiceWidth = 820f;
         private const float ChoiceHeight = 62f;
         private const int ChoiceSlant = 12;
@@ -203,11 +209,17 @@ namespace PokeLab.UI
                 _speakerSubtitle.SetText(subtitle ?? string.Empty);
             }
 
-            if (_portraitFrame != null) _portraitFrame.gameObject.SetActive(portrait != null);
+            // Resolved here when the caller did not supply one. The component that drives this
+            // view hands over a name and a body and nothing else — it lives in another assembly
+            // and is not this file's to widen — so the name is what the lookup gets. A caller
+            // that does pass a sprite still wins, which is what keeps a one-off scripted shot
+            // able to override the cast.
+            var art = portrait != null ? portrait : DialoguePortraits.For(speaker);
+            if (_portraitFrame != null) _portraitFrame.gameObject.SetActive(art != null);
             if (_portrait != null)
             {
-                _portrait.sprite = portrait;
-                _portrait.enabled = portrait != null;
+                _portrait.sprite = art;
+                _portrait.enabled = art != null;
             }
 
             SetOpen(true);
@@ -559,13 +571,17 @@ namespace PokeLab.UI
 
         private void BuildBody(RectTransform box)
         {
-            // The portrait lives in the left margin, outside the text indent, so a line reads
-            // at exactly the same measure whether or not one was supplied. Framing it would
-            // reintroduce the panel this composition exists to avoid, and a pixel-art bust
-            // does not need a frame to be legible against a dark scrim.
+            // Unframed, and it rises well above the scrim rather than sitting inside it. Both
+            // are the same decision: the figure is meant to be standing in the scene the player
+            // is looking at, and a border around it — or a crop that stops at the band — turns
+            // it back into an inset picture of a person instead of the person.
+            //
+            // It starts above the body band, so a line reads at exactly the same measure whether
+            // or not a character has art. That is what lets the whole cast ship without
+            // illustrations and the layout still be the final one.
             var portraitFrame = UiBuilder.Rect("Portrait", box, false);
-            UiBuilder.Anchor(portraitFrame, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f),
-                new Vector2(PortraitLeft, PortraitBottom), new Vector2(PortraitWidth, PortraitHeight));
+            UiBuilder.Anchor(portraitFrame, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
+                new Vector2(-PortraitRight, PortraitBottom), new Vector2(PortraitWidth, PortraitHeight));
             _portraitFrame = portraitFrame;
 
             _portrait = UiBuilder.Image("Image", portraitFrame, null, Color.white, Image.Type.Simple);

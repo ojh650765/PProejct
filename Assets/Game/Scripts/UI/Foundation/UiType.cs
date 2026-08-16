@@ -63,6 +63,12 @@ namespace PokeLab.UI
         {
             if (text == null) return null;
 
+            // Every label in the game passes through here, which makes this the only place the
+            // font can be guaranteed. It used to be resolved by DialogueView.BuildRuntime alone,
+            // so a screen built before the first conversation — the pause menu, the bag — got
+            // TMP's Latin-only default and drew its Korean as empty boxes. The search itself
+            // runs at most once; see EnsureFont.
+            EnsureFont();
             if (Font != null) text.font = Font;
             text.fontSize = Size(role);
             text.color = color ?? DefaultColor(role);

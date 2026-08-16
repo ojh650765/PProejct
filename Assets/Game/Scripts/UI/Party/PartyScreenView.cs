@@ -92,7 +92,11 @@ namespace PokeLab.UI
                 {
                     if (_order[i] != null && !_order[i].IsFainted) healthy++;
                 }
-                _title.SetText($"Party <size=70%><color=#FFFFFF88>{healthy} / {_order.Count} able</color></size>");
+                // The count is a second string rather than an argument inside the title, so a
+                // translation can put "전투 가능" after the numbers without having to carry the
+                // rich-text tags that shrink and fade them.
+                var able = Core.Loc.Get("party.able", healthy, _order.Count);
+                _title.SetText($"{Core.Loc.Get("party.title")} <size=70%><color=#FFFFFF88>{able}</color></size>");
             }
 
             Select(_order.Count > 0 ? Mathf.Clamp(_selected, 0, _order.Count - 1) : -1);
@@ -209,10 +213,10 @@ namespace PokeLab.UI
                 Vector2.zero, new Vector2(0f, 52f));
             UiBuilder.Horizontal(header, 12f, null, TextAnchor.MiddleLeft);
 
-            _title = UiBuilder.Text("Title", header, "Party", UiTextRole.Title, UiPalette.TextPrimary);
+            _title = UiBuilder.Text("Title", header, Core.Loc.Get("party.title"), UiTextRole.Title, UiPalette.TextPrimary);
             UiBuilder.Size(_title.rectTransform, flexibleWidth: 1f);
 
-            _hint = UiBuilder.Text("Hint", header, "Drag to reorder · click twice to send out",
+            _hint = UiBuilder.Text("Hint", header, Core.Loc.Get("party.hint"),
                 UiTextRole.Caption, UiPalette.TextMuted, TextAlignmentOptions.Right);
             UiBuilder.Size(_hint.rectTransform, preferredWidth: 340f, minWidth: 240f);
 

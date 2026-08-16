@@ -37,6 +37,28 @@ namespace PokeLab.Overworld
     }
 
     /// <summary>
+    /// One line set an NPC switches to once a flag is set.
+    ///
+    /// A list rather than the single <c>_alternateFlag</c> that used to be here, because the
+    /// characters this town needs have three states, not two: Bram refuses the ramp, then sends
+    /// you to the lab, then opens it. Two fields cannot express three states, and the shape a
+    /// third would have taken — another pair of fields — does not stop at three either.
+    ///
+    /// Tested in authoring order, so the most progressed state is listed first. Reversed, Bram
+    /// tests "has a Pokémon" before "has the dex" and spends the rest of the game refusing to
+    /// open a gate he has already opened.
+    /// </summary>
+    [Serializable]
+    public struct NpcDialogueState
+    {
+        [Tooltip("Profile flag that selects this line set.")]
+        public string Flag;
+
+        [Tooltip("Sequence id in dialogue.json.")]
+        public string SequenceId;
+    }
+
+    /// <summary>
     /// A townsperson with a daily routine.
     ///
     /// The routine is a sorted list of hours; the active entry is whichever one most recently
@@ -56,13 +78,26 @@ namespace PokeLab.Overworld
         [SerializeField] private string _npcId = "npc_01";
         [SerializeField] private string _displayName = "Townsfolk";
 
-        [Header("Dialogue")]
+        [Header("Dialogue (asset)")]
+        [Tooltip("A conversation authored as an asset. The right home for a one-off; leave it " +
+                 "empty on a generated NPC and use the sequence ids below.")]
         [SerializeField] private DialogueSequence _defaultDialogue;
         [Tooltip("Played instead once the flag named below is set. Leave null to always use the default.")]
         [SerializeField] private DialogueSequence _alternateDialogue;
         [Tooltip("Flag that switches to the alternate dialogue. Empty disables the switch.")]
         [SerializeField] private string _alternateFlag = "";
-        [SerializeField] private string _prompt = "Talk";
+
+        [Header("Dialogue (book)")]
+        [Tooltip("Sequence id in dialogue.json, used when no asset is assigned. This is the path " +
+                 "the generated town takes: the level is rebuilt from slice_layout.json, so " +
+                 "nothing can drag a ScriptableObject onto these NPCs and keep it there.")]
+        [SerializeField] private string _defaultSequenceId = "";
+        [Tooltip("Flag-gated alternates, most progressed first. The first flag that is set wins; " +
+                 "none set falls through to the default id above.")]
+        [SerializeField] private List<NpcDialogueState> _dialogueStates = new List<NpcDialogueState>();
+        [Tooltip("String table key, not the text. The prompt sits on the HUD next to a Korean " +
+                 "dialogue box, so a literal typed here would be the one English word on screen.")]
+        [SerializeField] private string _promptKey = "ui.talk";
         [SerializeField] private DialogueRunner _dialogueRunner;
 
         [Header("Schedule")]
@@ -102,10 +137,16 @@ namespace PokeLab.Overworld
         public NpcActivity CurrentActivity =>
             _activeEntry >= 0 && _activeEntry < _schedule.Count ? _schedule[_activeEntry].Activity : NpcActivity.Idle;
 
-        public string InteractionPrompt => _prompt;
+        public string InteractionPrompt => Loc.Get(_promptKey);
 
+        /// <summary>
+        /// Deliberately asks whether there is *something to say* rather than building it. This
+        /// is polled every frame by the interaction prompt, and <see cref="DialogueBook.Build"/>
+        /// allocates a ScriptableObject per call — the previous shape would have leaked one
+        /// object per frame for as long as the player stood in front of a townsperson.
+        /// </summary>
         public bool CanInteract(GameObject instigator) =>
-            !_talking && ResolveDialogue() != null && (_dialogueRunner == null || !_dialogueRunner.IsPlaying);
+            !_talking && HasDialogue && (_dialogueRunner == null || !_dialogueRunner.IsPlaying);
 
         /// <summary>
         /// Applied by the level builder from the authored layout.
@@ -333,21 +374,92 @@ namespace PokeLab.Overworld
             if (_hasActivityParam) _animator.SetInteger(_activityHash, (int)CurrentActivity);
         }
 
-        private DialogueSequence ResolveDialogue()
+        /// <summary>
+        /// The conversation authored as an asset, or null. The asset path wins over the book
+        /// when both are set: an asset is something a person deliberately dropped on this one
+        /// NPC, and a generated id is the default everybody gets.
+        /// </summary>
+        private DialogueSequence ResolveAsset()
         {
-            if (!string.IsNullOrEmpty(_alternateFlag) && _alternateDialogue != null
-                && ServiceHub.TryGet<IPlayerProfile>(out var profile) && profile is PlayerProfile concrete
-                && concrete.GetFlagBool(_alternateFlag))
-            {
+            if (!string.IsNullOrEmpty(_alternateFlag) && _alternateDialogue != null && Flag(_alternateFlag))
                 return _alternateDialogue;
-            }
             return _defaultDialogue;
         }
 
+        /// <summary>
+        /// The sequence id this NPC would speak right now, or null.
+        ///
+        /// Falls back to the book's own binding table when nothing is set on the component,
+        /// which is the case for every NPC in the generated town — <see cref="Configure"/> is
+        /// handed a position and a schedule and has never had anything to say. Looking the
+        /// binding up by <see cref="_npcId"/> means the writer's file decides who says what and
+        /// the level file decides who stands where, and neither has to know about the other.
+        /// </summary>
+        private string ResolveSequenceId()
+        {
+            var states = _dialogueStates != null && _dialogueStates.Count > 0 ? null : Binding?.States;
+            if (states != null)
+            {
+                for (var i = 0; i < states.Length; i++)
+                {
+                    if (string.IsNullOrEmpty(states[i].SequenceId) || string.IsNullOrEmpty(states[i].Flag)) continue;
+                    if (Flag(states[i].Flag)) return states[i].SequenceId;
+                }
+            }
+            else
+            {
+                for (var i = 0; i < _dialogueStates.Count; i++)
+                {
+                    var state = _dialogueStates[i];
+                    if (string.IsNullOrEmpty(state.SequenceId) || string.IsNullOrEmpty(state.Flag)) continue;
+                    if (Flag(state.Flag)) return state.SequenceId;
+                }
+            }
+
+            var fallback = string.IsNullOrEmpty(_defaultSequenceId)
+                ? Binding?.DefaultSequenceId
+                : _defaultSequenceId;
+            return string.IsNullOrEmpty(fallback) ? null : fallback;
+        }
+
+        private DialogueBookBinding Binding => DialogueBook.Shared.BindingFor(_npcId);
+
+        private bool HasDialogue
+        {
+            get
+            {
+                if (ResolveAsset() != null) return true;
+                var id = ResolveSequenceId();
+                return id != null && DialogueBook.Shared.Has(id);
+            }
+        }
+
+        private static bool Flag(string key) =>
+            ServiceHub.TryGet<IPlayerProfile>(out var profile) && profile is PlayerProfile concrete
+            && concrete.GetFlagBool(key);
+
         public void Interact(GameObject instigator)
         {
-            var dialogue = ResolveDialogue();
-            if (dialogue == null || _dialogueRunner == null) return;
+            if (_dialogueRunner == null) return;
+
+            // Built here and not in CanInteract, and remembered so it can be destroyed: a
+            // sequence out of the book is a fresh ScriptableObject that belongs to whoever
+            // asked for it, and dropping the reference leaks one object per conversation.
+            var dialogue = ResolveAsset();
+            if (dialogue == null)
+            {
+                var id = ResolveSequenceId();
+                if (id == null) return;
+                dialogue = DialogueBook.Shared.Build(id, Substitute);
+                if (dialogue == null)
+                {
+                    Debug.LogWarning($"[Npc] '{_npcId}' asks for sequence '{id}', which is not in " +
+                                     $"{DialogueBook.DefaultPath}. They stand there saying nothing, " +
+                                     "which is what a silent NPC looks like from the player's side.", this);
+                    return;
+                }
+                _builtDialogue = dialogue;
+            }
 
             _talking = true;
             if (_agent.isOnNavMesh)
@@ -359,16 +471,41 @@ namespace PokeLab.Overworld
             if (!_dialogueRunner.Play(dialogue, gameObject, OnDialogueFinished)) OnDialogueFinished(null);
         }
 
+        private DialogueSequence _builtDialogue;
+
+        private static string Substitute(string text) =>
+            string.IsNullOrEmpty(text) || text.IndexOf(PlayerToken, StringComparison.Ordinal) < 0
+                ? text
+                : text.Replace(PlayerToken,
+                    ServiceHub.TryGet<IPlayerProfile>(out var p) && !string.IsNullOrEmpty(p?.TrainerName)
+                        ? p.TrainerName
+                        : "Player");
+
+        private const string PlayerToken = "{PLAYER}";
+
         private void OnDialogueFinished(string sequenceId)
         {
             _talking = false;
             if (_agent.isOnNavMesh) _agent.isStopped = false;
+
+            if (_builtDialogue != null)
+            {
+                Destroy(_builtDialogue);
+                _builtDialogue = null;
+            }
 
             if (!string.IsNullOrEmpty(sequenceId)
                 && ServiceHub.TryGet<IPlayerProfile>(out var profile) && profile is PlayerProfile concrete)
             {
                 concrete.SetFlagBool("dialogue_seen_" + sequenceId, true);
             }
+        }
+
+        private void OnDestroy()
+        {
+            // The runner may still be holding it, but the NPC is going away with the scene and
+            // so is the conversation; leaving it alive is a hidden object nothing can reach.
+            if (_builtDialogue != null) Destroy(_builtDialogue);
         }
 
         private void OnDrawGizmosSelected()

@@ -1,4 +1,5 @@
 using PokeLab.Overworld;
+using PokeLab.Overworld.People;
 using PokeLab.UI;
 using UnityEngine;
 
@@ -105,12 +106,80 @@ namespace PokeLab.Boot
                 for (var i = 0; i < labels.Length; i++) labels[i] = line.Choices[i].Text;
 
                 _view.ShowChoices(line.SpeakerName, line.Text, labels,
-                    index => _runner.Choose(index), null, line.SpeakerSubtitle);
+                    index => _runner.Choose(index), PortraitFor(line), line.SpeakerSubtitle);
                 return;
             }
 
-            _view.Show(line.SpeakerName, line.Text, null,
+            _view.Show(line.SpeakerName, line.Text, PortraitFor(line),
                 () => _runner.Advance(), line.SpeakerSubtitle);
+        }
+
+        private readonly System.Collections.Generic.Dictionary<string, Sprite> _portraits =
+            new System.Collections.Generic.Dictionary<string, Sprite>();
+
+        /// <summary>
+        /// The speaker's face, cut out of the sheet they walk around in.
+        ///
+        /// No portrait art exists — the frame the box reserves is 116x172 and nothing has
+        /// ever been drawn for it, so the opening was a name and a voice with an empty plate
+        /// beside it. Their own front-idle cell is real drawn art of the right person, and a
+        /// 32-pixel face scaled up in a pixel game reads as a portrait rather than as a
+        /// placeholder. It is also guaranteed to match whoever is actually standing in the
+        /// world, which a separately drawn portrait would not be.
+        ///
+        /// Cached per key: this is called once per line, and building a Sprite allocates.
+        /// </summary>
+        private Sprite PortraitFor(DialogueLine line)
+        {
+            var key = ResolvePersonKey(line);
+            if (string.IsNullOrEmpty(key)) return null;
+            if (_portraits.TryGetValue(key, out var cached)) return cached;
+
+            Sprite portrait = null;
+            var entry = PersonSpriteLibrary.Shared.Find(key);
+            var clip = entry?.frontIdle;
+            if (clip != null && clip.IsValid)
+            {
+                var texture = PersonSpriteLibrary.Shared.Texture(clip.texture);
+                if (texture != null)
+                {
+                    var frame = clip.sequence[0];
+                    var cellW = texture.width / Mathf.Max(1, clip.columns);
+                    var cellH = texture.height / Mathf.Max(1, clip.rows);
+                    var column = frame % clip.columns;
+                    var row = frame / clip.columns;
+
+                    // Row 0 is the top of the sheet; Sprite rects count up from the bottom.
+                    var rect = new Rect(column * cellW,
+                                        texture.height - (row + 1) * cellH,
+                                        cellW, cellH);
+                    portrait = Sprite.Create(texture, rect, new Vector2(0.5f, 0.5f), cellH);
+                    portrait.name = "~Portrait_" + key;
+                }
+            }
+
+            _portraits[key] = portrait;
+            return portrait;
+        }
+
+        /// <summary>
+        /// Turns a speaker id into the key the sprite library uses.
+        ///
+        /// The dialogue names speakers as npc_professor_01 — a role and an instance — while
+        /// the art is keyed on the role alone. PortraitKey wins when the book sets one,
+        /// which is the escape hatch for a speaker whose face is not their own sprite.
+        /// </summary>
+        private static string ResolvePersonKey(DialogueLine line)
+        {
+            if (!string.IsNullOrEmpty(line.PortraitKey)) return line.PortraitKey;
+
+            var id = line.SpeakerId;
+            if (string.IsNullOrEmpty(id)) return null;
+
+            if (id.StartsWith("npc_", System.StringComparison.Ordinal)) id = id.Substring(4);
+            var tail = id.LastIndexOf('_');
+            if (tail > 0 && int.TryParse(id.Substring(tail + 1), out _)) id = id.Substring(0, tail);
+            return id;
         }
 
         private void OnEnded(string sequenceId)

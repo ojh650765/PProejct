@@ -16,8 +16,10 @@ namespace PokeLab.Overworld
     public sealed class HealingMachine : MonoBehaviour, IInteractable
     {
         [Header("Prompt")]
-        [SerializeField] private string _prompt = "Heal your party";
-        [SerializeField] private string _promptAlreadyHealthy = "Rest";
+        [Tooltip("String table keys, not the text. The machine is the first thing a beaten " +
+                 "player is pointed at, so the label on it has to be readable to them.")]
+        [SerializeField] private string _promptKey = "ui.heal_party";
+        [SerializeField] private string _promptAlreadyHealthyKey = "ui.rest";
 
         [Header("Behaviour")]
         [Tooltip("Seconds the heal sequence plays. Purely presentational; the heal itself is instant.")]
@@ -48,8 +50,8 @@ namespace PokeLab.Overworld
         {
             get
             {
-                if (!ServiceHub.TryGet<IPlayerProfile>(out var profile)) return _prompt;
-                return NeedsHealing(profile) ? _prompt : _promptAlreadyHealthy;
+                if (!ServiceHub.TryGet<IPlayerProfile>(out var profile)) return Loc.Get(_promptKey);
+                return Loc.Get(NeedsHealing(profile) ? _promptKey : _promptAlreadyHealthyKey);
             }
         }
 

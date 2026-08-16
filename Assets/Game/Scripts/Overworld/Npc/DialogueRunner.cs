@@ -73,7 +73,28 @@ namespace PokeLab.Overworld
         /// <summary>Raised with the sequence id when the conversation finishes.</summary>
         public event Action<string> SequenceEnded;
 
-        private void Awake() => _instance = this;
+        /// <summary>
+        /// First one wins, and any later arrival removes itself.
+        ///
+        /// Without the guard an additive scene load leaves two runners alive and points
+        /// <see cref="Instance"/> at whichever woke last, while the presenter that draws lines
+        /// is still subscribed to the first. The conversation then runs correctly and invisibly:
+        /// the player is frozen, the lines advance, and nothing is ever on screen. Keeping the
+        /// original rather than the newcomer is what makes that outcome impossible — everything
+        /// already holding a reference keeps working.
+        /// </summary>
+        private void Awake()
+        {
+            if (_instance != null && _instance != this)
+            {
+                Debug.LogWarning($"[Dialogue] A second DialogueRunner arrived on '{name}'. The " +
+                                 "first one is still in charge and this copy has been removed; " +
+                                 "two of them means half the game talks to the wrong one.", this);
+                Destroy(this);
+                return;
+            }
+            _instance = this;
+        }
 
         private void OnDestroy()
         {

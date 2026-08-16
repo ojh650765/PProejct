@@ -31,7 +31,13 @@ namespace PokeLab.Core
     /// </summary>
     public static class Loc
     {
-        public const string TablePath = "Assets/Game/Data/Localisation/strings.json";
+        /// <summary>
+        /// Under a Resources folder, which is the only reason the table exists in a build.
+        /// It used to sit one level up, outside Resources: <see cref="ReadFromDisk"/> found it
+        /// in the editor and nothing found it anywhere else, so every string in the shipped
+        /// game would have rendered as its own key. The two lookups now point at one file.
+        /// </summary>
+        public const string TablePath = "Assets/Game/Data/Localisation/Resources/strings.json";
 
         /// <summary>Name the table is looked up under when placed in a Resources folder.</summary>
         public const string TableResourceName = "strings";

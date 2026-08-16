@@ -49,7 +49,24 @@ namespace PokeLab.Overworld
         /// <summary>Raised with the chosen option once the player commits.</summary>
         public event Action<StarterOption> Chosen;
 
-        public IReadOnlyList<StarterOption> Options => _options;
+        /// <summary>
+        /// The balls on the desk, with their copy in the player's language.
+        ///
+        /// Localised here rather than at Awake because neither piece is available that early:
+        /// <see cref="ISpeciesRegistry"/> is registered during boot, and the option list itself
+        /// may come from a scene rather than from <see cref="DefaultOptions"/>. The desk is
+        /// opened exactly once, minutes after boot, and this getter is what opens it — so the
+        /// lookup happens at the only moment both halves are certain to exist.
+        /// </summary>
+        public IReadOnlyList<StarterOption> Options
+        {
+            get
+            {
+                Localise();
+                return _options;
+            }
+        }
+
         public int Level => _level;
         public int Seed => _seed;
         public bool HasChosen { get; private set; }
@@ -89,6 +106,42 @@ namespace PokeLab.Overworld
                 RivalCounterSpeciesId = SliceRoster.Bulbasaur,
             },
         };
+
+        /// <summary>
+        /// Rewrites the option copy in the current language, in place.
+        ///
+        /// The name comes from the species table rather than from a translated string, because
+        /// that table is the one place a species is named and inventing a second spelling of
+        /// 이상해씨 here is how the ball on the desk and the creature in the party end up
+        /// disagreeing. The blurb comes from the string table under its species id.
+        ///
+        /// Both are skipped when the lookup fails: <see cref="Loc.Get"/> returns the key itself
+        /// for an unknown id, and a ball labelled <c>starter.blurb.1</c> is worse than one still
+        /// labelled in English.
+        /// </summary>
+        private void Localise()
+        {
+            if (_options == null || _language == Loc.Language) return;
+            _language = Loc.Language;
+
+            ServiceHub.TryGet<ISpeciesRegistry>(out var registry);
+            for (var i = 0; i < _options.Count; i++)
+            {
+                var option = _options[i];
+                if (option == null) continue;
+
+                if (registry != null && registry.TryGet(option.SpeciesId, out var species))
+                    option.DisplayName = species.DisplayName;
+
+                var key = "starter.blurb." + option.SpeciesId;
+                var blurb = Loc.Get(key);
+                if (!string.Equals(blurb, key, StringComparison.Ordinal)) option.Blurb = blurb;
+            }
+        }
+
+        // Which language the copy above is currently written in. Nullable rather than a bool so
+        // the first read localises even when the game is already in the language it booted in.
+        private Language? _language;
 
         /// <summary>Commits a choice. Ignored once one has been made — the desk is a one-time thing.</summary>
         public bool Choose(int index)

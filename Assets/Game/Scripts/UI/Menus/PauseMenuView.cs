@@ -104,9 +104,9 @@ namespace PokeLab.UI
             {
                 _title.SetText(page switch
                 {
-                    PauseMenuPage.Options => "Options",
-                    PauseMenuPage.Save => "Save",
-                    _ => "Paused",
+                    PauseMenuPage.Options => Core.Loc.Get("menu.options"),
+                    PauseMenuPage.Save => Core.Loc.Get("menu.save"),
+                    _ => Core.Loc.Get("menu.paused"),
                 });
             }
         }
@@ -200,13 +200,15 @@ namespace PokeLab.UI
             UiBuilder.Group(page, 0f, false, false);
             UiBuilder.Vertical(page, 8f, null, TextAnchor.UpperLeft);
 
-            BuildRow(page, "Resume", UiPalette.ScannerCyan, Close);
-            BuildRow(page, "Party", UiPalette.Positive, () => PartyRequested?.Invoke());
-            BuildRow(page, "Bag", UiPalette.ScannerAmber, () => BagRequested?.Invoke());
-            BuildRow(page, "Dex", UiPalette.Info, () => DexRequested?.Invoke());
-            BuildRow(page, "Options", UiPalette.TextSecondary, () => ShowPage(PauseMenuPage.Options));
-            BuildRow(page, "Save", UiPalette.TextSecondary, () => ShowPage(PauseMenuPage.Save));
-            BuildRow(page, "Quit to title", UiPalette.Negative, () => QuitRequested?.Invoke());
+            // The row objects are still named in English (Row_Resume) because a hierarchy an
+            // integrator searches by name must not change with the player's language setting.
+            BuildRow(page, "Resume", Core.Loc.Get("menu.resume"), UiPalette.ScannerCyan, Close);
+            BuildRow(page, "Party", Core.Loc.Get("menu.party"), UiPalette.Positive, () => PartyRequested?.Invoke());
+            BuildRow(page, "Bag", Core.Loc.Get("menu.bag"), UiPalette.ScannerAmber, () => BagRequested?.Invoke());
+            BuildRow(page, "Dex", Core.Loc.Get("menu.dex"), UiPalette.Info, () => DexRequested?.Invoke());
+            BuildRow(page, "Options", Core.Loc.Get("menu.options"), UiPalette.TextSecondary, () => ShowPage(PauseMenuPage.Options));
+            BuildRow(page, "Save", Core.Loc.Get("menu.save"), UiPalette.TextSecondary, () => ShowPage(PauseMenuPage.Save));
+            BuildRow(page, "Quit to title", Core.Loc.Get("menu.quit"), UiPalette.Negative, () => QuitRequested?.Invoke());
 
             return page;
         }
@@ -217,11 +219,12 @@ namespace PokeLab.UI
             UiBuilder.Group(page, 0f, false, false);
             UiBuilder.Vertical(page, 8f, null, TextAnchor.UpperLeft);
 
-            BuildToggle(page, "Reduced motion",
-                "Completes every animation instantly. Numbers still update; they just stop moving.",
+            BuildToggle(page, "Reduced motion", Core.Loc.Get("menu.reduced_motion"),
+                Core.Loc.Get("menu.reduced_motion_note"),
                 !UiTween.MotionEnabled, on => UiTween.MotionEnabled = !on);
 
-            BuildToggle(page, "Scanner sound", "Boot, sweep and alert cues from the Poké Lab device.",
+            BuildToggle(page, "Scanner sound", Core.Loc.Get("menu.scanner_sound"),
+                Core.Loc.Get("menu.scanner_sound_note"),
                 true, on =>
                 {
                     // Muting is per-device rather than global, so the battle mix is untouched.
@@ -230,7 +233,7 @@ namespace PokeLab.UI
                 });
 
             UiBuilder.Spacer(page);
-            BuildRow(page, "Back", UiPalette.TextSecondary, () => GoBack());
+            BuildRow(page, "Back", Core.Loc.Get("menu.back"), UiPalette.TextSecondary, () => GoBack());
 
             return page;
         }
@@ -244,22 +247,24 @@ namespace PokeLab.UI
             for (var i = 0; i < 3; i++)
             {
                 var slot = i;
-                BuildRow(page, "Slot " + (i + 1), UiPalette.ScannerCyan, () =>
+                BuildRow(page, "Slot" + (i + 1), Core.Loc.Get("menu.slot", i + 1),
+                    UiPalette.ScannerCyan, () =>
                 {
                     SaveRequested?.Invoke(slot);
-                    if (_footer != null) _footer.SetText($"Saved to slot {slot + 1}.");
+                    if (_footer != null) _footer.SetText(Core.Loc.Get("menu.saved_to_slot", slot + 1));
                 });
             }
 
             UiBuilder.Spacer(page);
-            BuildRow(page, "Back", UiPalette.TextSecondary, () => GoBack());
+            BuildRow(page, "Back", Core.Loc.Get("menu.back"), UiPalette.TextSecondary, () => GoBack());
 
             return page;
         }
 
-        private static Button BuildRow(Transform parent, string label, Color accent, Action onClick)
+        private static Button BuildRow(Transform parent, string name, string label, Color accent,
+            Action onClick)
         {
-            var root = UiBuilder.Rect("Row_" + label, parent);
+            var root = UiBuilder.Rect("Row_" + name, parent);
             UiBuilder.Size(root, preferredHeight: 46f, minHeight: 46f, flexibleWidth: 1f);
 
             var background = UiBuilder.Image("Bg", root, UiSprites.Panel(11), UiPalette.SurfaceRaised,
@@ -278,12 +283,12 @@ namespace PokeLab.UI
             return UiBuilder.Button("Click", root, background, onClick);
         }
 
-        private static void BuildToggle(Transform parent, string label, string description, bool initial,
-            Action<bool> onChanged)
+        private static void BuildToggle(Transform parent, string name, string label, string description,
+            bool initial, Action<bool> onChanged)
         {
             // Layout group on the root with the background excluded, so a long description
             // grows the row rather than overflowing a fixed-height card.
-            var root = UiBuilder.Rect("Toggle_" + label, parent);
+            var root = UiBuilder.Rect("Toggle_" + name, parent);
             UiBuilder.Horizontal(root, 12f, new RectOffset(16, 14, 8, 8), TextAnchor.MiddleLeft);
             UiBuilder.Size(root, minHeight: 58f, flexibleWidth: 1f);
 

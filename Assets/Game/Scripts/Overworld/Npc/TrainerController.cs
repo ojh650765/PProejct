@@ -87,7 +87,7 @@ namespace PokeLab.Overworld
         private PlayerProfile Profile =>
             ServiceHub.TryGet<IPlayerProfile>(out var profile) ? profile as PlayerProfile : null;
 
-        public string InteractionPrompt => IsDefeated && CanRematch() ? "Rematch" : "Talk";
+        public string InteractionPrompt => Loc.Get(IsDefeated && CanRematch() ? "ui.rematch" : "ui.talk");
 
         public bool CanInteract(GameObject instigator) => !_sequenceRunning && _definition != null;
 

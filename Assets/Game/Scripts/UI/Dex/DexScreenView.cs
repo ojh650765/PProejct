@@ -83,7 +83,7 @@ namespace PokeLab.UI
                 _tiles[i].Bind(species, seen, caught);
             }
 
-            if (_progress != null) _progress.SetText($"{caughtCount} caught · {seenCount} seen · {count} total");
+            if (_progress != null) _progress.SetText(Core.Loc.Get("dex.progress", caughtCount, seenCount, count));
             if (_progressBar != null)
             {
                 _progressBar.SetValue(count > 0 ? caughtCount / (float)count : 0f, 0.7f);
@@ -157,7 +157,7 @@ namespace PokeLab.UI
                 Vector2.zero, new Vector2(0f, 62f));
             UiBuilder.Vertical(header, 4f, null, TextAnchor.UpperLeft);
 
-            _title = UiBuilder.Text("Title", header, "Dex", UiTextRole.Title, UiPalette.TextPrimary);
+            _title = UiBuilder.Text("Title", header, Core.Loc.Get("dex.title"), UiTextRole.Title, UiPalette.TextPrimary);
             UiBuilder.Size(_title.rectTransform, preferredHeight: 38f, flexibleWidth: 1f);
 
             var progressRow = UiBuilder.Rect("Progress", header);
