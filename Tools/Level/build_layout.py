@@ -1724,21 +1724,18 @@ def build():
     # limit never fires and every "cliff" is a walkable face. Env_Riverbank_* (0.60 m)
     # was modelled for exactly this and placed nowhere. Only the stream survives as a
     # gate: the ledge is gone with the mechanic it needed, see below.
-    bank = resample(stream, 1.0)
-    crossings = [
-        (13.0, 18.2, 3.6),    # the bridge -- the route's gate
-        (33.2, 15.6, 3.2),    # the stepping stones
-        (11.0, 28.5, 5.0),    # the plunge pool, where the waterfall lands
-    ]
-    left = b.prop_run("Env_Riverbank_4m", bank, ROUTE + "/Terrain", "Route_BankWest",
-                      gaps=crossings, offset=1.9)
-
-    # Only the west bank is dressed. Route_BankEast ran the same modules down the far
-    # side and came out at the user's request; what it was doing as a *barrier* the
-    # water now does for itself, because the emitter builds a shoreline curtain along
-    # every water surface it writes and the stream's surface is back in the Field
-    # scene. A second run of stone lipping a channel the player is already stopped at
-    # is a hundred triangles of scenery on the bank nobody stands on.
+    # Neither bank is dressed any more. Both runs came out at the user's request, east
+    # first and west after, and the reasoning is the same for both: what the stone was
+    # doing as a *barrier* the water now does for itself. The emitter raises a shoreline
+    # curtain along every water surface it writes, and the stream's surface is back in
+    # the Field scene, so the player is already stopped at the channel before the
+    # riverbank modules have any say. Three of the west run's modules also stood inside
+    # a road corridor -- prop_run's crossing gaps cover a road that crosses the bank and
+    # not one that runs along it -- so the run was fighting the path it lined.
+    #
+    # Env_Riverbank_2m and _4m are still in the kit. They are the right asset for a
+    # channel that needs a hard lip somewhere the water cannot provide one; that is just
+    # not this stream.
 
     # The one-way ledge the design describes -- "hop south-east only ... a hard barrier
     # coming back" -- is not built, and Route_LedgeLip has been removed rather than
@@ -1760,8 +1757,8 @@ def build():
     # second exit -- and one that no barrier box can express, because a box cannot be
     # one-way. Reinstating it is three lines here plus a gap in Barrier_TownEast.
 
-    print("  barriers           %d west bank modules, %d town barrier volumes"
-          % (left, len(BARRIER_VOLUMES)))
+    print("  barriers           %d town barrier volumes (the river banks are the water's "
+          "own shoreline now)" % len(BARRIER_VOLUMES))
 
     # The town is built last and off its own generator -- see build_town's docstring.
     plaza = build_town(b, random.Random(TOWN_SEED))

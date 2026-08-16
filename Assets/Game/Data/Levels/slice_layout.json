@@ -29348,7 +29348,7 @@
   }
  ],
  "counts": {
-  "objects": 532,
+  "objects": 522,
   "barrierVolumes": 56,
   "foliageFields": 17,
   "foliageInstanceBudget": 4663,
@@ -29363,7 +29363,6 @@
    "Rock": 23,
    "Fern": 21,
    "Lamp": 17,
-   "Riverbank": 10,
    "Wall": 9,
    "House": 8,
    "Prop": 7,
@@ -29391,7 +29390,7 @@
    "Lakeside/Terrain": 11,
    "Route/Foliage": 205,
    "Route/Props": 3,
-   "Route/Terrain": 19,
+   "Route/Terrain": 9,
    "Town/Buildings": 9,
    "Town/Detail": 64,
    "Town/Foliage": 36,
@@ -39048,236 +39047,6 @@
     0.933,
     0.933,
     0.933
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankWest_01",
-   "parent": "Route/Terrain",
-   "position": [
-    13.551,
-    -1.179,
-    25.087
-   ],
-   "rotation": [
-    0.0,
-    74.05,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankWest_02",
-   "parent": "Route/Terrain",
-   "position": [
-    15.689,
-    -1.495,
-    18.117
-   ],
-   "rotation": [
-    0.0,
-    51.71,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankWest_03",
-   "parent": "Route/Terrain",
-   "position": [
-    17.662,
-    -1.618,
-    15.138
-   ],
-   "rotation": [
-    0.0,
-    36.72,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankWest_04",
-   "parent": "Route/Terrain",
-   "position": [
-    20.123,
-    -1.746,
-    12.853
-   ],
-   "rotation": [
-    0.0,
-    13.28,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankWest_05",
-   "parent": "Route/Terrain",
-   "position": [
-    23.186,
-    -1.878,
-    11.705
-   ],
-   "rotation": [
-    0.0,
-    345.85,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankWest_06",
-   "parent": "Route/Terrain",
-   "position": [
-    26.524,
-    -1.983,
-    12.33
-   ],
-   "rotation": [
-    0.0,
-    325.28,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankWest_07",
-   "parent": "Route/Terrain",
-   "position": [
-    34.59,
-    -2.377,
-    19.853
-   ],
-   "rotation": [
-    0.0,
-    297.99,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankWest_08",
-   "parent": "Route/Terrain",
-   "position": [
-    36.418,
-    -2.54,
-    23.198
-   ],
-   "rotation": [
-    0.0,
-    292.16,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankWest_09",
-   "parent": "Route/Terrain",
-   "position": [
-    37.938,
-    -2.704,
-    27.03
-   ],
-   "rotation": [
-    0.0,
-    295.77,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankWest_10",
-   "parent": "Route/Terrain",
-   "position": [
-    39.701,
-    -2.904,
-    30.65
-   ],
-   "rotation": [
-    0.0,
-    296.57,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
    ],
    "layer": "Environment",
    "tag": "Untagged",
