@@ -4,7 +4,7 @@ from __future__ import annotations
 import pandas as pd
 
 from common import (COMBATS_CSV, POKEROGUE_DIR, TYPE_INDEX, load_master,
-                    normalise_species_key)
+                    load_stat_changes, normalise_species_key)
 
 
 def main() -> None:
@@ -28,7 +28,7 @@ def main() -> None:
     print(f"\npokerogue flags join: {hit.sum()}/{len(master)} matched")
     print("  unmatched sample:", master.loc[~hit, "Name"].head(15).tolist())
 
-    changes = pd.read_csv(POKEROGUE_DIR / "base_stat_changes_gen7plus.csv")
+    changes = load_stat_changes()
     print("\nstat changes rows:", len(changes), "stats:", sorted(changes.stat.unique()))
     chg_keys = changes.name.map(normalise_species_key)
     known = set(master_keys)

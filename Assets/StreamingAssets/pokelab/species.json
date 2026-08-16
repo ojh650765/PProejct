@@ -879,6 +879,39 @@
    "ArtKey": "Creature_34_Sandslash"
   },
   {
+   "Id": 35,
+   "NationalDex": 29,
+   "NameEn": "Nidoran♀",
+   "NameKo": "니드런♀",
+   "Type1": 7,
+   "Type2": -1,
+   "BaseStats": [
+    55,
+    47,
+    52,
+    40,
+    40,
+    41
+   ],
+   "Height": 4.0,
+   "Weight": 70.0,
+   "BaseExperience": 55,
+   "Generation": 1,
+   "Legendary": false,
+   "Abilities": [
+    "hustle",
+    "poison-point",
+    "rivalry"
+   ],
+   "AbilitiesKo": [
+    "독가시",
+    "의욕",
+    "투쟁심"
+   ],
+   "StarterCost": 3,
+   "ArtKey": "Creature_35_Nidoran♀"
+  },
+  {
    "Id": 36,
    "NationalDex": 30,
    "NameEn": "Nidorina",
@@ -943,6 +976,39 @@
    ],
    "StarterCost": 3,
    "ArtKey": "Creature_37_Nidoqueen"
+  },
+  {
+   "Id": 38,
+   "NationalDex": 32,
+   "NameEn": "Nidoran♂",
+   "NameKo": "니드런♂",
+   "Type1": 7,
+   "Type2": -1,
+   "BaseStats": [
+    46,
+    57,
+    40,
+    40,
+    40,
+    50
+   ],
+   "Height": 5.0,
+   "Weight": 90.0,
+   "BaseExperience": 55,
+   "Generation": 1,
+   "Legendary": false,
+   "Abilities": [
+    "hustle",
+    "poison-point",
+    "rivalry"
+   ],
+   "AbilitiesKo": [
+    "독가시",
+    "의욕",
+    "투쟁심"
+   ],
+   "StarterCost": 3,
+   "ArtKey": "Creature_38_Nidoran♂"
   },
   {
    "Id": 39,
@@ -1721,6 +1787,39 @@
    ],
    "StarterCost": 4,
    "ArtKey": "Creature_62_Mankey"
+  },
+  {
+   "Id": 63,
+   "NationalDex": 57,
+   "NameEn": "Primeape",
+   "NameKo": "성원숭",
+   "Type1": 6,
+   "Type2": -1,
+   "BaseStats": [
+    65,
+    105,
+    60,
+    60,
+    70,
+    95
+   ],
+   "Height": 10.0,
+   "Weight": 320.0,
+   "BaseExperience": 159,
+   "Generation": 1,
+   "Legendary": false,
+   "Abilities": [
+    "anger-point",
+    "defiant",
+    "vital-spirit"
+   ],
+   "AbilitiesKo": [
+    "분노의경혈",
+    "오기",
+    "의기양양"
+   ],
+   "StarterCost": 4,
+   "ArtKey": "Creature_63_Primeape"
   },
   {
    "Id": 64,
@@ -2540,6 +2639,39 @@
    ],
    "StarterCost": 4,
    "ArtKey": "Creature_90_Magneton"
+  },
+  {
+   "Id": 91,
+   "NationalDex": 83,
+   "NameEn": "Farfetch'd",
+   "NameKo": "파오리",
+   "Type1": 0,
+   "Type2": 9,
+   "BaseStats": [
+    52,
+    90,
+    55,
+    58,
+    62,
+    60
+   ],
+   "Height": 8.0,
+   "Weight": 150.0,
+   "BaseExperience": 132,
+   "Generation": 1,
+   "Legendary": false,
+   "Abilities": [
+    "defiant",
+    "inner-focus",
+    "keen-eye"
+   ],
+   "AbilitiesKo": [
+    "날카로운눈",
+    "오기",
+    "정신력"
+   ],
+   "StarterCost": 2,
+   "ArtKey": "Creature_91_Farfetch'd"
   },
   {
    "Id": 92,
@@ -3778,6 +3910,39 @@
    ],
    "StarterCost": 3,
    "ArtKey": "Creature_131_Starmie"
+  },
+  {
+   "Id": 132,
+   "NationalDex": 122,
+   "NameEn": "Mr. Mime",
+   "NameKo": "마임맨",
+   "Type1": 10,
+   "Type2": 17,
+   "BaseStats": [
+    40,
+    45,
+    65,
+    100,
+    120,
+    90
+   ],
+   "Height": 13.0,
+   "Weight": 545.0,
+   "BaseExperience": 161,
+   "Generation": 1,
+   "Legendary": false,
+   "Abilities": [
+    "filter",
+    "soundproof",
+    "technician"
+   ],
+   "AbilitiesKo": [
+    "방음",
+    "테크니션",
+    "필터"
+   ],
+   "StarterCost": 2,
+   "ArtKey": "Creature_132_Mr. Mime"
   },
   {
    "Id": 133,
@@ -12159,6 +12324,35 @@
    "ArtKey": "Creature_428_Jirachi"
   },
   {
+   "Id": 429,
+   "NationalDex": 386,
+   "NameEn": "Deoxys",
+   "NameKo": "테오키스",
+   "Type1": 10,
+   "Type2": -1,
+   "BaseStats": [
+    50,
+    150,
+    50,
+    150,
+    50,
+    150
+   ],
+   "Height": 17.0,
+   "Weight": 608.0,
+   "BaseExperience": 270,
+   "Generation": 3,
+   "Legendary": true,
+   "Abilities": [
+    "pressure"
+   ],
+   "AbilitiesKo": [
+    "프레셔"
+   ],
+   "StarterCost": 6,
+   "ArtKey": "Creature_429_Deoxys"
+  },
+  {
    "Id": 433,
    "NationalDex": 387,
    "NameEn": "Turtwig",
@@ -12979,6 +13173,37 @@
    "ArtKey": "Creature_458_Burmy"
   },
   {
+   "Id": 459,
+   "NationalDex": 413,
+   "NameEn": "Wormadam",
+   "NameKo": "도롱마담",
+   "Type1": 11,
+   "Type2": 4,
+   "BaseStats": [
+    60,
+    59,
+    85,
+    79,
+    105,
+    36
+   ],
+   "Height": 5.0,
+   "Weight": 65.0,
+   "BaseExperience": 148,
+   "Generation": 4,
+   "Legendary": false,
+   "Abilities": [
+    "anticipation",
+    "overcoat"
+   ],
+   "AbilitiesKo": [
+    "방진",
+    "위험예지"
+   ],
+   "StarterCost": 2,
+   "ArtKey": "Creature_459_Wormadam"
+  },
+  {
    "Id": 462,
    "NationalDex": 414,
    "NameEn": "Mothim",
@@ -13776,6 +14001,39 @@
    ],
    "StarterCost": 2,
    "ArtKey": "Creature_487_Bonsly"
+  },
+  {
+   "Id": 488,
+   "NationalDex": 439,
+   "NameEn": "Mime Jr.",
+   "NameKo": "흉내내",
+   "Type1": 10,
+   "Type2": 17,
+   "BaseStats": [
+    20,
+    25,
+    45,
+    70,
+    90,
+    60
+   ],
+   "Height": 6.0,
+   "Weight": 130.0,
+   "BaseExperience": 62,
+   "Generation": 4,
+   "Legendary": false,
+   "Abilities": [
+    "filter",
+    "soundproof",
+    "technician"
+   ],
+   "AbilitiesKo": [
+    "방음",
+    "테크니션",
+    "필터"
+   ],
+   "StarterCost": 2,
+   "ArtKey": "Creature_488_Mime Jr."
   },
   {
    "Id": 489,
@@ -15269,6 +15527,37 @@
    "ArtKey": "Creature_544_Regigigas"
   },
   {
+   "Id": 545,
+   "NationalDex": 487,
+   "NameEn": "Giratina",
+   "NameKo": "기라티나",
+   "Type1": 13,
+   "Type2": 14,
+   "BaseStats": [
+    150,
+    100,
+    120,
+    100,
+    120,
+    90
+   ],
+   "Height": 45.0,
+   "Weight": 7500.0,
+   "BaseExperience": 306,
+   "Generation": 4,
+   "Legendary": true,
+   "Abilities": [
+    "pressure",
+    "telepathy"
+   ],
+   "AbilitiesKo": [
+    "텔레파시",
+    "프레셔"
+   ],
+   "StarterCost": 8,
+   "ArtKey": "Creature_545_Giratina"
+  },
+  {
    "Id": 547,
    "NationalDex": 488,
    "NameEn": "Cresselia",
@@ -15383,6 +15672,35 @@
    ],
    "StarterCost": 7,
    "ArtKey": "Creature_550_Darkrai"
+  },
+  {
+   "Id": 551,
+   "NationalDex": 492,
+   "NameEn": "Shaymin",
+   "NameKo": "쉐이미",
+   "Type1": 4,
+   "Type2": -1,
+   "BaseStats": [
+    100,
+    100,
+    100,
+    100,
+    100,
+    100
+   ],
+   "Height": 2.0,
+   "Weight": 21.0,
+   "BaseExperience": 270,
+   "Generation": 4,
+   "Legendary": true,
+   "Abilities": [
+    "natural-cure"
+   ],
+   "AbilitiesKo": [
+    "자연회복"
+   ],
+   "StarterCost": 6,
+   "ArtKey": "Creature_551_Shaymin"
   },
   {
    "Id": 553,
@@ -17228,6 +17546,39 @@
    "ArtKey": "Creature_610_Lilligant"
   },
   {
+   "Id": 611,
+   "NationalDex": 550,
+   "NameEn": "Basculin",
+   "NameKo": "배쓰나이",
+   "Type1": 2,
+   "Type2": -1,
+   "BaseStats": [
+    70,
+    92,
+    65,
+    80,
+    55,
+    98
+   ],
+   "Height": 10.0,
+   "Weight": 180.0,
+   "BaseExperience": 161,
+   "Generation": 5,
+   "Legendary": false,
+   "Abilities": [
+    "adaptability",
+    "mold-breaker",
+    "reckless"
+   ],
+   "AbilitiesKo": [
+    "이판사판",
+    "적응력",
+    "틀깨기"
+   ],
+   "StarterCost": 3,
+   "ArtKey": "Creature_611_Basculin"
+  },
+  {
    "Id": 612,
    "NationalDex": 551,
    "NameEn": "Sandile",
@@ -17356,6 +17707,37 @@
    ],
    "StarterCost": 4,
    "ArtKey": "Creature_615_Darumaka"
+  },
+  {
+   "Id": 616,
+   "NationalDex": 555,
+   "NameEn": "Darmanitan",
+   "NameKo": "불비달마",
+   "Type1": 1,
+   "Type2": -1,
+   "BaseStats": [
+    105,
+    140,
+    55,
+    30,
+    55,
+    95
+   ],
+   "Height": 13.0,
+   "Weight": 929.0,
+   "BaseExperience": 168,
+   "Generation": 5,
+   "Legendary": false,
+   "Abilities": [
+    "sheer-force",
+    "zen-mode"
+   ],
+   "AbilitiesKo": [
+    "달마모드",
+    "우격다짐"
+   ],
+   "StarterCost": 4,
+   "ArtKey": "Creature_616_Darmanitan"
   },
   {
    "Id": 618,
@@ -20083,6 +20465,68 @@
    "ArtKey": "Creature_702_Virizion"
   },
   {
+   "Id": 703,
+   "NationalDex": 641,
+   "NameEn": "Tornadus",
+   "NameKo": "토네로스",
+   "Type1": 9,
+   "Type2": -1,
+   "BaseStats": [
+    79,
+    115,
+    70,
+    125,
+    80,
+    111
+   ],
+   "Height": 15.0,
+   "Weight": 630.0,
+   "BaseExperience": 261,
+   "Generation": 5,
+   "Legendary": true,
+   "Abilities": [
+    "defiant",
+    "prankster"
+   ],
+   "AbilitiesKo": [
+    "오기",
+    "짓궂은마음"
+   ],
+   "StarterCost": 6,
+   "ArtKey": "Creature_703_Tornadus"
+  },
+  {
+   "Id": 705,
+   "NationalDex": 642,
+   "NameEn": "Thundurus",
+   "NameKo": "볼트로스",
+   "Type1": 3,
+   "Type2": 9,
+   "BaseStats": [
+    79,
+    115,
+    70,
+    125,
+    80,
+    111
+   ],
+   "Height": 15.0,
+   "Weight": 610.0,
+   "BaseExperience": 261,
+   "Generation": 5,
+   "Legendary": true,
+   "Abilities": [
+    "defiant",
+    "prankster"
+   ],
+   "AbilitiesKo": [
+    "오기",
+    "짓궂은마음"
+   ],
+   "StarterCost": 7,
+   "ArtKey": "Creature_705_Thundurus"
+  },
+  {
    "Id": 707,
    "NationalDex": 643,
    "NameEn": "Reshiram",
@@ -20141,6 +20585,37 @@
    "ArtKey": "Creature_708_Zekrom"
   },
   {
+   "Id": 709,
+   "NationalDex": 645,
+   "NameEn": "Landorus",
+   "NameKo": "랜드로스",
+   "Type1": 8,
+   "Type2": 9,
+   "BaseStats": [
+    89,
+    125,
+    90,
+    115,
+    80,
+    101
+   ],
+   "Height": 15.0,
+   "Weight": 680.0,
+   "BaseExperience": 270,
+   "Generation": 5,
+   "Legendary": true,
+   "Abilities": [
+    "sand-force",
+    "sheer-force"
+   ],
+   "AbilitiesKo": [
+    "모래의힘",
+    "우격다짐"
+   ],
+   "StarterCost": 7,
+   "ArtKey": "Creature_709_Landorus"
+  },
+  {
    "Id": 711,
    "NationalDex": 646,
    "NameEn": "Kyurem",
@@ -20168,6 +20643,64 @@
    ],
    "StarterCost": 8,
    "ArtKey": "Creature_711_Kyurem"
+  },
+  {
+   "Id": 714,
+   "NationalDex": 647,
+   "NameEn": "Keldeo",
+   "NameKo": "케르디오",
+   "Type1": 2,
+   "Type2": 6,
+   "BaseStats": [
+    91,
+    72,
+    90,
+    129,
+    90,
+    108
+   ],
+   "Height": 14.0,
+   "Weight": 485.0,
+   "BaseExperience": 261,
+   "Generation": 5,
+   "Legendary": false,
+   "Abilities": [
+    "justified"
+   ],
+   "AbilitiesKo": [
+    "정의의마음"
+   ],
+   "StarterCost": 6,
+   "ArtKey": "Creature_714_Keldeo"
+  },
+  {
+   "Id": 716,
+   "NationalDex": 648,
+   "NameEn": "Meloetta",
+   "NameKo": "메로엣타",
+   "Type1": 0,
+   "Type2": 10,
+   "BaseStats": [
+    100,
+    77,
+    77,
+    128,
+    128,
+    90
+   ],
+   "Height": 6.0,
+   "Weight": 65.0,
+   "BaseExperience": 270,
+   "Generation": 5,
+   "Legendary": false,
+   "Abilities": [
+    "serene-grace"
+   ],
+   "AbilitiesKo": [
+    "하늘의은총"
+   ],
+   "StarterCost": 7,
+   "ArtKey": "Creature_716_Meloetta"
   },
   {
    "Id": 718,
@@ -20800,6 +21333,37 @@
    "ArtKey": "Creature_737_Pyroar"
   },
   {
+   "Id": 738,
+   "NationalDex": 669,
+   "NameEn": "Flabébé",
+   "NameKo": "플라베베",
+   "Type1": 17,
+   "Type2": -1,
+   "BaseStats": [
+    44,
+    38,
+    39,
+    61,
+    79,
+    42
+   ],
+   "Height": 1.0,
+   "Weight": 1.0,
+   "BaseExperience": 61,
+   "Generation": 6,
+   "Legendary": false,
+   "Abilities": [
+    "flower-veil",
+    "symbiosis"
+   ],
+   "AbilitiesKo": [
+    "공생",
+    "플라워베일"
+   ],
+   "StarterCost": 3,
+   "ArtKey": "Creature_738_Flabébé"
+  },
+  {
    "Id": 739,
    "NationalDex": 670,
    "NameEn": "Floette",
@@ -21052,6 +21616,39 @@
    "ArtKey": "Creature_746_Espurr"
   },
   {
+   "Id": 747,
+   "NationalDex": 678,
+   "NameEn": "Meowstic",
+   "NameKo": "냐오닉스",
+   "Type1": 10,
+   "Type2": -1,
+   "BaseStats": [
+    74,
+    48,
+    76,
+    83,
+    81,
+    104
+   ],
+   "Height": 6.0,
+   "Weight": 85.0,
+   "BaseExperience": 163,
+   "Generation": 6,
+   "Legendary": false,
+   "Abilities": [
+    "infiltrator",
+    "keen-eye",
+    "prankster"
+   ],
+   "AbilitiesKo": [
+    "날카로운눈",
+    "짓궂은마음",
+    "틈새포착"
+   ],
+   "StarterCost": 2,
+   "ArtKey": "Creature_747_Meowstic"
+  },
+  {
    "Id": 749,
    "NationalDex": 679,
    "NameEn": "Honedge",
@@ -21108,6 +21705,35 @@
    ],
    "StarterCost": 4,
    "ArtKey": "Creature_750_Doublade"
+  },
+  {
+   "Id": 752,
+   "NationalDex": 681,
+   "NameEn": "Aegislash",
+   "NameKo": "킬가르도",
+   "Type1": 16,
+   "Type2": 13,
+   "BaseStats": [
+    60,
+    50,
+    140,
+    50,
+    140,
+    60
+   ],
+   "Height": 17.0,
+   "Weight": 530.0,
+   "BaseExperience": 234,
+   "Generation": 6,
+   "Legendary": false,
+   "Abilities": [
+    "stance-change"
+   ],
+   "AbilitiesKo": [
+    "배틀스위치"
+   ],
+   "StarterCost": 4,
+   "ArtKey": "Creature_752_Aegislash"
   },
   {
    "Id": 753,
@@ -22004,6 +22630,72 @@
    "ArtKey": "Creature_780_Trevenant"
   },
   {
+   "Id": 781,
+   "NationalDex": 710,
+   "NameEn": "Pumpkaboo",
+   "NameKo": "호바귀",
+   "Type1": 13,
+   "Type2": 4,
+   "BaseStats": [
+    49,
+    66,
+    70,
+    44,
+    55,
+    51
+   ],
+   "Height": 4.0,
+   "Weight": 50.0,
+   "BaseExperience": 67,
+   "Generation": 6,
+   "Legendary": false,
+   "Abilities": [
+    "frisk",
+    "insomnia",
+    "pickup"
+   ],
+   "AbilitiesKo": [
+    "불면",
+    "통찰",
+    "픽업"
+   ],
+   "StarterCost": 2,
+   "ArtKey": "Creature_781_Pumpkaboo"
+  },
+  {
+   "Id": 785,
+   "NationalDex": 711,
+   "NameEn": "Gourgeist",
+   "NameKo": "펌킨인",
+   "Type1": 13,
+   "Type2": 4,
+   "BaseStats": [
+    65,
+    90,
+    122,
+    58,
+    75,
+    84
+   ],
+   "Height": 9.0,
+   "Weight": 125.0,
+   "BaseExperience": 173,
+   "Generation": 6,
+   "Legendary": false,
+   "Abilities": [
+    "frisk",
+    "insomnia",
+    "pickup"
+   ],
+   "AbilitiesKo": [
+    "불면",
+    "통찰",
+    "픽업"
+   ],
+   "StarterCost": 2,
+   "ArtKey": "Creature_785_Gourgeist"
+  },
+  {
    "Id": 789,
    "NationalDex": 712,
    "NameEn": "Bergmite",
@@ -22194,6 +22886,35 @@
    "ArtKey": "Creature_794_Yveltal"
   },
   {
+   "Id": 795,
+   "NationalDex": 718,
+   "NameEn": "Zygarde",
+   "NameKo": "지가르데",
+   "Type1": 14,
+   "Type2": 8,
+   "BaseStats": [
+    108,
+    100,
+    121,
+    81,
+    95,
+    95
+   ],
+   "Height": 50.0,
+   "Weight": 3050.0,
+   "BaseExperience": 270,
+   "Generation": 6,
+   "Legendary": true,
+   "Abilities": [
+    "aura-break"
+   ],
+   "AbilitiesKo": [
+    "오라브레이크"
+   ],
+   "StarterCost": 9,
+   "ArtKey": "Creature_795_Zygarde"
+  },
+  {
    "Id": 796,
    "NationalDex": 719,
    "NameEn": "Diancie",
@@ -22221,6 +22942,35 @@
    ],
    "StarterCost": 7,
    "ArtKey": "Creature_796_Diancie"
+  },
+  {
+   "Id": 798,
+   "NationalDex": 720,
+   "NameEn": "Hoopa",
+   "NameKo": "후파",
+   "Type1": 10,
+   "Type2": 13,
+   "BaseStats": [
+    80,
+    110,
+    60,
+    150,
+    130,
+    70
+   ],
+   "Height": 5.0,
+   "Weight": 90.0,
+   "BaseExperience": 270,
+   "Generation": 6,
+   "Legendary": true,
+   "Abilities": [
+    "magician"
+   ],
+   "AbilitiesKo": [
+    "매지션"
+   ],
+   "StarterCost": 7,
+   "ArtKey": "Creature_798_Hoopa"
   },
   {
    "Id": 800,
@@ -22273,6 +23023,17 @@
     50,
     70,
     120
+   ]
+  },
+  {
+   "Id": 91,
+   "ModelStats": [
+    52,
+    65,
+    55,
+    58,
+    62,
+    60
    ]
   },
   {
@@ -22527,6 +23288,251 @@
     135,
     105
    ]
+  },
+  {
+   "Id": 752,
+   "ModelStats": [
+    60,
+    50,
+    150,
+    50,
+    150,
+    60
+   ]
   }
- ]
+ ],
+ "DefaultForms": {
+  "Note": "Rows added by Tools/Export/species_supplement.csv. Where a species exists only as several forms, the stat line, typing, height and weight above are the form PokeAPI marks is_default - the one the games treat as the species' resting state - and NOT the only form that exists. 'Form' names it, 'SourceRow' is the data/Pokemon.csv row the numbers came from, and 'OtherFormsGen6' lists the sibling forms that existed within gen 1-6, the range this dex covers.",
+  "Entries": [
+   {
+    "Id": 35,
+    "NationalDex": 29,
+    "NameEn": "Nidoran♀",
+    "Form": "nidoran-f",
+    "SourceRow": "Nidoran(F)",
+    "OtherFormsGen6": []
+   },
+   {
+    "Id": 38,
+    "NationalDex": 32,
+    "NameEn": "Nidoran♂",
+    "Form": "nidoran-m",
+    "SourceRow": "Nidoran(M)",
+    "OtherFormsGen6": []
+   },
+   {
+    "Id": 63,
+    "NationalDex": 57,
+    "NameEn": "Primeape",
+    "Form": "primeape",
+    "SourceRow": "Primeape",
+    "OtherFormsGen6": []
+   },
+   {
+    "Id": 91,
+    "NationalDex": 83,
+    "NameEn": "Farfetch'd",
+    "Form": "farfetchd",
+    "SourceRow": "Farfetch'd",
+    "OtherFormsGen6": []
+   },
+   {
+    "Id": 132,
+    "NationalDex": 122,
+    "NameEn": "Mr. Mime",
+    "Form": "mr-mime",
+    "SourceRow": "Mr. Mime",
+    "OtherFormsGen6": []
+   },
+   {
+    "Id": 429,
+    "NationalDex": 386,
+    "NameEn": "Deoxys",
+    "Form": "deoxys-normal",
+    "SourceRow": "DeoxysNormal Forme",
+    "OtherFormsGen6": [
+     "DeoxysAttack Forme",
+     "DeoxysDefense Forme",
+     "DeoxysSpeed Forme"
+    ]
+   },
+   {
+    "Id": 459,
+    "NationalDex": 413,
+    "NameEn": "Wormadam",
+    "Form": "wormadam-plant",
+    "SourceRow": "WormadamPlant Cloak",
+    "OtherFormsGen6": [
+     "WormadamSandy Cloak",
+     "WormadamTrash Cloak"
+    ]
+   },
+   {
+    "Id": 488,
+    "NationalDex": 439,
+    "NameEn": "Mime Jr.",
+    "Form": "mime-jr",
+    "SourceRow": "Mime Jr.",
+    "OtherFormsGen6": []
+   },
+   {
+    "Id": 545,
+    "NationalDex": 487,
+    "NameEn": "Giratina",
+    "Form": "giratina-altered",
+    "SourceRow": "GiratinaAltered Forme",
+    "OtherFormsGen6": [
+     "GiratinaOrigin Forme"
+    ]
+   },
+   {
+    "Id": 551,
+    "NationalDex": 492,
+    "NameEn": "Shaymin",
+    "Form": "shaymin-land",
+    "SourceRow": "ShayminLand Forme",
+    "OtherFormsGen6": [
+     "ShayminSky Forme"
+    ]
+   },
+   {
+    "Id": 611,
+    "NationalDex": 550,
+    "NameEn": "Basculin",
+    "Form": "basculin-red-striped",
+    "SourceRow": "Basculin",
+    "OtherFormsGen6": []
+   },
+   {
+    "Id": 616,
+    "NationalDex": 555,
+    "NameEn": "Darmanitan",
+    "Form": "darmanitan-standard",
+    "SourceRow": "DarmanitanStandard Mode",
+    "OtherFormsGen6": [
+     "DarmanitanZen Mode"
+    ]
+   },
+   {
+    "Id": 703,
+    "NationalDex": 641,
+    "NameEn": "Tornadus",
+    "Form": "tornadus-incarnate",
+    "SourceRow": "TornadusIncarnate Forme",
+    "OtherFormsGen6": [
+     "TornadusTherian Forme"
+    ]
+   },
+   {
+    "Id": 705,
+    "NationalDex": 642,
+    "NameEn": "Thundurus",
+    "Form": "thundurus-incarnate",
+    "SourceRow": "ThundurusIncarnate Forme",
+    "OtherFormsGen6": [
+     "ThundurusTherian Forme"
+    ]
+   },
+   {
+    "Id": 709,
+    "NationalDex": 645,
+    "NameEn": "Landorus",
+    "Form": "landorus-incarnate",
+    "SourceRow": "LandorusIncarnate Forme",
+    "OtherFormsGen6": [
+     "LandorusTherian Forme"
+    ]
+   },
+   {
+    "Id": 714,
+    "NationalDex": 647,
+    "NameEn": "Keldeo",
+    "Form": "keldeo-ordinary",
+    "SourceRow": "KeldeoOrdinary Forme",
+    "OtherFormsGen6": [
+     "KeldeoResolute Forme"
+    ]
+   },
+   {
+    "Id": 716,
+    "NationalDex": 648,
+    "NameEn": "Meloetta",
+    "Form": "meloetta-aria",
+    "SourceRow": "MeloettaAria Forme",
+    "OtherFormsGen6": [
+     "MeloettaPirouette Forme"
+    ]
+   },
+   {
+    "Id": 738,
+    "NationalDex": 669,
+    "NameEn": "Flabébé",
+    "Form": "flabebe",
+    "SourceRow": "Flabebe",
+    "OtherFormsGen6": []
+   },
+   {
+    "Id": 747,
+    "NationalDex": 678,
+    "NameEn": "Meowstic",
+    "Form": "meowstic-male",
+    "SourceRow": "MeowsticMale",
+    "OtherFormsGen6": [
+     "MeowsticFemale"
+    ]
+   },
+   {
+    "Id": 752,
+    "NationalDex": 681,
+    "NameEn": "Aegislash",
+    "Form": "aegislash-shield",
+    "SourceRow": "AegislashShield Forme",
+    "OtherFormsGen6": [
+     "AegislashBlade Forme"
+    ]
+   },
+   {
+    "Id": 781,
+    "NationalDex": 710,
+    "NameEn": "Pumpkaboo",
+    "Form": "pumpkaboo-average",
+    "SourceRow": "PumpkabooAverage Size",
+    "OtherFormsGen6": [
+     "PumpkabooSmall Size",
+     "PumpkabooLarge Size",
+     "PumpkabooSuper Size"
+    ]
+   },
+   {
+    "Id": 785,
+    "NationalDex": 711,
+    "NameEn": "Gourgeist",
+    "Form": "gourgeist-average",
+    "SourceRow": "GourgeistAverage Size",
+    "OtherFormsGen6": [
+     "GourgeistSmall Size",
+     "GourgeistLarge Size",
+     "GourgeistSuper Size"
+    ]
+   },
+   {
+    "Id": 795,
+    "NationalDex": 718,
+    "NameEn": "Zygarde",
+    "Form": "zygarde-50",
+    "SourceRow": "Zygarde50% Forme",
+    "OtherFormsGen6": []
+   },
+   {
+    "Id": 798,
+    "NationalDex": 720,
+    "NameEn": "Hoopa",
+    "Form": "hoopa",
+    "SourceRow": "HoopaHoopa Confined",
+    "OtherFormsGen6": [
+     "HoopaHoopa Unbound"
+    ]
+   }
+  ]
+ }
 }

@@ -1,0 +1,25 @@
+KaggleID,Name,Type 1,Type 2,HP,Attack,Defense,Sp. Atk,Sp. Def,Speed,Generation,Legendary,height,weight,base_experience,NationalDex,Name_ko,Abilities,Abilities_ko,DefaultForm,KaggleRowName,OtherForms
+35,Nidoran♀,Poison,,55,47,52,40,40,41,1,False,4,70,55,29,니드런♀,hustle;poison-point;rivalry,독가시;의욕;투쟁심,nidoran-f,Nidoran(F),
+38,Nidoran♂,Poison,,46,57,40,40,40,50,1,False,5,90,55,32,니드런♂,hustle;poison-point;rivalry,독가시;의욕;투쟁심,nidoran-m,Nidoran(M),
+63,Primeape,Fighting,,65,105,60,60,70,95,1,False,10,320,159,57,성원숭,anger-point;defiant;vital-spirit,분노의경혈;오기;의기양양,primeape,Primeape,
+91,Farfetch'd,Normal,Flying,52,65,55,58,62,60,1,False,8,150,132,83,파오리,defiant;inner-focus;keen-eye,날카로운눈;오기;정신력,farfetchd,Farfetch'd,
+132,Mr. Mime,Psychic,Fairy,40,45,65,100,120,90,1,False,13,545,161,122,마임맨,filter;soundproof;technician,방음;테크니션;필터,mr-mime,Mr. Mime,
+429,Deoxys,Psychic,,50,150,50,150,50,150,3,True,17,608,270,386,테오키스,pressure,프레셔,deoxys-normal,DeoxysNormal Forme,DeoxysAttack Forme;DeoxysDefense Forme;DeoxysSpeed Forme
+459,Wormadam,Bug,Grass,60,59,85,79,105,36,4,False,5,65,148,413,도롱마담,anticipation;overcoat,방진;위험예지,wormadam-plant,WormadamPlant Cloak,WormadamSandy Cloak;WormadamTrash Cloak
+488,Mime Jr.,Psychic,Fairy,20,25,45,70,90,60,4,False,6,130,62,439,흉내내,filter;soundproof;technician,방음;테크니션;필터,mime-jr,Mime Jr.,
+545,Giratina,Ghost,Dragon,150,100,120,100,120,90,4,True,45,7500,306,487,기라티나,pressure;telepathy,텔레파시;프레셔,giratina-altered,GiratinaAltered Forme,GiratinaOrigin Forme
+551,Shaymin,Grass,,100,100,100,100,100,100,4,True,2,21,270,492,쉐이미,natural-cure,자연회복,shaymin-land,ShayminLand Forme,ShayminSky Forme
+611,Basculin,Water,,70,92,65,80,55,98,5,False,10,180,161,550,배쓰나이,adaptability;mold-breaker;reckless,이판사판;적응력;틀깨기,basculin-red-striped,Basculin,
+616,Darmanitan,Fire,,105,140,55,30,55,95,5,False,13,929,168,555,불비달마,sheer-force;zen-mode,달마모드;우격다짐,darmanitan-standard,DarmanitanStandard Mode,DarmanitanZen Mode
+703,Tornadus,Flying,,79,115,70,125,80,111,5,True,15,630,261,641,토네로스,defiant;prankster,오기;짓궂은마음,tornadus-incarnate,TornadusIncarnate Forme,TornadusTherian Forme
+705,Thundurus,Electric,Flying,79,115,70,125,80,111,5,True,15,610,261,642,볼트로스,defiant;prankster,오기;짓궂은마음,thundurus-incarnate,ThundurusIncarnate Forme,ThundurusTherian Forme
+709,Landorus,Ground,Flying,89,125,90,115,80,101,5,True,15,680,270,645,랜드로스,sand-force;sheer-force,모래의힘;우격다짐,landorus-incarnate,LandorusIncarnate Forme,LandorusTherian Forme
+714,Keldeo,Water,Fighting,91,72,90,129,90,108,5,False,14,485,261,647,케르디오,justified,정의의마음,keldeo-ordinary,KeldeoOrdinary Forme,KeldeoResolute Forme
+716,Meloetta,Normal,Psychic,100,77,77,128,128,90,5,False,6,65,270,648,메로엣타,serene-grace,하늘의은총,meloetta-aria,MeloettaAria Forme,MeloettaPirouette Forme
+738,Flabébé,Fairy,,44,38,39,61,79,42,6,False,1,1,61,669,플라베베,flower-veil;symbiosis,공생;플라워베일,flabebe,Flabebe,
+747,Meowstic,Psychic,,74,48,76,83,81,104,6,False,6,85,163,678,냐오닉스,infiltrator;keen-eye;prankster,날카로운눈;짓궂은마음;틈새포착,meowstic-male,MeowsticMale,MeowsticFemale
+752,Aegislash,Steel,Ghost,60,50,150,50,150,60,6,False,17,530,234,681,킬가르도,stance-change,배틀스위치,aegislash-shield,AegislashShield Forme,AegislashBlade Forme
+781,Pumpkaboo,Ghost,Grass,49,66,70,44,55,51,6,False,4,50,67,710,호바귀,frisk;insomnia;pickup,불면;통찰;픽업,pumpkaboo-average,PumpkabooAverage Size,PumpkabooSmall Size;PumpkabooLarge Size;PumpkabooSuper Size
+785,Gourgeist,Ghost,Grass,65,90,122,58,75,84,6,False,9,125,173,711,펌킨인,frisk;insomnia;pickup,불면;통찰;픽업,gourgeist-average,GourgeistAverage Size,GourgeistSmall Size;GourgeistLarge Size;GourgeistSuper Size
+795,Zygarde,Dragon,Ground,108,100,121,81,95,95,6,True,50,3050,270,718,지가르데,aura-break,오라브레이크,zygarde-50,Zygarde50% Forme,
+798,Hoopa,Psychic,Ghost,80,110,60,150,130,70,6,True,5,90,270,720,후파,magician,매지션,hoopa,HoopaHoopa Confined,HoopaHoopa Unbound

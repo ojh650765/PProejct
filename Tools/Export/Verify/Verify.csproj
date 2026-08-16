@@ -29,6 +29,8 @@
     <Compile Include="../../../Assets/Game/Scripts/Core/SpeciesData.cs" />
     <Compile Include="../../../Assets/Game/Scripts/Core/BattleEvents.cs" />
     <Compile Include="../../../Assets/Game/Scripts/Core/BattleContracts.cs" />
+    <!-- CreatureIds, which FakeBattle.cs calls. UnityEngine-free despite the file name. -->
+    <Compile Include="../../../Assets/Game/Scripts/Core/BattleHooks.cs" />
     <Compile Include="../../../Assets/Game/Scripts/Core/PokeLabContracts.cs" />
 
     <!-- The intelligence layer, minus the Unity-facing bootstrap. -->

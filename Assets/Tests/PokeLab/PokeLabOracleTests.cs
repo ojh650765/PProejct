@@ -93,9 +93,26 @@ namespace PokeLab.Tests
         [Test]
         public void ExportedDexCoversEverySpecies()
         {
-            Assert.AreEqual(697, _data.Species.Count);
+            // 697 from the upstream Kaggle dex, plus the 24 its merge dropped and
+            // Tools/Export/species_supplement.csv puts back. National dex 1-721, no gaps.
+            Assert.AreEqual(721, _data.Species.Count);
             foreach (var id in new[] { 1, 5, 10, 21, 25, 31, 47, 49, 66, 73, 81, 100 })
                 Assert.IsTrue(_data.Species.TryGet(id, out _), $"slice species {id} missing");
+
+            var seen = new bool[722];
+            foreach (var entry in _data.Species.All)
+            {
+                Assert.IsTrue(entry.NationalDex >= 1 && entry.NationalDex <= 721,
+                              $"species {entry.Id} ({entry.NameEn}) has dex {entry.NationalDex}, outside 1-721");
+                Assert.IsFalse(seen[entry.NationalDex], $"national dex {entry.NationalDex} appears twice");
+                seen[entry.NationalDex] = true;
+            }
+            for (var dex = 1; dex <= 721; dex++) Assert.IsTrue(seen[dex], $"national dex {dex} missing");
+
+            // Ids are KaggleIDs, not dex numbers. Aegislash is #681 and id 752; reading one
+            // as the other is the mistake this dex makes easiest and reports latest.
+            Assert.IsTrue(_data.Species.TryGet(752, out var aegislash), "Aegislash (id 752) missing");
+            Assert.AreEqual(681, aegislash.NationalDex);
         }
 
         [Test]

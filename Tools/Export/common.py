@@ -28,8 +28,13 @@ REPO = Path(os.environ.get("POKELAB_SOURCE_REPO", _DEFAULT_REPO)).resolve()
 # Tools/Export/common.py -> repo root is two levels up.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = PROJECT_ROOT / "Assets" / "StreamingAssets" / "pokelab"
+TOOLS_DIR = Path(__file__).resolve().parent
 
 MASTER_CSV = REPO / "data" / "pokemon_master_corrected_with_abilities.csv"
+
+# Ours, not the source repo's. See README.md, "The 24 species the upstream merge lost".
+SPECIES_SUPPLEMENT_CSV = TOOLS_DIR / "species_supplement.csv"
+STAT_CHANGES_SUPPLEMENT_CSV = TOOLS_DIR / "base_stat_changes_supplement.csv"
 COMBATS_CSV = REPO / "data" / "kaggle_pokedex_pokemon_data" / "final_combats.csv"
 POKEROGUE_DIR = REPO / "data" / "pokerogue_derived"
 MODEL_PATH = REPO / "battle_refinement_outputs" / "pokemon_battle_app_model.joblib"
@@ -84,10 +89,47 @@ def load_bundle():
 
 
 def load_master() -> pd.DataFrame:
-    """The 697-species dex, keyed by KaggleID exactly as backend.py keys it."""
+    """The dex, keyed by KaggleID exactly as backend.py keys it.
+
+    The upstream CSV is 697 rows and skips 24 national dex numbers. That is a merge
+    artefact, not a hole in the source: data/Pokemon.csv carries all 24, and the KaggleID
+    each one would have had is still unclaimed. species_supplement.csv re-attaches them
+    under exactly those ids, so the dex runs 1-721 with no gap and no id is invented.
+
+    backend.py still sees only its own 697, which is what we want: reference_predictions
+    .json must keep describing the model as it was trained, not as the game ships it.
+    """
     master = pd.read_csv(MASTER_CSV)
     master["KaggleID"] = master["KaggleID"].astype(int)
-    return master
+
+    supplement = pd.read_csv(SPECIES_SUPPLEMENT_CSV)
+    supplement["KaggleID"] = supplement["KaggleID"].astype(int)
+
+    clash = sorted(set(master["KaggleID"]) & set(supplement["KaggleID"]))
+    if clash:
+        raise ValueError(f"species_supplement.csv reuses upstream KaggleIDs: {clash}")
+
+    merged = pd.concat([master, supplement], ignore_index=True)
+    merged = merged.sort_values("KaggleID", kind="stable").reset_index(drop=True)
+
+    for column in ("KaggleID", "NationalDex"):
+        duplicated = merged.loc[merged[column].duplicated(), column].tolist()
+        if duplicated:
+            raise ValueError(f"duplicate {column} in the merged dex: {sorted(duplicated)}")
+    return merged
+
+
+def load_stat_changes() -> pd.DataFrame:
+    """The gen7+ base-stat corrections, upstream table plus our own.
+
+    The upstream table was derived by diffing the *697* against current values, so it can
+    say nothing about the 24 the merge had already dropped. The supplement carries the
+    corrections that only apply to those, in the same schema, and is concatenated rather
+    than merged so the exporter's "refuse to guess" guard still covers both.
+    """
+    upstream = pd.read_csv(POKEROGUE_DIR / "base_stat_changes_gen7plus.csv")
+    extra = pd.read_csv(STAT_CHANGES_SUPPLEMENT_CSV)
+    return pd.concat([upstream, extra], ignore_index=True)
 
 
 # --- PokeRogue join --------------------------------------------------------------
@@ -95,14 +137,16 @@ def load_master() -> pd.DataFrame:
 def normalise_species_key(name: str) -> str:
     """The join rule documented in data/pokerogue_derived/README.md.
 
-    Strip spaces, periods and hyphens; map the gender glyphs to F/M; upper-case.
-    Applied to both sides so "Mr. Mime" and "MR_MIME" meet in the middle. Underscores
-    are stripped too because the pokerogue keys use them as word separators.
+    Strip spaces, periods and hyphens; map the gender glyphs to F/M; fold combining
+    accents; upper-case. Applied to both sides so "Mr. Mime" and "MR_MIME" meet in the
+    middle, and so does "Flab\u00e9b\u00e9" with FLABEBE. Underscores are stripped too because the
+    pokerogue keys use them as word separators.
     """
     if name is None:
         return ""
     text = unicodedata.normalize("NFKC", str(name)).strip()
     text = text.replace("\u2640", "F").replace("\u2642", "M")
+    text = "".join(c for c in unicodedata.normalize("NFD", text) if not unicodedata.combining(c))
     for token in (" ", ".", "-", "_", "'", "\u2019", ":"):
         text = text.replace(token, "")
     return text.upper()

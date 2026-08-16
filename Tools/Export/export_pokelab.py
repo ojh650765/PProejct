@@ -22,7 +22,7 @@ import pandas as pd
 import moves_data
 from common import (COMBATS_CSV, ELEMENT_TYPES, OUTPUT_DIR, POKEROGUE_DIR,
                     STAT_COLUMNS, TYPE_INDEX, load_bundle, load_master,
-                    normalise_species_key)
+                    load_stat_changes, normalise_species_key)
 
 FOREST_MAGIC = b"PLFR"
 COMBAT_MAGIC = b"PLCB"
@@ -57,14 +57,23 @@ def _write_json(path: Path, payload: dict) -> None:
 
 # --- species ---------------------------------------------------------------------
 
-def build_species(master: pd.DataFrame) -> tuple[list[dict], list[dict]]:
-    """Returns (species records, model stat overrides).
+def build_species(master: pd.DataFrame) -> tuple[list[dict], list[dict], dict]:
+    """Returns (species records, model stat overrides, default-form notes).
 
     The gen7+ corrections are applied to SpeciesData.BaseStats because that is what the
     game should simulate with. The forest, however, was trained on the uncorrected gen6
     numbers, so feeding it corrected stats would silently diverge from backend.py. The
     override table carries the original values for exactly the rows that changed, and the
     oracle uses it when it builds a feature row.
+
+    That rule is applied to the supplemented species too, even though the forest never saw
+    any of them. Being outside the training set does not put a species outside the *units*
+    the forest learned in: every threshold on Attack_diff was fitted against gen6 attack
+    values, so a species scored with a gen7 number sits at a different point on that axis
+    than it would have during training. Uniformity of the feature space is what the
+    override table is for, and an unseen species needs it for the same reason a seen one
+    does. In practice this touches one row - Farfetch'd, whose Attack went 65 -> 90 in
+    gen7 - plus Aegislash, whose gen8 nerf the upstream table could not have known about.
     """
     flags = pd.read_csv(POKEROGUE_DIR / "species_flags_and_costs.csv")
     cost_by_key: dict[str, int] = {}
@@ -74,7 +83,7 @@ def build_species(master: pd.DataFrame) -> tuple[list[dict], list[dict]]:
         if pd.notna(cost):
             cost_by_key[key] = int(cost)
 
-    changes = pd.read_csv(POKEROGUE_DIR / "base_stat_changes_gen7plus.csv")
+    changes = load_stat_changes()
     change_by_key: dict[str, list[tuple[str, int, int]]] = {}
     for _, row in changes.iterrows():
         change_by_key.setdefault(normalise_species_key(row["name"]), []).append(
@@ -83,6 +92,7 @@ def build_species(master: pd.DataFrame) -> tuple[list[dict], list[dict]]:
 
     species: list[dict] = []
     overrides: list[dict] = []
+    forms: list[dict] = []
     applied = 0
     for _, row in master.iterrows():
         key = normalise_species_key(row["Name"])
@@ -123,10 +133,37 @@ def build_species(master: pd.DataFrame) -> tuple[list[dict], list[dict]]:
             "ArtKey": f"Creature_{species_id}_{row['Name']}",
         })
 
+        # Only the supplemented rows carry DefaultForm, and it is the whole reason the
+        # note block exists: for a form-only species the stat line above is one form's,
+        # not the species'.
+        default_form = row.get("DefaultForm")
+        if default_form is not None and pd.notna(default_form):
+            forms.append({
+                "Id": species_id,
+                "NationalDex": int(row["NationalDex"]),
+                "NameEn": str(row["Name"]),
+                "Form": str(default_form),
+                "SourceRow": str(row["KaggleRowName"]),
+                "OtherFormsGen6": _split(row.get("OtherForms")),
+            })
+
     expected = sum(len(v) for v in change_by_key.values())
     print(f"  gen7+ corrections: {applied}/{expected} applied "
           f"({len(overrides)} species carry a model-stat override)")
-    return species, overrides
+    gaps = sorted(set(range(1, 722)) - {s["NationalDex"] for s in species})
+    print(f"  {len(species)} species, national dex gaps in 1-721: {gaps or 'none'}")
+    return species, overrides, {
+        "Note": (
+            "Rows added by Tools/Export/species_supplement.csv. Where a species exists "
+            "only as several forms, the stat line, typing, height and weight above are "
+            "the form PokeAPI marks is_default - the one the games treat as the species' "
+            "resting state - and NOT the only form that exists. 'Form' names it, "
+            "'SourceRow' is the data/Pokemon.csv row the numbers came from, and "
+            "'OtherFormsGen6' lists the sibling forms that existed within gen 1-6, the "
+            "range this dex covers."
+        ),
+        "Entries": forms,
+    }
 
 
 # --- type chart ------------------------------------------------------------------
@@ -287,9 +324,10 @@ def main() -> None:
     master = load_master()
     bundle = load_bundle()
 
-    species, overrides = build_species(master)
+    species, overrides, forms = build_species(master)
     _write_json(OUTPUT_DIR / "species.json",
-                {"Species": species, "ModelStatOverrides": overrides})
+                {"Species": species, "ModelStatOverrides": overrides,
+                 "DefaultForms": forms})
     _write_json(OUTPUT_DIR / "typechart.json", build_typechart(bundle))
     _write_json(OUTPUT_DIR / "moves.json", moves_data.build(TYPE_INDEX))
     write_forest(bundle, OUTPUT_DIR / "forest.bin")

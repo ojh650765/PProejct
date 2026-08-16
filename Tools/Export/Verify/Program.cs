@@ -132,6 +132,7 @@ namespace PokeLab.Verify
             Console.WriteLine($"max evidence delta    {maxEvidenceDelta:E3}  (tolerance {EvidenceTolerance:E0})");
             Console.WriteLine($"max type effect delta {maxTypeDelta:E3}");
 
+            failures += CheckEverySpeciesScores(oracle, species);
             failures += CheckOrderInvariance(oracle, species);
             failures += Benchmark(oracle, species);
             failures += Scenarios.Run(new PokeLabData(species, moves, chart, forest, combats));
@@ -139,6 +140,42 @@ namespace PokeLab.Verify
             Console.WriteLine();
             Console.WriteLine(failures == 0 ? "PASS" : $"FAIL ({failures} problems)");
             return failures == 0 ? 0 : 1;
+        }
+
+        /// <summary>
+        /// Every species in the dex must be scoreable, not just the ones the forest was
+        /// trained on. 24 of them never appeared in a training combat — the feature row
+        /// carries no species identity, only stats, size and typing, so the forest
+        /// generalises to them the same way it generalises to an unseen matchup between
+        /// two familiar species. The failure this guards against is not a bad number, it
+        /// is a throw or a NaN from a row the pipeline never actually exercised.
+        /// </summary>
+        private static int CheckEverySpeciesScores(ForestOracle oracle, SpeciesRegistry species)
+        {
+            const int Opponent = 1; // Bulbasaur, present in the training set.
+            var failures = 0;
+            var scored = 0;
+            foreach (var entry in species.All)
+            {
+                try
+                {
+                    var probability = oracle.Predict(entry.Id, Opponent).FirstWinProbability;
+                    if (float.IsNaN(probability) || probability < 0f || probability > 1f)
+                    {
+                        failures++;
+                        Console.WriteLine($"  FAIL species {entry.Id} ({entry.NameEn}) scored {probability}");
+                        continue;
+                    }
+                    scored++;
+                }
+                catch (Exception error)
+                {
+                    failures++;
+                    Console.WriteLine($"  FAIL species {entry.Id} ({entry.NameEn}) threw: {error.Message}");
+                }
+            }
+            Console.WriteLine($"every species scores: {scored}/{species.Count} produced a probability in [0,1]");
+            return failures;
         }
 
         /// <summary>
