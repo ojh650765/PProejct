@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using PokeLab.Overworld;
 using PokeLab.Overworld.People;
+using PokeLab.Overworld.World;
 using Unity.AI.Navigation;
 using UnityEngine.AI;
 using UnityEditor;
@@ -631,8 +632,20 @@ namespace PokeLab.Boot.Editor
                 instance.transform.localPosition = ToVector(entry.position);
                 instance.transform.localEulerAngles = ToVector(entry.rotation);
                 instance.transform.localScale = ToVector(entry.scale, Vector3.one);
-                instance.isStatic = entry.@static;
-                AddCollision(instance, entry.collider);
+                if (string.IsNullOrEmpty(entry.pickup))
+                {
+                    instance.isStatic = entry.@static;
+                    AddCollision(instance, entry.collider);
+                }
+                else
+                {
+                    // Never static. A pickup is the one prop in the level that is meant to
+                    // stop existing, and the static flags are a promise that it will not —
+                    // batched into a combined mesh, baked into the navmesh, and carved out
+                    // of the walkable surface it is lying on.
+                    instance.isStatic = false;
+                    AttachPickup(instance, entry.pickup);
+                }
                 if (!string.IsNullOrEmpty(entry.layer)) SetLayer(instance, entry.layer);
                 if (!string.IsNullOrEmpty(entry.tag) && entry.tag != "Untagged")
                     TrySetTag(instance, entry.tag);
@@ -680,6 +693,56 @@ namespace PokeLab.Boot.Editor
                 collider.sharedMesh = filter.sharedMesh;
                 collider.convex = false;   // static geometry; concave is free here
             }
+        }
+
+        /// <summary>
+        /// How far from an item ball the interaction prompt should reach, in metres.
+        ///
+        /// The ball's own geometry is 0.28 m across. A collider that size is a target the
+        /// player has to stand on top of, and <see cref="PlayerInteractor"/> scores by the
+        /// collider's *centre*, so widening the trigger moves nothing — it only decides how
+        /// close you have to get before the game offers you the item.
+        /// </summary>
+        private const float PickupReachMetres = 0.6f;
+
+        /// <summary>
+        /// Turns a placed prop into something the player can collect.
+        ///
+        /// Three parts, and each of them is why the layout carries a <c>pickup</c> field at
+        /// all rather than this being hand-wiring in the scene: the highlight that says the
+        /// prop is an item, the trigger the interaction ray can find, and the component that
+        /// actually moves it into the bag.
+        ///
+        /// The trigger replaces the emitted collider rather than joining it. An item ball is
+        /// solid geometry standing in the middle of its own reward, so a real collider is
+        /// something the player bumps into while walking up to it — and it vanishes the
+        /// instant the item is taken, which is a solid the character controller was standing
+        /// against one frame and through the next.
+        ///
+        /// The glow goes on the renderer, not on the root. <see cref="PickupGlow"/> writes a
+        /// MaterialPropertyBlock, which is per renderer, and it requires one on its own
+        /// GameObject; an FBX instance keeps its mesh on a child.
+        /// </summary>
+        private static void AttachPickup(GameObject instance, string itemId)
+        {
+            var bounds = LocalBounds(instance);
+            var scale = Mathf.Max(0.01f, instance.transform.lossyScale.x);
+
+            var trigger = instance.AddComponent<SphereCollider>();
+            trigger.isTrigger = true;
+            trigger.center = bounds.center;
+            trigger.radius = Mathf.Max(bounds.extents.magnitude, PickupReachMetres / scale);
+
+            instance.AddComponent<ItemPickup>().ItemId = itemId;
+
+            var renderer = instance.GetComponentInChildren<Renderer>();
+            if (renderer == null)
+            {
+                Debug.LogWarning($"[Level] {instance.name} grants '{itemId}' but has no " +
+                                 "renderer to light up, so it will read as scenery.", instance);
+                return;
+            }
+            renderer.gameObject.AddComponent<PickupGlow>();
         }
 
         /// <summary>Bounds of every renderer, in the instance's own space.</summary>
@@ -981,6 +1044,8 @@ namespace PokeLab.Boot.Editor
             public string layer;
             public string tag;
             public string collider;
+            /// <summary>Item id this prop grants when collected. Empty for ordinary scenery.</summary>
+            public string pickup;
             public bool @static;
         }
 

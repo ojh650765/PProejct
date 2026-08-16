@@ -43,11 +43,44 @@ namespace PokeLab.Boot.Editor
     [InitializeOnLoad]
     public static class PlayModeProbe
     {
-        private static readonly string RequestPath =
-            Path.Combine(Directory.GetCurrentDirectory(), "Temp", "pokelab_play.json");
+        private static readonly string TempDir =
+            Path.Combine(Directory.GetCurrentDirectory(), "Temp");
 
-        private static readonly string ResultPath =
-            Path.Combine(Directory.GetCurrentDirectory(), "Temp", "pokelab_play.result.json");
+        private static readonly string RequestPath =
+            Path.Combine(TempDir, "pokelab_play.json");
+
+        private static string s_resultPath =
+            Path.Combine(TempDir, "pokelab_play.result.json");
+
+        /// <summary>
+        /// Every pending request, oldest first: the shared <c>pokelab_play.json</c> and any
+        /// <c>pokelab_play.&lt;name&gt;.json</c> beside it.
+        ///
+        /// One path was fine with one author and is not fine with three. Two workers dropped
+        /// requests seconds apart, the second overwrote the first, and the run that came back
+        /// answered a question nobody had asked — while the worker who asked the first one sat
+        /// waiting for a result file that had already been written and consumed by someone
+        /// else. Named requests give each worker its own slot, and each result lands next to
+        /// its own request rather than in one shared inbox.
+        /// </summary>
+        private static IEnumerable<string> PendingRequests()
+        {
+            if (!Directory.Exists(TempDir)) yield break;
+
+            var found = new List<string>();
+            if (File.Exists(RequestPath)) found.Add(RequestPath);
+            foreach (var path in Directory.EnumerateFiles(TempDir, "pokelab_play.*.json"))
+            {
+                if (path.EndsWith(".result.json", StringComparison.OrdinalIgnoreCase)) continue;
+                found.Add(path);
+            }
+
+            found.Sort((a, b) => File.GetLastWriteTimeUtc(a).CompareTo(File.GetLastWriteTimeUtc(b)));
+            foreach (var path in found) yield return path;
+        }
+
+        private static string ResultPathFor(string requestPath) =>
+            requestPath.Substring(0, requestPath.Length - ".json".Length) + ".result.json";
 
         /// <summary>
         /// Carries the request across the domain reload that entering Play mode causes.
@@ -55,6 +88,9 @@ namespace PokeLab.Boot.Editor
         /// closes, so a half-finished probe cannot haunt a later session.
         /// </summary>
         private const string PendingKey = "PokeLab.PlayModeProbe.Pending";
+
+        /// <summary>Where this run's result belongs, carried across the same reload.</summary>
+        private const string ResultKey = "PokeLab.PlayModeProbe.ResultPath";
 
         static PlayModeProbe()
         {
@@ -75,7 +111,8 @@ namespace PokeLab.Boot.Editor
         private static void Poll()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
-            if (!File.Exists(RequestPath)) { s_quietTicks = 0; return; }
+            var requestPath = System.Linq.Enumerable.FirstOrDefault(PendingRequests());
+            if (requestPath == null) { s_quietTicks = 0; return; }
 
             if (EditorApplication.isCompiling || EditorApplication.isUpdating)
             {
@@ -86,10 +123,12 @@ namespace PokeLab.Boot.Editor
             s_quietTicks = 0;
 
             string json;
-            try { json = File.ReadAllText(RequestPath); }
+            try { json = File.ReadAllText(requestPath); }
             catch (IOException) { return; } // Still being written; try again next tick.
 
-            File.Delete(RequestPath);
+            s_resultPath = ResultPathFor(requestPath);
+            SessionState.SetString(ResultKey, s_resultPath);
+            File.Delete(requestPath);
 
             Request request;
             try { request = JsonUtility.FromJson<Request>(json); }
@@ -159,8 +198,9 @@ namespace PokeLab.Boot.Editor
 
         private static void WriteResult(Result result)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(ResultPath) ?? ".");
-            File.WriteAllText(ResultPath, JsonUtility.ToJson(result, true), Encoding.UTF8);
+            var path = SessionState.GetString(ResultKey, s_resultPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(path) ?? ".");
+            File.WriteAllText(path, JsonUtility.ToJson(result, true), Encoding.UTF8);
         }
 
         // --- the in-play half -----------------------------------------------------------

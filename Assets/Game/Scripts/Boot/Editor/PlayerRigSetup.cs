@@ -154,7 +154,7 @@ namespace PokeLab.Boot.Editor
                 var lean = bso.FindProperty("_leanToCamera");
                 var size = bso.FindProperty("_scale");
                 if (lean != null) lean.floatValue = 0f;
-                if (size != null) size.floatValue = 0.72f;
+                if (size != null) size.floatValue = 0.58f;
                 bso.ApplyModifiedPropertiesWithoutUndo();
                 repairs++;
             }

@@ -48,12 +48,14 @@ namespace PokeLab.Overworld.People
         [Range(0f, 1f)]
         [SerializeField] private float _leanToCamera;
 
-        [Tooltip("Overall size on top of the manifest's height. The art is a two-heads-tall " +
-                 "chibi, so the height it was traced at — a literal 1.68 m — reads as a giant " +
-                 "next to buildings drawn at real proportions. The drawn character has to be " +
-                 "smaller than the person they represent for the town to look like a town.")]
+        [Tooltip("Overall size on top of the manifest's height, which traces the art at a " +
+                 "literal 1.68 m. Two-heads-tall chibi proportions do not survive being " +
+                 "placed at a real person's height next to buildings drawn at real ones: " +
+                 "0.58 puts the character at 0.97 m, under half the 2.04 m signpost they " +
+                 "stand beside, which is the relationship the DS games hold. This is the " +
+                 "one number to change if the cast reads wrong; nothing else depends on it.")]
         [Range(0.3f, 1.5f)]
-        [SerializeField] private float _scale = 0.72f;
+        [SerializeField] private float _scale = 0.58f;
 
         private static readonly string[] ShaderCandidates =
         {

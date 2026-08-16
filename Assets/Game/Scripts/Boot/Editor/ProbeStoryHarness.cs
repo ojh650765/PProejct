@@ -79,4 +79,21 @@ namespace PokeLab.Boot.Editor
         [Serializable] private sealed class Marker { public string name; public float[] position; }
         [Serializable] private sealed class Cast { public Marker[] markers; }
     }
+
+    /// <summary>
+    /// Logs every line the dialogue runner presents. Verification only — nothing in the scene
+    /// draws a line, so this is the only way to read what was actually said, and whether
+    /// {PLAYER} was substituted before it was said. A MonoBehaviour would not survive the trip
+    /// into Play mode from an editor assembly; this hook does, exactly as PlayModeProbe's does.
+    /// </summary>
+    public static class ProbeDialogueEcho
+    {
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void Hook()
+        {
+            var runner = UnityEngine.Object.FindAnyObjectByType<DialogueRunner>();
+            if (runner == null) return;
+            runner.LinePresented += line => Debug.Log($"[ProbeEcho] {line.SpeakerName}: {line.Text}");
+        }
+    }
 }
