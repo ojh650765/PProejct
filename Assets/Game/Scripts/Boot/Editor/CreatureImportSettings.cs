@@ -24,6 +24,7 @@ namespace PokeLab.Boot.Editor
         private const string FoliageRoot = "Assets/Game/Art/Environment/Foliage/";
         private const string TownRoot = "Assets/Game/Art/Environment/Town/";
         private const string TerrainRoot = "Assets/Game/Art/Environment/Terrain/";
+        private const string SpriteRoot = "Assets/Game/Art/Sprites/";
 
         /// <summary>
         /// Which hand-authored material each art family is bound to.
@@ -125,7 +126,8 @@ namespace PokeLab.Boot.Editor
         private static bool IsGameArt(string path) =>
             path.StartsWith(CreatureRoot, StringComparison.Ordinal)
             || path.StartsWith(EnvironmentRoot, StringComparison.Ordinal)
-            || path.StartsWith(PropRoot, StringComparison.Ordinal);
+            || path.StartsWith(PropRoot, StringComparison.Ordinal)
+            || path.StartsWith(SpriteRoot, StringComparison.Ordinal);
 
         private void OnPreprocessModel()
         {
@@ -279,13 +281,19 @@ namespace PokeLab.Boot.Editor
         [MenuItem("Tools/Poké Lab/Art/Reimport All Art")]
         public static void ReimportAll()
         {
-            var roots = new[] { CreatureRoot, EnvironmentRoot, PropRoot };
+            var roots = new[] { CreatureRoot, EnvironmentRoot, PropRoot, SpriteRoot };
             var reimported = 0;
 
             foreach (var root in roots)
             {
                 if (!AssetDatabase.IsValidFolder(root.TrimEnd('/'))) continue;
-                foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { root.TrimEnd('/') }))
+                // Textures as well as models. This only reimported t:Model, so every rule in
+                // OnPreprocessTexture — including the pixel-art rules that decide whether the
+                // creature sheets are blurry — could be changed and then never applied to
+                // anything, because touching the postprocessor does not change a texture's
+                // content hash.
+                foreach (var guid in AssetDatabase.FindAssets("t:Model t:Texture",
+                             new[] { root.TrimEnd('/') }))
                 {
                     AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid),
                         ImportAssetOptions.ForceUpdate);
@@ -316,8 +324,61 @@ namespace PokeLab.Boot.Editor
                 return;
             }
 
+            if (assetPath.StartsWith(SpriteRoot, StringComparison.Ordinal))
+            {
+                ApplyPixelArtRules(importer);
+                return;
+            }
+
             importer.textureType = TextureImporterType.Default;
             importer.sRGBTexture = true;
+        }
+
+        /// <summary>
+        /// Import rules for hand-drawn pixel sheets.
+        ///
+        /// This root was outside <see cref="IsGameArt"/>, so 106 of the 124 creature and
+        /// person sheets shipped on Unity's defaults, and the two defaults that matter are
+        /// both wrong for pixel art:
+        ///
+        /// <b>Mipmaps.</b> A 768x672 sheet drawn small on screen samples a downscaled mip
+        /// rather than the pixels that were drawn — which is exactly "everything looks low
+        /// resolution and blurry". Point filtering cannot save it, because the blur is baked
+        /// into the mip before filtering happens.
+        ///
+        /// <b>Compression.</b> The standalone override was set to compress. Block compression
+        /// on hard-edged art with flat colour fields bleeds colour across the block and
+        /// stipples the outlines, which is the second half of the same complaint.
+        ///
+        /// Anisotropy is dropped for the same reason as mipmaps, and the sheets are read as
+        /// Default rather than Sprite because they are sampled through a material by the
+        /// billboards, not through the sprite renderer.
+        /// </summary>
+        private static void ApplyPixelArtRules(TextureImporter importer)
+        {
+            importer.textureType = TextureImporterType.Default;
+            importer.sRGBTexture = true;
+            importer.alphaIsTransparency = true;
+            importer.alphaSource = TextureImporterAlphaSource.FromInput;
+
+            importer.mipmapEnabled = false;
+            importer.filterMode = FilterMode.Point;
+            importer.anisoLevel = 0;
+            importer.wrapMode = TextureWrapMode.Clamp;
+
+            // Uncompressed on every platform, not just the default one. A per-platform
+            // override is what was compressing these while the default said otherwise, so
+            // setting the default alone would have looked fixed and changed nothing.
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            foreach (var platform in new[] { "Standalone", "WebGL", "Android", "iPhone" })
+            {
+                var settings = importer.GetPlatformTextureSettings(platform);
+                settings.overridden = true;
+                settings.textureCompression = TextureImporterCompression.Uncompressed;
+                settings.format = TextureImporterFormat.RGBA32;
+                settings.maxTextureSize = 2048;
+                importer.SetPlatformTextureSettings(settings);
+            }
         }
     }
 }
