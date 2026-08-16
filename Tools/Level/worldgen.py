@@ -385,8 +385,16 @@ class HeightField:
         self.micro = micro
         self.conform = []          # (points, half_width, blend)
 
-    def add_conform(self, points, half_width, blend):
-        self.conform.append((points, half_width, blend))
+    def add_conform(self, points, half_width, blend, skippable=True):
+        """`skippable` marks a conform that a bridge span is allowed to suspend.
+
+        Roads are skippable: under a bridge the road must stop dragging the ground up
+        with it, or the water has nothing to pass through. The stream channel is not.
+        Suspending the channel as well leaves the bed higher than the water surface,
+        and the stream disappears into the ground exactly where the bridge is -- which
+        reads as a bridge standing on dry dirt between two disconnected pools.
+        """
+        self.conform.append((points, half_width, blend, skippable))
 
     def raw(self, x, z):
         y = self.base_fn(x, z)
@@ -397,10 +405,14 @@ class HeightField:
         y += self.micro(x, z)
         return y
 
-    def height(self, x, z):
+    def height(self, x, z, skippable=True):
+        """Terrain height. With `skippable` false, only the conforms a bridge may not
+        suspend are applied -- in practice, the stream channel but not the roads."""
         y = self.raw(x, z)
         best_w, best_y = 0.0, 0.0
-        for points, hw, blend in self.conform:
+        for points, hw, blend, is_skippable in self.conform:
+            if is_skippable and not skippable:
+                continue
             d, pt, _ = closest_on_polyline(x, z, points)
             if d >= hw + blend:
                 continue

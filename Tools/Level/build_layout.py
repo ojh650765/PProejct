@@ -372,13 +372,22 @@ def build_height_field():
         field.add_conform(p["points"], p["width"] * 0.5, p["edgeBlend"] + 0.7)
     stream = resample(chaikin(STREAM_CONTROL, 3), 0.75)
     bed = [(x, y - STREAM_BED_DROP, z) for x, y, z in stream]
-    field.add_conform(bed, STREAM_HALF_WIDTH, 2.6)
+    # Not skippable: the channel has to stay cut under the bridge, or the water has
+    # nowhere to run and vanishes into the bank at the crossing.
+    field.add_conform(bed, STREAM_HALF_WIDTH, 2.6, skippable=False)
     return field, paths, stream
 
 
 def apply_skips(field):
-    """Suppress conform under bridged spans, so water passes beneath rather than the road
-    dragging the ground up with it."""
+    """Suspend the *road* conform under bridged spans, so water passes beneath rather
+    than the road dragging the ground up with it.
+
+    This used to fall back to `field.raw`, which drops every conform -- including the
+    stream channel. The bed then sat above the water surface at the one point where
+    the two must meet, so the stream disappeared into the ground under the bridge and
+    the bridge read as standing on dry dirt between two unconnected pools. Falling
+    back to the non-skippable conforms instead keeps the channel cut.
+    """
     original = field.height
 
     def height(x, z):
@@ -386,7 +395,9 @@ def apply_skips(field):
             d = math.hypot(x - cx, z - cz)
             if d < r:
                 w = smootherstep(d / r)
-                return lerp(field.raw(x, z), original(x, z), w)
+                # `original`, not `field.height` -- the latter is this very closure by
+                # the time it runs, and calling it would recurse forever.
+                return lerp(original(x, z, skippable=False), original(x, z), w)
         return original(x, z)
 
     field.height = height
@@ -853,27 +864,27 @@ def build():
 
     field("Field_Route_NorthGrass", "tall_grass",
           [(-4, 15.0), (4, 16.6), (11, 19.0), (14, 22.0), (11, 25.5), (2, 24.0), (-5, 20.5)],
-          16.0, [("Env_TallGrass_Cluster_A", 4), ("Env_TallGrass_Cluster_B", 3),
+          8.0, [("Env_TallGrass_Cluster_A", 4), ("Env_TallGrass_Cluster_B", 3),
                  ("Env_TallGrass_Cluster_D", 3), ("Env_TallGrass_Cluster_C", 2)],
           ROUTE + "/TallGrass", "Zone_Route",
           "The big encounter field, filling the gap between the road's north edge and the "
           "massif foot. One contiguous mass with a readable silhouette -- BDSP tall grass is "
-          "never a sprinkle.", scale=(0.95, 1.25), encounters=True)
+          "never a sprinkle.", scale=(0.62, 0.86), encounters=True)
     field("Field_Route_SouthGrass", "tall_grass",
           [(-1, 10.0), (7, 11.2), (14.5, 14.0), (16, 17.0), (11, 17.5), (3, 15.0), (-3, 12.5)],
-          16.0, [("Env_TallGrass_Cluster_B", 4), ("Env_TallGrass_Cluster_A", 3),
+          8.0, [("Env_TallGrass_Cluster_B", 4), ("Env_TallGrass_Cluster_A", 3),
                  ("Env_TallGrass_Cluster_C", 3), ("Env_TallGrass_Cluster_D", 2)],
           ROUTE + "/TallGrass", "Zone_Route",
           "Second field, south verge. Deliberately narrower so the player can choose to "
           "skirt it -- avoidable encounters are what make the wide ones a decision.",
-          scale=(0.95, 1.25), encounters=True)
+          scale=(0.62, 0.86), encounters=True)
     field("Field_Route_ShelfGrass", "tall_grass",
           [(5.5, 6.0), (10, 8.0), (13, 10.5), (13.5, 12.5), (9, 10.0), (5.0, 7.0)],
-          16.0, [("Env_TallGrass_Cluster_C", 4), ("Env_TallGrass_Cluster_A", 3),
+          8.5, [("Env_TallGrass_Cluster_C", 4), ("Env_TallGrass_Cluster_A", 3),
                  ("Env_TallGrass_Cluster_D", 3)],
           ROUTE + "/TallGrass", "Zone_Route",
           "On the shelf below the ledge, around the item ball. The reward for hopping down.",
-          scale=(1.0, 1.3), encounters=True)
+          scale=(0.66, 0.90), encounters=True)
     field("Field_Route_Meadow", "meadow",
           [(-8, 8), (6, 10), (18, 15), (22, 22), (14, 30), (2, 27), (-6, 22), (-10, 14)],
           0.16, [("Env_Grass_Clump_B", 3), ("Env_Grass_Blade", 3), ("Env_Flower_White", 2),
@@ -949,11 +960,11 @@ def build():
           "reads as open water you would want to surf across.", scale=(0.9, 1.4))
     field("Field_Lake_ShoreGrass", "tall_grass",
           [(39, 32), (47, 30), (53, 33), (51, 38), (43, 39)],
-          14.0, [("Env_TallGrass_Cluster_D", 4), ("Env_TallGrass_Cluster_B", 3),
+          7.5, [("Env_TallGrass_Cluster_D", 4), ("Env_TallGrass_Cluster_B", 3),
                  ("Env_TallGrass_Cluster_A", 2)],
           LAKE + "/TallGrass", "Zone_Lakeside",
           "Beach-side encounter field, the only one in the zone -- water Pokemon come from "
-          "the surf trigger instead.", scale=(0.95, 1.25), encounters=True)
+          "the surf trigger instead.", scale=(0.62, 0.86), encounters=True)
     field("Field_Lake_Meadow", "meadow",
           [(28, 27), (40, 30), (44, 40), (42, 56), (34, 58), (30, 42), (27, 32)],
           0.15, [("Env_Grass_Blade", 3), ("Env_Grass_Clump_B", 2), ("Env_Flower_White", 2),
@@ -1018,11 +1029,11 @@ def build():
           "the whole colour note.", scale=(0.85, 1.3))
     field("Field_Cave_Grass", "tall_grass",
           [(-5, 58), (-13, 61.5), (-19.5, 64), (-20.5, 59.5), (-11, 56.0)],
-          12.0, [("Env_TallGrass_Cluster_B", 4), ("Env_TallGrass_Cluster_C", 3),
+          7.0, [("Env_TallGrass_Cluster_B", 4), ("Env_TallGrass_Cluster_C", 3),
                  ("Env_Moss_Cave_B", 2)],
           CAVE + "/TallGrass", "Zone_Cave",
           "The chamber's encounter patch, pushed to the back so the player has to commit to "
-          "the dark before anything happens.", scale=(0.9, 1.15), encounters=True)
+          "the dark before anything happens.", scale=(0.60, 0.82), encounters=True)
 
     # Gorge dressing, on the outside.
     for cx, cz, r, n in [(5.6, 34.0, 1.8, 5), (-1.6, 38.0, 1.8, 4), (5.4, 44.0, 1.8, 5),

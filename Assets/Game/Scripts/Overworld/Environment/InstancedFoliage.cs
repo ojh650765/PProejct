@@ -49,7 +49,6 @@ namespace PokeLab.Overworld
         [SerializeField] private bool _receiveShadows = true;
 
         private readonly Plane[] _frustum = new Plane[6];
-        private Camera _lastCamera;
 
         public IReadOnlyList<Group> Groups => _groups;
 
@@ -112,21 +111,31 @@ namespace PokeLab.Overworld
             }
         }
 
-        private void OnEnable() => Rebuild();
-
-        private void LateUpdate()
+        private void OnEnable()
         {
-            var cam = Camera.main;
-#if UNITY_EDITOR
-            if (!Application.isPlaying)
-            {
-                var view = UnityEditor.SceneView.lastActiveSceneView;
-                if (view != null && view.camera != null) cam = view.camera;
-            }
-#endif
-            if (cam == null) return;
+            Rebuild();
+            RenderPipelineManager.beginCameraRendering += Draw;
+        }
 
-            if (cam != _lastCamera) _lastCamera = cam;
+        private void OnDisable()
+        {
+            RenderPipelineManager.beginCameraRendering -= Draw;
+        }
+
+        /// <summary>
+        /// Submits the batches for whichever camera is about to render.
+        ///
+        /// Drawing from Update or LateUpdate does not work. DrawMeshInstanced submits for
+        /// exactly one frame and, when given a camera, for exactly that camera — while the
+        /// editor repaints its views on its own schedule and the update loop does not run
+        /// once per repaint. The result is grass that appears and vanishes between frames,
+        /// and grass that is missing entirely from any camera the update loop did not
+        /// happen to name. This callback fires once per camera per render, in both edit
+        /// and play mode, which is exactly the moment the submission is wanted.
+        /// </summary>
+        private void Draw(ScriptableRenderContext context, Camera cam)
+        {
+            if (cam == null) return;
             GeometryUtility.CalculateFrustumPlanes(cam, _frustum);
             var eye = cam.transform.position;
             var maxSqr = _drawDistance * _drawDistance;

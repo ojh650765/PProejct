@@ -21,9 +21,34 @@ namespace PokeLab.Boot.Editor
         private const string EnvironmentRoot = "Assets/Game/Art/Environment/";
         private const string PropRoot = "Assets/Game/Art/Props/";
         private const string FoliageRoot = "Assets/Game/Art/Environment/Foliage/";
+        private const string TownRoot = "Assets/Game/Art/Environment/Town/";
+        private const string TerrainRoot = "Assets/Game/Art/Environment/Terrain/";
 
-        private const string FoliageMaterial =
-            "Assets/Game/Art/Environment/Foliage/Materials/M_Env_Foliage.mat";
+        /// <summary>
+        /// Which hand-authored material each art family is bound to.
+        ///
+        /// Every one of these families was arriving on URP/Lit, because that is what the
+        /// FBX importer generates and nothing overrode it. The project has four shaders
+        /// written and verified for exactly this art — and not one of them was reaching
+        /// the meshes. The visible cost was not subtle: props and rocks rendered almost
+        /// black next to a bright ground, because our shaders read the ambient the
+        /// LightingDirector publishes in <c>_PL_Ambient*</c> while URP/Lit reads Unity's
+        /// own, which this project never populates.
+        /// </summary>
+        private static readonly (string Root, string Material)[] MaterialBindings =
+        {
+            (FoliageRoot, "Assets/Game/Art/Environment/Foliage/Materials/M_Env_Foliage.mat"),
+            (TownRoot, "Assets/Game/Art/Environment/Town/Materials/M_Env_Town.mat"),
+            (TerrainRoot, "Assets/Game/Art/Environment/Terrain/Materials/M_Env_Terrain.mat"),
+        };
+
+        private static string BindingFor(string path)
+        {
+            foreach (var (root, material) in MaterialBindings)
+                if (path.StartsWith(root, StringComparison.Ordinal))
+                    return material;
+            return null;
+        }
 
         /// <summary>Clips that must loop. Everything else is a one-shot.</summary>
         private static readonly string[] LoopingClips =
@@ -57,12 +82,13 @@ namespace PokeLab.Boot.Editor
             importer.importBlendShapes = true;
             importer.weldVertices = false;
 
-            if (assetPath.StartsWith(FoliageRoot, StringComparison.Ordinal))
+            if (BindingFor(assetPath) != null)
             {
-                // Foliage gets one shared hand-authored material in OnPostprocessModel.
-                // Importing materials as well would keep regenerating the URP/Lit asset
-                // that culled the back of every grass clump, and leave it in the project
-                // as a second, wrong answer to "what shades the grass".
+                // Bound families get one shared hand-authored material in
+                // OnPostprocessModel. Importing materials as well would keep
+                // regenerating the URP/Lit asset that culled the back of every grass
+                // clump, and leave it in the project as a second, wrong answer to the
+                // question of what shades this art.
                 importer.materialImportMode = ModelImporterMaterialImportMode.None;
             }
             else
@@ -95,10 +121,10 @@ namespace PokeLab.Boot.Editor
         }
 
         /// <summary>
-        /// Binds foliage to the two-sided foliage shader instead of the material Unity
+        /// Binds an art family to its hand-authored material instead of the one Unity
         /// generates from the FBX.
         ///
-        /// This is not a preference. Every grass blade in the kit is authored as a single
+        /// For foliage this is not a preference. Every grass blade in the kit is a single
         /// sided ribbon — six triangles instead of twelve — on the explicit understanding
         /// that the shader is <c>Cull Off</c> (see the comment in
         /// <c>Tools/Blender/environment/gen_foliage.py</c>, `tall_grass`). Unity's imported
@@ -112,16 +138,16 @@ namespace PokeLab.Boot.Editor
         /// family to one shared material also collapses it to a single draw call per
         /// instanced batch, which is what makes dense grass affordable.
         /// </summary>
-        private void AssignFoliageMaterial(GameObject root)
+        private void AssignBoundMaterial(GameObject root, string materialPath)
         {
-            var shared = AssetDatabase.LoadAssetAtPath<Material>(FoliageMaterial);
+            var shared = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
             if (shared == null)
             {
                 Debug.LogWarning(
-                    $"[FoliageImport] {FoliageMaterial} is missing, so " +
-                    $"{System.IO.Path.GetFileName(assetPath)} kept an imported URP/Lit " +
-                    "material. That material culls back faces and the blades are single " +
-                    "sided, so the far side of every clump will be invisible.");
+                    $"[EnvImport] {materialPath} is missing, so " +
+                    $"{System.IO.Path.GetFileName(assetPath)} has no material at all. " +
+                    "It will render magenta rather than fall back to URP/Lit, which is " +
+                    "deliberate — a silent fallback is what hid this for so long.");
                 return;
             }
 
@@ -135,8 +161,8 @@ namespace PokeLab.Boot.Editor
 
         private void OnPostprocessModel(GameObject root)
         {
-            if (assetPath.StartsWith(FoliageRoot, StringComparison.Ordinal))
-                AssignFoliageMaterial(root);
+            var binding = BindingFor(assetPath);
+            if (binding != null) AssignBoundMaterial(root, binding);
 
             if (!assetPath.StartsWith(CreatureRoot, StringComparison.Ordinal)) return;
             if (assetPath.EndsWith("_LOD1.fbx", StringComparison.OrdinalIgnoreCase)) return;

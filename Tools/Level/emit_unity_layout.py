@@ -161,6 +161,26 @@ class SurfacePainter:
                 layer_of(p["material"], p["name"]),
             ))
 
+    def paved_clearance(self, x, z):
+        """How far inside a paved surface this point is, in metres, or 0 if it is not.
+
+        Foliage is scattered inside hand-drawn field polygons, and those polygons were
+        drawn as regions — they overlap the roads that cross them. Nothing rejected the
+        overlap, so grass grew out of the road surface. The road corridor is known here
+        exactly (it is the same centreline the terrain was flattened along), so the
+        scatter can just ask.
+        """
+        # Starts far outside, not at zero: this is a signed depth, and clamping the
+        # floor to zero would report every point in the world as being on the kerb.
+        best = -1e9
+        for pts, half, _, _ in self.roads:
+            d, _, _ = closest_on_polyline(x, z, pts)
+            best = max(best, half - d)
+        for poly, _, layer in self.patches:
+            if layer in (ROCK, DIRT):
+                best = max(best, -poly_sdf(x, z, poly))
+        return best
+
     def at(self, x, z):
         w = [0.0, 0.0, 0.0, 0.0]
         w[GRASS] = 1.0
@@ -336,12 +356,19 @@ def subdivide(tri, max_edge):
     return out
 
 
-def build_stream(body):
+def build_stream(body, grid):
     """A flowing ribbon whose surface falls along its length.
 
-    The stream has no polygon and no single waterline: it drops 1.70 m over 66 m, so
-    holding it at one Y would either bury it at the top or float it at the bottom.
-    Each rung of the ribbon takes the Y authored at that point of the centreline.
+    The stream has no single waterline: it drops 1.70 m over 66 m, so holding it at
+    one Y would either bury it at the top or float it at the bottom. Each rung takes
+    the Y authored at that point of the centreline.
+
+    Each rung is also widened until its edge is *under* the bank. The channel is cut
+    0.5 m below the water surface across the authored half width and only then
+    feathers up, so a ribbon that stops at exactly that half width ends half a metre
+    above the ground beneath it — the water and the land visibly come apart at any
+    low angle. Marching outward until the terrain has risen past the waterline puts
+    the seam inside the bank instead, where it cannot be seen.
 
     UV.y runs in metres along the flow so the water shader's scroll moves downstream
     at a constant speed regardless of how the rungs happen to be spaced.
@@ -350,9 +377,21 @@ def build_stream(body):
     if len(line) < 2:
         return None
     half = float(body.get("halfWidth", 1.5))
+    # Cap the search so a rung crossing an unusually flat bank cannot run away across
+    # the meadow; past this the bank is too shallow for the trick to help anyway.
+    reach, step = 3.5, 0.25
+
+    def edge(x, z, nx, nz, y):
+        d = half
+        while d < half + reach:
+            d += step
+            if grid.at(x + nx * d, z + nz * d) > y:
+                break
+        return d
 
     verts, uvs, tris = [], [], []
     run = 0.0
+    widths = []
     for i, (x, y, z) in enumerate(line):
         if i > 0:
             run += math.hypot(x - line[i - 1][0], z - line[i - 1][2])
@@ -361,8 +400,13 @@ def build_stream(body):
         b = line[min(len(line) - 1, i + 1)]
         tx, tz = b[0] - a[0], b[2] - a[2]
         n = math.hypot(tx, tz) or 1.0
-        px, pz = -tz / n * half, tx / n * half
-        verts.extend((x + px, y, z + pz, x - px, y, z - pz))
+        nx, nz = -tz / n, tx / n
+
+        left = edge(x, z, nx, nz, y)
+        right = edge(x, z, -nx, -nz, y)
+        widths.append(left + right)
+        verts.extend((x + nx * left, y, z + nz * left,
+                      x - nx * right, y, z - nz * right))
         uvs.extend((0.0, run, 1.0, run))
         if i > 0:
             k = (i - 1) * 2
@@ -375,10 +419,12 @@ def build_stream(body):
         "vertices": [round(v, 4) for v in verts],
         "uvs": [round(v, 3) for v in uvs],
         "triangles": tris,
+        "widthMin": round(min(widths), 2),
+        "widthMax": round(max(widths), 2),
     }
 
 
-def build_water(layout):
+def build_water(layout, grid):
     """Flat surfaces at each body's authored waterline, plus the flowing stream.
 
     Subdivided even though they are flat, because the water shader displaces vertices
@@ -390,7 +436,7 @@ def build_water(layout):
         # stream ships both, and its polygon is only the ribbon's flat outline —
         # using it would hold a watercourse that falls 1.7 m at a single height.
         if "centreline" in body:
-            strip = build_stream(body)
+            strip = build_stream(body, grid)
             if strip:
                 out.append(strip)
             continue
@@ -473,7 +519,7 @@ def cave_entrances(layout, grid):
 
 # --- foliage ----------------------------------------------------------------------
 
-def scatter_foliage(layout, grid, caves):
+def scatter_foliage(layout, grid, caves, painter):
     """Turn each field into concrete instance transforms.
 
     Scattering happens here rather than in C# so the Y of every blade comes from the
@@ -509,6 +555,7 @@ def scatter_foliage(layout, grid, caves):
 
         buckets = {p["prefab"]: [] for p in prefabs}
         placed = 0
+        rejected_paved = 0
         nx = max(1, int(math.ceil((maxx - minx) / cell)))
         nz = max(1, int(math.ceil((maxz - minz) / cell)))
         cells = [(i, j) for j in range(nz) for i in range(nx)]
@@ -522,6 +569,11 @@ def scatter_foliage(layout, grid, caves):
             if not point_in_poly(x, z, poly):
                 continue
             if inside_any(x, z, caves):
+                continue
+            # Keep a hand's breadth off the paving as well as off it: a blade rooted
+            # exactly on the kerb line still reads as growing out of the road.
+            if painter.paved_clearance(x, z) > -0.25:
+                rejected_paved += 1
                 continue
 
             roll = rng.random() * total_weight
@@ -547,6 +599,7 @@ def scatter_foliage(layout, grid, caves):
             "groups": [{"prefab": k, "instances": [v for inst in vs for v in inst]}
                        for k, vs in buckets.items() if vs],
             "placed": placed,
+            "rejectedOnPaving": rejected_paved,
         })
     return fields
 
@@ -562,8 +615,8 @@ def main():
     caves = cave_interiors(layout)
 
     ground = build_ground(grid, painter, layout["extents"])
-    water = build_water(layout)
-    foliage = scatter_foliage(layout, grid, caves)
+    water = build_water(layout, grid)
+    foliage = scatter_foliage(layout, grid, caves, painter)
 
     objects, interior = [], 0
     for o in layout.get("objects", []):
@@ -619,8 +672,8 @@ def main():
     total_inst = 0
     for f in foliage:
         total_inst += f["placed"]
-        print("  foliage    %-24s %5d instances in %d group(s)"
-              % (f["name"], f["placed"], len(f["groups"])))
+        print("  foliage    %-24s %5d instances in %d group(s), %d rejected on paving"
+              % (f["name"], f["placed"], len(f["groups"]), f["rejectedOnPaving"]))
     print("  foliage total %d instances" % total_inst)
     print("  objects %d  (%d held back for cave scenes)" % (len(objects), interior))
     print("  anchors %d  grass triggers %d  cave entrances %d  spawn %s"

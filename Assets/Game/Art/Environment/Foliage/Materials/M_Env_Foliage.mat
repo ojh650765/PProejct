@@ -34,6 +34,15 @@ Material:
     m_Ints: []
     m_Floats:
     - _BumpScale: 0.7
+    # Gradient and per-instance variation are kept near neutral, because this one
+    # material shades the whole family -- bark, canopies, ferns and grass all come off
+    # the same atlas. The shader multiplies albedo by lerp(_RootColor, _TipColor,
+    # vertexColour.r), and vertexColour.r is the *sway mask*, which is 0 at any
+    # anchored base. With the shader's authored default of (0.16, 0.32, 0.18) that
+    # multiplied every tree trunk by dark green, which is exactly what it looked like.
+    # The atlas already carries the real colours; the ramp's job here is a little
+    # occlusion toward the ground, not hue.
+    - _GradientPower: 1
     # The atlas is an RGB PNG with no alpha channel, so sampled alpha is always 1
     # and the clip is a no-op. Cutoff is left at its default rather than raised,
     # because raising it on alpha-free art would clip the entire canopy away the
@@ -43,31 +52,40 @@ Material:
     # for a coverage value that is constant 1 on this art; it earns its keep only
     # on real cutout foliage.
     - _AlphaToMask: 0
-    - _GradientPower: 1
-    - _VariationStrength: 0.35
+    - _VariationStrength: 0.18
     - _ShadeSteps: 3
     - _ShadeSoftness: 0.02
     - _ShadeWrap: 0.45
     - _ShadowStrength: 0.65
     - _OcclusionStrength: 0.8
-    - _TranslucencyStrength: 1.6
+    # Backlit-leaf glow, pulled back from the shader default: it multiplies albedo, so
+    # on bark it reads as a dark green wash rather than as translucency.
+    - _TranslucencyStrength: 1.05
     - _TranslucencyPower: 5
     - _SpecularStrength: 0.08
     - _SpecularSharpness: 36
-    - _RimStrength: 0.5
+    - _RimStrength: 0.35
     - _RimPower: 3
-    - _SwayAmplitude: 0.16
-    - _SwaySpeed: 0.9
-    - _FlutterAmplitude: 0.045
-    - _FlutterSpeed: 6.5
-    - _GustStrength: 0.9
-    - _WindDistanceFade: 45
+    # Wind, tuned for grass that visibly moves rather than trembles. The three layers
+    # are already the right shape -- a broad sway, a squared noise gust scrolling
+    # downwind so calm is the resting state and a gust reads as a wave crossing the
+    # field, and a tip-only flutter -- so this is amplitude, not new machinery.
+    # Gust is the layer that carries the look and is raised the most.
+    - _SwayAmplitude: 0.24
+    - _SwaySpeed: 1.1
+    - _FlutterAmplitude: 0.062
+    - _FlutterSpeed: 7.4
+    - _GustStrength: 1.7
+    # Matched to InstancedFoliage's 70 m draw distance. Leaving it at 45 froze the
+    # grass over the last 25 m of its own draw range, which reads as a band of dead
+    # grass tracking the camera.
+    - _WindDistanceFade: 70
     - _NormalSpherify: 0.45
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _TipColor: {r: 0.72, g: 0.88, b: 0.42, a: 1}
-    - _RootColor: {r: 0.16, g: 0.32, b: 0.18, a: 1}
-    - _HueVariation: {r: 0.85, g: 1, b: 0.7, a: 1}
+    - _TipColor: {r: 1, g: 1, b: 1, a: 1}
+    - _RootColor: {r: 0.8, g: 0.81, b: 0.78, a: 1}
+    - _HueVariation: {r: 0.95, g: 1, b: 0.93, a: 1}
     - _ShadeColor: {r: 0.38, g: 0.48, b: 0.55, a: 1}
     - _TranslucencyColor: {r: 0.55, g: 0.95, b: 0.3, a: 1}
   m_BuildTextureStacks: []
