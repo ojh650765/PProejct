@@ -651,6 +651,55 @@ class Builder:
         self.reasons[key] = self.reasons.get(key, 0) + 1
         return None
 
+    def prop_run(self, asset, points, parent, tag_prefix, gaps=(), offset=0.0,
+                 flip=False, sink=0.06):
+        """Lay a modular barrier end to end along a polyline.
+
+        Env_Ledge_* and Env_Riverbank_* are built for exactly this and were placed
+        nowhere: their pivot is the module corner, they run along +X, and they are
+        1.19 m and 0.60 m tall. That height is the whole point. The terrain is a smooth
+        height field on a 1 m grid with no vertical discontinuity anywhere, so
+        PlayerLocomotion's 0.45 m step limit never fires and the only gate terrain can
+        offer is a face steeper than its 48 degree slope limit -- which needs adjacent
+        samples to differ by more than 1.11 m. Every ledge and every riverbank in this
+        layout was authored as a barrier and measured as walkable. A prop with a
+        vertical collider face is absolute at any grid resolution.
+
+        `gaps` are (x, z, radius) circles the run skips: a barrier with no way through
+        is a wall, and the design wants crossings -- the bridge, the stepping stones,
+        the plunge pool.
+        """
+        info = self.bounds[asset]
+        length = info["size"][0]
+        placed = 0
+        run = 0.0
+        total = polyline_length(points)
+        while run + length <= total + 0.01:
+            mid = run + length * 0.5
+            t = mid / total if total > 0 else 0.0
+            ax, az = offset_point(points, t, 0, 0.0)
+            if any(math.hypot(ax - gx, az - gz) < gr for gx, gz, gr in gaps):
+                run += length
+                continue
+
+            # Tangent at the module's midpoint, so a curved bank does not stair-step.
+            _, _, tangent = closest_on_polyline(ax, az, points)
+            yaw = yaw_towards(tangent[0], tangent[1]) - 90.0
+            if flip:
+                yaw += 180.0
+            r = math.radians(yaw)
+            nx, nz = math.cos(r), -math.sin(r)      # the module's own +X
+            px, pz = ax - nx * length * 0.5, az - nz * length * 0.5
+            if offset:
+                px += -nz * offset
+                pz += nx * offset
+
+            self.place(asset, px, pz, yaw, parent, tag_prefix,
+                       y=self.ground(px, pz) - sink, road_margin=0.0)
+            placed += 1
+            run += length
+        return placed
+
     def reserve(self, x, z, yaw, half_w, half_d):
         self.footprints.append((x, z, yaw, half_w, half_d))
 
@@ -1217,6 +1266,38 @@ def build():
           0.20, [("Env_Grass_Clump_B", 3), ("Env_Fern_A", 2), ("Env_Fern_B", 2),
                  ("Env_Flower_Purple", 1)],
           CAVE + "/Foliage", "Zone_Cave", "Damp ferny cover up the gorge floor.")
+
+    # --- barriers -------------------------------------------------------------
+    #
+    # Appended last on purpose. Every placement draws from one seeded RNG, so a call
+    # inserted earlier re-jitters everything after it -- a prototype of these edits
+    # moved 57 existing objects that had nothing to do with them.
+    #
+    # These are the pieces that make the level's own gates real. The layout claims
+    # three: a one-way ledge, a stream crossed at one bridge, and stepping stones as
+    # "the slice's one optional detour". Measured against PlayerLocomotion's actual
+    # limits (48 degree slope, 0.45 m step) not one of them gates anything -- the
+    # terrain is a smooth height field with no vertical discontinuity, so the step
+    # limit never fires and every "cliff" is a walkable face. Env_Ledge_* (1.19 m) and
+    # Env_Riverbank_* (0.60 m) were modelled for exactly this and placed nowhere.
+    bank = resample(stream, 1.0)
+    crossings = [
+        (13.0, 18.2, 3.6),    # the bridge -- the route's gate
+        (33.2, 15.6, 3.2),    # the stepping stones
+        (11.0, 28.5, 5.0),    # the plunge pool, where the waterfall lands
+    ]
+    left = b.prop_run("Env_Riverbank_4m", bank, ROUTE + "/Terrain", "Route_BankWest",
+                      gaps=crossings, offset=1.9)
+    right = b.prop_run("Env_Riverbank_4m", bank, ROUTE + "/Terrain", "Route_BankEast",
+                       gaps=crossings, offset=-1.9, flip=True)
+
+    # The one-way ledge the design already describes: "hop south-east only ... a hard
+    # barrier coming back -- you walk around via the crossroads."
+    lip = resample(chaikin([(4.0, 8.0), (9.0, 10.0), (12.5, 12.0), (14.0, 14.0)], 2), 1.0)
+    hop = b.prop_run("Env_Ledge_4m", lip, ROUTE + "/Terrain", "Route_LedgeLip", offset=0.0)
+
+    print("  barriers           %d west bank, %d east bank, %d ledge modules"
+          % (left, right, hop))
 
     return b, baked, paths, stream, lake_poly, stream_poly, plaza, cave_floor
 

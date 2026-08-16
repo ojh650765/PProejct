@@ -657,6 +657,18 @@ def is_entrance(prefab):
     return any(k in prefab for k in ENTRANCE_ASSETS)
 
 
+# Barrier modules. A riverbank stands at the water's edge and a ledge lip stands on a
+# steep face -- that is what each is for -- so the rules that keep scenery out of the
+# lake and off the cliffs would delete exactly the pieces that make the level's gates
+# real. Every one of them was dropped before this exemption existed: 20 riverbank
+# modules and 1 of 2 ledge modules.
+BARRIER_ASSETS = ("Env_Riverbank_", "Env_Ledge_")
+
+
+def is_barrier(prefab):
+    return any(k in prefab for k in BARRIER_ASSETS)
+
+
 def cave_entrances(layout, grid):
     """Where the overworld hands off to a cave scene."""
     out = []
@@ -1045,6 +1057,11 @@ def main():
             continue
         asset = o.get("prefab", "").split("/")[-1]
         slope = grid.slope_degrees(x, z)
+        if is_barrier(o.get("prefab", "")):
+            o = dict(o)
+            o["collider"] = collider_for(o.get("prefab", ""))
+            objects.append(o)
+            continue
         if asset.startswith(PLANTED) and slope > MAX_PLANT_SLOPE:
             cliffside += 1
             continue
