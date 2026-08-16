@@ -159,6 +159,39 @@ namespace PokeLab.Boot.Editor
                 repairs++;
             }
 
+            // Everything BuildHosts adds. Repair used to skip this entirely, so every
+            // system written after the rig was first created — the dialogue presenter, the
+            // encounter director, the surf mount, the world streamer — existed in the
+            // project and in no scene. The rig had been built once, so the only path that
+            // could place them never ran again.
+            //
+            // Safe to call on an existing scene: every add in there is guarded by its own
+            // GetComponent check, so this fills gaps and changes nothing already present.
+            var locomotionForHosts = Object.FindFirstObjectByType<PlayerLocomotion>();
+            var readerForHosts = Object.FindFirstObjectByType<OverworldInputReader>();
+            var rigForHosts = Object.FindFirstObjectByType<OverworldCameraRig>();
+            if (locomotionForHosts != null && readerForHosts != null && rigForHosts != null)
+            {
+                var before = CountHosts();
+                BuildHosts(locomotionForHosts, readerForHosts, rigForHosts);
+                repairs += Mathf.Max(0, CountHosts() - before);
+            }
+            else
+            {
+                Debug.LogWarning("[Rig] Could not find the player, the input reader and the " +
+                                 "camera rig together, so the service hosts were not checked. " +
+                                 "Delete the rig and rebuild it if systems are missing.");
+            }
+
+            // The player needs the components that answer the world back.
+            foreach (var locomotion in Object.FindObjectsByType<PlayerLocomotion>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (locomotion.GetComponent<WaterEdgeResponder>() != null) continue;
+                locomotion.gameObject.AddComponent<WaterEdgeResponder>();
+                repairs++;
+            }
+
             // A brain-less main camera renders the scene from wherever it was left and
             // ignores every virtual camera in it.
             var main = Camera.main;
@@ -177,6 +210,13 @@ namespace PokeLab.Boot.Editor
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveOpenScenes();
             Debug.Log($"[Rig] Repaired {repairs} thing(s) on the existing rig in '{scene.name}'.");
+        }
+
+        /// <summary>Components on GameHosts, so Repair can tell whether it added any.</summary>
+        private static int CountHosts()
+        {
+            var go = GameObject.Find("GameHosts");
+            return go != null ? go.GetComponents<Component>().Length : 0;
         }
 
         private static OverworldInputReader BuildInput()
