@@ -347,6 +347,17 @@ namespace PokeLab.Boot.Editor
             const float WallHeight = 3f;
             const float Skirt = 1.5f;
 
+            // Still water only. A stream is crossed, not kept out of: walling its boundary
+            // runs a 3 m barrier along both banks and straight across the bridge deck and
+            // the stepping stones, closing the route's only gate. The emitter has to cut
+            // holes in the ribbon to work around that, which leaves the water visibly
+            // interrupted at exactly the two places the player looks at it closely.
+            //
+            // The kind field has been on this record since the schema was written and
+            // nothing read it.
+            if (string.Equals(body.kind, "flowing", StringComparison.OrdinalIgnoreCase))
+                return;
+
             var triangles = surface.triangles;
             var vertices = surface.vertices;
 

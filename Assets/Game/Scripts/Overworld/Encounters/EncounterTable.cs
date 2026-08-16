@@ -275,14 +275,38 @@ namespace PokeLab.Overworld
             Entry(SliceRoster.Pikachu, 5, 8, 12f, TimeOfDayMask.Any, WeatherMask.Rain | WeatherMask.Clear | WeatherMask.Fog, rainBoost: 2.2f),
             Entry(SliceRoster.Gastly, 6, 9, 12f, TimeOfDayMask.Night | TimeOfDayMask.Dusk, WeatherMask.Any, nightBoost: 1.5f));
 
+        /// <summary>
+        /// The lake. Still water, so a slower, stranger cast than the river's -- the things
+        /// that sit on a bottom rather than the things that fight a current.
+        /// </summary>
         private static EncounterTable BuildLakesideWater() => Create("builtin_lakeside_water", 22f,
-            Entry(SliceRoster.Poliwag, 5, 10, 70f, TimeOfDayMask.Any, WeatherMask.Any, rainBoost: 1.4f),
+            Entry(SliceRoster.Poliwag, 5, 10, 40f, TimeOfDayMask.Any, WeatherMask.Any, rainBoost: 1.4f),
+            Entry(SliceRoster.Magikarp, 5, 12, 22f),
+            Entry(SliceRoster.Slowpoke, 8, 13, 14f, TimeOfDayMask.Daylight),
+            Entry(SliceRoster.Staryu, 8, 13, 12f, TimeOfDayMask.Night | TimeOfDayMask.Dusk, WeatherMask.Any, nightBoost: 1.8f),
+            Entry(SliceRoster.Goldeen, 6, 11, 12f),
             Entry(SliceRoster.Squirtle, 8, 12, 6f),
             Entry(SliceRoster.Pidgey, 4, 7, 24f, TimeOfDayMask.Daylight));
 
-        private static EncounterTable BuildRouteWater() => Create("builtin_route_water", 26f,
-            Entry(SliceRoster.Poliwag, 4, 8, 80f),
-            Entry(SliceRoster.Pidgey, 4, 7, 20f, TimeOfDayMask.Daylight));
+        /// <summary>
+        /// The river, met only from the back of a Pokémon.
+        ///
+        /// Deliberately a different cast from anything walkable, not a reshuffle of it. The
+        /// first time the player crosses water is the first time the roster changes, and if
+        /// the surface just held more Poliwag then earning the crossing bought nothing. It
+        /// also gives the water an identity the grass cannot: Magikarp is the commonest
+        /// thing in the river and the least worth catching, which is the joke the series has
+        /// told since 1996 and it only lands if the player meets it constantly.
+        ///
+        /// Denser than the route -- 18 m against 26 -- because open water has nowhere to
+        /// hide and the crossing is short.
+        /// </summary>
+        private static EncounterTable BuildRouteWater() => Create("builtin_route_water", 18f,
+            Entry(SliceRoster.Magikarp, 5, 12, 55f),
+            Entry(SliceRoster.Goldeen, 6, 11, 16f, TimeOfDayMask.Daylight),
+            Entry(SliceRoster.Horsea, 6, 11, 12f, TimeOfDayMask.Any, WeatherMask.Any, rainBoost: 1.4f),
+            Entry(SliceRoster.Psyduck, 7, 12, 9f, TimeOfDayMask.Any, WeatherMask.Rain | WeatherMask.Fog, rainBoost: 2.2f),
+            Entry(SliceRoster.Krabby, 6, 10, 8f, TimeOfDayMask.Dusk | TimeOfDayMask.Night | TimeOfDayMask.Dawn));
 
 #if UNITY_EDITOR
         /// <summary>Editor-only sanity pass so a malformed table is caught at author time.</summary>

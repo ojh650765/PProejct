@@ -28,11 +28,38 @@ namespace PokeLab.Overworld
         public const int Geodude = 81;
         public const int Gastly = 100;
 
+        // Water. Reachable only by riding a Pokémon across it, which is what makes them a
+        // separate roster rather than more of the same: nothing here can be met on foot, so
+        // the first surf is a new set of species rather than a new way to reach the old ones.
+        // Every one of these has a sprite -- checked against sprite_manifest.json, because a
+        // species in a table with no art is an encounter that stages a blank.
+        public const int Psyduck = 60;
+        public const int Slowpoke = 86;
+        public const int Krabby = 107;
+        public const int Horsea = 126;
+        public const int Goldeen = 128;
+        public const int Staryu = 130;
+        public const int Magikarp = 140;
+
         /// <summary>Every species in the slice, in dex order.</summary>
         public static readonly IReadOnlyList<int> All = new[]
         {
             Bulbasaur, Charmander, Squirtle, Pidgey, Rattata, Pikachu,
             Zubat, Oddish, Poliwag, Machop, Geodude, Gastly,
+            Psyduck, Slowpoke, Krabby, Horsea, Goldeen, Staryu, Magikarp,
+        };
+
+        /// <summary>
+        /// Species only ever met on the water. Kept as its own list so the surf tables can be
+        /// checked against it rather than restating the ids.
+        ///
+        /// Gyarados is deliberately absent. It has no sprite in the manifest, and a table
+        /// entry with no art stages a battle against a blank -- it is authored as a scripted
+        /// river event instead, where a one-off presentation is affordable.
+        /// </summary>
+        public static readonly IReadOnlyList<int> Aquatic = new[]
+        {
+            Psyduck, Poliwag, Slowpoke, Krabby, Horsea, Goldeen, Staryu, Magikarp,
         };
 
         /// <summary>The three starters, offered by the lab and never found in the wild.</summary>
@@ -66,6 +93,13 @@ namespace PokeLab.Overworld
                 case Machop: return "Machop";
                 case Geodude: return "Geodude";
                 case Gastly: return "Gastly";
+                case Psyduck: return "Psyduck";
+                case Slowpoke: return "Slowpoke";
+                case Krabby: return "Krabby";
+                case Horsea: return "Horsea";
+                case Goldeen: return "Goldeen";
+                case Staryu: return "Staryu";
+                case Magikarp: return "Magikarp";
                 default: return "Species " + speciesId;
             }
         }
@@ -91,6 +125,13 @@ namespace PokeLab.Overworld
                 case Machop: return 0.8f;
                 case Geodude: return 0.4f;
                 case Gastly: return 1.3f;
+                case Psyduck: return 0.8f;
+                case Slowpoke: return 1.2f;
+                case Krabby: return 0.4f;
+                case Horsea: return 0.4f;
+                case Goldeen: return 0.6f;
+                case Staryu: return 0.8f;
+                case Magikarp: return 0.9f;
                 default: return 0.6f;
             }
         }
