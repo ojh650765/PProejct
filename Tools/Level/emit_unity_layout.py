@@ -417,6 +417,15 @@ def subdivide(tri, max_edge):
     return out
 
 
+# How far past its own half width the stream's ribbon may widen, and the same distance
+# the lake trace is masked back along the channel. One number on purpose: the mask is
+# the ground the lake surface gives up to the stream, so a ribbon narrower than the mask
+# leaves a dry notch between the two waters where the stream meets the lake, and a wider
+# one puts the two surfaces back on top of each other, which is the z-fighting patchwork
+# `stop_polygon` exists to prevent.
+STREAM_BANK_REACH = 1.2
+
+
 def mask_stream_channel(rows, x0, z0, step, line, half_width, lake_y):
     """Copy of the height grid with the stream's own channel raised out of reach.
 
@@ -433,11 +442,11 @@ def mask_stream_channel(rows, x0, z0, step, line, half_width, lake_y):
         for ix in range(len(out[0])):
             x, z = x0 + ix * step, z0 + iz * step
             d, pt, _ = closest_on_polyline(x, z, line)
-            if d <= half_width + 1.2 and pt[1] > lake_y + 0.05:
+            if d <= half_width + STREAM_BANK_REACH and pt[1] > lake_y + 0.05:
                 out[iz][ix] = 99.0
     return out
 
-def build_stream(body, grid, stop_polygon=None):
+def build_stream(body, grid, stop_polygon=None, stop_y=None, crossings=()):
     """A flowing ribbon whose surface falls along its length.
 
     The stream has no single waterline: it drops 1.70 m over 66 m, so holding it at
@@ -451,12 +460,25 @@ def build_stream(body, grid, stop_polygon=None):
     low angle. Marching outward until the terrain has risen past the waterline puts
     the seam inside the bank instead, where it cannot be seen.
 
+    That march is not enough on its own, and this function claimed it was for as long
+    as it went uncalled. Measured against the baked grid, the terrain rises back over
+    the waterline 2.5 to 3.1 m out from the centreline — but the march was capped at
+    1.1 m past the authored 1.7 m half width, so on 25 of the stream's 71 rungs it ran
+    out of reach before it found the bank and left the rim hanging in the air anyway,
+    by up to 0.60 m in the open run and 2.25 m at the lake mouth. The cap cannot simply
+    be raised: for a 3 m stretch below the bridge the land beside the channel is
+    genuinely 0.7 m *lower* than the water, and there is no bank out there to find at
+    any distance. So each rung carries a rim vertex outside the flat channel, and the
+    rim drops onto the terrain wherever the terrain never came up to meet it. The sheet
+    then ends on the ground in every case: buried in the bank where there is one,
+    lipped over the ground where there is not, and flat where the lake takes over.
+
     UV.y runs in metres along the flow so the water shader's scroll moves downstream
     at a constant speed regardless of how the rungs happen to be spaced.
     """
     line = [tuple(float(v) for v in p) for p in body["centreline"]]
     if len(line) < 2:
-        return None
+        return []
     half = float(body.get("halfWidth", 1.5))
 
     # Stop where the lake takes over. The stream's last rungs sit inside the lake
@@ -471,25 +493,52 @@ def build_stream(body, grid, stop_polygon=None):
                 break
         line = line[:cut]
         if len(line) < 2:
-            return None
-    # Cap the search so a rung crossing an unusually flat bank cannot run away across
-    # the meadow; past this the bank is too shallow for the trick to help anyway.
-    # Kept short. The point is to bury the seam inside the bank, not to flood it: at
-    # 3.5 m the ribbon marched out to 10.4 m wide wherever the bank was shallow, which
-    # is wider than the bridge that has to span it.
-    reach, step = 1.1, 0.2
+            return []
+    step = 0.2
+
+    # Only the crossings that actually stand in this channel. The test below measures
+    # along the flow, and without this a bridge over some other water at the same
+    # offset upstream would punch a hole here.
+    near = [c for c in crossings
+            if closest_on_polyline(c[0], c[1], line)[0] <= half + STREAM_BANK_REACH]
+
+    def crossed(x, z, tx, tz, span):
+        """Is this rung under something the player walks across?"""
+        for cx, cz, ex, ez, _hx, hz in near:
+            # How far along the flow the crossing reaches *while it is over the water*.
+            # Not its full footprint: the bridge is 9 m long and only the middle of it
+            # spans the channel, and the wall this cut is dodging exists only where the
+            # ribbon does. Two terms -- the deck's own width along the flow, and how far
+            # the deck drifts along the flow over the ribbon's width, which for a deck
+            # 15 degrees off square to the channel is most of it.
+            reach = abs(hz * (tz * ex - tx * ez)) + span * abs(tx * ex + tz * ez)
+            if abs((x - cx) * tx + (z - cz) * tz) < reach + BODY_RADIUS:
+                return True
+        return False
 
     def edge(x, z, nx, nz, y):
         d = half
-        while d < half + reach:
+        while d < half + STREAM_BANK_REACH:
             d += step
             if grid.at(x + nx * d, z + nz * d) > y:
                 break
         return d
 
-    verts, uvs, tris = [], [], []
+    def rim_height(x, z, y):
+        """Where the ribbon's outer vertex sits, once it has stopped marching."""
+        ground = grid.at(x, z)
+        if ground >= y:
+            return y            # the bank came up: the seam is inside it, hold the sheet flat
+        if stop_y is not None and ground <= stop_y:
+            # Lake bed. The ground here is below the lake's own waterline and the lake
+            # surface is what covers it, so a rim laid on the ground would dive under
+            # the neighbouring water instead of meeting it. This is the notch
+            # `mask_stream_channel` cut out of the lake for the stream to fill.
+            return y
+        return ground           # dry land below the waterline: lay the rim on it
+
+    rungs = []
     run = 0.0
-    widths = []
     for i, (x, y, z) in enumerate(line):
         if i > 0:
             run += math.hypot(x - line[i - 1][0], z - line[i - 1][2])
@@ -498,37 +547,105 @@ def build_stream(body, grid, stop_polygon=None):
         b = line[min(len(line) - 1, i + 1)]
         tx, tz = b[0] - a[0], b[2] - a[2]
         n = math.hypot(tx, tz) or 1.0
-        nx, nz = -tz / n, tx / n
+        tx, tz = tx / n, tz / n
+        nx, nz = -tz, tx
 
         left = edge(x, z, nx, nz, y)
         right = edge(x, z, -nx, -nz, y)
-        widths.append(left + right)
-        verts.extend((x + nx * left, y, z + nz * left,
-                      x - nx * right, y, z - nz * right))
-        uvs.extend((0.0, run, 1.0, run))
-        if i > 0:
-            k = (i - 1) * 2
-            tris.extend((k, k + 2, k + 1, k + 1, k + 2, k + 3))
+        lx, lz = x + nx * left, z + nz * left
+        rx, rz = x - nx * right, z - nz * right
+        total = left + right
+        # Four across, not two. The rim is the only vertex allowed to leave the
+        # waterline, so the channel between the authored half widths stays a flat
+        # sheet -- moving a two-vertex rung's edge would tilt the whole width of the
+        # water instead of turning down its fringe.
+        rungs.append({
+            "run": run,
+            "cut": crossed(x, z, tx, tz, max(left, right)),
+            "width": total,
+            "verts": [(lx, rim_height(lx, lz, y), lz),
+                      (x + nx * half, y, z + nz * half),
+                      (x - nx * half, y, z - nz * half),
+                      (rx, rim_height(rx, rz, y), rz)],
+            "us": [0.0, (left - half) / total, (left + half) / total, 1.0],
+        })
 
-    return {
-        "name": body["name"],
-        "kind": body.get("kind", "flowing"),
-        "surfaceY": round(sum(p[1] for p in line) / len(line), 4),
-        "vertices": [round(v, 4) for v in verts],
-        "uvs": [round(v, 3) for v in uvs],
-        "triangles": tris,
-        "widthMin": round(min(widths), 2),
-        "widthMax": round(max(widths), 2),
-    }
+    # Split at the crossings. The emitted water mesh grows an invisible 3 m wall along
+    # every boundary edge it has -- LevelLayoutBuilder.BuildShoreline, which is what
+    # stops the player wading into the lake -- and a continuous ribbon under the bridge
+    # would run that wall straight across the deck, closing the route's one gate. Cut
+    # clear of each crossing and the two end caps stand upstream and downstream of it
+    # instead, with the walking line between them.
+    pieces, current = [], []
+    for rung in rungs:
+        if rung["cut"]:
+            if len(current) >= 2:
+                pieces.append(current)
+            current = []
+        else:
+            current.append(rung)
+    if len(current) >= 2:
+        pieces.append(current)
+
+    out = []
+    for number, piece in enumerate(pieces):
+        verts, uvs, tris = [], [], []
+        for k, rung in enumerate(piece):
+            for (vx, vy, vz), u in zip(rung["verts"], rung["us"]):
+                verts.extend((vx, vy, vz))
+                uvs.extend((u, rung["run"]))
+            if k > 0:
+                p0, c0 = (k - 1) * 4, k * 4
+                for m in range(3):
+                    tris.extend((p0 + m, c0 + m, p0 + m + 1,
+                                 p0 + m + 1, c0 + m, c0 + m + 1))
+        ys = verts[1::3]
+        out.append({
+            "name": (body["name"] if len(pieces) == 1
+                     else "%s_%02d" % (body["name"], number + 1)),
+            "kind": body.get("kind", "flowing"),
+            "surfaceY": round(sum(ys) / len(ys), 4),
+            "vertices": [round(v, 4) for v in verts],
+            "uvs": [round(v, 3) for v in uvs],
+            "triangles": tris,
+            "widthMin": round(min(r["width"] for r in piece), 2),
+            "widthMax": round(max(r["width"] for r in piece), 2),
+        })
+    return out
 
 
-def build_water(layout, grid):
+# What the player crosses a watercourse on. Their footprints are the holes the ribbon
+# has to leave, so that the shoreline wall the builder raises along the water's edge
+# does not close the crossing the level is gated on.
+CROSSING_ASSETS = ("Env_Bridge_", "Env_Stepping_")
+
+
+def stream_crossings(layout, bounds):
+    """Footprints of the bridge and the stepping stones, as (x, z, ex, ez, hx, hz)."""
+    out = []
+    for o in layout.get("objects", []):
+        asset = o["prefab"].split("/")[-1].replace(".fbx", "")
+        if not asset.startswith(CROSSING_ASSETS):
+            continue
+        size = (bounds.get(asset) or {}).get("size")
+        if not size:
+            continue
+        scale = float((o.get("scale") or [1.0])[0])
+        x, _, z = [float(v) for v in o["position"]]
+        yaw = math.radians(float((o.get("rotation") or [0, 0, 0])[1]))
+        out.append((x, z, math.cos(yaw), -math.sin(yaw),
+                    size[0] * 0.5 * scale, size[2] * 0.5 * scale))
+    return out
+
+
+def build_water(layout, grid, bounds):
     """Flat surfaces at each body's authored waterline, plus the flowing stream.
 
     Subdivided even though they are flat, because the water shader displaces vertices
     for its swell and a two-triangle lake cannot show a wave.
     """
     out = []
+    crossings = stream_crossings(layout, bounds)
 
     # Still bodies are traced first, so a flowing one can be told where to stop. The
     # stream's last rungs sit inside the lake at the same height, and drawing both
@@ -549,15 +666,20 @@ def build_water(layout, grid):
         still[body["name"]] = contour(rows, grid.x0, grid.z0, grid.step, y)
 
     receiving = next(iter(still.values()), None)
+    receiving_y = next((float(b["surfaceY"]) for b in layout["terrain"].get("water", [])
+                        if "centreline" not in b and "surfaceY" in b), None)
 
     for body in layout["terrain"].get("water", []):
         # Discriminated on the centreline, not on the absence of a polygon: the
         # stream ships both, and its polygon is only the ribbon's flat outline —
         # using it would hold a watercourse that falls 1.7 m at a single height.
         if "centreline" in body:
-            # Not emitted. The stream's surface is dropped by design — see the note in
-            # build_layout's height field — while its channel stays, because the bridge,
-            # the lake shoreline and the terrain either side are all shaped against it.
+            # Built here and scoped at the scene split, not dropped. It was dropped for
+            # a while, and the note it left behind said "by design" without saying whose
+            # design: the ask was "Water_Stream 이건 없어도 되자나", and the correction is
+            # that it meant the overworld only -- "이건 overworld에서 빼도 된다는 거였고.
+            # Water Stream은 field에서 필요함". FLOWING_WATER_SCENES is where that lands.
+            out.extend(build_stream(body, grid, receiving, receiving_y, crossings))
             continue
 
         y = float(body["surfaceY"])
@@ -680,6 +802,68 @@ def is_barrier(prefab):
     return any(k in prefab for k in BARRIER_ASSETS)
 
 
+# Jamb boxes, in the same shape and to the same numbers as the town's boundary
+# barriers: 4 m tall, sunk 1 m so they cannot be stepped on to.
+ARCH_JAMB_HEIGHT = 4.0
+ARCH_JAMB_SINK = 1.0
+
+
+def arch_barriers(layout, grid, bounds):
+    """The solid parts of the cave mouth, now that its mesh is not collided against.
+
+    Two boxes, one on each jamb, running the arch's full depth: everything from the
+    edge of the declared opening out to the edge of the asset is rock, and everything
+    between them is the doorway. That is the whole of what the mesh collider was
+    usefully doing -- the rest of what it did was making the arch's own scree solid,
+    which is what closed the door.
+
+    No lintel box over the opening. The headwall above it is 4.3 m up and there is no
+    jump in this project, so a box there would be collision the player cannot reach.
+    """
+    out = []
+    caves = [c for c in layout["terrain"].get("caves", []) if c.get("mouth")]
+    for o in layout.get("objects", []):
+        asset = o["prefab"].split("/")[-1].replace(".fbx", "")
+        if not asset.startswith(COLLIDER_PORTAL):
+            continue
+        size = (bounds.get(asset) or {}).get("size")
+        if not size:
+            continue
+        x, _, z = [float(v) for v in o["position"]]
+        scale = float((o.get("scale") or [1.0])[0])
+        yaw = float((o.get("rotation") or [0, 0, 0])[1])
+        rad = math.radians(yaw)
+
+        # The opening is the mouth the level declares, not a guess at the mesh: the
+        # trigger, the barrier and the modelled jambs then agree on where the door is.
+        # Measured on the asset, the modelled clear span is 5.4 m at the threshold, so
+        # a box whose inner face stands at half of that lands on the stone.
+        cave = min(caves, key=lambda c: math.hypot(float(c["mouth"]["position"][0]) - x,
+                                                   float(c["mouth"]["position"][2]) - z),
+                   default=None)
+        opening = float((cave or {}).get("mouth", {}).get("widthMetres", 4.0))
+        outer = size[0] * 0.5 * scale
+        inner = opening * 0.5
+        if inner >= outer:
+            continue
+        for side, label in ((-1.0, "West"), (1.0, "East")):
+            local = side * (inner + outer) * 0.5
+            bx = x + local * math.cos(rad)
+            bz = z - local * math.sin(rad)
+            out.append({
+                "name": "Barrier_%s_Jamb%s" % (o["name"], label),
+                "centre": [round(bx, 3),
+                           round(grid.at(bx, bz) - ARCH_JAMB_SINK
+                                 + ARCH_JAMB_HEIGHT * 0.5, 3),
+                           round(bz, 3)],
+                "size": [round(outer - inner, 3), ARCH_JAMB_HEIGHT,
+                         round(size[2] * scale, 3)],
+                "yawDegrees": round(yaw, 2) % 360.0,
+                "layer": "Environment",
+            })
+    return out
+
+
 def cave_entrances(layout, grid):
     """Where the overworld hands off to a cave scene."""
     out = []
@@ -718,11 +902,39 @@ COLLIDER_NONE = ("Env_Flower_", "Env_Grass_", "Env_TallGrass_", "Env_Fern_",
                  "Env_Moss_", "Env_Lilypad_", "Env_Reed_", "Env_Vine_",
                  "Env_Path_", "Env_Rock_Scatter_")
 
+# The cave mouth, which is a doorway and was collided against as though it were a rock.
+#
+# It fell through to "mesh" -- there was nothing else for it to match -- so every
+# triangle of Env_Cave_Arch became solid, and the arch's mesh is not only the headwall.
+# It carries its own scree: five blocks slumped around the threshold and a talus fan,
+# and two of those blocks stand inside the 5.4 m opening the level declares. The nearer
+# one is a metre across and sits 1.5 m in front of the doorway on the line the approach
+# path walks in on. Collided against, that is a boulder lying across the door of the
+# player's own cave, which is what the user circled.
+#
+# "none" here does not mean the mouth is not solid. It means the arch's *mesh* stops
+# deciding what is solid, because a mesh collider cannot say "this stone is a wall and
+# that stone is a threshold" -- the collider policy is keyed per prefab and the FBX is
+# one object. The headwall comes back as two barrier boxes on the jambs, `arch_barriers`,
+# which is the same answer the boundary wood already uses for the same reason.
+COLLIDER_PORTAL = ("Env_Cave_Arch",)
+
+# Every character in this level is a 0.28 m capsule: LevelLayoutBuilder.BuildPeople
+# gives one to every NPC and trainer, and PlayerRigSetup gives the player the same.
+BODY_RADIUS = 0.28
+
+# NavMeshSurface.voxelSize, as LevelLayoutBuilder sets it before baking. Clearances are
+# rounded out by one of these so the bake has a whole voxel of floor to call walkable
+# rather than a sliver that rounds away.
+NAVMESH_VOXEL = 0.12
+
 
 def collider_for(prefab):
     name = prefab.split("/")[-1]
     if name.startswith(COLLIDER_TRUNK):
         return "trunk"
+    if name.startswith(COLLIDER_PORTAL):
+        return "none"
     if name.startswith(COLLIDER_NONE):
         return "none"
     return "mesh"
@@ -811,6 +1023,15 @@ class SolidProps:
         (("Env_Market_", "Env_Well", "Env_Cart", "Env_Notice_", "Env_Signpost",
           "Env_Lamp_Post", "Env_Bench", "Env_Trough", "Env_Bridge_"), 0.4),
         (("Env_Fence_", "Env_Planter", "Env_Crate", "Env_Barrel"), 0.25),
+        # An item ball is 0.28 m across and the tall-grass clusters it is hidden
+        # among are 1.28 m, planted eight to the square metre. Without a clearing
+        # the one at the back of Field_Route_NorthGrass is not merely hard to spot,
+        # it is behind two ranks of cover from the only yaw the camera has -- the
+        # reward for wading through an encounter field would be an item the player
+        # never learns is there. The clearing is generous for the ball's size on
+        # purpose: it has to open a hole from the south-west, not just around the
+        # pivot.
+        (("Env_Prop_CaptureBall",), 0.9),
     ]
     CELL = 4.0
 
@@ -831,26 +1052,101 @@ class SolidProps:
             scale = float((o.get("scale") or [1.0])[0])
             x, _, z = [float(v) for v in o["position"]]
             yaw = math.radians(float((o.get("rotation") or [0, 0, 0])[1]))
-            c, s = abs(math.cos(yaw)), abs(math.sin(yaw))
-            # Axis-aligned half extents of the rotated footprint. A circle would be
-            # wrong on a 9 m lab and a 2 m wall alike, in opposite directions.
-            hx = (size[0] * c + size[2] * s) * 0.5 * scale + pad
-            hz = (size[0] * s + size[2] * c) * 0.5 * scale + pad
-            box = (x, z, hx, hz)
-            for i in range(int((x - hx) // self.CELL), int((x + hx) // self.CELL) + 1):
-                for j in range(int((z - hz) // self.CELL), int((z + hz) // self.CELL) + 1):
+            # The building's OWN rectangle, tested in its own frame -- not the
+            # axis-aligned box around it. On the lab, which is 9.4 x 10.0 m at 222
+            # degrees, the axis-aligned box is 13.7 x 13.7: nearly twice the area, and
+            # it reached 4.6 m past the lab's real north-east corner. That is the whole
+            # of the shelf behind the lab, and it is why no boundary wood would grow
+            # there and the town's rim was visible over the lab's shoulder.
+            hx = size[0] * 0.5 * scale + pad
+            hz = size[2] * 0.5 * scale + pad
+            box = (x, z, math.cos(-yaw), math.sin(-yaw), hx, hz)
+            # Cell coverage still uses the conservative circumscribed radius, or a
+            # rotated box could straddle a cell it was never registered in.
+            r = math.hypot(hx, hz)
+            for i in range(int((x - r) // self.CELL), int((x + r) // self.CELL) + 1):
+                for j in range(int((z - r) // self.CELL), int((z + r) // self.CELL) + 1):
                     self.cells.setdefault((i, j), []).append(box)
 
     def blocked(self, x, z):
-        for bx, bz, hx, hz in self.cells.get((int(x // self.CELL), int(z // self.CELL)), ()):
-            if abs(x - bx) <= hx and abs(z - bz) <= hz:
+        for bx, bz, c, s, hx, hz in self.cells.get(
+                (int(x // self.CELL), int(z // self.CELL)), ()):
+            dx, dz = x - bx, z - bz
+            if abs(dx * c - dz * s) <= hx and abs(dx * s + dz * c) <= hz:
+                return True
+        return False
+
+
+# --- people, as the other constraint on what can be planted -------------------------
+
+def planting_reach(prefab, bounds, scale):
+    """How far from its own pivot an instance of this asset stands in somebody's way.
+
+    A tree is measured on its stem and not on its box, for the same reason its collider
+    is a trunk capsule: the canopy is *meant* to overhang, and measuring the 5.5 m box
+    of Env_Tree_Broadleaf_C would clear a 4 m circle of the wood around every waypoint
+    and read as a bald patch. The same formula the builder uses for the capsule is used
+    here so the two agree on what the stem is.
+
+    Everything else is measured on its box, because a bush is a 1.65 m body standing at
+    exactly the height the character sprite occupies.
+    """
+    asset = prefab.split("/")[-1].replace(".fbx", "")
+    size = (bounds.get(asset) or {}).get("size")
+    if not size:
+        return 0.0
+    if asset.startswith(COLLIDER_TRUNK):
+        return max(0.18, min(size[0], size[2]) * 0.13) * scale
+    return max(size[0], size[2]) * 0.5 * scale
+
+
+class PeopleClearance:
+    """Where a foliage field is not allowed to plant, because somebody stands there.
+
+    `SolidProps` is the other half of this and was the only half that existed. It keeps
+    foliage out of things; nothing kept foliage off people. A field is drawn as a
+    polygon over a region and the town's residents live inside those regions, so the
+    boundary wood grew through the gatekeeper and the gardener -- "npc가 나무 사이에 막
+    파묻히고 들어가 있어".
+
+    Colliders would not have helped and are not the fix: fields are drawn through
+    Graphics.DrawMeshInstanced, which submits geometry and nothing else, so the navmesh
+    bake cannot see a single trunk however solid it looks. What the bake can see is
+    ground, so the ground each person uses is kept clear instead -- their whole wander
+    circle, not just the waypoint at the middle of it, because the circle is the part
+    the agent actually walks.
+
+    Ten anchors and four trainers on this map, so this is a list and a loop. A grid
+    would be more code than it saves.
+    """
+
+    def __init__(self, layout):
+        self.discs = []
+        gameplay = layout.get("gameplay", {})
+        for npc in gameplay.get("npcs", []):
+            self._add(npc["position"], 0.0)
+            for entry in npc.get("schedule", []):
+                self._add(entry["waypoint"], float(entry.get("wanderRadius", 0.0)))
+        # Trainers have no schedule. They stand where they are put and turn on the
+        # spot, so their own body is the whole of the circle.
+        for trainer in gameplay.get("trainers", []):
+            self._add(trainer["position"], 0.0)
+
+    def _add(self, position, wander):
+        x, _, z = [float(v) for v in position]
+        self.discs.append((x, z, wander))
+
+    def blocked(self, x, z, clearance):
+        for cx, cz, wander in self.discs:
+            r = wander + clearance
+            if (x - cx) ** 2 + (z - cz) ** 2 < r * r:
                 return True
         return False
 
 
 # --- foliage ----------------------------------------------------------------------
 
-def scatter_foliage(layout, grid, caves, painter, water, solids):
+def scatter_foliage(layout, grid, caves, painter, water, solids, people, bounds):
     """Turn each field into concrete instance transforms.
 
     Scattering happens here rather than in C# so the Y of every blade comes from the
@@ -877,6 +1173,14 @@ def scatter_foliage(layout, grid, caves, painter, water, solids):
         kind = f.get("kind", "")
         wade = MAX_WADE.get(kind, DEFAULT_WADE)
         floats_on_water = kind == "lilypads"
+
+        # How much room this particular field has to leave around a person, taken from
+        # its own palette at its own largest scale. One number for every field would be
+        # wrong in both directions: the wood's 1.65 m bushes need 1.5 m and the town
+        # lawn's flowers need 0.8, and clearing 1.5 m of lawn around a stallholder
+        # standing in it would put a bald ring on the plaza.
+        clearance = BODY_RADIUS + NAVMESH_VOXEL + max(
+            [planting_reach(p["prefab"], bounds, hi) for p in prefabs] or [0.0])
 
         minx, maxx, minz, maxz = poly_bounds(poly)
         area = poly_area(poly)
@@ -906,6 +1210,8 @@ def scatter_foliage(layout, grid, caves, painter, water, solids):
                 continue
             if solids.blocked(px, pz):
                 continue
+            if people.blocked(px, pz, clearance):
+                continue
             if grid.slope_degrees(px, pz) > MAX_PLANT_SLOPE:
                 continue
             d = water.depth_at(px, pz, grid.at(px, pz))
@@ -926,6 +1232,7 @@ def scatter_foliage(layout, grid, caves, painter, water, solids):
         rejected_solid = 0
         rejected_water = 0
         rejected_slope = 0
+        rejected_people = 0
         nx = max(1, int(math.ceil((maxx - minx) / cell)))
         nz = max(1, int(math.ceil((maxz - minz) / cell)))
         cells = [(i, j) for j in range(nz) for i in range(nx)]
@@ -948,6 +1255,10 @@ def scatter_foliage(layout, grid, caves, painter, water, solids):
 
             if solids.blocked(x, z):
                 rejected_solid += 1
+                continue
+
+            if people.blocked(x, z, clearance):
+                rejected_people += 1
                 continue
 
             if grid.slope_degrees(x, z) > MAX_PLANT_SLOPE:
@@ -996,6 +1307,8 @@ def scatter_foliage(layout, grid, caves, painter, water, solids):
             "rejectedOnProps": rejected_solid,
             "rejectedInWater": rejected_water,
             "rejectedOnSlope": rejected_slope,
+            "rejectedOnPeople": rejected_people,
+            "personClearance": round(clearance, 2),
         })
     return fields
 
@@ -1031,6 +1344,15 @@ SCENE_LINKS = [
     ("Town",  "Field", -6.6, 5.6, 20.0),
     ("Field", "Town",  -7.4, 2.4, 200.0),
 ]
+
+# Which scenes draw flowing water. The stream's surface is a Field fixture and nothing
+# else's: the ask was to take it out of the overworld -- "이건 overworld에서 빼도 된다는
+# 거였고. Water Stream은 field에서 필요함" -- and LevelLayoutBuilder loads slice_town for
+# both the Town and the Overworld scene, so leaving it out of that one file is what
+# leaving it out of the overworld means. Filtering by band alone would look like it did
+# the job today (the channel runs z=10..34, clear of the town's band) and would quietly
+# start drawing it the day the town's edge moves.
+FLOWING_WATER_SCENES = {"Field"}
 
 
 ENTERABLE = {
@@ -1128,9 +1450,11 @@ def main():
     water_test = WaterTest(layout)
 
     ground = build_ground(grid, painter, layout["extents"])
-    water = build_water(layout, grid)
+    water = build_water(layout, grid, bounds)
     solids = SolidProps(layout, bounds)
-    foliage = scatter_foliage(layout, grid, caves, painter, water_test, solids)
+    people = PeopleClearance(layout)
+    foliage = scatter_foliage(layout, grid, caves, painter, water_test, solids,
+                              people, bounds)
 
     # Vegetation that would be rooted in a rock face. The steep ground is read as
     # rock by both the vertex weights and the shader, and a tree standing out of a
@@ -1138,7 +1462,7 @@ def main():
     PLANTED = ("Env_Tree_", "Env_Bush_", "Env_Fern_", "Env_Flower_",
                "Env_Grass_", "Env_TallGrass_", "Env_Reed_")
 
-    objects, interior, cliffside, drowned, indoors = [], 0, 0, 0, 0
+    objects, interior, cliffside, drowned, indoors, underfoot = [], 0, 0, 0, 0, 0
     for o in layout.get("objects", []):
         pos = o.get("position") or [0.0, 0.0, 0.0]
         x, y, z = float(pos[0]), float(pos[1]), float(pos[2])
@@ -1163,6 +1487,21 @@ def main():
             continue
         if asset.startswith(PLANTED) and slope > MAX_PLANT_SLOPE:
             cliffside += 1
+            continue
+        # Planted objects standing where somebody works. The scatter now keeps fields
+        # off people, but the orchard behind the west lane is not a field -- it is a
+        # `clump` of twelve placed trees, and the Builder's occupancy has never known
+        # anything about the residents, so Town_Orchard_03 landed 0.91 m from the
+        # gardener whose own note says she stands *behind* the orchard. With a 2.2 m
+        # wander radius she spends her day inside that trunk. Only plants: a market
+        # stall or a lamp inside a resident's circle is the stall she works at, and
+        # dropping the furniture people are placed against would be the same fault
+        # with the sign reversed.
+        if asset.startswith(PLANTED) and people.blocked(
+                x, z, BODY_RADIUS + NAVMESH_VOXEL + planting_reach(
+                    o.get("prefab", ""), bounds,
+                    float((o.get("scale") or [1.0])[0]))):
+            underfoot += 1
             continue
         # Nothing at all stands on a face this steep. A bench on 60 degrees is not a
         # seating error to be corrected downward, it is a bench on a cliff.
@@ -1201,8 +1540,10 @@ def main():
         # Graphics.DrawMeshInstanced, which carries no colliders, so the wall that
         # actually stops the player is these boxes: one per straight run, no renderer.
         # They are not objects because the object collider policy is keyed on a prefab
-        # and these have no mesh.
-        "barrierVolumes": layout.get("barrierVolumes", []),
+        # and these have no mesh. The cave mouth's jambs join them for the same reason
+        # from the other end: there the mesh exists and must *not* be the collider.
+        "barrierVolumes": (layout.get("barrierVolumes", [])
+                           + arch_barriers(layout, grid, bounds)),
         "npcs": gameplay.get("npcs", []),
         "trainers": gameplay.get("trainers", []),
         "tallGrass": [g for g in gameplay.get("tallGrassPatches", [])
@@ -1226,9 +1567,19 @@ def main():
     # or a tree near the seam is emitted into both: the alternative is the edge of
     # the world visible from the other side of the gate.
     written = []
+    # Names already emitted into an earlier band, so nobody is emitted twice.
+    _people_claimed = set()
+
+    def claim(seen, key):
+        if key in seen:
+            return False
+        seen.add(key)
+        return True
+
     for name, lo, hi, _zone in SCENES:
         scene_ground = [c for c in ground if chunk_overlaps(c, lo, hi)]
-        scene_water = [w for w in water if surface_overlaps(w, lo, hi)]
+        scene_water = [w for w in water if surface_overlaps(w, lo, hi)
+                       and (w["kind"] != "flowing" or name in FLOWING_WATER_SCENES)]
         scene_foliage = []
         for f in foliage:
             groups = [clip_group(g, lo, hi) for g in f["groups"]]
@@ -1250,10 +1601,20 @@ def main():
                                  if in_scene(float(a["position"][2]), lo, hi)]
         doc["barrierVolumes"] = [v for v in out["barrierVolumes"]
                                  if in_scene(float(v["centre"][2]), lo, hi)]
+        # People are claimed, not shared. The bands overlap by ten metres on purpose --
+        # ground and props must exist in both so the two meshes meet and the player can
+        # walk across the join without anything popping. That is right for scenery and
+        # wrong for a person: NPC_GateKeeper stands at z = 0.4, inside both ranges, and
+        # with both scenes loaded the player meets two of him standing in each other.
+        #
+        # First band wins, and the order in SCENES is the answer: the gatekeeper is the
+        # town's gatekeeper, and Town is listed first.
         doc["npcs"] = [n for n in out["npcs"]
-                       if in_scene(float(n["position"][2]), lo, hi)]
+                       if in_scene(float(n["position"][2]), lo, hi)
+                       and claim(_people_claimed, n["name"])]
         doc["trainers"] = [t for t in out["trainers"]
-                           if in_scene(float(t["position"][2]), lo, hi)]
+                           if in_scene(float(t["position"][2]), lo, hi)
+                           and claim(_people_claimed, t["name"])]
         doc["tallGrass"] = [g for g in out["tallGrass"]
                             if in_scene(float(g["centre"][2]), lo, hi)]
         doc["caveEntrances"] = [c for c in out["caveEntrances"]
@@ -1276,18 +1637,21 @@ def main():
     print("wrote %s" % OUT)
     print("  ground     %d chunks, %d verts, %d tris" % (len(ground), verts, tris))
     for w in water:
-        print("  water      %-22s %5d verts  %5d tris"
-              % (w["name"], len(w["vertices"]) // 3, len(w["triangles"]) // 3))
+        print("  water      %-22s %5d verts  %5d tris%s"
+              % (w["name"], len(w["vertices"]) // 3, len(w["triangles"]) // 3,
+                 "  %.1f-%.1f m wide" % (w["widthMin"], w["widthMax"])
+                 if "widthMin" in w else ""))
     total_inst = 0
     for f in foliage:
         total_inst += f["placed"]
-        print("  foliage    %-26s %5d instances, %d group(s), rejected: %d paved / %d props / %d water / %d slope"
+        print("  foliage    %-26s %5d instances, %d group(s), rejected: %d paved / %d props / %d water / %d slope / %d people (%.2f m)"
               % (f["name"], f["placed"], len(f["groups"]), f["rejectedOnPaving"],
-                 f["rejectedOnProps"], f["rejectedInWater"], f["rejectedOnSlope"]))
+                 f["rejectedOnProps"], f["rejectedInWater"], f["rejectedOnSlope"],
+                 f["rejectedOnPeople"], f["personClearance"]))
     print("  foliage total %d instances" % total_inst)
     print("  objects %d  (%d for cave scenes, %d for interiors, %d off rock faces, "
-          "%d out of the water)"
-          % (len(objects), interior, indoors, cliffside, drowned))
+          "%d out of the water, %d off somebody's feet)"
+          % (len(objects), interior, indoors, cliffside, drowned, underfoot))
     print("  anchors %d  grass triggers %d  cave entrances %d  spawn %s"
           % (len(out["ambientAnchors"]), len(out["tallGrass"]),
              len(out["caveEntrances"]), spawn_pos))

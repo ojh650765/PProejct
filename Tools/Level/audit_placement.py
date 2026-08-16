@@ -28,7 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 
-from emit_unity_layout import Grid
+from emit_unity_layout import Grid, is_barrier
 from worldgen import chaikin, closest_on_polyline, resample
 
 LAYOUT = os.path.join(ROOT, "Assets", "Game", "Data", "Levels", "slice_layout.json")
@@ -301,14 +301,30 @@ def audit_overlaps(layout, bounds, threshold):
             # of the pair keeps the authored composition: these are placed relative to
             # a plaza and a street, and splitting the move between them drifts both off
             # the line they were put on.
-            sign = 1.0 if ((xj - xi) * axis[0] + (zj - zi) * axis[1]) >= 0 else -1.0
+            #
+            # Which one is second was pure iteration order, and that is how a bush won
+            # an argument with a barrier. A riverbank or ledge module is not scenery
+            # that can be nudged: it is a run of modules butt-jointed end to end along
+            # a bank, and 0.9 m of push opens a hole in the wall the run exists to be.
+            # Route_LedgeLip lost both its modules to exactly this before it was
+            # removed. So a barrier is never the one that moves; the thing standing in
+            # it is, whichever order the two came out of the loop in.
+            first, second = (oi, xi, zi), (oj, xj, zj)
+            if is_barrier(oj["prefab"]) and not is_barrier(oi["prefab"]):
+                first, second = second, first
+            (oa, xa, za), (ob, xb, zb) = first, second
+            sign = 1.0 if ((xb - xa) * axis[0] + (zb - za) * axis[1]) >= 0 else -1.0
+            # Two modules of one run overlap at their butt joint by design. Pushing
+            # either of them is the failure above, so this pair is reported and left
+            # alone rather than "fixed" into a gap.
+            both = is_barrier(oa["prefab"]) and is_barrier(ob["prefab"])
             found.append({
-                "a": oi["name"], "aPrefab": oi["prefab"].split("/")[-1],
-                "b": oj["name"], "bPrefab": oj["prefab"].split("/")[-1],
+                "a": oa["name"], "aPrefab": oa["prefab"].split("/")[-1],
+                "b": ob["name"], "bPrefab": ob["prefab"].split("/")[-1],
                 "depth": round(depth, 3),
                 "verticalOverlap": round(min(hii, hij) - max(loi, loj), 3),
-                "push": [round(axis[0] * sign * (depth + 0.12), 4),
-                         round(axis[1] * sign * (depth + 0.12), 4)],
+                "push": None if both else [round(axis[0] * sign * (depth + 0.12), 4),
+                                           round(axis[1] * sign * (depth + 0.12), 4)],
             })
     found.sort(key=lambda f: -f["depth"])
     return found
@@ -482,6 +498,8 @@ def main():
 
         moved = set()
         for f in clashes:
+            if f["push"] is None:
+                continue   # barrier against barrier: see audit_overlaps
             if f["b"] in moved:
                 continue   # one push per object, then re-audit rather than stacking
             obj = index.get(f["b"])

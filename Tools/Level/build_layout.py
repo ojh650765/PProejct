@@ -329,9 +329,9 @@ PATH_SPECS = [
      "ends is a lane you walk once: this one has the west row's four front doors on its "
      "north verges and the paddock and orchard on its outer ones, and it brings you back."),
 
-    ("Path_TownLane_Lab", 2.8, 0.6, "road_cobble_town",
-     [(-9.6, 2.42, -12.2), (-8.0, 2.52, -11.5), (-6.8, 2.70, -10.9),
-      (-5.9, 2.80, -10.5)],
+    ("Path_TownLane_Lab", 3.4, 0.6, "road_cobble_town",
+     [(-9.8, 2.42, -12.4), (-8.2, 2.52, -11.6), (-6.6, 2.72, -10.8),
+      (-5.0, 2.80, -9.8)],
      "Short spur from the plaza up the 0.4 m step to the lab door. Runs along the camera "
      "axis -- exactly the 45 degree diagonal -- so the dome is dead ahead as you climb "
      "it. It used to run east instead and its far end was three metres inside the lab's "
@@ -704,7 +704,7 @@ class Builder:
     # -- placement ----------------------------------------------------------
     def place(self, asset, x, z, yaw, parent, tag_prefix, scale=1.0, y=None,
               road_margin=0.35, jitter_yaw=0.0, tag="Untagged", record=True,
-              lift=0.0):
+              lift=0.0, pickup=None):
         if jitter_yaw:
             yaw += self.rng.uniform(-jitter_yaw, jitter_yaw)
         info = self.bounds[asset]
@@ -722,6 +722,13 @@ class Builder:
             "tag": tag,
             "static": True,
         }
+        if pickup:
+            # The item id, not a display name: LevelLayoutBuilder hands this straight to
+            # IPlayerProfile.AddItem, which keys the same dictionary the battle engine
+            # spends from. Hyphenated ids only -- see FieldItems, where the overworld
+            # handing out "poke_ball" while the engine spent "poke-ball" meant a ball
+            # picked up in the field could never be thrown.
+            obj["pickup"] = pickup
         self.objects.append(obj)
         if record:
             self.occupancy.append((x, z, self.solid_radius(asset, scale)))
@@ -982,7 +989,7 @@ def build_town(b, rng):
     # The plaza is a widening of the one street, with the lab forecourt closing its east
     # end -- 17 x 11 m against the old 13 x 11, and pulled clear of the house fronts on
     # both sides.
-    plaza = [(-24.6, -12.4), (-19.0, -14.2), (-10.4, -13.8), (-8.8, -10.4), (-9.4, -5.8),
+    plaza = [(-24.6, -12.4), (-19.0, -14.4), (-8.6, -14.6), (-8.8, -10.4), (-9.4, -5.8),
              (-14.2, -4.2), (-20.6, -4.8), (-24.8, -8.2)]
 
     # ---------------------------------------------------------------- buildings
@@ -1178,9 +1185,15 @@ def build_town(b, rng):
     # only trees in the town placed as objects for their silhouette rather than scattered
     # as part of a mass. They are what makes the gap read as a gap: a hole in an even
     # treeline is a mistake, a hole between two trees is a door.
-    for tx, tz, s in [(-12.0, 2.2, 1.45), (-3.6, -1.6, 1.35)]:
-        b.try_place("Env_Tree_Broadleaf_C", tx, tz, rng.uniform(0, 360), TOWN + "/Foliage",
-                    "Town_GatePost", scale=s, road_margin=0.8, max_slope=44.0)
+    # b.place, not b.try_place: these two are composition, like the lab is. The east
+    # post stands inside the lab's reserved no-build rectangle -- that rectangle is a
+    # 9 x 10 m building's rotated footprint plus a margin, and it reaches to within four
+    # metres of the gate -- so the scatter rules would reject the one tree the gap needs.
+    # Their canopies overhang the lab's corner, which is what the gate should look like.
+    for asset, tx, tz, s in [("Env_Tree_Broadleaf_C", -12.0, 2.2, 1.45),
+                             ("Env_Tree_Broadleaf_B", -4.2, -0.2, 1.50)]:
+        b.place(asset, tx, tz, rng.uniform(0, 360), TOWN + "/Foliage",
+                "Town_GatePost", scale=s)
     # Orchard behind the west row, and a second one in the loop's back gardens.
     b.clump(-32.0, -8.4, 3.4, 12, TREE_BROADLEAF, TOWN + "/Foliage", "Town_Orchard",
             scale=(0.95, 1.15), road_margin=1.2, margin=-0.25)
@@ -1250,7 +1263,7 @@ TOWN_BARRIER_LINES = [
      [(-38.6, -38.6), (-28.0, -38.9), (-19.0, -39.0), (-12.0, -38.7), (-6.8, -38.0)]),
     ("Barrier_TownEast",
      [(-6.8, -38.0), (-3.2, -38.0), (-0.4, -33.0), (1.6, -27.0), (2.0, -20.0),
-      (1.2, -12.0), (-0.8, -6.0), (-2.8, -1.0), (-4.0, -0.2)]),
+      (1.2, -12.0), (3.4, -6.2), (2.4, -2.0), (-0.6, -0.4), (-4.0, -0.2)]),
 ]
 
 
@@ -1334,13 +1347,20 @@ def boundary_wood(TOWN):
          "this polygon's east end and Field_Town_WoodEast's north end are the two jambs "
          "of the town's only door.")
     wood("Field_Town_WoodEast",
-         [(-4.2, 0.6), (0.4, -1.6), (3.0, -6.0), (4.6, -12.0), (5.4, -20.0), (5.0, -28.0),
-          (3.0, -34.0), (-0.6, -38.4),
+         [(-4.4, 0.8), (-0.6, 1.0), (3.0, 0.2), (5.0, -2.4), (5.6, -7.0), (5.6, -12.0),
+          (5.4, -20.0), (5.0, -28.0), (3.0, -34.0), (-0.6, -38.4),
           (-3.2, -38.0), (-0.4, -33.0), (1.6, -27.0), (2.0, -20.0), (1.2, -12.0),
-          (-0.8, -6.0), (-2.8, -1.0)],
+          (1.8, -6.4), (0.4, -2.6), (-2.6, -0.8)],
          0.95,
          "Behind the terrace's retaining wall, from the gate down to the south-east "
-         "shoulder. The wall is the thing you see and this is what stands over it.")
+         "shoulder, and round the *back* of the lab. That north-east corner used to be "
+         "bare: the lab's own rear elevation looked out over the shelf at +2.73 m and "
+         "straight off the rim, a 3.4 m drop to the route, which is the same 'the town "
+         "just stops' reading as the street running into the horizon. The wood now stands "
+         "on the shelf 10-12 m behind it -- on the flat, not on the 25-37 degree rim "
+         "face, which the emitter would drop at MAX_PLANT_SLOPE anyway -- and closes to "
+         "within 4 m of the east gatepost, so the treeline funnels into the gate rather "
+         "than offering a second way out beside it.")
     wood("Field_Town_WoodSouth",
          [(-40.6, -42.8), (-34.0, -43.2), (-26.0, -42.2), (-18.0, -41.6), (-12.0, -40.8),
           (-7.6, -39.6),
@@ -1469,8 +1489,6 @@ def build():
     # The ledge shelf: a pocket you drop into and have to walk back out of.
     b.clump(9.0, 7.5, 3.2, 6, BOULDERS_SMALL, ROUTE + "/Terrain", "Route_ShelfRocks",
             scale=(0.75, 1.1), road_margin=1.0, max_slope=44.0)
-    b.try_place("Env_Prop_CaptureBall", 12.4, 8.2, 0.0, ROUTE + "/Props", "Route_ItemBall",
-                road_margin=0.6, tag="Interactable")
 
     field("Field_Route_NorthGrass", "tall_grass",
           [(-4, 15.0), (4, 16.6), (11, 19.0), (14, 22.0), (11, 25.5), (2, 24.0), (-5, 20.5)],
@@ -1515,7 +1533,14 @@ def build():
             # actually lands at; it is a property of the asset, and it moves when the
             # bridge is rebuilt longer.
             "Route_Bridge", y=BRIDGE_Y)
-    b.place("Env_Stepping_Stones", 33.2, 15.6, yaw_towards(4.0, 4.0) + 90.0,
+    # No +90 here, unlike the bridge above, and the difference is what the argument
+    # means. The bridge is given the *road's* direction and turned 90 degrees so its
+    # 9 m deck lies along the road; these stones are given the *stream's* direction, so
+    # turning them again laid the 3.95 m run down the middle of the channel instead of
+    # across it -- measured, both ends of the run sat within 0.25 m of the centreline,
+    # which is a line of stones you walk along the stream on and cannot cross. At the
+    # authored yaw the ends land 1.7 and 2.3 m out, on the two banks.
+    b.place("Env_Stepping_Stones", 33.2, 15.6, yaw_towards(4.0, 4.0),
             LAKE + "/Terrain", "Lake_SteppingStones", y=-1.55)
     # No waterfall lip. Env_Waterfall_Shelf is the overhanging lip only -- the falling
     # sheet, plunge ring and foam are shader and VFX work that does not exist yet -- so
@@ -1561,8 +1586,6 @@ def build():
     b.place("Env_Bench", 38.8, 54.4, 214.0, LAKE + "/Props", "Lake_LookoutBench")
     b.try_place("Env_Tree_Broadleaf_A", 39.4, 55.2, 20.0, LAKE + "/Foliage",
                 "Lake_LookoutTree", scale=1.35, road_margin=1.2)
-    b.try_place("Env_Prop_CaptureBall", 34.6, 51.0, 0.0, LAKE + "/Props", "Lake_ItemBall",
-                road_margin=0.6, tag="Interactable")
 
     field("Field_Lake_Reeds", "reeds",
           shore_band(lake_poly, lambda x, z: x < 46 and z > 30, -0.4, 2.2),
@@ -1645,7 +1668,7 @@ def build():
         b.place(rng.choice(VINES), x, z, rng.uniform(0, 360), CAVE + "/Foliage",
                 "Cave_Vine", y=Y_CAVE + 5.2, scale=rng.uniform(0.9, 1.2))
     b.place("Env_Prop_CaptureBall", -20.0, 64.6, 0.0, CAVE + "/Props", "Cave_ItemBall",
-            tag="Interactable")
+            tag="Interactable", pickup="poke-ball")
     b.surface_override = None
 
     field("Field_Cave_Moss", "moss",
@@ -1698,8 +1721,9 @@ def build():
     # "the slice's one optional detour". Measured against PlayerLocomotion's actual
     # limits (48 degree slope, 0.45 m step) not one of them gates anything -- the
     # terrain is a smooth height field with no vertical discontinuity, so the step
-    # limit never fires and every "cliff" is a walkable face. Env_Ledge_* (1.19 m) and
-    # Env_Riverbank_* (0.60 m) were modelled for exactly this and placed nowhere.
+    # limit never fires and every "cliff" is a walkable face. Env_Riverbank_* (0.60 m)
+    # was modelled for exactly this and placed nowhere. Only the stream survives as a
+    # gate: the ledge is gone with the mechanic it needed, see below.
     bank = resample(stream, 1.0)
     crossings = [
         (13.0, 18.2, 3.6),    # the bridge -- the route's gate
@@ -1708,13 +1732,24 @@ def build():
     ]
     left = b.prop_run("Env_Riverbank_4m", bank, ROUTE + "/Terrain", "Route_BankWest",
                       gaps=crossings, offset=1.9)
-    right = b.prop_run("Env_Riverbank_4m", bank, ROUTE + "/Terrain", "Route_BankEast",
-                       gaps=crossings, offset=-1.9, flip=True)
 
-    # The one-way ledge the design already describes: "hop south-east only ... a hard
-    # barrier coming back -- you walk around via the crossroads."
-    lip = resample(chaikin([(4.0, 8.0), (9.0, 10.0), (12.5, 12.0), (14.0, 14.0)], 2), 1.0)
-    hop = b.prop_run("Env_Ledge_4m", lip, ROUTE + "/Terrain", "Route_LedgeLip", offset=0.0)
+    # Only the west bank is dressed. Route_BankEast ran the same modules down the far
+    # side and came out at the user's request; what it was doing as a *barrier* the
+    # water now does for itself, because the emitter builds a shoreline curtain along
+    # every water surface it writes and the stream's surface is back in the Field
+    # scene. A second run of stone lipping a channel the player is already stopped at
+    # is a hundred triangles of scenery on the bank nobody stands on.
+
+    # The one-way ledge the design describes -- "hop south-east only ... a hard barrier
+    # coming back" -- is not built, and Route_LedgeLip has been removed rather than
+    # repaired. There is no hop anywhere in this project: PlayerLocomotion has a 0.45 m
+    # step limit and no jump at all, so a 1.19 m Env_Ledge_4m is a plain wall in both
+    # directions and the "one-way" half of the design is a mechanic that does not
+    # exist. That is the same conclusion Ledge_TownRim reached below, for the same
+    # reason -- a box collider cannot be one-way -- and this run had already decayed
+    # into the failure that finding predicts: audit_placement --fix pushed module 01 by
+    # 1.01 m and module 02 by 0.95 m off a bush and a verge rock, so what shipped was
+    # not a ledge but two disconnected wall fragments standing in open grass.
 
     # Ledge_TownRim -- the town's declared one-way hop out over the terrace lip -- has
     # been dropped rather than made real. It was never real: the lip is a smooth height
@@ -1725,11 +1760,75 @@ def build():
     # second exit -- and one that no barrier box can express, because a box cannot be
     # one-way. Reinstating it is three lines here plus a gap in Barrier_TownEast.
 
-    print("  barriers           %d west bank, %d east bank, %d route ledge modules, "
-          "%d town barrier volumes" % (left, right, hop, len(BARRIER_VOLUMES)))
+    print("  barriers           %d west bank modules, %d town barrier volumes"
+          % (left, len(BARRIER_VOLUMES)))
 
     # The town is built last and off its own generator -- see build_town's docstring.
     plaza = build_town(b, random.Random(TOWN_SEED))
+
+    # --- item balls -----------------------------------------------------------
+    #
+    # After the town, for the reason the barrier block above gives: one seeded RNG
+    # runs this whole file, so a call inserted earlier re-jitters everything after
+    # it. These draw from it not at all -- every position and yaw below is typed,
+    # because where an item is hidden is a composition decision and not a scatter.
+    #
+    # Two `try_place` calls further up used to stand in for this, one on the shelf
+    # and one at the lakeside lookout, and neither had placed anything for as long
+    # as they had existed: the shelf one landed inside Route_ShelfRocks_01 and the
+    # lookout one on a 53.8 degree bank three metres under the lake surface. They
+    # are gone rather than moved, because moving a rejected placement into a spot
+    # where it succeeds adds an occupancy circle mid-`build()` and shifts every
+    # scatter decision after it.
+    #
+    # Nothing here is on a road, and nothing is in the middle of a space. An item
+    # you walk past without choosing to is not a discovery, so each of these sits
+    # behind something the player has to decide to go round: the far side of the
+    # encounter field, the far bank of the stepping stones, the shelf behind the
+    # lab, the dead end past the orchard, the back corner of the working yard.
+    #
+    # Not on the ledge shelf, which is where the design's own note puts an item
+    # ("Field_Route_ShelfGrass ... around the item ball. The reward for hopping
+    # down"). It was there for one build and it was a trap: the shelf's rim is
+    # steeper than PlayerLocomotion's 48 degree limit all the way round except
+    # where Env_Ledge_4m stands, and the ledge is a mesh collider like every other
+    # prop -- there is no hop mechanic anywhere in the project, so it blocks in
+    # both directions. A player who drops onto that shelf cannot get off it. The
+    # stepping stones are the same idea with a way back: the layout already calls
+    # them "the slice's one optional detour", and a crossing you can recross is a
+    # detour rather than a hole.
+    #
+    # The livery names the item. The kit has sixteen of them and the choice would
+    # otherwise be arbitrary; this way the ball the player sees on the ground is
+    # the ball that ends up in the bag, and a reviewer can check the pairing by
+    # eye instead of reading the JSON.
+    #
+    # Scaled up, and it is not a fudge. The mesh is 0.109 m across, which is a
+    # Poke Ball held in a hand; the exploration camera shows a 14 m screenful, so
+    # at 1920 px that asset is fifteen pixels of the same palette as the ground
+    # under it. PickupGlow's own note assumes about forty, which is what x2.6
+    # gives. Every game this is drawn from oversizes the ground item for exactly
+    # this reason.
+    #
+    # `lift` is derived from the asset rather than typed. asset_bounds calls the
+    # pivot "volume centre", so seating one at ground level buries half the
+    # sphere -- audit_placement grew its whole buried check around this asset.
+    BALL_SCALE = 2.6
+    for asset, x, z, yaw, parent, tag_prefix, item in [
+        ("Env_Prop_CaptureBall_Great", 36.5, 11.0, 28.0, ROUTE + "/Props",
+         "Route_StonesItemBall", "great-ball"),
+        ("Env_Prop_CaptureBall_Net", 7.0, 22.5, 312.0, ROUTE + "/Props",
+         "Route_GrassItemBall", "net-ball"),
+        ("Env_Prop_CaptureBall", -0.4, -12.6, 196.0, "Town/Props",
+         "Town_LabShelfItemBall", "poke-ball"),
+        ("Env_Prop_CaptureBall_Quick", -29.0, -3.4, 74.0, "Town/Props",
+         "Town_OrchardItemBall", "quick-ball"),
+        ("Env_Prop_CaptureBall_Timer", -30.2, -37.9, 140.0, "Town/Props",
+         "Town_YardItemBall", "timer-ball"),
+    ]:
+        b.place(asset, x, z, yaw, parent, tag_prefix, scale=BALL_SCALE,
+                lift=b.size(asset)[1] * 0.5 * BALL_SCALE,
+                tag="Interactable", pickup=item)
 
     return b, baked, paths, stream, lake_poly, stream_poly, plaza, cave_floor
 
@@ -1796,17 +1895,23 @@ def gameplay_block(baked):
 
     return {
         "playerSpawn": {
-            "name": "Spawn_Player", "position": g(-10.5, -15.0), "rotation": [0, 45, 0],
-            "note": ("Still on the exact 45 degree camera axis to the lab -- the lab sits "
-                     "at (-1.5, -6) and this is (-1.5 - 9, -6 - 9) -- but nine metres out "
-                     "instead of five and a half. The old spawn's claim was that 'the "
-                     "first frame of the game is the dome filling the top of the screen'. "
-                     "It was not: at 7.8 m the camera frames 5.6 m of a 9.3 m building, "
-                     "so the opening shot was the lab's doorstep with the dome off the "
-                     "top of the screen. From here the camera stands 17.7 m off it and "
-                     "frames 12.9 m, which is the building plus sky. The plaza, the "
-                     "market row and the well fall away to the left, the street runs out "
-                     "of frame behind.")},
+            "name": "Spawn_Player", "position": g(-9.0, -13.5), "rotation": [0, 45, 0],
+            "note": ("On the plaza's south-east corner, on the exact 45 degree camera "
+                     "axis to the lab: the lab is at (-1.5, -6) and this is (-1.5 - 7.5, "
+                     "-6 - 7.5). Moved 2.6 m back down that axis so the shot opens on the "
+                     "plaza rather than on the lab's doorstep, and so the market row and "
+                     "the well are in the same frame. "
+                     "The note this replaces claimed the opening frame was 'the dome "
+                     "filling the top of the screen'. That is not achievable and never "
+                     "was. The exploration camera is pitched 38 degrees down with a 40 "
+                     "degree vertical FOV, so the top edge of the frame is a ray leaving "
+                     "the camera 18 degrees BELOW horizontal: from a camera eye 5.2 m up "
+                     "nothing above 5.2 m is ever in shot, and it falls a further 0.33 m "
+                     "for every metre of distance. The lab is 9.33 m tall and its dome "
+                     "starts at 6 m. No ground-level position in this town can frame it. "
+                     "What the opening frame actually is, and what it is now composed "
+                     "for, is the lab's ground floor and door filling the top third with "
+                     "the plaza falling away below -- see the report against this pass.")},
         "spawnPoints": [
             {"name": "Spawn_TownGate", "position": g(-8.2, 1.0), "rotation": [0, 20, 0]},
             {"name": "Spawn_TownSouthGate", "position": g(-15.4, -37.4),
@@ -2089,7 +2194,7 @@ def terrain_block(baked, paths, stream, lake_poly, stream_poly, plaza, cave_floo
          "from": [30.0, -0.3, 29.6], "to": [39.5, -1.55, 31.6], "width": 3.4,
          "gradeDegrees": 7.4, "note": "Drops the road into the lake basin."},
         {"name": "Ramp_LabForecourt", "path": "Path_TownLane_Lab",
-         "from": [-8.0, 2.4, -11.5], "to": [-6.8, 2.8, -10.9], "width": 2.8,
+         "from": [-8.0, 2.4, -11.5], "to": [-6.8, 2.8, -10.9], "width": 3.4,
          "gradeDegrees": 14.0,
          "note": "0.4 m step up to the lab. Inside PlayerLocomotion's 0.45 m step limit, "
                  "so it needs no stair geometry."},
