@@ -198,6 +198,23 @@ namespace PokeLab.Boot.Editor
                 repairs++;
             }
 
+            // Streaming was serialized off while it was being debugged, and a changed code
+            // default cannot reach a value Unity has already written. Left off, the town's
+            // ground simply stops at z = 14 — the neighbouring band is never loaded — and a
+            // player walking out of the gate falls off the end of the world.
+            foreach (var streamer in Object.FindObjectsByType<PokeLab.Overworld.World.WorldStreamer>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                var sso = new SerializedObject(streamer);
+                var on = sso.FindProperty("_enabled");
+                if (on != null && !on.boolValue)
+                {
+                    on.boolValue = true;
+                    sso.ApplyModifiedPropertiesWithoutUndo();
+                    repairs++;
+                }
+            }
+
             // A brain-less main camera renders the scene from wherever it was left and
             // ignores every virtual camera in it.
             var main = Camera.main;
