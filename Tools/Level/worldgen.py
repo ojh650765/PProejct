@@ -383,7 +383,8 @@ class HeightField:
         self.masses = masses
         self.channels = channels
         self.micro = micro
-        self.conform = []          # (points, half_width, blend)
+        self.conform = []          # (points, half_width, blend, skippable)
+        self.pads = []             # (cx, cz, half_x, half_z, height, blend)
 
     def add_conform(self, points, half_width, blend, skippable=True):
         """`skippable` marks a conform that a bridge span is allowed to suspend.
@@ -395,6 +396,17 @@ class HeightField:
         reads as a bridge standing on dry dirt between two disconnected pools.
         """
         self.conform.append((points, half_width, blend, skippable))
+
+    def add_pad(self, cx, cz, half_x, half_z, height, blend):
+        """A level platform cut for a building.
+
+        Buildings are rigid boxes and the ground under them is not. A cottage on
+        4 degrees of fall has one corner in the air, and seating it lower only buries
+        the opposite corner — the repair is to make the ground flat, which is what
+        anyone actually building a house does. Rectangular rather than radial so the
+        pad follows the building rather than bulging past its corners.
+        """
+        self.pads.append((cx, cz, half_x, half_z, height, max(blend, 0.01)))
 
     def raw(self, x, z):
         y = self.base_fn(x, z)
@@ -409,7 +421,15 @@ class HeightField:
         """Terrain height. With `skippable` false, only the conforms a bridge may not
         suspend are applied -- in practice, the stream channel but not the roads."""
         y = self.raw(x, z)
+        # Tracked separately so a watercourse can win against a road. Both are
+        # conforms and the strongest-weight rule made them compete on equal terms,
+        # which let the route's elevation fill in the stream bed wherever the two run
+        # close: 11 of the stream's 77 centreline points had their bed standing up to
+        # 0.90 m *above* their own waterline, and the stream rendered as a chain of
+        # disconnected puddles. A road can be carried over water on a bridge; water
+        # cannot be carried over a road.
         best_w, best_y = 0.0, 0.0
+        cut_w, cut_y = 0.0, 0.0
         for points, hw, blend, is_skippable in self.conform:
             if is_skippable and not skippable:
                 continue
@@ -417,11 +437,27 @@ class HeightField:
             if d >= hw + blend:
                 continue
             w = 1.0 if d <= hw else smootherstep(1.0 - (d - hw) / blend)
-            if w > best_w:
-                best_w, best_y = w, pt[1]
-        if best_w <= 0.0:
-            return y
-        return lerp(y, best_y, best_w)
+            if is_skippable:
+                if w > best_w:
+                    best_w, best_y = w, pt[1]
+            elif w > cut_w:
+                cut_w, cut_y = w, pt[1]
+
+        if cut_w >= 0.5:
+            best_w, best_y = cut_w, cut_y
+        if best_w > 0.0:
+            y = lerp(y, best_y, best_w)
+
+        # Pads last: a house's platform wins over the road that runs past it.
+        for cx, cz, hx, hz, height, blend in self.pads:
+            dx = max(abs(x - cx) - hx, 0.0)
+            dz = max(abs(z - cz) - hz, 0.0)
+            d = math.hypot(dx, dz)
+            if d >= blend:
+                continue
+            w = 1.0 if d <= 0.0 else smootherstep(1.0 - d / blend)
+            y = lerp(y, height, w)
+        return y
 
 
 class BakedField:

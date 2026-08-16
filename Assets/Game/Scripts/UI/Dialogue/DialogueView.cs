@@ -142,20 +142,19 @@ namespace PokeLab.UI
         /// <summary>
         /// Shows a line. <paramref name="onAdvance"/> fires when the player presses past a
         /// fully revealed line.
+        ///
+        /// <paramref name="subtitle"/> is the small label beside the name — an affiliation, a
+        /// role, or the place the line is spoken from. It sits on the name's baseline at two
+        /// thirds the size and in the accent colour, so it reads as an annotation on the name
+        /// rather than as a second name.
+        ///
+        /// It is a trailing optional parameter rather than an overload on purpose: a
+        /// <c>Show(name, text, subtitle)</c> overload sitting beside
+        /// <c>Show(name, text, portrait)</c> makes <c>Show(name, text, null)</c> ambiguous,
+        /// and the caller discovers that as a compile error with no obvious fix.
         /// </summary>
-        public void Show(string speaker, string body, Sprite portrait = null, Action onAdvance = null)
-        {
-            Show(speaker, null, body, portrait, onAdvance);
-        }
-
-        /// <summary>
-        /// Shows a line with a subtitle beside the name — an affiliation, a role, or the place
-        /// the line is spoken from. It sits on the name's baseline at two thirds the size and
-        /// in the accent colour, so it reads as an annotation on the name rather than as a
-        /// second name.
-        /// </summary>
-        public void Show(string speaker, string subtitle, string body, Sprite portrait = null,
-            Action onAdvance = null)
+        public void Show(string speaker, string body, Sprite portrait = null, Action onAdvance = null,
+            string subtitle = null)
         {
             _onAdvance = onAdvance;
             _onChoice = null;
@@ -168,14 +167,7 @@ namespace PokeLab.UI
         /// question.
         /// </summary>
         public void ShowChoices(string speaker, string body, IReadOnlyList<string> choices,
-            Action<int> onChoice, Sprite portrait = null)
-        {
-            ShowChoices(speaker, null, body, choices, onChoice, portrait);
-        }
-
-        /// <summary>Choices, with a subtitle beside the speaker's name.</summary>
-        public void ShowChoices(string speaker, string subtitle, string body, IReadOnlyList<string> choices,
-            Action<int> onChoice, Sprite portrait = null)
+            Action<int> onChoice, Sprite portrait = null, string subtitle = null)
         {
             _onAdvance = null;
             _onChoice = onChoice;

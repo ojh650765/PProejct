@@ -37,8 +37,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 
-from worldgen import (chaikin, clamp, closest_on_polyline, lerp, point_in_poly,
-                      poly_area, poly_bounds, poly_sdf, resample)
+from worldgen import (chaikin, clamp, closest_on_polyline, contour, lerp,
+                      point_in_poly, poly_area, poly_bounds, poly_sdf, resample)
 
 SOURCE = os.path.join(ROOT, "Assets", "Game", "Data", "Levels", "slice_layout.json")
 OUT = os.path.join(ROOT, "Assets", "Game", "Data", "Levels", "slice_layout_unity.json")
@@ -473,10 +473,20 @@ def build_water(layout, grid):
                 out.append(strip)
             continue
 
-        poly = [(float(p[0]), float(p[1])) for p in body["polygon"]]
+        y = float(body["surfaceY"])
+
+        # Re-trace the shoreline from the baked height grid rather than trusting the
+        # authored outline. The authored one was traced from the same isoline but then
+        # masked to the lake bowl's own footprint, which cut it off part-way: about
+        # 131 m2 of ground genuinely below the waterline sat outside it, so the water
+        # surface ended in mid-slope with a dry pit beside it and its own edge standing
+        # proud of the ground. The waterline is not a design choice — it is wherever the
+        # terrain crosses this height — so it is derived here.
+        traced = contour(grid.rows, grid.x0, grid.z0, grid.step, y)
+        poly = traced if len(traced) >= 3 else [
+            (float(p[0]), float(p[1])) for p in body.get("polygon", [])]
         if len(poly) < 3:
             continue
-        y = float(body["surfaceY"])
         index, verts, uvs, tris = {}, [], [], []
 
         def vertex(x, z):

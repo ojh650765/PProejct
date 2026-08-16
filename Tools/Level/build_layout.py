@@ -347,6 +347,20 @@ PATH_SPECS = [
 # into the channel *outside* the deck and the crossing has a step at each end. The
 # bridge is 5.0 m long, so 3.6 m un-conformed the road over 7.2 m of a 5 m span and
 # left its abutments 0.24-0.33 m in the air with a lip either side.
+# Buildings, hoisted so the height field can cut a pad for each before it is baked.
+# A building is a rigid box and the ground is not: Town_House_03 stood 1.35 m off its
+# own footprint on only 4 degrees of fall, and seating it lower would just have buried
+# the opposite corner.
+LAB = ("Env_Building_PokeLab", -1.5, -6.0, 222.0)
+HOUSES = [
+    ("Env_House_Cottage_A", -23.0, -22.5, 86.0),      # west row, south
+    ("Env_House_Townhouse_B", -23.5, -16.0, 93.0),    # west row, north
+    ("Env_House_Farmhouse_C", -17.5, 0.8, 196.0),     # north of the plaza, fronts south
+    ("Env_House_Cottage_A", -3.6, -19.5, 268.0),      # east row, fronts west
+    ("Env_House_Townhouse_B", -3.2, -26.5, 277.0),    # east row, south
+    ("Env_House_Cottage_A", -27.5, -27.5, 42.0),      # the player's house, on the corner
+]
+
 CONFORM_SKIPS = [((13.6, 18.2), 2.1, "Bridge_Stream"),
                  ((33.2, 15.6), 1.9, "SteppingStones_Stream")]
 
@@ -380,6 +394,50 @@ def build_height_field():
     # nowhere to run and vanishes into the bank at the crossing.
     field.add_conform(bed, STREAM_HALF_WIDTH, 2.6, skippable=False)
     return field, paths, stream
+
+
+def shore_band(lake_poly, keep, inner, outer):
+    """A strip of land following the shoreline, `inner` to `outer` metres inland.
+
+    The lakeside fields were hand-drawn polygons and the lake is traced from the
+    terrain, so the two drifted apart: once the shoreline was traced honestly, 99% of
+    Field_Lake_ShoreGrass was underwater and it placed one clump. Deriving the band
+    from the same polygon the water is built from means it cannot drift again.
+    """
+    cx, cz = poly_centroid(lake_poly)
+    arc = [p for p in lake_poly if keep(p[0], p[1])]
+    if len(arc) < 3:
+        return []
+
+    def push(p, d):
+        vx, vz = p[0] - cx, p[1] - cz
+        n = math.hypot(vx, vz) or 1.0
+        return (round(p[0] + vx / n * d, 2), round(p[1] + vz / n * d, 2))
+
+    near = [push(p, inner) for p in arc]
+    far = [push(p, outer) for p in reversed(arc)]
+    return near + far
+
+
+def add_building_pads(field, bounds):
+    """Cut a level platform under every building.
+
+    Evaluated against the field as it stands *before* any pad is added, so a pad takes
+    the natural ground height at the building's own centre rather than inheriting a
+    neighbour's platform. The blend is short: a house sits on a terrace with a visible
+    edge, not in the middle of a saucer.
+    """
+    for asset, hx, hz, hyaw in [(LAB[0], LAB[1], LAB[2], LAB[3])] + HOUSES:
+        size = bounds.get(asset, {}).get("size")
+        if not size:
+            continue
+        height = field.height(hx, hz)
+        rad = math.radians(hyaw)
+        c, sn = abs(math.cos(rad)), abs(math.sin(rad))
+        # Rotated footprint's axis-aligned half extents, plus a doorstep margin.
+        half_x = (size[0] * c + size[2] * sn) * 0.5 + 0.6
+        half_z = (size[0] * sn + size[2] * c) * 0.5 + 0.6
+        field.add_pad(hx, hz, half_x, half_z, height, 2.4)
 
 
 def apply_skips(field):
@@ -646,6 +704,7 @@ def build():
 
     field_h, paths, stream = build_height_field()
     apply_skips(field_h)
+    add_building_pads(field_h, bounds)
     baked = BakedField(field_h, X0, X1, Z0, Z1, GRID_STEP)
     b = Builder(bounds, baked, paths, rng)
 
@@ -659,9 +718,12 @@ def build():
         x, z = X0 + ix * GRID_STEP, Z0 + iz * GRID_STEP
         return z >= 26.0 and poly_sdf(x, z, bowl.polygon) < bowl.shoulder * 0.72
 
-    masked = [[(v if _in_bowl(ix, iz) else 99.0) for ix, v in enumerate(row)]
-              for iz, row in enumerate(baked.grid)]
-    lake_poly = contour(masked, X0, Z0, GRID_STEP, Y_LAKE)
+    # Unmasked. The mask was meant to keep the trace on the lake bowl, but the ground
+    # it excluded is genuinely below the waterline, so the water surface stopped
+    # part-way with a dry pit beside it and its own edge standing proud. The waterline
+    # is not a design choice -- it is wherever the terrain crosses Y_LAKE.
+    _ = _in_bowl
+    lake_poly = contour(baked.grid, X0, Z0, GRID_STEP, Y_LAKE)
     stream_poly = ribbon_polygon(stream, STREAM_HALF_WIDTH)
 
     # =====================================================================
@@ -673,21 +735,14 @@ def build():
              (-19.2, -6.0), (-21.0, -10.0)]
 
     # The lab. Faces south-west down the camera axis, at the head of the plaza, one step up.
-    lab_x, lab_z, lab_yaw = -1.5, -6.0, 222.0
+    lab_x, lab_z, lab_yaw = LAB[1], LAB[2], LAB[3]
     b.reserve(lab_x, lab_z, lab_yaw, 4.6, 4.9)
     b.place("Env_Building_PokeLab", lab_x, lab_z, lab_yaw, TOWN + "/Buildings",
             "Town_Lab", tag="Interactable")
 
     # Houses. Every one addresses the street: west row fronts east, east row fronts west,
     # each set 5-6 m back behind a fenced front garden.
-    houses = [
-        ("Env_House_Cottage_A", -23.0, -22.5, 86.0),      # west row, south
-        ("Env_House_Townhouse_B", -23.5, -16.0, 93.0),    # west row, north
-        ("Env_House_Farmhouse_C", -17.5, 0.8, 196.0),     # north of the plaza, fronts south
-        ("Env_House_Cottage_A", -3.6, -19.5, 268.0),      # east row, fronts west
-        ("Env_House_Townhouse_B", -3.2, -26.5, 277.0),    # east row, south
-        ("Env_House_Cottage_A", -27.5, -27.5, 42.0),      # the player's house, on the corner
-    ]
+    houses = HOUSES
     for asset, hx, hz, hyaw in houses:
         w, d, _ = b.size(asset)
         b.reserve(hx, hz, hyaw, w * 0.5 + 0.3, d * 0.5 + 0.3)
@@ -905,8 +960,10 @@ def build():
             "Route_Bridge", y=0.06)
     b.place("Env_Stepping_Stones", 33.2, 15.6, yaw_towards(4.0, 4.0) + 90.0,
             LAKE + "/Terrain", "Lake_SteppingStones", y=-1.55)
-    b.place("Env_Waterfall_Shelf", 11.3, 31.0, 196.0, LAKE + "/Terrain", "Lake_WaterfallLip",
-            y=9.4)
+    # No waterfall lip. Env_Waterfall_Shelf is the overhanging lip only -- the falling
+    # sheet, plunge ring and foam are shader and VFX work that does not exist yet -- so
+    # on its own it is a slab standing 10 m in the air above nothing, which is what it
+    # read as. It goes back in with the effect, not before it.
 
     # Willows on the shore -- the one tree that says "water" at a glance.
     b.tree_wall([(34.0, 33.0), (32.5, 40.0), (31.5, 47.0), (32.0, 53.0), (35.0, 58.0)],
@@ -951,7 +1008,7 @@ def build():
                 road_margin=0.6, tag="Interactable")
 
     field("Field_Lake_Reeds", "reeds",
-          [(38, 34), (36, 42), (35, 50), (37, 56), (42, 58), (44, 50), (43, 40), (41, 34)],
+          shore_band(lake_poly, lambda x, z: x < 46 and z > 30, -0.4, 2.2),
           1.30, [("Env_Reed_A", 3), ("Env_Reed_B", 3), ("Env_Grass_Clump_C", 1)],
           LAKE + "/Foliage", "Zone_Lakeside",
           "Reed belt on the west shore, following the waterline band between -2.2 and -1.4. "
@@ -963,8 +1020,8 @@ def build():
           "On the water surface at y=-2.2, thinning toward the middle so the lake still "
           "reads as open water you would want to surf across.", scale=(0.9, 1.4))
     field("Field_Lake_ShoreGrass", "tall_grass",
-          [(39, 32), (47, 30), (53, 33), (51, 38), (43, 39)],
-          7.5, [("Env_TallGrass_Cluster_D", 4), ("Env_TallGrass_Cluster_B", 3),
+          shore_band(lake_poly, lambda x, z: z < 40, 1.2, 4.6),
+          5.5, [("Env_TallGrass_Cluster_D", 4), ("Env_TallGrass_Cluster_B", 3),
                  ("Env_TallGrass_Cluster_A", 2)],
           LAKE + "/TallGrass", "Zone_Lakeside",
           "Beach-side encounter field, the only one in the zone -- water Pokemon come from "
