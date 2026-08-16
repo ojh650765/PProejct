@@ -137,7 +137,8 @@ namespace PokeLab.Overworld
                 _encounters.ResetPressure();
             }
 
-            if (_restorePosition && _player != null && world.PlayerPosition != Vector3.zero)
+            if (_restorePosition && _player != null && world.PlayerPosition != Vector3.zero
+                && IsStandable(world.PlayerPosition))
             {
                 _player.Warp(world.PlayerPosition, world.PlayerRotation);
                 // Re-derive the active zone from the restored position: trigger volumes will not
@@ -148,6 +149,35 @@ namespace PokeLab.Overworld
                     if (zone != null) _zoneDirector.ForceZone(zone);
                 }
             }
+        }
+
+        /// <summary>
+        /// True when there is ground to stand on at a saved position.
+        ///
+        /// A save is a record of where the player was, and it is trusted absolutely — which
+        /// makes it a way to brick a game permanently. That happened: the player walked off
+        /// the edge of the height field, the fall was saved, and every session afterwards
+        /// restored them mid-fall and saved a lower position still, down past y = -1300. The
+        /// scene on disk was correct the whole time and reloading it changed nothing, because
+        /// the save overrode it after load.
+        ///
+        /// So a restored position has to be checked before it is honoured. Failing this test
+        /// leaves the player wherever the scene put them, which is the spawn marker.
+        /// </summary>
+        private static bool IsStandable(Vector3 position)
+        {
+            const float lift = 2f;
+            const float reach = 60f;
+            if (Physics.Raycast(position + Vector3.up * lift, Vector3.down, lift + reach,
+                    ~0, QueryTriggerInteraction.Ignore))
+            {
+                return true;
+            }
+
+            Debug.LogWarning($"[Profile] The save puts the player at {position}, where there " +
+                             "is no ground within 60 m below. Ignoring it and starting from " +
+                             "the scene's spawn instead.");
+            return false;
         }
 
         /// <summary>Captures the world snapshot and writes the save file.</summary>

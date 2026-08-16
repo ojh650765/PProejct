@@ -64,6 +64,7 @@ namespace PokeLab.Overworld
         [SerializeField] private float _autoFollowDelay = 1.6f;
         [SerializeField] private PlayerLocomotion _locomotion;
 
+        private readonly RaycastHit[] _hits = new RaycastHit[8];
         private CinemachineOrbitalFollow _orbital;
         private float _currentDistance;
         private float _distanceVelocity;
@@ -190,22 +191,49 @@ namespace PokeLab.Overworld
             var origin = _followTarget.position;
             var back = -transform.forward;
 
-            if (Physics.SphereCast(origin, _probeRadius, back, out var hit, _restDistance, _occluderMask, QueryTriggerInteraction.Ignore))
+            // The cast starts at chest height, which is inside the player's own capsule.
+            // A plain SphereCast reports that capsule at distance 0 and the boom collapses
+            // to the minimum every frame, so the nearest hit that is not the player is the
+            // one that matters. Masking by layer alone is not enough while the player and
+            // the world can share a layer.
+            var count = Physics.SphereCastNonAlloc(origin, _probeRadius, back, _hits,
+                _restDistance, _occluderMask, QueryTriggerInteraction.Ignore);
+            var nearest = float.PositiveInfinity;
+            var self = _followTarget.root;
+            for (var i = 0; i < count; i++)
             {
-                target = Mathf.Max(_minDistance, hit.distance - _probeRadius * 0.5f);
+                var hit = _hits[i];
+                if (hit.collider == null || hit.collider.transform.root == self) continue;
+                // distance 0 means the cast began already overlapping this collider, which
+                // says nothing about where its surface is.
+                if (hit.distance <= 0.0001f) continue;
+                if (hit.distance < nearest) nearest = hit.distance;
             }
+            if (!float.IsPositiveInfinity(nearest))
+                target = Mathf.Max(_minDistance, nearest - _probeRadius * 0.5f);
 
             var smoothing = target < _currentDistance ? _pullInTime : _pushOutTime;
             _currentDistance = Mathf.SmoothDamp(_currentDistance, target, ref _distanceVelocity, smoothing, Mathf.Infinity, dt);
             ApplyDistance(_currentDistance);
         }
 
+        /// <summary>
+        /// Sets the boom length in metres.
+        ///
+        /// <c>RadialAxis</c> is not a distance. Cinemachine calls it "Orbit Scale" and uses
+        /// it as a multiplier: in sphere mode the camera sits at
+        /// <c>rotation * (0, 0, -Radius * RadialAxis.Value)</c>. Writing metres into it
+        /// therefore squares the boom — a 5.5 m rest distance against a 5.5 m radius put
+        /// the camera 30 m away, which is why exploration opened on a map view of the town
+        /// rather than behind the player, and why walking looked like nothing was moving.
+        /// </summary>
         private void ApplyDistance(float distance)
         {
             if (_orbital == null) return;
+            var boom = Mathf.Max(0.01f, _orbital.Radius);
             var radial = _orbital.RadialAxis;
-            radial.Range = new Vector2(_minDistance, _maxDistance);
-            radial.Value = Mathf.Clamp(distance, _minDistance, _maxDistance);
+            radial.Range = new Vector2(_minDistance / boom, _maxDistance / boom);
+            radial.Value = Mathf.Clamp(distance, _minDistance, _maxDistance) / boom;
             _orbital.RadialAxis = radial;
         }
 

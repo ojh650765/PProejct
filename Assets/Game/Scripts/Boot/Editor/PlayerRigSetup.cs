@@ -1,5 +1,6 @@
 using System.IO;
 using PokeLab.Overworld;
+using PokeLab.Overworld.People;
 using PokeLab.Vfx;
 using Unity.Cinemachine;
 using UnityEditor;
@@ -34,7 +35,11 @@ namespace PokeLab.Boot.Editor
             var scene = EditorSceneManager.GetActiveScene();
             if (Object.FindFirstObjectByType<PlayerLocomotion>() != null)
             {
-                Debug.Log($"[Rig] '{scene.name}' already has a player; nothing to do.");
+                // Repair rather than refuse. This used to return here, which meant a rig
+                // built by an older version of this file could never be brought up to date
+                // without deleting it by hand — and the person doing that has no way to know
+                // which part of it is stale.
+                Repair(scene);
                 return;
             }
 
@@ -53,6 +58,87 @@ namespace PokeLab.Boot.Editor
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveOpenScenes();
             Debug.Log($"[Rig] Built the player rig in '{scene.name}' at {start}.");
+        }
+
+        /// <summary>
+        /// Brings an already-built rig up to date, component by component.
+        ///
+        /// Everything here is something a previous version of this file got wrong or did
+        /// not know to do, so each fix names the symptom it produces when absent.
+        /// </summary>
+        private static void Repair(UnityEngine.SceneManagement.Scene scene)
+        {
+            var repairs = 0;
+
+            foreach (var vcam in Object.FindObjectsByType<CinemachineCamera>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                // No aim component: the camera is positioned correctly and points at world
+                // +Z regardless, so the player is off the bottom of the frame.
+                if (vcam.GetComponent<CinemachineRotationComposer>() == null
+                    && vcam.GetComponent<CinemachineHardLookAt>() == null)
+                {
+                    var composer = vcam.gameObject.AddComponent<CinemachineRotationComposer>();
+                    composer.Composition.ScreenPosition = new Vector2(0f, -0.12f);
+                    composer.Damping = new Vector2(0.35f, 0.35f);
+                    repairs++;
+                }
+
+                if (vcam.LookAt == null && vcam.Follow != null)
+                {
+                    vcam.LookAt = vcam.Follow;
+                    repairs++;
+                }
+            }
+
+            // The player is a root object, so a level rebuild replaces the ground under it
+            // and leaves it wherever it last was — which after a play session is wherever
+            // the probe stopped walking. A probe found it parked on the map's north-east
+            // corner, two steps from the edge of the height field.
+            var spawn = GameObject.Find("PlayerSpawn");
+            if (spawn != null)
+            {
+                foreach (var locomotion in Object.FindObjectsByType<PlayerLocomotion>(
+                             FindObjectsInactive.Include, FindObjectsSortMode.None))
+                {
+                    if ((locomotion.transform.position - spawn.transform.position).sqrMagnitude < 0.01f)
+                        continue;
+                    locomotion.transform.position = spawn.transform.position;
+                    repairs++;
+                }
+            }
+
+            // An empty "Visual" child: the player has no sprite and is invisible.
+            foreach (var locomotion in Object.FindObjectsByType<PlayerLocomotion>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                var visual = locomotion.transform.Find("Visual");
+                if (visual == null || visual.GetComponent<PersonBillboard>() != null) continue;
+
+                if (visual.GetComponent<MeshFilter>() == null) visual.gameObject.AddComponent<MeshFilter>();
+                if (visual.GetComponent<MeshRenderer>() == null) visual.gameObject.AddComponent<MeshRenderer>();
+                SetString(visual.gameObject.AddComponent<PersonBillboard>(), "_personKey", "player");
+                repairs++;
+            }
+
+            // A brain-less main camera renders the scene from wherever it was left and
+            // ignores every virtual camera in it.
+            var main = Camera.main;
+            if (main != null && main.GetComponent<CinemachineBrain>() == null)
+            {
+                main.gameObject.AddComponent<CinemachineBrain>();
+                repairs++;
+            }
+
+            if (repairs == 0)
+            {
+                Debug.Log($"[Rig] '{scene.name}' already has a complete player rig.");
+                return;
+            }
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveOpenScenes();
+            Debug.Log($"[Rig] Repaired {repairs} thing(s) on the existing rig in '{scene.name}'.");
         }
 
         private static OverworldInputReader BuildInput()
@@ -92,8 +178,16 @@ namespace PokeLab.Boot.Editor
             focus.transform.SetParent(go.transform, false);
             focus.transform.localPosition = new Vector3(0f, 1.15f, 0f);
 
+            // The visual used to be an empty. Nothing ever put a renderer on it, so the
+            // player was an invisible capsule pushing the camera around — and because the
+            // capture tool renders the level rather than the game, no review frame ever
+            // had a player in it to be missing.
             var visual = new GameObject("Visual");
             visual.transform.SetParent(go.transform, false);
+            visual.AddComponent<MeshFilter>();
+            visual.AddComponent<MeshRenderer>();
+            var billboard = visual.AddComponent<PersonBillboard>();
+            SetString(billboard, "_personKey", "player");
 
             var locomotion = go.AddComponent<PlayerLocomotion>();
             Assign(locomotion, "_input", input);
@@ -120,6 +214,18 @@ namespace PokeLab.Boot.Editor
             var orbital = go.AddComponent<CinemachineOrbitalFollow>();
             orbital.OrbitStyle = CinemachineOrbitalFollow.OrbitStyles.Sphere;
             orbital.Radius = 5.5f;
+
+            // Orbital follow is a *position* component and nothing else. Without an aim
+            // component the camera is placed correctly and then left pointing wherever its
+            // transform happened to face — identity, i.e. down world +Z at a level horizon,
+            // with the player somewhere off the bottom of the frame. A play-mode probe
+            // measured it: the rig tracked the player to within a centimetre while
+            // reporting yaw 0, pitch 0 for every single sample.
+            var composer = go.AddComponent<CinemachineRotationComposer>();
+            // Off-centre vertically so the player sits low in frame and the shot spends its
+            // pixels on the ground ahead rather than on sky.
+            composer.Composition.ScreenPosition = new Vector2(0f, -0.12f);
+            composer.Damping = new Vector2(0.35f, 0.35f);
 
             var rig = go.AddComponent<OverworldCameraRig>();
             Assign(rig, "_input", input);
@@ -204,6 +310,20 @@ namespace PokeLab.Boot.Editor
                 return;
             }
             property.objectReferenceValue = value as Object;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>Writes a private serialized string, the same way <see cref="Assign"/> does.</summary>
+        private static void SetString(Object target, string field, string value)
+        {
+            var so = new SerializedObject(target);
+            var property = so.FindProperty(field);
+            if (property == null)
+            {
+                Debug.LogWarning($"[Rig] {target.GetType().Name} has no field '{field}'.");
+                return;
+            }
+            property.stringValue = value;
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 

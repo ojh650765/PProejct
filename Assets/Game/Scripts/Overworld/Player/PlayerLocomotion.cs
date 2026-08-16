@@ -59,6 +59,9 @@ namespace PokeLab.Overworld
         [SerializeField] private LayerMask _groundMask = ~0;
         [Tooltip("Grace window after leaving the ground before the controller reports airborne.")]
         [SerializeField] private float _coyoteTime = 0.12f;
+        [Tooltip("Metres below the last solid ground before the player is put back on it. " +
+                 "Falling out of the world has to be recoverable however the level is built.")]
+        [SerializeField] private float _fallRecoveryDrop = 12f;
 
         [Header("Slopes")]
         [Tooltip("Above this angle the player slides instead of walking. Matches CharacterController.slopeLimit.")]
@@ -81,6 +84,9 @@ namespace PokeLab.Overworld
         [Tooltip("Y the capsule is held at while surfing. Set by the water body on entry.")]
         [SerializeField] private float _waterBuoyancyDamping = 8f;
 
+        private readonly RaycastHit[] _groundHits = new RaycastHit[8];
+        private Vector3 _lastGroundedPosition;
+        private bool _hasGroundedPosition;
         private CharacterController _controller;
         private Vector3 _horizontalVelocity;
         private float _verticalVelocity;
@@ -155,6 +161,7 @@ namespace PokeLab.Overworld
             if (dt <= 0f) return;
 
             ProbeGround();
+            RecoverFromFall();
 
             if (_motionFrozen)
             {
@@ -369,15 +376,66 @@ namespace PokeLab.Overworld
             _visualRoot.localPosition = local;
         }
 
+        /// <summary>
+        /// Puts the player back on the last ground they stood on if they leave the world.
+        ///
+        /// A play-mode probe walked north-east out of the town and off the edge of the
+        /// height field, and then kept falling: y went -1.7, -7.5, -49, -109, -231 with no
+        /// floor anywhere and no way back. Whether the edge itself should be walled off is
+        /// a level question, but "the player fell out of the world and the session is over"
+        /// must not be reachable however the level is built, so the recovery lives here.
+        ///
+        /// The threshold is measured from the last grounded height rather than from a fixed
+        /// world Y, because the map has real relief and a constant floor would either sit
+        /// above the gorge or below nothing.
+        /// </summary>
+        private void RecoverFromFall()
+        {
+            if (IsGrounded)
+            {
+                _lastGroundedPosition = transform.position;
+                _hasGroundedPosition = true;
+                return;
+            }
+
+            if (!_hasGroundedPosition) return;
+            if (transform.position.y > _lastGroundedPosition.y - _fallRecoveryDrop) return;
+
+            Debug.LogWarning($"[Player] Fell {_fallRecoveryDrop:F0} m below the last solid " +
+                             "ground and was put back. Something in the level has a hole in it " +
+                             $"near {_lastGroundedPosition}.");
+            Warp(_lastGroundedPosition, transform.rotation);
+            _timeSinceGrounded = 0f;
+        }
+
         private void ProbeGround()
         {
             var origin = transform.position + Vector3.up * (_controller.radius + 0.02f);
             var radius = Mathf.Max(0.01f, _controller.radius - 0.02f);
             var distance = _controller.radius + _groundProbeDistance;
 
-            if (Physics.SphereCast(origin, radius, Vector3.down, out var hit, distance, _groundMask, QueryTriggerInteraction.Ignore))
+            // The probe starts inside the character's own capsule, so it has to skip itself.
+            // A self-hit comes back at distance 0 with a zero normal, which reads as ground
+            // with an undefined slope: the player is permanently "grounded" on nothing, and
+            // the slide check compares against a normal that is not a direction.
+            var count = Physics.SphereCastNonAlloc(origin, radius, Vector3.down, _groundHits,
+                distance, _groundMask, QueryTriggerInteraction.Ignore);
+            var nearest = float.PositiveInfinity;
+            var normal = Vector3.up;
+            for (var i = 0; i < count; i++)
             {
-                _groundNormal = hit.normal;
+                var candidate = _groundHits[i];
+                if (candidate.collider == null) continue;
+                if (candidate.collider.transform.root == transform) continue;
+                if (candidate.distance <= 0.0001f) continue;
+                if (candidate.distance >= nearest) continue;
+                nearest = candidate.distance;
+                normal = candidate.normal;
+            }
+
+            if (!float.IsPositiveInfinity(nearest))
+            {
+                _groundNormal = normal;
                 _timeSinceGrounded = 0f;
             }
             else if (_controller.isGrounded)

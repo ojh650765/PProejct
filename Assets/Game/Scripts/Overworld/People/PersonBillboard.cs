@@ -1,0 +1,308 @@
+using UnityEngine;
+
+namespace PokeLab.Overworld.People
+{
+    /// <summary>
+    /// Draws a person as a camera-facing pixel sprite.
+    ///
+    /// Every character in the overworld — the player included — was an invisible capsule:
+    /// the rig built a "Visual" child and never put a renderer on it, and the level builder
+    /// gave NPCs a collider and a controller and no art at all. The sprites had been drawn
+    /// and the manifest written; nothing read either.
+    ///
+    /// Three drawn views cover the circle. Front and back are their own sheets; the two
+    /// sides share one, mirrored, so which way that sheet is drawn matters — hence
+    /// <see cref="PersonEntry.sideWalksScreenLeft"/> rather than a guess.
+    ///
+    /// The quad only ever yaws. Pitching it to face the camera is the usual billboard and
+    /// it is wrong here: the camera looks down at 38 degrees, and a sprite that tips back
+    /// to meet it slides its feet forward off the ground it is standing on.
+    /// </summary>
+    [DisallowMultipleComponent]
+    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
+    public sealed class PersonBillboard : MonoBehaviour
+    {
+        private enum View { Front, Back, Side }
+
+        [Header("Art")]
+        [Tooltip("Key into people_manifest.json — 'player', 'rival', 'gardener'.")]
+        [SerializeField] private string _personKey = "player";
+
+        [Header("Motion")]
+        [Tooltip("Speed above which the walk clip plays.")]
+        [SerializeField] private float _walkThreshold = 0.15f;
+        [Tooltip("Speed above which the run clip plays.")]
+        [SerializeField] private float _runThreshold = 4.2f;
+
+        [Tooltip("Degrees of hysteresis on the view sectors, so a character facing a boundary " +
+                 "does not flicker between two drawings.")]
+        [SerializeField] private float _viewHysteresis = 8f;
+
+        private static readonly string[] ShaderCandidates =
+        {
+            "Universal Render Pipeline/Unlit",
+            "Sprites/Default",
+            "Unlit/Transparent Cutout",
+        };
+
+        private static readonly int BaseMap = Shader.PropertyToID("_BaseMap");
+        private static readonly int BaseMapST = Shader.PropertyToID("_BaseMap_ST");
+        private static readonly int MainTex = Shader.PropertyToID("_MainTex");
+        private static readonly int MainTexST = Shader.PropertyToID("_MainTex_ST");
+
+        private PersonEntry _entry;
+        private MeshRenderer _renderer;
+        private MaterialPropertyBlock _block;
+        private Camera _camera;
+        private Transform _motionSource;
+
+        private View _view = View.Front;
+        private bool _mirror;
+        private PersonClip _clip;
+        private int _step;
+        private float _stepTime;
+        private Vector3 _lastPosition;
+        private float _speed;
+        private float _facingYaw;
+
+        /// <summary>Which character is drawn. Safe to set before or after Awake.</summary>
+        public string PersonKey
+        {
+            get => _personKey;
+            set { _personKey = value; _entry = null; Rebuild(); }
+        }
+
+        /// <summary>
+        /// Transform whose movement drives the walk cycle and the facing. Defaults to the
+        /// parent, which is the character root for both the player rig and every NPC.
+        /// </summary>
+        public void SetMotionSource(Transform source) => _motionSource = source;
+
+        private void Awake()
+        {
+            _renderer = GetComponent<MeshRenderer>();
+            _block = new MaterialPropertyBlock();
+            if (_motionSource == null) _motionSource = transform.parent != null ? transform.parent : transform;
+            _lastPosition = _motionSource.position;
+            Rebuild();
+        }
+
+        private void Rebuild()
+        {
+            if (_renderer == null) return;
+
+            _entry = PersonSpriteLibrary.Shared.Find(_personKey);
+            if (_entry == null)
+            {
+                _renderer.enabled = false;
+                return;
+            }
+
+            _renderer.enabled = true;
+            BuildQuad(_entry);
+
+            if (_renderer.sharedMaterial == null || _renderer.sharedMaterial.name != "~PersonSprite")
+                _renderer.sharedMaterial = BuildMaterial();
+
+            _clip = ClipFor(View.Front, 0f);
+            _step = 0;
+            _stepTime = 0f;
+            ApplyFrame();
+        }
+
+        /// <summary>
+        /// A quad the size of the whole frame, offset so the drawn feet land on the
+        /// transform's origin.
+        /// </summary>
+        private void BuildQuad(PersonEntry entry)
+        {
+            var height = entry.FrameHeightMetres;
+            // Frames are square, so the width is the frame height, not the character's.
+            var half = height * 0.5f;
+            var feet = entry.groundOrigin * height;
+
+            var mesh = new Mesh { name = "~PersonQuad" };
+            mesh.vertices = new[]
+            {
+                new Vector3(-half, -feet, 0f),
+                new Vector3( half, -feet, 0f),
+                new Vector3(-half, height - feet, 0f),
+                new Vector3( half, height - feet, 0f),
+            };
+            mesh.uv = new[] { Vector2.zero, Vector2.right, Vector2.up, Vector2.one };
+            mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            mesh.normals = new[] { -Vector3.forward, -Vector3.forward, -Vector3.forward, -Vector3.forward };
+            mesh.RecalculateBounds();
+            GetComponent<MeshFilter>().sharedMesh = mesh;
+        }
+
+        private static Material BuildMaterial()
+        {
+            Shader shader = null;
+            foreach (var candidate in ShaderCandidates)
+            {
+                shader = Shader.Find(candidate);
+                if (shader != null) break;
+            }
+
+            var material = new Material(shader != null ? shader : Shader.Find("Hidden/InternalErrorShader"))
+            {
+                name = "~PersonSprite",
+            };
+
+            // Cutout, not blend. Pixel art has hard edges and no partial alpha, and an
+            // alpha-blended sprite has to be depth-sorted against the grass it is standing in.
+            if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 0f);
+            if (material.HasProperty("_AlphaClip")) material.SetFloat("_AlphaClip", 1f);
+            if (material.HasProperty("_Cutoff")) material.SetFloat("_Cutoff", 0.5f);
+            material.EnableKeyword("_ALPHATEST_ON");
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
+            return material;
+        }
+
+        private void LateUpdate()
+        {
+            if (_entry == null || _renderer == null || !_renderer.enabled) return;
+
+            if (_camera == null) _camera = Camera.main;
+            if (_camera == null) return;
+
+            TrackMotion();
+            FaceCamera();
+            ChooseView();
+            Advance();
+        }
+
+        private void TrackMotion()
+        {
+            var source = _motionSource != null ? _motionSource : transform;
+            var delta = source.position - _lastPosition;
+            _lastPosition = source.position;
+            delta.y = 0f;
+
+            var dt = Mathf.Max(Time.deltaTime, 0.0001f);
+            // Smoothed, because a CharacterController's per-frame delta is noisy enough on
+            // slopes to rattle the clip between idle and walk while standing still.
+            _speed = Mathf.Lerp(_speed, delta.magnitude / dt, 1f - Mathf.Exp(-12f * dt));
+
+            if (delta.sqrMagnitude > 1e-6f)
+                _facingYaw = Mathf.Atan2(delta.x, delta.z) * Mathf.Rad2Deg;
+            else if (source != transform)
+                _facingYaw = source.eulerAngles.y;
+        }
+
+        private void FaceCamera()
+        {
+            var toCamera = _camera.transform.position - transform.position;
+            toCamera.y = 0f;
+            if (toCamera.sqrMagnitude < 1e-6f) return;
+            transform.rotation = Quaternion.LookRotation(-toCamera.normalized, Vector3.up);
+        }
+
+        /// <summary>
+        /// Picks front, back or side from where the character is facing relative to the
+        /// camera, with a dead band around each boundary.
+        /// </summary>
+        private void ChooseView()
+        {
+            var cameraYaw = _camera.transform.eulerAngles.y;
+            // 0 means facing away from the camera (we see their back), 180 means facing it.
+            var relative = Mathf.DeltaAngle(cameraYaw, _facingYaw);
+            var magnitude = Mathf.Abs(relative);
+
+            var slack = Mathf.Max(0f, _viewHysteresis);
+            var next = _view;
+            if (magnitude < 45f - (_view == View.Back ? -slack : slack)) next = View.Back;
+            else if (magnitude > 135f + (_view == View.Front ? -slack : slack)) next = View.Front;
+            else next = View.Side;
+
+            if (next != _view)
+            {
+                _view = next;
+                _step = 0;
+                _stepTime = 0f;
+            }
+
+            // The side sheet is drawn walking one way; the other way is that sheet mirrored.
+            var walksScreenLeft = _entry.sideWalksScreenLeft;
+            _mirror = _view == View.Side && (relative > 0f) == walksScreenLeft;
+        }
+
+        private PersonClip ClipFor(View view, float speed)
+        {
+            PersonClip idle, walk, run;
+            switch (view)
+            {
+                case View.Back: idle = _entry.backIdle; walk = _entry.backWalk; run = _entry.backRun; break;
+                case View.Side: idle = _entry.sideIdle; walk = _entry.sideWalk; run = _entry.sideRun; break;
+                default: idle = _entry.frontIdle; walk = _entry.frontWalk; run = _entry.frontRun; break;
+            }
+
+            if (speed >= _runThreshold && run != null && run.IsValid) return run;
+            if (speed >= _walkThreshold && walk != null && walk.IsValid) return walk;
+            return idle != null && idle.IsValid ? idle : walk;
+        }
+
+        private void Advance()
+        {
+            var wanted = ClipFor(_view, _speed);
+            if (wanted != _clip)
+            {
+                _clip = wanted;
+                _step = 0;
+                _stepTime = 0f;
+            }
+
+            if (_clip == null || !_clip.IsValid) return;
+
+            _stepTime += Time.deltaTime;
+            var hold = _clip.DurationOf(_step);
+            while (_stepTime >= hold && _clip.sequence.Length > 1)
+            {
+                _stepTime -= hold;
+                _step = (_step + 1) % _clip.sequence.Length;
+                hold = _clip.DurationOf(_step);
+            }
+
+            ApplyFrame();
+        }
+
+        /// <summary>
+        /// Points the material at one cell of the sheet through the UV scale/offset, so the
+        /// whole cast shares one material and one draw call per sheet.
+        /// </summary>
+        private void ApplyFrame()
+        {
+            if (_clip == null || !_clip.IsValid || _renderer == null) return;
+
+            var texture = PersonSpriteLibrary.Shared.Texture(_clip.texture);
+            if (texture == null) return;
+
+            var frame = Mathf.Clamp(_clip.sequence[Mathf.Clamp(_step, 0, _clip.sequence.Length - 1)],
+                0, Mathf.Max(0, _clip.frames - 1));
+            var column = frame % _clip.columns;
+            var row = frame / _clip.columns;
+
+            var su = 1f / _clip.columns;
+            var sv = 1f / _clip.rows;
+            // Row 0 is the top row of the sheet; UV space counts up from the bottom.
+            var offset = new Vector2(column * su, 1f - (row + 1) * sv);
+            var scale = new Vector2(su, sv);
+
+            if (_mirror)
+            {
+                // Flip inside the cell, not across the sheet, or the mirror lands on a
+                // neighbouring frame.
+                offset.x += su;
+                scale.x = -su;
+            }
+
+            _renderer.GetPropertyBlock(_block);
+            _block.SetTexture(BaseMap, texture);
+            _block.SetTexture(MainTex, texture);
+            _block.SetVector(BaseMapST, new Vector4(scale.x, scale.y, offset.x, offset.y));
+            _block.SetVector(MainTexST, new Vector4(scale.x, scale.y, offset.x, offset.y));
+            _renderer.SetPropertyBlock(_block);
+        }
+    }
+}

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using PokeLab.Overworld;
+using PokeLab.Overworld.People;
 using Unity.AI.Navigation;
 using UnityEngine.AI;
 using UnityEditor;
@@ -490,6 +491,7 @@ namespace PokeLab.Boot.Editor
                 var controller = go.AddComponent<NpcController>();
                 controller.Configure(npc.npcId, npc.displayName,
                                      ToSchedule(npc.schedule, go.transform));
+                AttachSprite(go, npc.spriteKey, npc.name);
                 SetLayer(go, "Interactable");
                 TrySetTag(go, "Interactable");
             }
@@ -508,8 +510,49 @@ namespace PokeLab.Boot.Editor
 
                 go.AddComponent<TrainerController>()
                   .Configure(trainer.trainerId, trainer.sightRange, trainer.sightHalfAngle);
+                AttachSprite(go, trainer.spriteKey, trainer.name);
                 SetLayer(go, "Interactable");
                 TrySetTag(go, "Interactable");
+            }
+        }
+
+        /// <summary>
+        /// Gives a character their drawn body.
+        ///
+        /// Without this every NPC and every trainer is a capsule collider with a controller
+        /// on it: they walk their schedules, they can be talked to, and nothing is drawn.
+        /// The art and its manifest had both existed for some time; nothing read them.
+        ///
+        /// The key comes from the layout when the layout has one, and otherwise from the
+        /// object's own name — <c>NPC_Stallholder</c> becomes "stallholder", which
+        /// <see cref="PersonSpriteLibrary"/> aliases onto the drawn shopkeeper. That keeps a
+        /// level rebuild from depending on an art rebuild.
+        /// </summary>
+        private static void AttachSprite(GameObject character, string spriteKey, string objectName)
+        {
+            var key = spriteKey;
+            if (string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(objectName))
+            {
+                var trimmed = objectName;
+                foreach (var prefix in new[] { "NPC_", "Npc_", "Trainer_" })
+                    if (trimmed.StartsWith(prefix, StringComparison.Ordinal))
+                        trimmed = trimmed.Substring(prefix.Length);
+                key = trimmed.ToLowerInvariant();
+            }
+            if (string.IsNullOrEmpty(key)) return;
+
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(character.transform, false);
+            visual.AddComponent<MeshFilter>();
+            visual.AddComponent<MeshRenderer>();
+
+            var billboard = visual.AddComponent<PersonBillboard>();
+            var so = new SerializedObject(billboard);
+            var property = so.FindProperty("_personKey");
+            if (property != null)
+            {
+                property.stringValue = key;
+                so.ApplyModifiedPropertiesWithoutUndo();
             }
         }
 
@@ -886,6 +929,7 @@ namespace PokeLab.Boot.Editor
         private sealed class NpcRecord
         {
             public string name;
+            public string spriteKey;
             public string npcId;
             public string displayName;
             public float[] position;
@@ -906,6 +950,7 @@ namespace PokeLab.Boot.Editor
         private sealed class TrainerRecord
         {
             public string name;
+            public string spriteKey;
             public string trainerId;
             public float[] position;
             public float[] rotation;
