@@ -597,7 +597,7 @@ def build_sand(seed=903, size=SIZE):
                                 size * 0.0018, size * 0.0050, dome=0.9)
 
     value = (ripple * 0.12
-             + swell * 0.08
+             + swell * 0.05
              + drift * 0.34
              + grain * 0.16
              + shell_tone * 0.06
@@ -609,7 +609,7 @@ def build_sand(seed=903, size=SIZE):
               + shell_h * 0.34
               + grain * 0.10)
 
-    grey = level(damp_lowfreq(value, 2.5, 0.50), 0.90, 0.26)
+    grey = level(damp_lowfreq(value, 2.5, 0.30), 0.90, 0.26)
     rgb = tint(grey, drift, 0.020)
     hgt = level(height, TARGET_HEIGHT["Sand"], 0.66)
     return rgb, hgt, 2.2
@@ -711,10 +711,10 @@ def build_rock(seed=904, size=SIZE):
 
     value = (bfacet * 0.34
              + (btone - 0.5) * 0.20
-             - bjoint * 0.85
+             - bjoint * 0.55
              + sfacet * 0.28
              + (stone - 0.5) * 0.20
-             - sjoint * 0.36
+             - sjoint * 0.26
              + (bedtone - 0.5) * 0.16
              - bseam * 0.55
              + blip * 0.30
@@ -735,7 +735,7 @@ def build_rock(seed=904, size=SIZE):
               + fract * 0.30
               + grit * 0.08)
 
-    grey = level(damp_lowfreq(value, 3.0, 0.35), 0.76, 0.68)
+    grey = level(damp_lowfreq(value, 3.0, 0.28), 0.76, 0.68)
     rgb = tint(grey, lichen - bedtone * 0.4, 0.030)
     hgt = level(height, TARGET_HEIGHT["Rock"], 0.92)
     # The strongest relief of the four. This layer is seen edge-on on faces up

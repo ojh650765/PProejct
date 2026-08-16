@@ -994,50 +994,183 @@ def market_stall(bm, rng):
                   squash=(1.0, 1.0, 0.8), lumpy=0.12, rings_n=3)
 
 
-def well(bm, rng):
-    sides = 14
-    for (r, z0, h, m) in ((0.86, 0.0, 0.16, PAVING), (0.72, 0.16, 0.78, STONE_WALL)):
-        poly = [(math.cos(2 * math.pi * i / sides) * r,
-                 math.sin(2 * math.pi * i / sides) * r) for i in range(sides)]
-        prism_wall(bm, poly, h, m, z0=z0)
-    # coping ring
-    poly = [(math.cos(2 * math.pi * i / sides) * 0.80,
-             math.sin(2 * math.pi * i / sides) * 0.80) for i in range(sides)]
-    prism_wall(bm, poly, 0.11, TRIM, z0=0.94)
-    for sx in (-1, 1):
-        E.bm_polytube(bm, [Vector((sx * 0.62, 0, 0.94)),
-                           Vector((sx * 0.55, 0, 2.02))],
-                      [0.075, 0.062], 5, BEAM, cap_start=True, cap_end=True,
-                      smooth=False)
-    # little pitched roof
-    for sy in (-1, 1):
-        vs = [bm.verts.new((-0.95, sy * 0.80, 1.90)),
-              bm.verts.new((0.95, sy * 0.80, 1.90)),
-              bm.verts.new((0.95, 0, 2.28)),
-              bm.verts.new((-0.95, 0, 2.28))]
-        vt = [bm.verts.new(v.co + Vector((0, 0, 0.07))) for v in vs]
-        fs = [bm.faces.new(vt), bm.faces.new(list(reversed(vs)))]
-        for i in range(4):
-            j = (i + 1) % 4
-            fs.append(bm.faces.new((vs[i], vs[j], vt[j], vt[i])))
-        for f in fs:
-            f.material_index = ROOF_GREEN
+def revolve(bm, profile, sides):
+    """Lathe an open profile of (r, z, mat) about +Z.
+
+    Both ends of the profile must lie on the axis (r == 0); those rings
+    collapse to a pole and the band becomes a triangle fan.  The result is
+    therefore a single CLOSED solid, which is the whole point: on a closed
+    solid `recalc_face_normals` points every face away from the material, so
+    the wall of a blind hole ends up facing INTO the hole -- toward a player
+    looking down it -- with no special casing.  Building the same shape as a
+    stack of open cylinders, which is what this replaced, gives the opposite
+    result and the hole reads as back-face culled.
+
+    profile[k][2] is the material of the band from point k to point k+1.
+    """
+    rings = []
+    for (r, z, _m) in profile:
+        if r <= 1e-6:
+            rings.append([bm.verts.new((0.0, 0.0, z))])
+        else:
+            rings.append([bm.verts.new((math.cos(2 * math.pi * i / sides) * r,
+                                        math.sin(2 * math.pi * i / sides) * r,
+                                        z)) for i in range(sides)])
+    faces = []
+    for k in range(len(profile) - 1):
+        a, b = rings[k], rings[k + 1]
+        mat = profile[k][2]
+        for i in range(sides):
+            j = (i + 1) % sides
+            if len(a) == 1:
+                vs = (a[0], b[j], b[i])
+            elif len(b) == 1:
+                vs = (a[i], a[j], b[0])
+            else:
+                vs = (a[i], a[j], b[j], b[i])
+            f = bm.faces.new(vs)
+            f.material_index = mat
             f.smooth = False
-        bmesh.ops.recalc_face_normals(bm, faces=fs)
-    # windlass, crank and bucket
-    E.bm_polytube(bm, [Vector((-0.58, 0, 1.62)), Vector((0.58, 0, 1.62))],
-                  [0.075, 0.075], 8, BEAM, cap_start=True, cap_end=True,
+            faces.append(f)
+    return faces
+
+
+def sweep_x(bm, section, x0, x1, mat, cap=True):
+    """Sweep a closed (y,z) cross section along X.  Returns the faces."""
+    n = len(section)
+    a = [bm.verts.new((x0, y, z)) for (y, z) in section]
+    b = [bm.verts.new((x1, y, z)) for (y, z) in section]
+    faces = []
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append(bm.faces.new((a[i], a[j], b[j], b[i])))
+    if cap:
+        faces.append(bm.faces.new(list(reversed(a))))
+        faces.append(bm.faces.new(b))
+    for f in faces:
+        f.material_index = mat
+        f.smooth = False
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    return faces
+
+
+def taper_box(bm, x, y, z0, z1, s0, s1, mat):
+    """Square post, s0 across at z0 tapering to s1 at z1.  Returns the half
+    width at any height so the callers can butt things onto its faces."""
+    prof = ((-1, -1), (1, -1), (1, 1), (-1, 1))
+    bot = [bm.verts.new((x + a * s0 * .5, y + b * s0 * .5, z0))
+           for (a, b) in prof]
+    top = [bm.verts.new((x + a * s1 * .5, y + b * s1 * .5, z1))
+           for (a, b) in prof]
+    faces = []
+    for i in range(4):
+        j = (i + 1) % 4
+        faces.append(bm.faces.new((bot[i], bot[j], top[j], top[i])))
+    faces.append(bm.faces.new(list(reversed(bot))))
+    faces.append(bm.faces.new(top))
+    for f in faces:
+        f.material_index = mat
+        f.smooth = False
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    return lambda zz: 0.5 * (s0 + (s1 - s0) *
+                             max(0.0, min(1.0, (zz - z0) / (z1 - z0))))
+
+
+# ---- the well ------------------------------------------------------------
+# Every dimension that decides the asset's bounding box is named here, because
+# the level's placement pass is keyed to it: the plinth's 14-gon sets X to
+# +-0.860 and Y to +-0.8384, and the roof ridge sets the 2.3449 m height.
+WELL_SIDES = 14
+WELL_RIM_Z = 1.090          # top of the coping -- the surface you look over
+WELL_WATER_Z = 0.200        # dark water, 0.890 m below the rim
+WELL_SHAFT_R = 0.588        # inner face of the shaft
+WELL_POST_X = 0.700         # posts stand on the coping annulus (0.610..0.792)
+WELL_SOFFIT_Z = 2.208       # flat underside of the roof's ridge cap
+WELL_RIDGE_Z = 2.350        # top of the ridge -> the asset's height
+
+
+def well(bm, rng):
+    # --- drum, coping and shaft: ONE closed solid of revolution -----------
+    # Read the profile as the section of the masonry: up the outside, across
+    # the coping's top annulus, down the shaft wall, and back to the axis
+    # across the water.  Because it closes, the shaft wall is a real inward-
+    # facing surface rather than the inside of an outward-facing cylinder.
+    profile = [
+        (0.000, 0.000, PAVING),      # underside disc
+        (0.860, 0.000, PAVING),      # plinth outer face
+        (0.860, 0.150, PAVING),      # plinth weathering
+        (0.755, 0.190, STONE_WALL),  # drum, battered
+        (0.740, 0.880, STONE_WALL),  # corbel out to the coping
+        (0.825, 0.918, TRIM),        # coping outer face
+        (0.825, 1.048, TRIM),        # coping top chamfer
+        (0.792, WELL_RIM_Z, TRIM),   # >>> the coping's TOP ANNULUS <<<
+        (0.610, WELL_RIM_Z, STONE_WALL),   # inner chamfer into the shaft
+        (WELL_SHAFT_R, 1.032, STONE_WALL),  # >>> the SHAFT WALL <<<
+        (WELL_SHAFT_R, WELL_WATER_Z, GLASS),  # water disc
+        (0.000, WELL_WATER_Z, GLASS),
+    ]
+    revolve(bm, profile, WELL_SIDES)
+
+    # --- roof: one closed prism swept along X ----------------------------
+    # The old roof was two flat cards with no gable end and no underside, and
+    # it floated 260 mm clear of the posts.  This is a solid with a real
+    # thickness, closed gable ends, and a flat ridge soffit at WELL_SOFFIT_Z
+    # for the posts to butt into.
+    section = [
+        (-0.800, 1.958), (-0.110, 2.293), (-0.110, WELL_RIDGE_Z),
+        (0.110, WELL_RIDGE_Z), (0.110, 2.293), (0.800, 1.958),
+        (0.800, 1.873), (0.110, WELL_SOFFIT_Z), (-0.110, WELL_SOFFIT_Z),
+        (-0.800, 1.873),
+    ]
+    sweep_x(bm, section, -0.95, 0.95, ROOF_GREEN)
+
+    # --- posts: base ON the coping annulus, head ON the roof soffit ------
+    half_at = {}
+    for sx in (-1, 1):
+        # 0.140 across is the widest square that still lands wholly inside the
+        # coping's 14-gon annulus (inner 0.610, outer edge 0.7789 at the post's
+        # bearing) -- a post whose corner overhangs the rim is the floating
+        # look this rebuild exists to remove.
+        half_at[sx] = taper_box(bm, sx * WELL_POST_X, 0.0,
+                                WELL_RIM_Z, WELL_SOFFIT_Z, 0.140, 0.110, BEAM)
+
+    # --- windlass: axle butting the posts' inner faces, crank outside ----
+    axle_z = 1.780
+    inner = WELL_POST_X - half_at[1](axle_z)
+    E.bm_polytube(bm, [Vector((-inner, 0, axle_z)), Vector((inner, 0, axle_z))],
+                  [0.072, 0.072], 8, BEAM, cap_start=True, cap_end=True,
                   smooth=False)
-    E.bm_polytube(bm, [Vector((0.58, 0, 1.62)), Vector((0.74, 0, 1.62)),
-                       Vector((0.74, 0.22, 1.62)), Vector((0.74, 0.22, 1.48))],
-                  [0.030] * 4, 5, LAMP, cap_start=True, cap_end=True,
+    for t in (-0.34, 0.34):
+        E.bm_polytube(bm, [Vector((t, 0, axle_z - 0.006)),
+                           Vector((t, 0, axle_z + 0.006))],
+                      [0.090, 0.090], 8, LAMP, cap_start=True, cap_end=True,
+                      smooth=False)
+    outer = WELL_POST_X + half_at[1](axle_z)
+    E.bm_polytube(bm, [Vector((outer, 0, axle_z)),
+                       Vector((outer + 0.09, 0, axle_z)),
+                       Vector((outer + 0.09, 0.24, axle_z)),
+                       Vector((outer + 0.09, 0.24, axle_z - 0.17))],
+                  [0.032] * 4, 6, LAMP, cap_start=True, cap_end=True,
                   smooth=False)
-    E.bm_polytube(bm, [Vector((0.05, 0, 1.60)), Vector((0.05, 0, 1.18))],
-                  [0.014, 0.014], 4, LAMP, cap_start=False, cap_end=False,
+
+    # --- bucket on a rope, hanging inside the mouth ----------------------
+    bx = 0.09
+    E.bm_polytube(bm, [Vector((bx, 0, axle_z - 0.07)), Vector((bx, 0, 1.335))],
+                  [0.013, 0.013], 4, LAMP, cap_start=False, cap_end=False,
                   smooth=True)
-    E.bm_polytube(bm, [Vector((0.05, 0, 1.18)), Vector((0.05, 0, 0.92))],
-                  [0.16, 0.19], 9, FENCE, cap_start=True, cap_end=True,
+    E.bm_polytube(bm, [Vector((bx, 0, 1.335)), Vector((bx, 0.115, 1.290)),
+                       Vector((bx, 0, 1.250))],
+                  [0.011] * 3, 4, LAMP, cap_start=False, cap_end=False,
+                  smooth=True)
+    E.bm_polytube(bm, [Vector((bx, 0, 1.250)), Vector((bx, 0, 0.985))],
+                  [0.165, 0.205], 10, BEAM, cap_start=True, cap_end=True,
                   smooth=False)
+    for (zz, rr) in ((1.215, 0.176), (1.020, 0.199)):
+        E.bm_polytube(bm, [Vector((bx, 0, zz - 0.018)),
+                           Vector((bx, 0, zz + 0.018))],
+                      [rr + 0.012] * 2, 10, LAMP, cap_start=False,
+                      cap_end=False, smooth=False)
+
 
 
 def planter(bm, rng):

@@ -22,19 +22,64 @@ Material:
   m_LockedProperties:
   m_SavedProperties:
     serializedVersion: 3
-    # The four layer maps are left unassigned on purpose and fall back to the shader's
-    # white default, so each layer is driven by its tint alone. The environment kit only
-    # ships a packed atlas, and these layers tile planar over world XZ: pointing them at
-    # an atlas would smear the grass, dirt and rock cells into each other across every
-    # square metre of the map. Flat tinted layers read correctly for the stylised target
-    # in the meantime, and the weights, slope response and blending below are all live.
-    m_TexEnvs: []
+    # Four individually seamless tiling maps, built by
+    # Tools/Blender/environment/terrain_layers.py. They are deliberately not atlas
+    # cells: these layers sample an unbounded wrapping UV (planar world XZ for 0-2,
+    # triplanar for 3), so an atlas cell's neighbours would bleed in on the first
+    # repeat. Each BaseColor carries its height map in alpha, which is what
+    # _HeightContrast below blends against; regenerate the pair together or the
+    # blend silently loses its height.
+    m_TexEnvs:
+    - _Layer0Map:
+        m_Texture: {fileID: 2800000, guid: 55260a4ce74bbdf57fdf6f54f6c01695, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer0Normal:
+        m_Texture: {fileID: 2800000, guid: 4a8184e8efe10737053911a2a0b72886, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer1Map:
+        m_Texture: {fileID: 2800000, guid: 1d1addac2b04f38089f694e4a78d2fb4, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer1Normal:
+        m_Texture: {fileID: 2800000, guid: cc0f6097d70fd22a7d7f0ea0d8fc397b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer2Map:
+        m_Texture: {fileID: 2800000, guid: a37fd596e15317a047aba9b85a241924, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer2Normal:
+        m_Texture: {fileID: 2800000, guid: 58415b503f922e67f038f26a6535b2a0, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer3Map:
+        m_Texture: {fileID: 2800000, guid: 47d546ed15740730a69cc7b6d14b6410, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Layer3Normal:
+        m_Texture: {fileID: 2800000, guid: 6dee3e9559f2961eede621121567d78b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ControlMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    # Tiles per metre, so a tile of grass spans 2.86 m, dirt 2.0 m, sand 1.67 m and
+    # rock 3.85 m. Each map was authored against its own figure -- grass tufts at
+    # 15 cm, gravel at 1-2 cm, sand ripples at 18 cm, rock slabs at 0.95 x 0.55 m --
+    # so these are no longer free parameters, and changing one without rebuilding
+    # its map changes the size of everything in it.
     - _Layer0Scale: 0.35
     - _Layer1Scale: 0.5
     - _Layer2Scale: 0.6
-    - _Layer3Scale: 0.28
+    # Was 0.28, a guess made against a white texture. 0.26 is the figure the rock
+    # map is built to, and it keeps the tile at 3.85 m -- about seven bedding
+    # planes over the height of a 4 m cliff face.
+    - _Layer3Scale: 0.26
     - _Layer0NormalScale: 1
     - _Layer1NormalScale: 1
     - _Layer2NormalScale: 1

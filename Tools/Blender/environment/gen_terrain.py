@@ -393,81 +393,263 @@ def a_cave_arch(bm, rng, seed, width=3.6, height=3.4, depth=1.6):
     E.bevel_sharp(bm, width=0.022, segments=2, angle_deg=46.0, mat_break=False)
 
 
-def a_bridge(bm, rng, seed, span=4.0, width=1.6):
-    """Planked footbridge with a real arch, stringers, posts and rope rails."""
-    n = 9
-    rise = 0.34
-    centres = []
-    for i in range(n + 1):
-        t = i / float(n)
-        x = (t - 0.5) * span
-        z = rise * math.sin(math.pi * t) + 0.16
-        centres.append(Vector((x, 0, z)))
+# --------------------------------------------------------------------------
+# Env_Bridge_Wood
+#
+# The route crosses the stream on this at (13.6, 18.2) yaw 142.25 with the
+# object seated at Y = 0.06, and the terrain pass was tuned against the deck
+# surface the OLD asset happened to have.  Measured off the shipped FBX, that
+# surface is
+#
+#     z_top(x) = 0.2310 + 0.3350 * sin(pi * (x + 2) / 4)      rms 4.9 mm
+#
+# with min z = 0 (pivot at base) and max z = 1.1216.  Everything below is
+# authored to reproduce that curve and that bounding box exactly, because
+# changing any of it un-seats the abutments the placement pass just fixed.
+#
+# The ground the object sits in, back-computed from the placement report
+# (deck -0.023 / +0.051 above the bank at the ends, +1.228 over the streambed
+# at the centre, water 0.97 below the deck), is roughly
+#
+#     bank crest  z = +0.18 .. +0.25     water surface  z = -0.404
+#
+# in this model's own coordinates -- i.e. the model's z = 0 plane is BELOW the
+# bank crest at the ends and well above the water in the middle.  So an
+# abutment founded at z = 0 is buried in the bank, which is exactly what the
+# old one was not: it was a loose boulder hung in the air under the deck.
+# --------------------------------------------------------------------------
 
-    # stringers
+BR_SPRING = 2.0000       # arch springing
+BR_DECK_END = 2.4400     # end of the timber deck
+BR_HALF = 2.4996         # abutment outer face == asset bbox half length
+BR_Y = 0.7995            # kerb / post outer face == asset bbox half width
+BR_DECK_Y = 0.7095       # deck slab half width; posts and kerb sit outboard
+BR_Z0 = 0.2310           # deck top at the springing   (measured)
+BR_RISE = 0.3350         # arch rise                   (measured)
+BR_TH = 0.0550           # deck slab thickness
+BR_TOP = 1.1216          # asset bbox height == handrail post top
+
+
+def br_deck_top(x):
+    """The walking surface.  Flat on the approaches, arched over the water,
+    with a 100 mm fillet at the springing so the deck does not kink."""
+    ax = abs(x)
+    if ax >= BR_SPRING:
+        return BR_Z0
+    z = BR_Z0 + BR_RISE * math.sin(math.pi * (x + 2.0) / 4.0)
+    if ax > 1.90:
+        s = (ax - 1.90) / 0.10
+        s = s * s * (3.0 - 2.0 * s)
+        z = z * (1.0 - s) + BR_Z0 * s
+    return z
+
+
+def br_rib_depth(x):
+    """Arch ribs: shallow at the springing, deep at the crown.  Tuned so the
+    soffit never drops below z = 0.09, which keeps the abutment -- not the
+    timber -- as the lowest thing in the model."""
+    return 0.055 + 0.245 * math.sin(math.pi * (abs(x) - BR_SPRING) /
+                                    (-2.0 * BR_SPRING))
+
+
+def _beam(bm, path, hw, ht, mat, cap=True, drop=0.0):
+    """Rectangular beam swept along a polyline that lies in the XZ plane.
+    hw is the half width in Y, ht the half thickness across the path.  Both
+    may be scalars or per-station lists, which is what lets the arch ribs
+    taper.  `drop` offsets the section along its own normal."""
+    n = len(path)
+    hw = hw if isinstance(hw, (list, tuple)) else [hw] * n
+    ht = ht if isinstance(ht, (list, tuple)) else [ht] * n
+    rings = []
+    for i, p in enumerate(path):
+        if i == 0:
+            t = path[1] - path[0]
+        elif i == n - 1:
+            t = path[-1] - path[-2]
+        else:
+            t = path[i + 1] - path[i - 1]
+        t = Vector((t.x, 0.0, t.z))
+        t.normalize()
+        nn = Vector((-t.z, 0.0, t.x))
+        c = Vector(p) + nn * drop
+        rings.append([bm.verts.new(c - nn * ht[i] + Vector((0, -hw[i], 0))),
+                      bm.verts.new(c - nn * ht[i] + Vector((0, hw[i], 0))),
+                      bm.verts.new(c + nn * ht[i] + Vector((0, hw[i], 0))),
+                      bm.verts.new(c + nn * ht[i] + Vector((0, -hw[i], 0)))])
+    faces = []
+    for i in range(n - 1):
+        a, b = rings[i], rings[i + 1]
+        for j in range(4):
+            k = (j + 1) % 4
+            faces.append(bm.faces.new((a[j], a[k], b[k], b[j])))
+    if cap:
+        faces.append(bm.faces.new(list(reversed(rings[0]))))
+        faces.append(bm.faces.new(rings[-1]))
+    for f in faces:
+        f.material_index = mat
+        f.smooth = False
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    return faces
+
+
+def _obox(bm, a, b, hw, ht, mat):
+    """A single straight member between two points -- braces and struts."""
+    return _beam(bm, [Vector(a), Vector(b)], hw, ht, mat)
+
+
+def a_bridge(bm, rng, seed):
+    """A footbridge that is actually built: a continuous planked deck with no
+    daylight through it, tapered arch ribs and cross bracing underneath where
+    the player sees them from the water, kerbs and posts framed into the deck
+    edge rather than floating beside it, and cut-stone abutments founded below
+    the bank crest at both ends."""
+
+    # ---- deck: ONE watertight lofted slab, planks read as 5 mm risers ----
+    # The old deck was 9 loose plank boxes at 82-92 % of the bay length; the
+    # 40-80 mm gaps between them were holes you could see the stream through
+    # (measured: 6 of 83 sample rays down the centreline hit nothing at all).
+    # Here the planks share their edges, so the surface is continuous, and the
+    # plank line comes from a 5 mm step instead of a void.
+    nplank = 26
+    stations = []          # (x, top z)
+    for k in range(nplank):
+        x0 = -BR_DECK_END + 2.0 * BR_DECK_END * k / nplank
+        x1 = -BR_DECK_END + 2.0 * BR_DECK_END * (k + 1) / nplank
+        lift = 0.005 if (k % 2) else 0.0
+        lift += rng.uniform(-0.0015, 0.0015)
+        stations.append((x0 + 0.0006, lift))
+        stations.append((x1 - 0.0006, lift))
+    top = []
+    bot = []
+    for (x, lift) in stations:
+        zt = br_deck_top(x) + lift
+        top.append((x, zt))
+        bot.append((x, br_deck_top(x) - BR_TH))
+    rings = []
+    for i in range(len(stations)):
+        x = stations[i][0]
+        zt = top[i][1]
+        zb = bot[i][1]
+        rings.append([bm.verts.new((x, -BR_DECK_Y, zb)),
+                      bm.verts.new((x, BR_DECK_Y, zb)),
+                      bm.verts.new((x, BR_DECK_Y, zt)),
+                      bm.verts.new((x, -BR_DECK_Y, zt))])
+    dfaces = []
+    for i in range(len(rings) - 1):
+        a, b = rings[i], rings[i + 1]
+        for j in range(4):
+            k = (j + 1) % 4
+            dfaces.append(bm.faces.new((a[j], a[k], b[k], b[j])))
+    dfaces.append(bm.faces.new(list(reversed(rings[0]))))
+    dfaces.append(bm.faces.new(rings[-1]))
+    for f in dfaces:
+        f.material_index = WOOD
+        f.smooth = False
+    bmesh.ops.recalc_face_normals(bm, faces=dfaces)
+
+    # ---- arch ribs ------------------------------------------------------
+    xs = [-BR_SPRING + 2.0 * BR_SPRING * i / 20.0 for i in range(21)]
     for sy in (-1, 1):
-        pts = [c + Vector((0, sy * (width * 0.5 - 0.07), -0.055))
-               for c in centres]
-        E.bm_polytube(bm, pts, [0.055] * len(pts), 5, WOOD,
-                      cap_start=True, cap_end=True, smooth=False)
+        path, ht = [], []
+        for x in xs:
+            d = br_rib_depth(x)
+            zt = br_deck_top(x) - BR_TH
+            path.append(Vector((x, sy * 0.52, zt - d * 0.5)))
+            ht.append(d * 0.5)
+        _beam(bm, path, 0.065, ht, WOOD)
 
-    # planks -- each one slightly different, gapped, a few warped
-    for i in range(n):
-        t0 = i / float(n)
-        c = (centres[i] + centres[i + 1]) * 0.5
-        d = (centres[i + 1] - centres[i]).normalized()
-        ln = (centres[i + 1] - centres[i]).length * rng.uniform(0.82, 0.92)
-        w = width * rng.uniform(0.94, 1.0)
-        th = 0.045
-        u = d
-        v = Vector((0, 1, 0))
-        nrm = u.cross(v).normalized()
-        tilt = rng.uniform(-0.02, 0.02)
-        for sx in (-1, 1):
-            for sy in (-1, 1):
-                pass
-        vs = []
-        for (a, b, cc) in ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
-                           (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1)):
-            p = (c + u * (a * ln * 0.5) + v * (b * w * 0.5) +
-                 nrm * (cc * th * 0.5) + Vector((0, 0, b * tilt)))
-            vs.append(bm.verts.new(p))
-        for q in ((0, 1, 2, 3), (7, 6, 5, 4), (4, 5, 1, 0),
-                  (6, 7, 3, 2), (5, 6, 2, 1), (7, 4, 0, 3)):
-            f = bm.faces.new([vs[k] for k in q])
-            f.material_index = WOOD
-            f.smooth = False
+    # ---- transverse bearers and X bracing, seen from the water ----------
+    for x in (-1.52, -0.76, 0.0, 0.76, 1.52):
+        zt = br_deck_top(x) - BR_TH - br_rib_depth(x)
+        _obox(bm, (x, -0.585, zt - 0.045), (x, 0.585, zt - 0.045),
+              0.048, 0.045, WOOD)
+    bays = ((-1.52, -0.76), (-0.76, 0.0), (0.0, 0.76), (0.76, 1.52))
+    for (xa, xb) in bays:
+        za = br_deck_top(xa) - BR_TH - br_rib_depth(xa) - 0.02
+        zb = br_deck_top(xb) - BR_TH - br_rib_depth(xb) - 0.02
+        ta = br_deck_top(xa) - BR_TH - 0.03
+        tb = br_deck_top(xb) - BR_TH - 0.03
+        _obox(bm, (xa, -0.455, ta), (xb, 0.455, zb), 0.030, 0.028, WOOD)
+        _obox(bm, (xa, 0.455, za), (xb, -0.455, tb), 0.030, 0.028, WOOD)
 
-    # posts and rope handrails
-    posts = []
-    for sy in (-1, 1):
-        rope_pts = []
-        for i in (0, 3, 6, 9):
-            c = centres[i]
-            base = c + Vector((0, sy * (width * 0.5 - 0.05), -0.02))
-            top = base + Vector((0, 0, 0.62 + rng.uniform(-0.03, 0.03)))
-            E.bm_polytube(bm, [base, top], [0.052, 0.042], 5, WOOD,
-                          cap_start=True, cap_end=True, smooth=False)
-            rope_pts.append(top + Vector((0, 0, -0.05)))
-        # sagging rope between the posts
-        for k in range(len(rope_pts) - 1):
-            a, b = rope_pts[k], rope_pts[k + 1]
-            seg = [a.lerp(b, s / 4.0) - Vector((0, 0, 0.07 *
-                   math.sin(math.pi * (s / 4.0)))) for s in range(5)]
-            E.bm_polytube(bm, seg, [0.020] * 5, 4, ROPE,
-                          cap_start=False, cap_end=False, smooth=True)
-
-    # abutment stones at each end
+    # ---- raking struts off the abutments --------------------------------
     for sx in (-1, 1):
-        tmp = bmesh.new()
-        boulder(tmp, rng, 0.44, 2, seed + (7 if sx > 0 else 13), ROCK_GREY,
-                squash=0.7, amount=0.26)
-        me = bpy.data.meshes.new("t")
-        tmp.to_mesh(me)
-        tmp.free()
-        me.transform(Matrix.Translation((sx * span * 0.52, 0, 0.02)))
-        bm.from_mesh(me)
-        bpy.data.meshes.remove(me)
+        for sy in (-1, 1):
+            xr = sx * 1.34
+            _obox(bm, (sx * 1.93, sy * 0.52, 0.100),
+                  (xr, sy * 0.52,
+                   br_deck_top(xr) - BR_TH - br_rib_depth(xr) + 0.03),
+                  0.048, 0.042, WOOD)
+
+    # ---- kerb and handrail: outboard of the deck slab, butted to it -----
+    # Posts run from the rib line up through the deck edge, so they are
+    # visibly framed into the structure.  The kerb fills the band between
+    # them.  Nothing here overlaps the deck slab -- they share the plane at
+    # |y| = BR_DECK_Y, which is what makes the joint read as a joint.
+    post_xs = [-2.35, -1.90, -0.63, 0.63, 1.90, 2.35]
+    hpost = BR_TOP - br_deck_top(0.63)      # so the tallest post == BR_TOP
+    pw = 0.045                               # post half size along X
+    for sy in (-1, 1):
+        yc = (BR_DECK_Y + BR_Y) * 0.5
+        yh = (BR_Y - BR_DECK_Y) * 0.5
+        tops = []
+        for px in post_xs:
+            zt = br_deck_top(px)
+            zbase = zt - BR_TH - br_rib_depth(px) * 0.75
+            E.bm_box(bm, (px, sy * yc, (zt + hpost + zbase) * 0.5),
+                     (pw * 2.0, yh * 2.0, zt + hpost - zbase), WOOD)
+            tops.append((px, zt + hpost))
+            # knee brace tying the post foot back to the rib
+            _obox(bm, (px, sy * yc, zbase + 0.03),
+                  (px - math.copysign(0.30, px), sy * 0.52,
+                   br_deck_top(px) - BR_TH - 0.02), 0.032, 0.030, WOOD)
+        # kerb between the posts, butted to both
+        for k in range(len(post_xs) - 1):
+            xa, xb = post_xs[k] + pw, post_xs[k + 1] - pw
+            steps = max(2, int((xb - xa) / 0.22) + 1)
+            path = [Vector((xa + (xb - xa) * i / steps, sy * yc,
+                            br_deck_top(xa + (xb - xa) * i / steps) + 0.052))
+                    for i in range(steps + 1)]
+            _beam(bm, path, yh, 0.052, WOOD)
+        # top and mid rail: straight chords post to post, so BR_TOP is never
+        # exceeded between them
+        for k in range(len(tops) - 1):
+            (xa, za), (xb, zb) = tops[k], tops[k + 1]
+            _obox(bm, (xa, sy * yc, za - 0.038), (xb, sy * yc, zb - 0.038),
+                  yh, 0.038, WOOD)
+            _obox(bm, (xa, sy * yc, za - 0.038 - hpost * 0.42),
+                  (xb, sy * yc, zb - 0.038 - hpost * 0.42),
+                  yh * 0.72, 0.028, WOOD)
+
+    # ---- abutments: cut stone, founded at z = 0 (below the bank crest) ---
+    for sx in (-1, 1):
+        # bearing shelf the ribs land on
+        zshelf = br_deck_top(BR_SPRING) - BR_TH - br_rib_depth(1.95)
+        _beam(bm, [Vector((sx * 1.95, 0, zshelf * 0.5)),
+                   Vector((sx * 2.22, 0, zshelf * 0.5))],
+              0.760, zshelf * 0.5, STEPPING)
+        # back wall carrying the deck out to the bbox face
+        zback = BR_Z0 - BR_TH
+        _beam(bm, [Vector((sx * 2.22, 0, zback * 0.5)),
+                   Vector((sx * BR_HALF, 0, zback * 0.5))],
+              0.760, zback * 0.5, STEPPING)
+        # wing stones splaying into the bank, and a rough toe below them
+        for sy in (-1, 1):
+            _obox(bm, (sx * 2.06, sy * 0.640, 0.052),
+                  (sx * BR_HALF, sy * 0.760, 0.052), 0.048, 0.050, STEPPING)
+        for k in range(3):
+            tmp = bmesh.new()
+            boulder(tmp, rng, rng.uniform(0.10, 0.15), 1,
+                    seed + k * 7 + (0 if sx > 0 else 40), ROCK_GREY,
+                    squash=0.62)
+            me = bpy.data.meshes.new("t")
+            tmp.to_mesh(me)
+            tmp.free()
+            me.transform(Matrix.Translation(
+                (sx * rng.uniform(1.88, 2.06), rng.uniform(-0.70, 0.70),
+                 rng.uniform(0.06, 0.11))))
+            bm.from_mesh(me)
+            bpy.data.meshes.remove(me)
 
 
 def a_riverbank(bm, rng, seed, length=4.0, drop=0.55):
