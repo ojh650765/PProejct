@@ -679,7 +679,18 @@ def build_water(layout, grid, bounds):
             # design: the ask was "Water_Stream 이건 없어도 되자나", and the correction is
             # that it meant the overworld only -- "이건 overworld에서 빼도 된다는 거였고.
             # Water Stream은 field에서 필요함". FLOWING_WATER_SCENES is where that lands.
-            out.extend(build_stream(body, grid, receiving, receiving_y, crossings))
+            # One continuous ribbon. It used to be cut into three at the bridge and the
+            # stepping stones, and that was never about the water: LevelLayoutBuilder
+            # raised a 3 m shoreline wall along every water boundary it was given, so a
+            # ribbon running under the bridge walled the deck and closed the route's only
+            # gate. The holes were dodging the wall, and the price was a watercourse that
+            # visibly stopped and restarted at exactly the two places the player stands
+            # over it and looks down.
+            #
+            # BuildShoreline now skips flowing water outright, so the wall is gone and the
+            # cuts have nothing left to avoid. Passing no crossings is what makes it one
+            # stream again.
+            out.extend(build_stream(body, grid, receiving, receiving_y, ()))
             continue
 
         y = float(body["surfaceY"])
