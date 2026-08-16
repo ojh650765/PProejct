@@ -76,12 +76,15 @@ namespace PokeLab.Overworld
                 return;
             }
 
-            // Already here. When the destination is streamed in beside us the player is not
-            // going anywhere — both halves share one world space, so they are simply walking
-            // across the join. Loading it again would tear down the world they are standing
-            // in to rebuild the one they are already in.
+            // Already here. Three ways that happens: the destination is streamed in beside
+            // us, it is loaded outright, or it *is* this scene — Overworld is built from the
+            // town layout, so its To_Town link points at content the player is standing in.
+            // Loading any of those tears down the world they are in to rebuild the one they
+            // are already in, which is the teleport that was reported at the town gate.
             if (World.WorldStreamer.Streamed.Contains(_sceneName)
-                || SceneManager.GetSceneByName(_sceneName).isLoaded)
+                || SceneManager.GetSceneByName(_sceneName).isLoaded
+                || string.Equals(_sceneName, SceneManager.GetActiveScene().name,
+                                 System.StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }

@@ -76,6 +76,15 @@ Shader "PokeLab/PropGroundBlend"
         // this object stands between the camera and the player.
         _FadeAmount("Camera Fade", Range(0,1)) = 0
 
+        // Blending is a *material* state, not a per-instance one, so a genuinely
+        // semi-transparent blocker needs its own material rather than a property block.
+        // The rig clones one per source material and swaps it in while fading. Defaults are
+        // the opaque configuration: One/Zero with depth writes, which is bit-for-bit what
+        // this shader did before these existed.
+        [HideInInspector] _SrcBlend("", Float) = 1
+        [HideInInspector] _DstBlend("", Float) = 0
+        [HideInInspector] _ZWriteMode("", Float) = 1
+
         [Header(Wetness)][Space(4)]
         _Wetness("Wetness", Range(0,1)) = 0
 
@@ -131,6 +140,9 @@ Shader "PokeLab/PropGroundBlend"
             half   _PickupPulseSpeed;
             half   _PickupPulseDepth;
             half   _FadeAmount;
+            half   _SrcBlend;
+            half   _DstBlend;
+            half   _ZWriteMode;
             half   _Wetness;
             half   _Cutoff;
             half   _Cull;
@@ -148,7 +160,8 @@ Shader "PokeLab/PropGroundBlend"
             Tags { "LightMode" = "UniversalForward" }
 
             Cull [_Cull]
-            ZWrite On
+            Blend [_SrcBlend] [_DstBlend]
+            ZWrite [_ZWriteMode]
 
             HLSLPROGRAM
             #pragma vertex PropVertex
@@ -327,20 +340,6 @@ Shader "PokeLab/PropGroundBlend"
                 half3 rimColour = _RimColor.rgb + _PL_RimTint.rgb * _PL_RimBoost;
                 colour += rimColour * rim * (_RimStrength + _PL_RimBoost) * occlusion;
 
-                // Camera fade. A screen-space dither clip rather than real transparency:
-                // the boom on this camera is a fixed length by design, so when a building
-                // stands between the camera and the player the building has to give way
-                // instead of the camera. Doing that with alpha would mean a transparent
-                // queue, sorting against everything behind it, and a per-renderer material
-                // instance that leaves the batch. Punching holes on a noise threshold costs
-                // one clip, needs no sorting, and reads as a dissolve rather than a ghost —
-                // which is also what stops the player mistaking a faded wall for a doorway.
-                UNITY_BRANCH
-                if (_FadeAmount > 0.001)
-                {
-                    clip(PL_IGN(svPosition.xy) - _FadeAmount);
-                }
-
                 // Pickup glow. Emissive, so it survives being in shadow — an item in the
                 // lee of a building has to read as collectable exactly as well as one in
                 // the sun, and a lit highlight would go out precisely where the player is
@@ -368,6 +367,13 @@ Shader "PokeLab/PropGroundBlend"
 
                 colour = MixFog(colour, input.fogAndHeight.x);
                 colour += PL_AdaptiveDither(svPosition, 1.0 / 255.0);
+
+                // Camera fade. The boom on this camera is a fixed length by design, so when
+                // a building stands between the camera and the player it is the building
+                // that gives way. A dither clip was tried first and reads as a dissolve
+                // rather than as glass; this is real alpha, which is what it should look
+                // like. It costs a transparent material — see the note on _SrcBlend.
+                alpha *= 1.0 - saturate(_FadeAmount);
 
                 return half4(colour, alpha);
             }

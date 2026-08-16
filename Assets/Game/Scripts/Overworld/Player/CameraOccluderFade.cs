@@ -13,20 +13,25 @@ namespace PokeLab.Overworld
     /// fixing the boom is that a building can now stand in front of the player, so the
     /// building is what gives way.
     ///
-    /// It fades by dithering, not by transparency. `_FadeAmount` clips pixels on a
-    /// screen-space noise threshold in PokeLab/PropGroundBlend, which costs one clip, needs
-    /// no transparent queue and no sorting against everything behind it, and does not force
-    /// a per-renderer material instance out of the batch. It also reads as a dissolve rather
-    /// than a ghost, which matters: a smoothly translucent wall looks like something the
-    /// player might be able to walk through, and a stippled one does not.
+    /// It is real alpha, not a dither. A stipple was tried first and reads as a dissolve —
+    /// the object breaking up — rather than as glass, which is not what a wall between you
+    /// and the thing you are steering should look like.
     ///
-    /// The fade is driven through a MaterialPropertyBlock, so nothing is written to a shared
-    /// material and a fade left behind by a crash cannot persist into the next session.
+    /// Real alpha costs a material, because blending and depth-writing are material state
+    /// and cannot be set per renderer. So each blocker's material gets one transparent clone,
+    /// created on first use and shared by every object using that material; the renderer is
+    /// swapped onto the clone while it fades and back when it is solid. That bounds the cost
+    /// to the handful of things actually in the way rather than to the whole prop set, and
+    /// the strength itself still rides a MaterialPropertyBlock so two walls can be at
+    /// different opacities on the same clone.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class CameraOccluderFade : MonoBehaviour
     {
         private static readonly int FadeAmount = Shader.PropertyToID("_FadeAmount");
+        private static readonly int SrcBlend = Shader.PropertyToID("_SrcBlend");
+        private static readonly int DstBlend = Shader.PropertyToID("_DstBlend");
+        private static readonly int ZWriteMode = Shader.PropertyToID("_ZWriteMode");
 
         [Header("Probe")]
         [Tooltip("What the player is followed at. Defaults to the rig's own follow target.")]
@@ -40,8 +45,8 @@ namespace PokeLab.Overworld
         [SerializeField] private LayerMask _mask = ~0;
 
         [Header("Fade")]
-        [Tooltip("How much of a blocker is punched out. 1 removes it entirely, which loses " +
-                 "the sense of a building being there at all.")]
+        [Tooltip("How transparent a blocker becomes. 1 is invisible, which loses the sense " +
+                 "of a building being there at all — it should read as glass, not as a gap.")]
         [Range(0f, 1f)]
         [SerializeField] private float _fadeTo = 0.72f;
 
@@ -52,6 +57,9 @@ namespace PokeLab.Overworld
 
         private readonly RaycastHit[] _hits = new RaycastHit[24];
         private readonly Dictionary<Renderer, float> _faded = new Dictionary<Renderer, float>();
+        private readonly Dictionary<Renderer, Material[]> _solidMaterials =
+            new Dictionary<Renderer, Material[]>();
+        private readonly Dictionary<Material, Material> _ghosts = new Dictionary<Material, Material>();
         private readonly List<Renderer> _blocking = new List<Renderer>();
         private readonly List<Renderer> _finished = new List<Renderer>();
         private MaterialPropertyBlock _block;
@@ -130,6 +138,9 @@ namespace PokeLab.Overworld
                         : Mathf.MoveTowards(amount, 0f, dt / _fadeOutSeconds * _fadeTo);
                 }
 
+                if (amount > 0.0001f) MakeGhost(renderer);
+                else MakeSolid(renderer);
+
                 renderer.GetPropertyBlock(_block);
                 _block.SetFloat(FadeAmount, amount);
                 renderer.SetPropertyBlock(_block);
@@ -140,6 +151,47 @@ namespace PokeLab.Overworld
             }
 
             foreach (var renderer in _finished) _faded.Remove(renderer);
+        }
+
+        /// <summary>
+        /// Puts a renderer onto transparent clones of its materials, remembering the
+        /// originals so it can be put back exactly.
+        /// </summary>
+        private void MakeGhost(Renderer renderer)
+        {
+            if (_solidMaterials.ContainsKey(renderer)) return;
+
+            var solid = renderer.sharedMaterials;
+            _solidMaterials[renderer] = solid;
+
+            var ghosted = new Material[solid.Length];
+            for (var i = 0; i < solid.Length; i++)
+            {
+                var source = solid[i];
+                if (source == null) continue;
+
+                if (!_ghosts.TryGetValue(source, out var ghost) || ghost == null)
+                {
+                    ghost = new Material(source) { name = source.name + " (fading)" };
+                    // Alpha over what is behind, and no depth write — a faded wall that
+                    // still wrote depth would hide the player standing behind it, which is
+                    // the one thing this exists to prevent.
+                    ghost.SetFloat(SrcBlend, (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    ghost.SetFloat(DstBlend, (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    ghost.SetFloat(ZWriteMode, 0f);
+                    ghost.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                    _ghosts[source] = ghost;
+                }
+                ghosted[i] = ghost;
+            }
+            renderer.sharedMaterials = ghosted;
+        }
+
+        private void MakeSolid(Renderer renderer)
+        {
+            if (!_solidMaterials.TryGetValue(renderer, out var solid)) return;
+            renderer.sharedMaterials = solid;
+            _solidMaterials.Remove(renderer);
         }
 
         private void OnDisable()
@@ -153,6 +205,14 @@ namespace PokeLab.Overworld
                 _block.SetFloat(FadeAmount, 0f);
                 pair.Key.SetPropertyBlock(_block);
             }
+            foreach (var pair in _solidMaterials)
+                if (pair.Key != null) pair.Key.sharedMaterials = pair.Value;
+            _solidMaterials.Clear();
+
+            foreach (var ghost in _ghosts.Values)
+                if (ghost != null) Destroy(ghost);
+            _ghosts.Clear();
+
             _faded.Clear();
         }
     }
