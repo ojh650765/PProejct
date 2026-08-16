@@ -29,6 +29,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 
 from emit_unity_layout import Grid
+from worldgen import chaikin, closest_on_polyline, resample
 
 LAYOUT = os.path.join(ROOT, "Assets", "Game", "Data", "Levels", "slice_layout.json")
 BOUNDS = os.path.join(HERE, "asset_bounds.json")
@@ -296,6 +297,64 @@ def audit_overlaps(layout, bounds, threshold):
     return found
 
 
+def audit_road_blockers(layout, bounds, clearance):
+    """Solid objects standing in the walkable width of a road.
+
+    A boulder on the road is not a cosmetic fault: the roads are the level's
+    circulation, and one sitting across the bridge approach turns the route's single
+    crossing into a dead end. The placement pass has a `road_margin`, but it is applied
+    per call and several placements do not pass one, so nothing checks the result.
+    """
+    roads = []
+    for p in layout.get("paths", []):
+        if not p.get("conformsTerrain", True):
+            continue
+        pts = resample(chaikin([tuple(float(v) for v in c)
+                                for c in p["controlPoints"]], 3), 0.75)
+        roads.append((p["name"], pts, float(p["width"]) * 0.5))
+
+    found = []
+    for obj in layout.get("objects", []):
+        if obj.get("parent", "").startswith("Cave/"):
+            continue
+        prefab = obj["prefab"]
+        # Only things you would have to walk around. Ground cover and anything that is
+        # meant to be on the road (bridges, paving, signposts at the verge) are not.
+        if not any(k in prefab for k in ("Env_Rock_", "Env_House_", "Env_Building_",
+                                         "Env_Tree_", "Env_Bush_", "Env_Fence_",
+                                         "Env_Wall_", "Env_Crate", "Env_Barrel",
+                                         "Env_Cart", "Env_Well", "Env_Planter",
+                                         "Env_Market_", "Env_Trough")):
+            continue
+        box = obb(obj, bounds, shrink=True)
+        if box is None:
+            continue
+        corners, _, _ = box
+
+        for name, pts, half in roads:
+            intrusion = max(half + clearance - closest_on_polyline(c[0], c[1], pts)[0]
+                            for c in corners)
+            if intrusion <= 0.0:
+                continue
+            # Push straight away from the centreline at the worst corner.
+            worst = max(corners, key=lambda c: half + clearance - closest_on_polyline(c[0], c[1], pts)[0])
+            d, pt, _ = closest_on_polyline(worst[0], worst[1], pts)
+            ax, az = worst[0] - pt[0], worst[1] - pt[-1]
+            n = math.hypot(ax, az) or 1.0
+            found.append({
+                "name": obj["name"],
+                "prefab": prefab.split("/")[-1],
+                "road": name,
+                "intrusion": round(intrusion, 3),
+                "push": [round(ax / n * (intrusion + 0.15), 3),
+                         round(az / n * (intrusion + 0.15), 3)],
+            })
+            break
+
+    found.sort(key=lambda f: -f["intrusion"])
+    return found
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--gap", type=float, default=0.15,
@@ -379,7 +438,18 @@ def main():
     if len(clashes) > 30:
         print("  ... and %d more" % (len(clashes) - 30))
 
-    if args.fix and (buried or clashes):
+    blockers = audit_road_blockers(layout, bounds, 0.15)
+    print()
+    print("=== solid objects standing in a road ===")
+    if not blockers:
+        print("  none")
+    for f in blockers[:20]:
+        print("  %-26s %-24s %-22s %.2f m into it"
+              % (f["name"], f["prefab"], f["road"], f["intrusion"]))
+    if len(blockers) > 20:
+        print("  ... and %d more" % (len(blockers) - 20))
+
+    if args.fix and (buried or clashes or blockers):
         index = {o["name"]: o for o in layout["objects"]}
 
         lifted = 0
@@ -404,9 +474,20 @@ def main():
             obj["position"][2] = round(obj["position"][2] + f["push"][1], 3)
             moved.add(f["b"])
 
+        cleared = 0
+        for f in blockers:
+            obj = index.get(f["name"])
+            if obj is None or f["name"] in moved:
+                continue
+            obj["position"][0] = round(obj["position"][0] + f["push"][0], 3)
+            obj["position"][2] = round(obj["position"][2] + f["push"][1], 3)
+            moved.add(f["name"])
+            cleared += 1
+
         with open(LAYOUT, "w", encoding="utf-8") as fh:
             json.dump(layout, fh, indent=1)
         print()
+        print("cleared %d object(s) off the roads." % cleared)
         print("lifted %d buried object(s), separated %d overlapping object(s); "
               "re-run this audit to confirm the moves did not create new clashes."
               % (lifted, len(moved)))

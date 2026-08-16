@@ -524,8 +524,17 @@ def cave_interiors(layout):
             for c in layout["terrain"].get("caves", [])]
 
 
-def inside_any(x, z, polys):
-    return any(point_in_poly(x, z, poly) for poly, _ in polys)
+def inside_any(x, z, polys, margin=0.0):
+    """Inside a cave, optionally with a skirt around it.
+
+    Foliage needs the skirt. A field drawn over the cave chamber spills a little
+    past the floor polygon, and those stragglers land on the *outside* of the
+    mountain — the height grid describes the massif's surface, so they end up on the
+    hillside twenty metres above the chamber they belong to.
+    """
+    if margin <= 0.0:
+        return any(point_in_poly(x, z, poly) for poly, _ in polys)
+    return any(poly_sdf(x, z, poly) < margin for poly, _ in polys)
 
 
 # Assets that stand at the threshold and belong to the *outside*. The cave filter
@@ -561,9 +570,97 @@ def cave_entrances(layout, grid):
     return out
 
 
+# --- collision ---------------------------------------------------------------------
+#
+# Nothing in the level had a collider except the ground, the water and the trigger
+# volumes: every tree, house, rock and the bridge could be walked straight through.
+# The decision of what blocks the player belongs with the rest of the placement
+# policy rather than in the builder, so it is emitted per object.
+#
+#   "mesh"  a solid you walk around, collided against its real geometry
+#   "trunk" a tree: a capsule on the stem only, so branches overhang a path
+#           without blocking it, which a canopy-sized collider would
+#   "none"  decoration you walk through
+
+COLLIDER_TRUNK = ("Env_Tree_",)
+COLLIDER_NONE = ("Env_Flower_", "Env_Grass_", "Env_TallGrass_", "Env_Fern_",
+                 "Env_Moss_", "Env_Lilypad_", "Env_Reed_", "Env_Vine_",
+                 "Env_Path_", "Env_Rock_Scatter_")
+
+
+def collider_for(prefab):
+    name = prefab.split("/")[-1]
+    if name.startswith(COLLIDER_TRUNK):
+        return "trunk"
+    if name.startswith(COLLIDER_NONE):
+        return "none"
+    return "mesh"
+
+
+# --- water, as a constraint on what can be planted ---------------------------------
+
+class WaterTest:
+    """How deep the water is at a point, and where its surface sits.
+
+    Foliage fields are hand-drawn regions and they overlap the water they border,
+    exactly as they overlapped the roads. Nothing checked, so grass and whole trees
+    were standing submerged in the lake. The waterline is known here — it is the
+    same surface the water mesh is built from — so the scatter can just ask.
+    """
+
+    def __init__(self, layout):
+        self.bodies = []
+        for body in layout["terrain"].get("water", []):
+            if "centreline" in body:
+                line = [tuple(float(v) for v in p) for p in body["centreline"]]
+                half = float(body.get("halfWidth", 1.5))
+                self.bodies.append(("line", line, half))
+            elif "polygon" in body:
+                poly = [(float(p[0]), float(p[1])) for p in body["polygon"]]
+                self.bodies.append(("poly", poly, float(body["surfaceY"])))
+
+    def surface_at(self, x, z):
+        """Waterline height at this point, or None if it is dry land."""
+        best = None
+        for kind, shape, param in self.bodies:
+            if kind == "poly":
+                if point_in_poly(x, z, shape):
+                    best = param if best is None else max(best, param)
+            else:
+                d, pt, _ = closest_on_polyline(x, z, shape)
+                # A little wider than the channel, because the bank is what the
+                # ribbon was widened into and plants belong above it, not in it.
+                if d <= param + 0.6:
+                    best = pt[1] if best is None else max(best, pt[1])
+        return best
+
+    def depth_at(self, x, z, ground):
+        surface = self.surface_at(x, z)
+        return None if surface is None else surface - ground
+
+
+# How wet each kind of planting is allowed to get, in metres of water over its roots.
+# Reeds stand in the shallows — that is what a reed bed is — while grass and trees do
+# not stand in a lake at all.
+MAX_WADE = {
+    "tall_grass": -0.05,
+    "meadow": -0.05,
+    "moss": -0.05,
+    "reeds": 0.35,
+    "lilypads": 99.0,     # floats; handled separately
+}
+DEFAULT_WADE = -0.05
+
+# Steepest ground anything is planted on. Above this the terrain is being read as
+# rock (the vertex weights cross over at 34 degrees and the shader's own slope term
+# starts at 30), and a tuft of grass standing perpendicular to a cliff face looks
+# like it was stapled on -- which is exactly what it was.
+MAX_PLANT_SLOPE = 32.0
+
+
 # --- foliage ----------------------------------------------------------------------
 
-def scatter_foliage(layout, grid, caves, painter):
+def scatter_foliage(layout, grid, caves, painter, water):
     """Turn each field into concrete instance transforms.
 
     Scattering happens here rather than in C# so the Y of every blade comes from the
@@ -587,19 +684,55 @@ def scatter_foliage(layout, grid, caves, painter):
         lo, hi = [float(v) for v in f.get("scaleRange", [1.0, 1.0])]
         yaw_jitter = float(f.get("yawJitterDegrees", 360.0))
 
+        kind = f.get("kind", "")
+        wade = MAX_WADE.get(kind, DEFAULT_WADE)
+        floats_on_water = kind == "lilypads"
+
         minx, maxx, minz, maxz = poly_bounds(poly)
         area = poly_area(poly)
-        # Cell size chosen so the jittered grid holds comfortably more candidate cells
-        # than the budget: the grid covers the bounding box while the budget is defined
-        # over the polygon, and every cell whose jittered point lands outside the
-        # outline is discarded. Sizing for exactly the budget leaves a field short by
-        # whatever fraction of its bounding box is not polygon.
-        cell = math.sqrt(max(area, 0.01) / (budget * 2.0))
+        # The grid covers the bounding box while the budget is defined over the
+        # polygon, and every cell whose jittered point lands outside is discarded, so
+        # it has to hold comfortably more candidates than the budget.
+        #
+        # Measure how much of the polygon is actually plantable before choosing the
+        # cell size. These fields are hand-drawn regions and several of them lie mostly
+        # over the lake or across a road -- Field_Lake_ShoreGrass loses 99% of its
+        # candidates to water. Sizing the grid to the *whole* polygon then leaves the
+        # surviving strip of land nearly bare, which looks like a bug in the scatter
+        # rather than in the polygon. Sampling the acceptance rate first puts the
+        # authored density on the ground that can hold it.
+        probe = random.Random(f["name"] + ":probe")
+        pminx, pmaxx, pminz, pmaxz = poly_bounds(poly)
+        usable = tries = 0
+        for _ in range(400):
+            px = probe.uniform(pminx, pmaxx)
+            pz = probe.uniform(pminz, pmaxz)
+            if not point_in_poly(px, pz, poly):
+                continue
+            tries += 1
+            if inside_any(px, pz, caves, margin=4.0):
+                continue
+            if painter.paved_clearance(px, pz) > -0.25:
+                continue
+            if grid.slope_degrees(px, pz) > MAX_PLANT_SLOPE:
+                continue
+            d = water.depth_at(px, pz, grid.at(px, pz))
+            if floats_on_water:
+                if d is None or d < 0.25:
+                    continue
+            elif d is not None and d > wade:
+                continue
+            usable += 1
+        acceptance = max(usable / tries, 0.04) if tries else 1.0
+
+        cell = math.sqrt(max(area, 0.01) / (budget * 2.0 / acceptance))
         rng = random.Random(f["name"])
 
         buckets = {p["prefab"]: [] for p in prefabs}
         placed = 0
         rejected_paved = 0
+        rejected_water = 0
+        rejected_slope = 0
         nx = max(1, int(math.ceil((maxx - minx) / cell)))
         nz = max(1, int(math.ceil((maxz - minz) / cell)))
         cells = [(i, j) for j in range(nz) for i in range(nx)]
@@ -612,13 +745,32 @@ def scatter_foliage(layout, grid, caves, painter):
             z = minz + (j + rng.random()) * cell
             if not point_in_poly(x, z, poly):
                 continue
-            if inside_any(x, z, caves):
+            if inside_any(x, z, caves, margin=4.0):
                 continue
             # Keep a hand's breadth off the paving as well as off it: a blade rooted
             # exactly on the kerb line still reads as growing out of the road.
             if painter.paved_clearance(x, z) > -0.25:
                 rejected_paved += 1
                 continue
+
+            if grid.slope_degrees(x, z) > MAX_PLANT_SLOPE:
+                rejected_slope += 1
+                continue
+
+            ground = grid.at(x, z)
+            depth = water.depth_at(x, z, ground)
+            if floats_on_water:
+                # A lily pad floats. Sampling it onto the terrain put it on the lake
+                # bed, several metres under the surface it is supposed to lie on.
+                if depth is None or depth < 0.25:
+                    rejected_water += 1
+                    continue
+                y = ground + depth
+            else:
+                if depth is not None and depth > wade:
+                    rejected_water += 1
+                    continue
+                y = ground
 
             roll = rng.random() * total_weight
             chosen = prefabs[-1]["prefab"]
@@ -629,7 +781,7 @@ def scatter_foliage(layout, grid, caves, painter):
                     break
 
             buckets[chosen].append([
-                round(x, 3), round(grid.at(x, z), 3), round(z, 3),
+                round(x, 3), round(y, 3), round(z, 3),
                 round(rng.uniform(0.0, yaw_jitter), 1),
                 round(rng.uniform(lo, hi), 3),
             ])
@@ -644,6 +796,8 @@ def scatter_foliage(layout, grid, caves, painter):
                        for k, vs in buckets.items() if vs],
             "placed": placed,
             "rejectedOnPaving": rejected_paved,
+            "rejectedInWater": rejected_water,
+            "rejectedOnSlope": rejected_slope,
         })
     return fields
 
@@ -657,12 +811,19 @@ def main():
     grid = Grid(layout["terrain"]["heightField"]["grid"])
     painter = SurfacePainter(layout)
     caves = cave_interiors(layout)
+    water_test = WaterTest(layout)
 
     ground = build_ground(grid, painter, layout["extents"])
     water = build_water(layout, grid)
-    foliage = scatter_foliage(layout, grid, caves, painter)
+    foliage = scatter_foliage(layout, grid, caves, painter, water_test)
 
-    objects, interior = [], 0
+    # Vegetation that would be rooted in a rock face. The steep ground is read as
+    # rock by both the vertex weights and the shader, and a tree standing out of a
+    # cliff at 40 degrees looks pinned on rather than grown.
+    PLANTED = ("Env_Tree_", "Env_Bush_", "Env_Fern_", "Env_Flower_",
+               "Env_Grass_", "Env_TallGrass_", "Env_Reed_")
+
+    objects, interior, cliffside = [], 0, 0
     for o in layout.get("objects", []):
         pos = o.get("position") or [0.0, 0.0, 0.0]
         x, y, z = float(pos[0]), float(pos[1]), float(pos[2])
@@ -675,6 +836,13 @@ def main():
                 inside_any(x, z, caves) or (y - grid.at(x, z)) < -2.0):
             interior += 1
             continue
+        asset = o.get("prefab", "").split("/")[-1]
+        if asset.startswith(PLANTED) and grid.slope_degrees(x, z) > MAX_PLANT_SLOPE:
+            cliffside += 1
+            continue
+
+        o = dict(o)
+        o["collider"] = collider_for(o.get("prefab", ""))
         objects.append(o)
 
     gameplay = layout.get("gameplay", {})
@@ -717,10 +885,11 @@ def main():
     total_inst = 0
     for f in foliage:
         total_inst += f["placed"]
-        print("  foliage    %-24s %5d instances in %d group(s), %d rejected on paving"
-              % (f["name"], f["placed"], len(f["groups"]), f["rejectedOnPaving"]))
+        print("  foliage    %-24s %5d instances, %d group(s), rejected: %d paved / %d water / %d slope"
+              % (f["name"], f["placed"], len(f["groups"]), f["rejectedOnPaving"], f["rejectedInWater"], f["rejectedOnSlope"]))
     print("  foliage total %d instances" % total_inst)
-    print("  objects %d  (%d held back for cave scenes)" % (len(objects), interior))
+    print("  objects %d  (%d held for cave scenes, %d removed from rock faces)"
+          % (len(objects), interior, cliffside))
     print("  anchors %d  grass triggers %d  cave entrances %d  spawn %s"
           % (len(out["ambientAnchors"]), len(out["tallGrass"]),
              len(out["caveEntrances"]), spawn_pos))

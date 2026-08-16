@@ -150,10 +150,41 @@ def sheet_anim(entry, name):
     out.save(os.path.join(VERIFY, f"{name}_anim.png"))
 
 
+def sheet_cast(creatures, path):
+    """The whole cast on one image: resting front over resting back, labelled.
+
+    This is the sheet that catches a wrong id mapping, which none of the
+    per-species sheets can -- they compare a species against its own source, so
+    they pass just as cleanly when the source is the wrong animal.  Here the
+    name is printed under the artwork and the two are read together.
+    """
+    z = 2
+    cols = 9
+    rows = (len(creatures) + cols - 1) // cols
+    cw, ch = 96 * z + 12, 96 * z * 2 + 30
+    out = Image.new("RGB", (cols * cw + 16, rows * ch + 16), DARK)
+    d = ImageDraw.Draw(out)
+    for i, entry in enumerate(creatures):
+        r, c = divmod(i, cols)
+        x, y = 8 + c * cw, 8 + r * ch
+        for j, view in enumerate(("front", "back")):
+            frames, vd = _frames(entry, view)
+            im = _zoom(frames[vd["clips"]["idle"]["sequence"][0]], z)
+            out.paste(im, (x, y + j * (96 * z)), im)
+        d.text((x + 2, y + 96 * z * 2 + 4),
+               f"{entry['name']}  g{entry['species_id']}/d{entry['dex_number']}",
+               fill=INK_D)
+    out.save(path)
+    print(f"cast sheet: {len(creatures)} species -> {path}")
+
+
 def main(argv):
     os.makedirs(VERIFY, exist_ok=True)
     with open(MANIFEST, encoding="utf-8") as fh:
         man = json.load(fh)
+    if argv and argv[0] == "--cast":
+        sheet_cast(man["creatures"], os.path.join(VERIFY, "cast_all.png"))
+        return
     ids = [int(a) for a in argv]
     for entry in man["creatures"]:
         if ids and entry["species_id"] not in ids:

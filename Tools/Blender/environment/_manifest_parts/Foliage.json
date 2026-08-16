@@ -4,7 +4,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-    "triangles": 877,
+    "triangles": 1253,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [
@@ -19,7 +19,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-    "triangles": 1149,
+    "triangles": 1361,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [
@@ -34,7 +34,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-    "triangles": 1349,
+    "triangles": 1435,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [
@@ -49,7 +49,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-    "triangles": 802,
+    "triangles": 977,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [
@@ -64,7 +64,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-    "triangles": 1022,
+    "triangles": 1187,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [
@@ -79,7 +79,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-    "triangles": 1192,
+    "triangles": 1392,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [
@@ -94,7 +94,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-    "triangles": 1332,
+    "triangles": 1248,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [
@@ -109,7 +109,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
-    "triangles": 1036,
+    "triangles": 844,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [
@@ -124,7 +124,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_C.fbx",
-    "triangles": 1134,
+    "triangles": 924,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [
@@ -139,7 +139,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
-    "triangles": 958,
+    "triangles": 853,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [
@@ -154,7 +154,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-    "triangles": 1259,
+    "triangles": 1136,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [
@@ -169,7 +169,7 @@
     "family": "Foliage",
     "subfamily": "Tree",
     "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
-    "triangles": 1404,
+    "triangles": 1273,
     "lods": [],
     "pivot": "trunk base, XY centred on trunk",
     "textures": [

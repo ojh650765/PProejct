@@ -350,10 +350,86 @@ namespace PokeLab.Boot.Editor
                 instance.transform.localEulerAngles = ToVector(entry.rotation);
                 instance.transform.localScale = ToVector(entry.scale, Vector3.one);
                 instance.isStatic = entry.@static;
+                AddCollision(instance, entry.collider);
                 if (!string.IsNullOrEmpty(entry.layer)) SetLayer(instance, entry.layer);
                 if (!string.IsNullOrEmpty(entry.tag) && entry.tag != "Untagged")
                     TrySetTag(instance, entry.tag);
             }
+        }
+
+        /// <summary>
+        /// Gives a placed object something to collide with.
+        ///
+        /// Instantiating an FBX gives renderers and no colliders, and nothing was adding
+        /// any: every tree, house, rock and the bridge could be walked straight through,
+        /// and the only solid things in the level were the ground mesh and the trigger
+        /// volumes. The bridge is the one that bites hardest — the terrain dives into the
+        /// stream channel beneath it, so without a deck to stand on the player walks the
+        /// route straight into the water.
+        ///
+        /// Trees get a capsule on the stem rather than a collider around their geometry.
+        /// A mesh collider on a broadleaf is a four-metre canopy you cannot walk under,
+        /// which would wall off most of the route.
+        /// </summary>
+        private static void AddCollision(GameObject instance, string kind)
+        {
+            if (string.IsNullOrEmpty(kind) || kind == "none") return;
+
+            if (kind == "trunk")
+            {
+                var bounds = LocalBounds(instance);
+                if (bounds.size.y <= 0.01f) return;
+
+                var capsule = instance.AddComponent<CapsuleCollider>();
+                capsule.direction = 1; // Y
+                capsule.height = bounds.size.y;
+                capsule.center = new Vector3(0f, bounds.min.y + bounds.size.y * 0.5f, 0f);
+                // A fraction of the canopy, because the canopy is what the bounding box
+                // measures and the trunk is what you walk into.
+                capsule.radius = Mathf.Max(0.18f,
+                    Mathf.Min(bounds.size.x, bounds.size.z) * 0.13f);
+                return;
+            }
+
+            foreach (var filter in instance.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (filter.sharedMesh == null) continue;
+                var collider = filter.gameObject.AddComponent<MeshCollider>();
+                collider.sharedMesh = filter.sharedMesh;
+                collider.convex = false;   // static geometry; concave is free here
+            }
+        }
+
+        /// <summary>Bounds of every renderer, in the instance's own space.</summary>
+        private static Bounds LocalBounds(GameObject instance)
+        {
+            var renderers = instance.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0) return new Bounds(Vector3.zero, Vector3.zero);
+
+            var toLocal = instance.transform.worldToLocalMatrix;
+            var bounds = new Bounds(
+                toLocal.MultiplyPoint3x4(renderers[0].bounds.center), Vector3.zero);
+            foreach (var renderer in renderers)
+            {
+                var b = renderer.bounds;
+                foreach (var corner in Corners(b))
+                    bounds.Encapsulate(toLocal.MultiplyPoint3x4(corner));
+            }
+            return bounds;
+        }
+
+        private static IEnumerable<Vector3> Corners(Bounds b)
+        {
+            var min = b.min;
+            var max = b.max;
+            yield return new Vector3(min.x, min.y, min.z);
+            yield return new Vector3(max.x, min.y, min.z);
+            yield return new Vector3(min.x, min.y, max.z);
+            yield return new Vector3(max.x, min.y, max.z);
+            yield return new Vector3(min.x, max.y, min.z);
+            yield return new Vector3(max.x, max.y, min.z);
+            yield return new Vector3(min.x, max.y, max.z);
+            yield return new Vector3(max.x, max.y, max.z);
         }
 
         private static void BuildAnchors(Layout layout, Transform root,
@@ -507,6 +583,7 @@ namespace PokeLab.Boot.Editor
             public float[] scale;
             public string layer;
             public string tag;
+            public string collider;
             public bool @static;
         }
 

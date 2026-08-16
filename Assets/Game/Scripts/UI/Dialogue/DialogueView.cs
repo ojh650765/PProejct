@@ -60,7 +60,7 @@ namespace PokeLab.UI
 
         private const float Indent = 168f;
         private const float ScrimHeight = 336f;
-        private const float TopFadeHeight = 110f;
+        private const float TopFadeHeight = 148f;
         private const float RuleY = 246f;
         private const float RuleThickness = 2f;
         private const float RuleRightMargin = 132f;
@@ -136,6 +136,7 @@ namespace PokeLab.UI
         {
             _onMenu = onMenu;
             if (_menuButton != null) _menuButton.gameObject.SetActive(onMenu != null);
+            LayOutControls();
         }
 
         /// <summary>
@@ -192,9 +193,13 @@ namespace PokeLab.UI
             ClearChoices();
             _autoCountdown = -1f;
 
+            // The rule goes with the name, not with the body. It exists to separate the two;
+            // on an unattributed line — a sign, a system message — it would be a line drawn
+            // under nothing, and narration reads better as plain text on the scrim anyway.
             var named = !string.IsNullOrWhiteSpace(speaker);
             if (_speakerPlate != null) _speakerPlate.gameObject.SetActive(named);
             if (_speakerTab != null) _speakerTab.enabled = named;
+            if (_rule != null) _rule.enabled = named;
             if (_speaker != null) _speaker.SetText(speaker ?? string.Empty);
 
             // An empty subtitle must collapse rather than sit as a zero-width gap, or the
@@ -376,7 +381,7 @@ namespace PokeLab.UI
                 UiBuilder.Size(root, preferredHeight: ChoiceHeight, minHeight: ChoiceHeight, flexibleWidth: 1f);
 
                 var background = UiBuilder.Image("Bg", root, UiSprites.Slant((int)ChoiceHeight, ChoiceSlant),
-                    UiPalette.Surface.WithAlpha(0.86f), Image.Type.Sliced, true);
+                    UiPalette.Surface.WithAlpha(0.93f), Image.Type.Sliced, true);
                 UiBuilder.Stretch(background.rectTransform);
 
                 var rim = UiBuilder.Image("Rim", root, UiSprites.SlantFrame((int)ChoiceHeight, ChoiceSlant, 2),
@@ -498,6 +503,7 @@ namespace PokeLab.UI
             BuildControls(root);
             BuildChoiceParent(root);
 
+            LayOutControls();
             RefreshAutoVisual();
             UiBuilder.EnsureEventSystem();
         }
@@ -521,7 +527,7 @@ namespace PokeLab.UI
 
             // A ramp, not an edge. See UiSprites.VerticalFade for why the top of the overlay
             // must not be a line anyone can point at.
-            var fade = UiBuilder.Image("TopFade", box, UiSprites.VerticalFade(96, 1.9f),
+            var fade = UiBuilder.Image("TopFade", box, UiSprites.VerticalFade(96, 1.35f),
                 UiPalette.Scrim.WithAlpha(UiPalette.ScrimNameAlpha), Image.Type.Simple);
             Band(fade.rectTransform, ScrimHeight, TopFadeHeight, 0f, 0f);
         }
@@ -584,18 +590,44 @@ namespace PokeLab.UI
             UiType.ApplyShadow(_body);
         }
 
+        /// <summary>
+        /// The two slabs in the top corner.
+        ///
+        /// Anchored one by one from the right edge rather than run through a layout group.
+        /// A group here has to be paired with a size fitter to hug two fixed-width children,
+        /// and the pair resolves in the wrong order often enough that the first slab
+        /// collapses to a sliver — which is exactly what it did. Two constants are less code
+        /// than the workaround, and the arrangement is only ever these two items.
+        /// </summary>
         private void BuildControls(RectTransform root)
         {
             var bar = UiBuilder.Rect("Controls", root, false);
             UiBuilder.Anchor(bar, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-                new Vector2(-96f, -40f), new Vector2(0f, 46f));
-            UiBuilder.Horizontal(bar, 12f, null, TextAnchor.MiddleRight);
-            UiBuilder.Fit(bar, ContentSizeFitter.FitMode.PreferredSize, ContentSizeFitter.FitMode.Unconstrained);
+                new Vector2(-96f, -40f), new Vector2(ControlAutoWidth + ControlMenuWidth + ControlGap,
+                    ControlHeight));
 
-            _autoButton = ControlSlab(bar, "Auto", "AUTO", 118f, out _autoFill,
-                () => AutoAdvance = !AutoAdvance);
-            _menuButton = ControlSlab(bar, "Menu", "MENU", 128f, out _, () => _onMenu?.Invoke());
+            _menuButton = ControlSlab(bar, "Menu", "MENU", ControlMenuWidth, 0f, out _,
+                () => _onMenu?.Invoke());
             _menuButton.gameObject.SetActive(false);
+
+            _autoButton = ControlSlab(bar, "Auto", "AUTO", ControlAutoWidth, 0f, out _autoFill,
+                () => AutoAdvance = !AutoAdvance);
+        }
+
+        private const float ControlHeight = 46f;
+        private const float ControlAutoWidth = 118f;
+        private const float ControlMenuWidth = 128f;
+        private const float ControlGap = 12f;
+
+        /// <summary>
+        /// Slides AUTO into the corner when MENU is not there, so a single control never sits
+        /// with a hole beside it where the other one would have been.
+        /// </summary>
+        private void LayOutControls()
+        {
+            if (_autoButton == null) return;
+            var menuShown = _menuButton != null && _menuButton.gameObject.activeSelf;
+            _autoButton.anchoredPosition = new Vector2(menuShown ? -(ControlMenuWidth + ControlGap) : 0f, 0f);
         }
 
         /// <summary>
@@ -604,13 +636,14 @@ namespace PokeLab.UI
         /// the composition is trying to disappear, so these have to not.
         /// </summary>
         private static RectTransform ControlSlab(RectTransform parent, string name, string label,
-            float width, out Image fill, Action onClick)
+            float width, float offsetX, out Image fill, Action onClick)
         {
             var slab = UiBuilder.Rect(name, parent, false);
-            UiBuilder.Size(slab, preferredWidth: width, minWidth: width, preferredHeight: 46f, minHeight: 46f);
+            UiBuilder.Anchor(slab, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(offsetX, 0f), new Vector2(width, ControlHeight));
 
-            fill = UiBuilder.Image("Fill", slab, UiSprites.Slant(46, 9), UiPalette.ControlSlab,
-                Image.Type.Sliced, true);
+            fill = UiBuilder.Image("Fill", slab, UiSprites.Slant((int)ControlHeight, 9),
+                UiPalette.ControlSlab, Image.Type.Sliced, true);
             UiBuilder.Stretch(fill.rectTransform);
 
             var text = UiBuilder.Text("Label", slab, label, UiTextRole.Body, UiPalette.TextOnAccent,
@@ -618,6 +651,7 @@ namespace PokeLab.UI
             text.fontSize = 21f;
             text.fontStyle = FontStyles.Bold | FontStyles.Italic;
             text.characterSpacing = 2f;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
             UiBuilder.Stretch(text.rectTransform);
 
             UiButtonMotion.Attach(slab, 4);

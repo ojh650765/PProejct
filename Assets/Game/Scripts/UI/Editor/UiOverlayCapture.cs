@@ -290,6 +290,23 @@ namespace PokeLab.UI.Editor
                 LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)canvasGo.transform);
                 Canvas.ForceUpdateCanvases();
 
+                foreach (var t in canvasGo.GetComponentsInChildren<RectTransform>(true))
+                {
+                    var parentName = t.parent != null ? t.parent.name : "-";
+                    if (parentName != "Auto" && parentName != "Menu" &&
+                        t.name != "Auto" && t.name != "Menu" && t.name != "Controls") continue;
+                    var img = t.GetComponent<Image>();
+                    var cr = t.GetComponent<CanvasRenderer>();
+                    Debug.Log($"[UiCaptureDiag] {parentName}/{t.name} active={t.gameObject.activeInHierarchy} " +
+                              $"rect={t.rect} anchoredPos={t.anchoredPosition} " +
+                              $"img={(img != null ? $"en={img.enabled} col={img.color} type={img.type} " +
+                                  $"fillCenter={img.fillCenter} sprite={(img.sprite != null ? img.sprite.name : \"null\")} " +
+                                  $"border={(img.sprite != null ? img.sprite.border.ToString() : \"-\")} " +
+                                  $"tex={(img.sprite != null && img.sprite.texture != null ? \"ok\" : \"DEAD\")}" : "none")} " +
+                              $"crAlpha={(cr != null ? cr.GetAlpha().ToString(\"0.00\") : \"-\")} " +
+                              $"crCount={(cr != null ? cr.materialCount : -1)}");
+                }
+
                 RenderTo(camera, rt);
 
                 var previous = RenderTexture.active;

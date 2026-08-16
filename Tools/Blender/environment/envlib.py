@@ -647,14 +647,22 @@ def cleanup(bm, merge=1e-5, tri_limit=None):
     bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
 
 
-def finalize(obj, smooth_angle=38.0, merge=1e-5):
-    """Recalc normals outward, remove degenerate/loose geo, enable auto smooth."""
+def finalize(obj, smooth_angle=38.0, merge=1e-5, force_smooth=True):
+    """Recalc normals outward, remove degenerate/loose geo, enable auto smooth.
+
+    force_smooth=False keeps whatever per-face smooth flags the builder set.
+    Tree canopies need it: a leaf tuft that shades with a smooth gradient
+    across it reads as a droplet of jelly, and faceting each tuft is most of
+    what stops that.  Everything else still gets the blanket smooth, so this
+    changes nothing for callers that do not ask.
+    """
     bm = obj_bm(obj)
     cleanup(bm, merge=merge)
     bm_write(bm, obj)
     me = obj.data
-    for p in me.polygons:
-        p.use_smooth = True
+    if force_smooth:
+        for p in me.polygons:
+            p.use_smooth = True
     me.use_auto_smooth = True
     me.auto_smooth_angle = math.radians(smooth_angle)
     return obj
