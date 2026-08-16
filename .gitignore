@@ -112,3 +112,7 @@ InitTestScene*.unity*
 # QA screenshot output (regenerated, not source)
 Assets/Screenshots/
 Assets/Screenshots.meta
+
+# Windows has no /dev/null, so a stray `> /dev/null` in a shell script creates
+# this as a real directory in the repo root. Ignored so it cannot be committed again.
+/dev/
