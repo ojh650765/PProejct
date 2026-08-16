@@ -626,7 +626,7 @@ def bevel_sharp(bm, width=0.012, segments=2, angle_deg=32.0, mat_break=True):
         bevel(bm, edges=edges, width=width, segments=segments, clamp=True)
 
 
-def cleanup(bm, merge=1e-5, tri_limit=None):
+def cleanup(bm, merge=1e-5, tri_limit=None, recalc=True):
     # merge <= 0 means "this mesh was authored, not scanned -- there are no
     # accidental doubles to remove". Welding matters for organic builders that
     # stamp overlapping primitives; on a building assembled from closed solids
@@ -644,10 +644,20 @@ def cleanup(bm, merge=1e-5, tri_limit=None):
     loose_v = [v for v in bm.verts if not v.link_edges]
     if loose_v:
         bmesh.ops.delete(bm, geom=loose_v, context='VERTS')
-    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+    # recalc=False means "this mesh's winding is authored, do not second-guess
+    # it". The operator decides which way is out per connected shell, and it
+    # decides it against the *whole* bmesh rather than the faces handed to it,
+    # so a shell that other geometry encloses comes out reversed -- measured on
+    # Env_Cave_Arch, that was its gravel threshold apron facing the ground it
+    # lies on and a scree block turned inside out. Nothing that builds one
+    # convex-ish solid at a time can hit that, which is why this is the
+    # exception and not the default.
+    if recalc:
+        bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
 
 
-def finalize(obj, smooth_angle=38.0, merge=1e-5, force_smooth=True):
+def finalize(obj, smooth_angle=38.0, merge=1e-5, force_smooth=True,
+             recalc=True):
     """Recalc normals outward, remove degenerate/loose geo, enable auto smooth.
 
     force_smooth=False keeps whatever per-face smooth flags the builder set.
@@ -655,9 +665,11 @@ def finalize(obj, smooth_angle=38.0, merge=1e-5, force_smooth=True):
     across it reads as a droplet of jelly, and faceting each tuft is most of
     what stops that.  Everything else still gets the blanket smooth, so this
     changes nothing for callers that do not ask.
+
+    recalc=False keeps the builder's own winding; see cleanup.
     """
     bm = obj_bm(obj)
-    cleanup(bm, merge=merge)
+    cleanup(bm, merge=merge, recalc=recalc)
     bm_write(bm, obj)
     me = obj.data
     if force_smooth:

@@ -1428,6 +1428,296 @@ def path_tile(bm, rng, w=2.0, d=2.0, worn=True):
     bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
 
 
+# --------------------------------------------------------------------------
+# Env_Gate_TownArch -- the way out of Aster Town
+#
+# WHY THIS ASSET EXISTS
+#
+# The boundary wood closes the town on every side but one.  The north gate is
+# a single 8.4 m gap in the treeline, framed by the two gatepost trees and the
+# stone rim walls, and it is the only hole in the perimeter that is not backed
+# by hillside.  Stand in it and look out: the town's objects stop at z = 2.2
+# while its ground runs to z = 14, so what the player sees is twelve metres of
+# bare terrain and then the edge of the world.
+#
+# The fix is not twelve metres of scenery.  Scenery moves the edge further
+# away; it does not remove it, and the next thing the player does is walk to
+# the new edge.  A town exit in this genre is a DOORWAY -- a frame you walk
+# into, an opaque back to it, and a scene transition on the trigger.  This kit
+# already builds exactly that twice: poke_centre's lobby and gen_terrain's
+# cave throat.  So this is a gateway, sized to straddle Path_GateRamp's 4.0 m
+# corridor, with poke_centre's blackout behind it.
+#
+# HOW THE BLACKOUT WORKS  (taken from poke_centre, not invented here)
+#
+# There is no unlit shader in this kit and no black cell in the Town atlas.
+# What poke_centre does instead is build every surface a player can see
+# through its doorway out of GLASS -- window_glass is the darkest cell in the
+# atlas, 0.05-0.20 against lamp_metal's 0.16-0.48 -- and stand it deep enough
+# inside the opening that it never catches the key light.  The same surfaces
+# do the job here, plus the two extra levers gate_blackout_finish adds, which
+# a 0.7 m recess in full sun needs and a 2.2 m lobby indoors does not.
+#
+# WHY IT IS A RECESS AND NOT ONE PLANE
+#
+# A single plane across the opening only works for a player standing on the
+# road centreline.  Step to one side and the ray that clears the near pier
+# leaves the far edge of that plane and finds sky, which is the failure mode
+# the whole asset exists to remove.  So the blackout is a five-sided recess --
+# back wall, two jambs, a soffit and a floor -- and every ray that gets into
+# the aperture lands on one of them.  Worked through: a ray entering at the
+# near pier's inner face has 0.11 m of Y before the far jamb begins, so it
+# would have to cross the 4.1 m opening at a slope of 37:1 to escape, which is
+# a viewer 68 m off the road axis looking at the gate edge-on through the
+# treeline.  Anything inside 15 m of the gate is covered several times over.
+# --------------------------------------------------------------------------
+
+GATE_ROAD = 4.00        # Path_GateRamp's corridor: the clear span, kept clear
+GATE_PIER = 0.75        # stone pier footprint, so overall width is 4.0 + 1.5
+GATE_PIER_X = (GATE_ROAD + GATE_PIER) * 0.5   # inner face on the road edge
+GATE_POST_IN = GATE_ROAD * 0.5 + 0.06         # post inset 60 mm off the stone
+GATE_JAMB_IN = GATE_POST_IN - 0.01            # jamb 10 mm proud -- see below
+GATE_HEAD_Z = 3.18      # underside of the head beam, i.e. the headroom
+GATE_BEAM_TOP = 3.66
+GATE_BLACK_Y = 0.60     # face of the blackout wall, 1.05 m in from the front
+
+# The corner of the window_glass cell that the gradient starts dark in.
+# p_grad writes image row 0 as colour `a` and build_atlas puts image row 0 at
+# the TOP of the cell, so dark is HIGH v; the diagonal sheen band runs from
+# (row+col)/2 = 0.34 upward, so dark is also LOW u.  Measured on the shipped
+# atlas: this patch is a uniform (0.059, 0.106, 0.153) against a cell mean of
+# (0.168, 0.273, 0.350) and a cell maximum of (0.290, 0.443, 0.545).
+GATE_DARK_UV = (0.06, 0.84, 0.10)      # u0, v0, size, as fractions of the cell
+
+# Face attribute marking "this face looks into the recess".  It rides along
+# from bmesh into the mesh and is never exported -- FBX has nowhere to put a
+# generic int attribute -- so it costs the shipped file nothing.
+GATE_RECESS_TAG = "gate_recess"
+
+
+def town_arch(bm, rng):
+    """Timber-and-stone gateway over the gate ramp, with a blacked-out recess.
+
+    Front is Blender -Y, which is the town side.  That matters more here than
+    on a house: the fixed camera looks at this thing from inside the town for
+    the whole time the player is in Aster Town and sees the field side never,
+    because walking into the recess is what fires the scene transition.  So
+    every piece of decoration -- the name board, the hanging sign, the two
+    lanterns -- is on -Y, and the blackout is set back on +Y behind it.
+    """
+    px = GATE_PIER_X
+
+    # ---- piers ------------------------------------------------------------
+    # The plinths run 1.30 m deep against the posts' 0.42, back to y = +0.85.
+    # That is not proportion for its own sake: at 0.90 m the stone stopped at
+    # y = +0.45 and the blackout's jambs stood 0.35 m out behind it in mid
+    # air, which from any three-quarter view in the town is a dark slab
+    # floating off the back of the gate.
+    #
+    # The coping course above them is widened in Y only.  Widening it in X as
+    # well is the normal way to build a coping and it would put 50 mm of stone
+    # into a road corridor that the layout cuts exactly 4.00 m wide.
+    for sx in (-1, 1):
+        TL.solid_box(bm, (sx * px, 0.20, 0.43), (GATE_PIER, 1.30, 0.86),
+                     STONE_WALL)
+        TL.solid_box(bm, (sx * px, 0.20, 0.88), (GATE_PIER, 1.42, 0.14),
+                     STONE_WALL)
+        # Timber post, standing on the inner edge of its own stone base rather
+        # than centred on it: that is what leaves the recess jamb somewhere to
+        # hide, and a post set back on a broader plinth reads as a gatepost
+        # instead of as a fence post that got fat.
+        TL.solid_box(bm, (sx * (GATE_POST_IN + 0.21), 0.0, 2.28),
+                     (0.42, 0.42, 3.00), BEAM)
+        TL.solid_box(bm, (sx * (GATE_POST_IN + 0.21), 0.0, 1.02),
+                     (0.52, 0.52, 0.14), BEAM)
+
+    # ---- head assembly ----------------------------------------------------
+    TL.solid_box(bm, (0, 0, (GATE_HEAD_Z + GATE_BEAM_TOP) * 0.5),
+                 (5.62, 0.46, GATE_BEAM_TOP - GATE_HEAD_Z), BEAM)
+    # A second, lighter tie below the head beam, with daylight between the
+    # two.  The gap is the whole point: a solid head 0.48 m deep reads as a
+    # concrete lintel from 20 m, and the slot is what makes it read as timber
+    # framing.  It is safe to leave open because the recess soffit sits above
+    # the aperture, so the slot looks onto the blackout and not onto sky.
+    TL.solid_box(bm, (0, 0, 2.92), (4.90, 0.26, 0.22), BEAM)
+
+    def knee(sx, x0, z0, x1, z1, w=0.09):
+        """Diagonal brace with real width, both ends buried in what it braces.
+
+        Authored as a quad in the y = -0.15 plane and thickened along -Y, so
+        it lands centred in the post's 0.42 m depth.  A brace modelled as a
+        rotated box cannot do that: rot_z only turns in XY.
+        """
+        dx, dz = x1 - x0, z1 - z0
+        L = math.hypot(dx, dz)
+        ox, oz = -dz / L * w, dx / L * w
+        TL.solid_from_quad(bm, [
+            (sx * (x0 + ox), -0.15, z0 + oz), (sx * (x1 + ox), -0.15, z1 + oz),
+            (sx * (x1 - ox), -0.15, z1 - oz), (sx * (x0 - ox), -0.15, z0 - oz)],
+            0.30, BEAM, up=(0, -1, 0))
+
+    for sx in (-1, 1):
+        knee(sx, 2.30, 2.14, 1.32, 3.24)
+
+    # ---- shingled cap -----------------------------------------------------
+    # A plate wide enough in Y to give the pitches a believable run.  Without
+    # it the roof would be sitting on a 0.46 m beam and a 0.60 m rise over a
+    # 0.23 m run is a 69 degree pitch, which reads as a spike, not a cap.
+    TL.solid_box(bm, (0, 0, 3.71), (5.10, 1.10, 0.18), BEAM)
+    # ROOF_GREEN, not the civic ROOF_RED: the red roofs in this town belong to
+    # the Centre and the cottages, and a red cap here would read as one more
+    # building at the end of the street rather than as the way out of it.
+    # BEAM where gable_roof wants a trim material, because trim goes on the
+    # ridge cap: trim_white on a ridge 4.4 m up, side lit, was the brightest
+    # thing in every three-quarter render and pulled the eye off the opening.
+    TL.gable_roof(bm, [(-2.55, -0.55), (2.55, -0.55), (2.55, 0.55),
+                       (-2.55, 0.55)], 3.74, 0.66, 0.28, 0.09,
+                  ROOF_GREEN, BEAM, ridge_along_x=True, gable_mat=BEAM)
+
+    # ---- name board, on the town face of the head beam ---------------------
+    # Deliberately more frame than board.  trim_white is the brightest cell in
+    # the atlas and a 3.2 m panel of it under the key light was the first
+    # thing the eye went to in the whole gate, ahead of the opening.
+    TL.solid_box(bm, (0, -0.26, 3.42), (3.20, 0.12, 0.50), BEAM)
+    TL.solid_box(bm, (0, -0.30, 3.42), (2.72, 0.10, 0.28), TRIM)
+
+    # ---- hanging sign, off the west pier -----------------------------------
+    # Hung off a pier and not off the middle of the head beam.  A board over
+    # the centre of the road is the obvious composition and it is wrong twice:
+    # it hangs in front of the blackout, which is the one part of the opening
+    # that has to stay unbroken, and it puts geometry in the corridor the
+    # player walks down.  Everything here stays outside x = -2.00.
+    sgx = -px
+    TL.solid_box(bm, (sgx, -0.44, 3.02), (0.10, 0.62, 0.10), LAMP)
+    TL.solid_box(bm, (sgx, -0.68, 3.00), (0.86, 0.07, 0.07), LAMP)
+    for dx in (-0.34, 0.34):
+        TL.solid_box(bm, (sgx + dx, -0.68, 2.90), (0.05, 0.05, 0.24), LAMP)
+    TL.solid_box(bm, (sgx, -0.665, 2.52), (0.92, 0.10, 0.70), BEAM)
+    TL.solid_box(bm, (sgx, -0.70, 2.52), (0.80, 0.06, 0.58), TRIM)
+
+    # ---- lanterns, one per pier -------------------------------------------
+    for sx in (-1, 1):
+        lx = sx * (GATE_POST_IN + 0.21)
+        TL.solid_box(bm, (lx, -0.30, 2.66), (0.07, 0.30, 0.07), LAMP)
+        TL.solid_box(bm, (lx, -0.40, 2.62), (0.26, 0.26, 0.07), LAMP)
+        TL.solid_box(bm, (lx, -0.40, 2.46), (0.20, 0.20, 0.28), GLASS)
+        TL.solid_box(bm, (lx, -0.40, 2.31), (0.24, 0.24, 0.06), LAMP)
+
+    # ---- the blackout ------------------------------------------------------
+    # All five surfaces are GLASS for poke_centre's reason: a 3.18 m opening
+    # lets the key light reach every part of a recess this shallow, so nothing
+    # in here can be shaded into darkness -- it has to BE dark.  The Centre
+    # learned that with a paved floor and a pale counter, both of which came
+    # out reading as a lit shopfront through the hole.
+    #
+    # The jambs sit 10 mm INSIDE the posts rather than flush with them.  Flush
+    # would be two coplanar faces 10 microns apart, which is the definition of
+    # z-fighting; 10 mm proud guarantees the grazing ray hits the black jamb
+    # and not the lit timber, at the cost of a 10 mm dark sliver up each post
+    # that is a third of a pixel at the camera distance this is read from.
+    #
+    # The recess is exactly as wide as the timber posts and no wider.  The
+    # first build made it as wide as the stone -- 5.52 m -- and the extra
+    # 0.28 m each side stood outside the posts' silhouette as two lit blue
+    # wings, which is the opposite of what a blackout is for.  Everything
+    # here now hides behind the posts above the plinths and behind the
+    # plinths below them.
+    # Tagged with a face attribute rather than found again later by position.
+    # gate_blackout_finish runs after pivot_to_base has recentred the mesh in
+    # Y, so a rule like "GLASS faces behind y = -0.2" is being asked a
+    # question in the wrong coordinate frame: it silently missed the soffit's
+    # own front face, whose centre had moved from -0.18 to -0.225, and left a
+    # 5 x 0.02 m strip of undarkened glass under the head beam.
+    tag = bm.faces.layers.int.get(GATE_RECESS_TAG) or \
+        bm.faces.layers.int.new(GATE_RECESS_TAG)
+
+    def dark(faces):
+        for f in faces:
+            f[tag] = 1
+
+    by = GATE_BLACK_Y
+    jw = GATE_POST_IN + 0.41 - GATE_JAMB_IN      # 0.42, the post's own width
+    dark(TL.solid_box(bm, (0, by + 0.16, 1.66),
+                      ((GATE_JAMB_IN + jw) * 2.0, 0.32, 3.32), GLASS))
+    for sx in (-1, 1):
+        dark(TL.solid_box(bm, (sx * (GATE_JAMB_IN + jw * 0.5), 0.35, 1.66),
+                          (jw, 0.90, 3.32), GLASS))
+    # Soffit underside at 3.16, i.e. 20 mm BELOW the head beam: level with it
+    # would leave a ray that entered along the beam's underside travelling
+    # forever between the two.
+    dark(TL.solid_box(bm, (0, 0.26, 3.25),
+                      ((GATE_JAMB_IN + jw) * 2.0, 0.88, 0.18), GLASS))
+    # A floor, because at the camera's 8 degree pitch a player standing in the
+    # street sees about 0.7 m of the recess's ground, and without this that is
+    # lit road inside an otherwise black opening.  Only 30 mm proud: at 60 mm
+    # its front edge was a sunlit line right across the bottom of the hole.
+    dark(TL.solid_box(bm, (0, 0.36, 0.015),
+                      ((GATE_JAMB_IN + jw) * 2.0, 0.92, 0.03), GLASS))
+
+
+def gate_blackout_finish(obj, matset):
+    """Make the recess actually dark, by both levers the kit has.
+
+    Standing a wall of the darkest cell inside the opening is what
+    poke_centre does and it is not enough here, for two reasons that do not
+    apply to the Centre.  Its lobby is 2.2 m inside a building and its own
+    walls shade it; this recess is 0.7 m deep and faces the town, so the key
+    light lands straight on the back wall.  And uv_pack_into_cells stretches
+    each material's whole island layout across its whole cell, so those faces
+    were sampling window_glass's bright end -- a lit blue panel, which is
+    exactly the "reads like a shopfront" failure the Centre already had once.
+
+    So:
+
+    (1) UVs.  The recess loops are squeezed into the dark corner of the cell
+        instead of spanning it.  Squeezed, not collapsed to a point: a
+        zero-area UV triangle has no tangent basis and Mikktspace will hand
+        Unity a NaN for it.  Albedo drops about 2.9x for nothing.
+
+    (2) Vertex colour.  PokeLabPropGroundBlend reads vertex colour BLUE and
+        nothing else:
+
+            occlusion = lerp(1.0, input.colour.b, _OcclusionStrength)
+            colour   += PL_Ambient(normalWS) * albedo * occlusion
+
+        which is the lever gen_terrain's cave throat uses, and the only one
+        that removes ambient without a black atlas cell -- and there is no
+        black atlas cell.  Everything else on the mesh is painted blue = 1,
+        the value the shader assumes when a mesh carries no colour attribute
+        at all, so an importer that drops vertex colours loses the darkening
+        and changes nothing else.
+
+    Both read the face tag town_arch set rather than looking for GLASS faces
+    by position: the two lanterns are glazed with the same cell, so material
+    alone is not enough, and by the time this runs the mesh has been recentred
+    under the pivot, so position alone is measured against the wrong origin.
+    """
+    me = obj.data
+    tag = me.attributes.get(GATE_RECESS_TAG)
+    if tag is None:
+        raise E.ValidationError("%s: no %s face attribute -- the recess was "
+                                "never tagged" % (obj.name, GATE_RECESS_TAG))
+    recess = {i for i in range(len(me.polygons)) if tag.data[i].value}
+
+    uvl = me.uv_layers.active
+    if uvl is not None:
+        x0, y0, w, h = matset.rect_of_slot(GLASS)
+        du, dv, ds = GATE_DARK_UV
+        for pi in recess:
+            for li in me.polygons[pi].loop_indices:
+                u, v = uvl.data[li].uv
+                nu = min(max((u - x0) / w, 0.0), 1.0)
+                nv = min(max((v - y0) / h, 0.0), 1.0)
+                uvl.data[li].uv = (x0 + (du + nu * ds) * w,
+                                   y0 + (dv + nv * ds) * h)
+
+    def paint(co, li, pi):
+        return (1.0, 1.0, 0.03 if pi in recess else 1.0, 1.0)
+
+    E.add_vcol(obj, paint, name="Col")
+    return len(recess)
+
+
 ASSETS = [
     ("Env_House_Cottage_A", 4101, (900, 6000), house_a),
     ("Env_House_Townhouse_B", 4102, (900, 6000), house_b),
@@ -1463,11 +1753,44 @@ ASSETS = [
      lambda bm, rng: stone_wall_module(bm, rng, 2.0)),
     ("Env_Wall_Stone_1m", 4292, (150, 2000),
      lambda bm, rng: stone_wall_module(bm, rng, 1.0)),
+    # third pass: the town's front door
+    ("Env_Gate_TownArch", 4301, (350, 3000), town_arch),
 ]
 
 BUILDINGS = {"Env_House_Cottage_A", "Env_House_Townhouse_B",
              "Env_House_Farmhouse_C", "Env_Building_PokeLab",
              "Env_Building_PokeCentre"}
+
+# Not a building, but assembled the same way -- interpenetrating closed solids
+# rather than one welded hull -- so it wants the buildings' treatment of the
+# bevel and the doubles merge, for the reasons spelled out in main().
+SOLID_ASSEMBLIES = BUILDINGS | {"Env_Gate_TownArch"}
+
+# Anything the integrator would get wrong by treating the asset like the rest
+# of the family.  Empty for every piece of street kit, because for street kit
+# "assign the Town atlas material and drop it on the ground" is the whole
+# story and a note that says so is a note nobody reads.
+ASSET_NOTES = {
+    "Env_Gate_TownArch":
+        "Directional and one-sided. Its front -- the side carrying the name "
+        "board, the hanging sign and the two lanterns -- is authored on "
+        "Blender -Y, the same face the houses put their doors on, so the yaw "
+        "that turns a cottage front to the street turns this gate's front to "
+        "the town. That is the side the fixed camera sees; point it inward. "
+        "Behind the opening is a five-sided recess -- back wall, "
+        "two jambs, soffit, floor -- whose face stands 1.05 m behind the "
+        "front face of the gate. It is opaque on "
+        "purpose: this asset is the town's exit doorway, so put the "
+        "scene-transition trigger in the opening, roughly 0.4 m in front of "
+        "the black wall, and do NOT place anything beyond it that the player "
+        "is meant to see. The clear span is 4.00 m, matching Path_GateRamp. "
+        "The recess faces are UV-pinned to the dark corner of the "
+        "window_glass cell and carry a Col vertex-colour attribute: blue is "
+        "the vertex-occlusion mask PokeLabPropGroundBlend multiplies ambient "
+        "by, 0.03 on the recess and 1.0 everywhere else. Import vertex "
+        "colours on this mesh; discarding them costs the ambient half of the "
+        "darkening and leaves the recess reading as a blue-grey door.",
+}
 
 
 def main():
@@ -1493,24 +1816,39 @@ def main():
         # cleanup then deletes them and the hull is no longer closed. The
         # buildings get their edge definition from real wall thickness and real
         # reveals instead, which is a better source of it anyway.
-        if name not in BUILDINGS:
+        #
+        # There is a second reason, measured on Env_Gate_TownArch: every face
+        # bmesh.ops.bevel creates is stamped material_index 0. The op's
+        # `material` slot means "which slot to paint the new faces", -1 means
+        # "inherit from the adjacent face", and a bmesh op slot that is never
+        # set is zeroed -- so the default is not "inherit", it is "slot 0".
+        # On this family slot 0 is plaster_cream, and the gate came back with
+        # every bevelled edge on its stone, its shingles and its blackout
+        # repainted cream: 232 faces in, 1002 out, 770 of them on slot 0 where
+        # nothing was on slot 0 before. The blackout is the part that cannot
+        # survive that -- a cream fillet round a black plane is a lit outline
+        # of the hole -- so the gate is bevelled never rather than bevelled
+        # and repaired.
+        if name not in SOLID_ASSEMBLIES:
             E.bevel_sharp(bm, width=0.012, segments=1, angle_deg=38.0,
                           mat_break=False)
         obj = E.bm_to_obj(bm, name, ms.materials())
         E.finalize(obj, smooth_angle=22.0,
-                   merge=0.0 if name in BUILDINGS else 1e-5)
+                   merge=0.0 if name in SOLID_ASSEMBLIES else 1e-5)
         E.pivot_to_base(obj, xy='center' if name not in
                         ("Env_Path_Paved_2m", "Env_Path_Paved_1m",
                          "Env_Path_Paved_Corner") else 'center')
         E.apply_transforms(obj)
         E.uv_all(obj, ms, angle=58.0, margin=0.010)
+        if name == "Env_Gate_TownArch":
+            gate_blackout_finish(obj, ms)
         # Buildings are held to a harder standard than the street kit: a
         # closed hull (the missing rear wall would have shown up here) and no
         # coplanar duplicate faces (the wall z-fighting would have).
         tris, probs = E.validate(obj, budget=budget, need_vcol=False,
                                  strict=False,
-                                 closed=name in BUILDINGS,
-                                 max_coplanar_dupes=0 if name in BUILDINGS
+                                 closed=name in SOLID_ASSEMBLIES,
+                                 max_coplanar_dupes=0 if name in SOLID_ASSEMBLIES
                                  else None)
         path = os.path.join(OUT, name + ".fbx")
         lods = []
@@ -1537,7 +1875,7 @@ def main():
             "textures": [os.path.relpath(ap["base"], E.REPO).replace("\\", "/"),
                          os.path.relpath(ap["normal"], E.REPO).replace("\\", "/")],
             "windVertexColors": False,
-            "notes": "",
+            "notes": ASSET_NOTES.get(name, ""),
         })
         E.delete_obj(obj)
 

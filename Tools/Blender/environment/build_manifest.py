@@ -62,7 +62,7 @@ BUDGETS = {
 # Deliberately below the class floor: single-element scatter pieces where the
 # floor would only force pointless geometry.
 EXEMPT = {
-    "Env_Grass_Blade": "single blade for dense scatter -- 10 tris is the point",
+    "Env_Grass_Blade": "single blade for dense scatter -- 5 tris is the point",
     "Env_Lilypad_A": "flat floating pad",
     "Env_Lilypad_B": "flat floating pad",
     "Env_Cave_Stalactite_A": "tapered spike",

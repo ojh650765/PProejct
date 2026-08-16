@@ -410,5 +410,20 @@
     ],
     "windVertexColors": false,
     "notes": ""
+  },
+  {
+    "name": "Env_Gate_TownArch",
+    "family": "Town",
+    "subfamily": "Gate",
+    "path": "Assets/Game/Art/Environment/Town/Env_Gate_TownArch.fbx",
+    "triangles": 460,
+    "lods": [],
+    "pivot": "ground level, footprint centred",
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "windVertexColors": false,
+    "notes": "Directional and one-sided. Its front -- the side carrying the name board, the hanging sign and the two lanterns -- is authored on Blender -Y, the same face the houses put their doors on, so the yaw that turns a cottage front to the street turns this gate's front to the town. That is the side the fixed camera sees; point it inward. Behind the opening is a five-sided recess -- back wall, two jambs, soffit, floor -- whose face stands 1.05 m behind the front face of the gate. It is opaque on purpose: this asset is the town's exit doorway, so put the scene-transition trigger in the opening, roughly 0.4 m in front of the black wall, and do NOT place anything beyond it that the player is meant to see. The clear span is 4.00 m, matching Path_GateRamp. The recess faces are UV-pinned to the dark corner of the window_glass cell and carry a Col vertex-colour attribute: blue is the vertex-occlusion mask PokeLabPropGroundBlend multiplies ambient by, 0.03 on the recess and 1.0 everywhere else. Import vertex colours on this mesh; discarding them costs the ambient half of the darkening and leaves the recess reading as a blue-grey door."
   }
 ]

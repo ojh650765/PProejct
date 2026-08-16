@@ -794,25 +794,221 @@ def build_tree(name, species, scale, seed, params):
 # ground plants
 # --------------------------------------------------------------------------
 
-def grass_clump(bm, wp, rng, blades=16, height=0.42, spread=0.16, mat=GRASS,
-                arch=0.55, width=0.045):
-    for i in range(blades):
+# --------------------------------------------------------------------------
+# Grass blades
+#
+# "foliage 잔디 너무 큰 삼각형인데" -- the grass is made of triangles that are
+# far too big.  Measured off the shipped FBXs (loose parts, root-edge lengths),
+# both halves of that were true:
+#
+#   asset                     blade width mean/max   height    blades
+#   Env_TallGrass_Cluster_A       9.7 / 12.4 cm      1.279 m     32
+#   Env_TallGrass_Cluster_B       9.1 / 11.4 cm      1.115 m     34
+#   Env_TallGrass_Cluster_C      10.5 / 13.2 cm      1.409 m     30
+#   Env_TallGrass_Cluster_D       8.5 / 10.7 cm      1.195 m     36
+#   Env_Grass_Clump_A..D    (means ran 4.1 - 6.1)   0.27-0.70 m  24-38
+#
+# A 10 cm wide, 1.3 m tall ribbon of five triangles is a 1:13 wedge with two
+# bends in it.  There is not enough of it on screen for the eye to resolve a
+# blade, so it resolves the triangle instead.  The lawn clumps at 4-6 cm drew
+# no complaint at all, which is the tell: the variable is WIDTH, not height.
+#
+# And 1.279 m is 132% of the 0.97 m the player is drawn at (the figure is
+# spelled out in PersonBillboard.cs) -- 1.409 m on Cluster_C is 145%.  Encounter
+# grass was over the player's head instead of around their legs.
+#
+# Three things follow, and none of them is "scale the mesh down": a uniform
+# scale takes the width down with the height and lands on an 8 cm blade on a
+# 0.7 m stalk, which is the same wedge at half size.
+#
+#   * ~4 cm at the root, widest just above it, tapering to a point;
+#   * more blades, paid for by dropping the mirrored half of the lawn clumps'
+#     ribbons -- PokeLabFoliage is `Cull Off` in every pass and flips the
+#     shading normal on back faces, so the second sheet was 5 triangles a blade
+#     that could never be told apart from the first;
+#   * an arc that falls over near the tip plus a roll about the blade's own
+#     length, so no blade is a flat plane standing straight up.
+#
+# The triangles are not free: these are drawn by GPU instancing at thousands of
+# instances, so per-instance triangles multiply directly, and the scatter
+# ceiling is 260.  That is what `fillers` below is for -- see grass_cluster.
+# --------------------------------------------------------------------------
+
+def blade_curve(base, out, length, tilt0, tilt1, ts, power=3.0, sub=24):
+    """Polyline for one blade, sampled at the arc fractions in `ts`.
+
+    Not curve_points: that turns every segment by the same amount, so the blade
+    is already leaning as it clears the ground and spends its curvature on the
+    part that should be a straight stalk.  Grass does the opposite -- it leaves
+    the crown near-vertical and falls over in the last third -- so the tilt off
+    vertical ramps with `power`, and `ts` then puts the rows on the bend
+    instead of spreading them evenly, which is the whole game when a blade only
+    gets three segments.
+    """
+    p = Vector(base)
+    pts = [p.copy()]
+    want = list(ts[1:])
+    step = length / float(sub)
+    for i in range(sub):
+        u = (i + 0.5) / float(sub)
+        th = tilt0 + (tilt1 - tilt0) * (u ** power)
+        s, c = math.sin(th), math.cos(th)
+        p = p + Vector((out[0] * s, out[1] * s, c)) * step
+        done = (i + 1) / float(sub)
+        while want and done >= want[0] - 1e-9:
+            pts.append(p.copy())
+            want.pop(0)
+    while want:                      # ts ending below 1.0 would starve the rows
+        pts.append(p.copy())
+        want.pop(0)
+    return pts
+
+
+def blade_ribbon(bm, pts, widths, mat, twist=0.0, smooth=True):
+    """One single-sided tapered strip, rolled about its own length.
+
+    Not E.bm_ribbon.  That carries a single parallel-transported frame all the
+    way up, so every blade it makes is a flat plane, and a flat plane at the
+    game's shallow camera is either square-on -- the green shard in the
+    report -- or edge-on and gone; at forty blades a cluster you get both in the
+    same clump.  Rolling the width axis about the tangent as the blade rises
+    keeps one edge in silhouette while the other turns into the key light,
+    which is what reads as a blade instead of a card, and it costs nothing.
+
+    Single sided deliberately, matching what the clusters already did: the
+    shader is `Cull Off` and flips the normal on back faces (IS_FRONT_VFACE),
+    so a mirrored copy is paid for and never seen.
+
+    Returns the rows, so the caller can paint wind by arc position rather than
+    by height.  An arched blade's tip sits LOWER than its own middle, and the
+    height-derived mask the old code used therefore anchored the one part of
+    the blade that is actually free to move.
+    """
+    frames = E._frames(pts)
+    n = len(pts)
+    rows = []
+    for i, (c, w) in enumerate(zip(pts, widths)):
+        t, u, _v = frames[i]
+        side = (Matrix.Rotation(twist * (i / float(n - 1)), 3, t) @ u)
+        if i == n - 1:
+            rows.append([bm.verts.new(c)])
+        else:
+            rows.append([bm.verts.new(c - side * w * 0.5),
+                         bm.verts.new(c + side * w * 0.5)])
+    made = []
+    for i in range(n - 1):
+        a, b = rows[i], rows[i + 1]
+        quad = (a[0], a[1], b[1], b[0]) if len(b) == 2 else (a[0], a[1], b[0])
+        try:
+            f = bm.faces.new(quad)
+        except ValueError:
+            continue
+        f.smooth = smooth
+        f.material_index = mat
+        made.append(f)
+    return made, rows
+
+
+def grass_cluster(bm, wp, rng, blades=40, fillers=0, height=0.64, spread=0.18,
+                  width=0.044, tufts=1, lean=0.32, tilt=(0.12, 0.70),
+                  twist=(0.35, 0.95), dome=0.32, mat=GRASS):
+    """One clump of grass -- lawn or encounter height, depending on the numbers.
+
+    `tufts` > 1 groups the blades into crowns instead of spraying them evenly:
+    real grass grows in crowns, and a clump with two or three dense centres
+    reads as a patch from the three-quarter camera while an even scatter reads
+    as a hemisphere.  Lawn passes 1 and gets the even scatter, which is what a
+    mown-ish tuft actually is.
+
+    `fillers` are short blades built on three rows instead of four -- 3 tris
+    against 5.  They are the reason a 56-blade cluster fits under the
+    260-triangle scatter ceiling at all: the bottom of the silhouette is where a
+    patch gets its mass, that mass does not need the extra bend, and buying 20
+    of them costs what 12 full blades would.
+
+    `dome` shortens a blade in proportion to how far out of the middle it
+    starts, so the outline comes to a crown.  Without it every blade is the same
+    length and the clump is a flat-topped mat with a hard rim -- which is the
+    other half of reading as a shard, because a straight horizontal top edge is
+    the most artificial line a plant can have.
+    """
+    crowns = [(0.0, 0.0)]
+    if tufts > 1:
+        crowns = []
+        for i in range(tufts):
+            a = 2.0 * math.pi * (i + rng.uniform(-0.25, 0.25)) / tufts
+            r = spread * (0.35 + 0.65 * rng.random())
+            crowns.append((math.cos(a) * r, math.sin(a) * r))
+    # one lean direction for the whole clump, so it agrees which way the wind
+    # has been blowing rather than splaying evenly in every direction.  `lean`
+    # is a weight on the unit azimuth, not a distance -- it has to stay scale
+    # free or halving the height would halve the lean with it.
+    la = rng.uniform(0, 6.2832)
+    lx, ly = math.cos(la) * lean, math.sin(la) * lean
+    crown_r = spread * 0.30 if tufts > 1 else spread
+    for i in range(blades + fillers):
+        filler = i >= blades
+        cx, cy = crowns[i % len(crowns)]
         a = rng.uniform(0, 6.2832)
-        r = spread * math.sqrt(rng.random())
-        base = Vector((math.cos(a) * r, math.sin(a) * r, 0.0))
-        h = height * rng.uniform(0.55, 1.15)
-        d = Vector((math.cos(a) * rng.uniform(0.1, 0.45),
-                    math.sin(a) * rng.uniform(0.1, 0.45), 1.0))
-        pts = curve_points(base, d, h, 3, rng, curl=arch, gravity=0.30,
-                           wobble=0.04)
-        w = width * rng.uniform(0.7, 1.3)
-        widths = [w, w * 0.85, w * 0.5, 0.0]
+        r = crown_r * math.sqrt(rng.random())
+        base = Vector((cx + math.cos(a) * r, cy + math.sin(a) * r, 0.0))
+        rn = min(1.0, math.hypot(base.x, base.y) / max(spread, 1e-5))
+        h = height * rng.uniform(0.82, 1.06) * (1.0 - dome * rn * rn)
+        # The direction a blade bends in is NOT the direction it sits out from
+        # the crown, only weakly biased toward it. Tying the two together --
+        # which is what the first rebuild did, and what the 1.2 m version did
+        # before it -- makes every blade lean away from its own crown, and the
+        # eye-height render showed the result: each cluster read as an agave
+        # rosette lying open on the ground rather than a tuft of grass. Blades
+        # in a real tuft cross each other.
+        b = rng.uniform(0, 6.2832)
+        ox = math.cos(b) + math.cos(a) * 0.45 + lx
+        oy = math.sin(b) + math.sin(a) * 0.45 + ly
+        m = math.hypot(ox, oy) or 1.0
+        out = (ox / m, oy / m)
+        t0 = tilt[0] * rng.uniform(0.5, 1.5)
+        # Clamped hard. The first rebuild let the tip reach 80 deg off vertical
+        # and the eye-height render showed the result immediately: every cluster
+        # was a green splat lying on the ground, which is the same failure the
+        # 1.2 m version hit from the other direction. Past ~65 deg a blade stops
+        # contributing to the standing silhouette entirely.
+        t1 = min(1.15, tilt[1] * rng.uniform(0.75, 1.15))
+        w = width * rng.uniform(0.80, 1.20)
+        if filler:
+            h *= rng.uniform(0.50, 0.72)
+            t1 = min(1.15, t1 * 1.20)
+            ts = (0.0, 0.55, 1.0)
+            widths = (w * 0.85, w * 0.66, 0.0)
+        else:
+            ts = (0.0, 0.42, 0.74, 1.0)
+            # widest just above the root, not at it: a strip that is widest
+            # where it meets the dirt reads as a wedge driven into the ground
+            widths = (w * 0.88, w, w * 0.55, 0.0)
+        pts = blade_curve(base, out, h, t0, t1, ts)
         ph = rng.random()
-        faces, vs = E.bm_ribbon(bm, pts, widths, mat, double=True,
-                                up=(0, 0, 1), thickness=0.004)
-        for v in vs:
-            t = max(0.0, min(1.0, (v.co.z - base.z) / max(h, 1e-5)))
-            wp.mark(v.co, t ** 0.85, ph, t)
+        _, rows = blade_ribbon(bm, pts, widths, mat,
+                               twist=rng.uniform(*twist) * rng.choice((-1, 1)))
+        for frac, row in zip(ts, rows):
+            for v in row:
+                # R sway 0 at the anchored root to 1 at the free tip, G the
+                # within-cluster phase, B the crown-to-tip occlusion ramp that
+                # PokeLabFoliage reads as _OcclusionStrength -- darkest down in
+                # the clump where light does not reach.
+                wp.mark(v.co, frac ** 0.85, ph, frac)
+
+
+def grass_clump(bm, wp, rng, blades=48, height=0.40, spread=0.17,
+                width=0.042, mat=GRASS):
+    """Lawn grass: ankle to shin, evenly scattered, no crowns.
+
+    Deliberately kept well under the encounter clusters.  Env_Grass_Clump_C used
+    to stand 0.70 m, which is exactly where the encounter grass now tops out,
+    and two kinds of grass at one height means the player cannot tell by looking
+    which one has creatures in it.
+    """
+    grass_cluster(bm, wp, rng, blades=blades, fillers=0, height=height,
+                  spread=spread, width=width, tufts=1, lean=0.30,
+                  tilt=(0.18, 0.98), dome=0.26, mat=mat)
 
 
 def bush(bm, wp, rng, radius=0.5, height=0.62, puffs=7, mat=BUSH,
@@ -1026,15 +1222,27 @@ def hanging_vine(bm, wp, rng, length=1.6, strands=5, mat=VINE):
 # --------------------------------------------------------------------------
 
 # --------------------------------------------------------------------------
-# Tall grass -- encounter territory, and the kit's largest gameplay gap
+# Tall grass -- encounter territory
 #
 # The tallest thing in the kit was Env_Grass_Clump_C at 0.70 m, which reads as
 # lawn. The layout compensated by burning 834 objects on a route that is meant
 # to have grass a creature can hide in, and it still reads as lawn, because 834
 # instances of a 0.7 m clump is 834 instances of a 0.7 m clump.
 #
-# These are 1.0-1.3 m and cover roughly a metre square each, so one instance is
-# a patch and ~80 of them replace the 834.
+# The first answer to that was 1.0-1.4 m, which overshot badly: the player is
+# drawn at 0.97 m, so the grass stood 132-145% of the player and the route read
+# as a wheat field with a child wading through it. In the DS games encounter
+# grass comes to about knee or waist. These are 0.60-0.69 m -- 62-72% of the
+# player. They cover 0.55-0.70 m rather than the ~0.85 the tall version reached,
+# because that width came from 1.3 m blades splaying rather than from the patch
+# being wide; the layout needs more instances or a larger per-instance scale to
+# hold the same coverage, and that is a placement number, not a mesh one.
+#
+# Height is the cheap half. The expensive half is that the blades were 8.5-10.5
+# cm wide (see the measurements above grass_cluster); shrinking the mesh alone
+# would have kept the wedge and just made it smaller. The blades are rebuilt at
+# ~4 cm with a tip taper, a roll about their own length, and a tip that falls
+# over -- and there are now 56-60 of them instead of 30-36.
 #
 # The instancing contract they are built to (integrator's, and it shapes the
 # geometry, not just the export):
@@ -1043,11 +1251,14 @@ def hanging_vine(bm, wp, rng, length=1.6, strands=5, mat=VINE):
 #   * Variation lives in the mesh. Four genuinely different clusters, not twelve
 #     near-identical ones; rotation, scale and phase are per-instance at draw
 #     time and cost nothing.
-#   * Under 200 triangles. At thousands of instances the triangle count
-#     multiplies directly, and at HD-2D framing the read comes from the
-#     silhouette and the wind, not from blade density -- so the blades are
-#     single-sided (the foliage shader is Cull Off, so a double-sided ribbon
-#     buys nothing but doubles the cost) and wide enough to carry the atlas.
+#   * Under the 260-triangle scatter ceiling. At thousands of instances the
+#     triangle count multiplies directly, so the extra blades are NOT free and
+#     had to be argued for: 248-256 tris against the old 150-180. The 40% rise
+#     buys a 75% rise in blades, because the blades are single-sided (the
+#     shader is Cull Off) and a third of them are 3-triangle fillers that only
+#     have to fill the bottom of the silhouette. Going to the 70-80 blades that
+#     would look denser still would need 300-380 tris and blow the ceiling; a
+#     patch that is 20% denser is not worth 40% more geometry on every instance.
 #   * No LODs.
 #   * Pivot at the base, centred, so a per-instance Y rotation spins the clump
 #     in place instead of swinging it off its spot.
@@ -1055,89 +1266,71 @@ def hanging_vine(bm, wp, rng, length=1.6, strands=5, mat=VINE):
 # Wind: R is the sway mask, 0 at the base and 1 at the tip; G is the WITHIN-
 # cluster phase, so neighbouring blades in one clump do not move as a slab. The
 # per-instance phase is added by the renderer on top, which is why G here is
-# deliberately only a local decorrelation.
+# deliberately only a local decorrelation. B is the occlusion ramp
+# PokeLabFoliage reads at _OcclusionStrength, dark down in the crown.
+#
+# NOTE for the integrator: PL_FoliageWind displaces in absolute metres, so
+# halving the height doubles the sway RELATIVE to the blade. M_Env_Foliage ships
+# _SwayAmplitude 0.24 with _GustStrength 1.7; on a 0.64 m blade that is most of
+# the blade's own length and the patch will boil. The material is shared with
+# the trees, so it is not this file's to retune.
 # --------------------------------------------------------------------------
 
-def tall_grass(bm, wp, rng, blades=22, height=1.15, spread=0.22, arch=0.26,
-               width=0.085, tuft=3, lean=0.07, mat=GRASS):
-    """A cluster of tufts covering ~1 x 1 m.
+def tall_grass(bm, wp, rng, blades=40, fillers=16, height=0.66, spread=0.17,
+               width=0.044, tufts=3, lean=0.35, mat=GRASS):
+    """A cluster of tufts covering ~1 x 1 m, at knee-to-waist height.
 
-    Built as a handful of tufts rather than one even spray: real grass grows in
-    crowns, and a clump with two or three dense centres reads as a patch from
-    the three-quarter camera while an even scatter reads as a hemisphere.
+    Everything that makes a blade a blade lives in grass_cluster; what is fixed
+    here is the encounter read: crowned rather than evenly scattered, a lower
+    starting tilt than lawn so the clump stands up out of the ground cover it is
+    planted in, and a stronger dome so the patch has a crown instead of a rim.
     """
-    crowns = []
-    for i in range(tuft):
-        a = 2.0 * math.pi * (i + rng.uniform(-0.25, 0.25)) / tuft
-        r = spread * (0.35 + 0.65 * rng.random())
-        crowns.append((math.cos(a) * r, math.sin(a) * r))
-    # a shared lean direction, so the whole clump agrees which way the wind has
-    # been blowing rather than splaying evenly in every direction
-    la = rng.uniform(0, 6.2832)
-    lx, ly = math.cos(la) * lean, math.sin(la) * lean
-    for i in range(blades):
-        cx, cy = crowns[i % len(crowns)]
-        a = rng.uniform(0, 6.2832)
-        r = 0.045 * math.sqrt(rng.random())
-        base = Vector((cx + math.cos(a) * r, cy + math.sin(a) * r, 0.0))
-        h = height * rng.uniform(0.78, 1.05)
-        # Blades stand UP. The first pass let them lean out by up to 0.34 of
-        # their length and arch under gravity, and at the shipped 42 deg camera
-        # every clump read as a flat starburst on the ground -- the render made
-        # that obvious in a way the numbers did not. A tuft is near-vertical
-        # with only the top third bending over.
-        out = 0.02 + 0.13 * rng.random()
-        d = Vector((math.cos(a) * out + lx, math.sin(a) * out + ly, 1.0))
-        # three segments, not four: at 200 triangles a cluster the budget buys
-        # either more blades or more bend per blade, and a patch reads on the
-        # number of blades in the silhouette, not on how smoothly each curves
-        pts = curve_points(base, d, h, 3, rng, curl=arch, gravity=0.10,
-                           wobble=0.022)
-        w = width * rng.uniform(0.72, 1.25)
-        widths = [w, w * 0.94, w * 0.62, 0.0]
-        ph = rng.random()
-        # up=None, deliberately. bm_ribbon derives the blade's width direction
-        # from up.cross(tangent), and for a near-vertical blade that cross
-        # product is degenerate -- the strip collapses and the clump renders as
-        # a flat starburst lying on the ground, which is exactly what the first
-        # assembled shot showed. With up=None the ribbon uses its own
-        # parallel-transported frame, which is stable at any tangent.
-        # Single sided: 6 tris a blade instead of 12, and the shader is Cull Off.
-        faces, vs = E.bm_ribbon(bm, pts, widths, mat, double=False,
-                                up=None, thickness=0.0)
-        for v in vs:
-            t = max(0.0, min(1.0, v.co.z / max(h, 1e-5)))
-            wp.mark(v.co, t ** 0.9, ph, t)
+    grass_cluster(bm, wp, rng, blades=blades, fillers=fillers, height=height,
+                  spread=spread, width=width, tufts=tufts, lean=lean,
+                  tilt=(0.10, 0.78), twist=(0.35, 0.95), dome=0.26, mat=mat)
 
 
-def _tall(seed, blades, h, spread, arch, w, tuft, lean):
+def _tall(blades, fillers, h, spread, w, tufts, lean):
     def f(bm, wp, rng):
-        tall_grass(bm, wp, rng, blades, h, spread, arch, w, tuft, lean)
+        tall_grass(bm, wp, rng, blades, fillers, h, spread, w, tufts, lean)
     return f
 
 
-def _grass(seed, blades, h, spread, arch, w):
+def _grass(blades, h, spread, w):
     def f(bm, wp, rng):
-        grass_clump(bm, wp, rng, blades, h, spread, GRASS, arch, w)
+        grass_clump(bm, wp, rng, blades, h, spread, w)
     return f
 
 
 PLANT_SPECS = [
-    ("Env_Grass_Clump_A", 2101, (200, 1500), _grass(0, 27, 0.44, 0.16, 0.55, 0.045)),
-    ("Env_Grass_Clump_B", 2102, (200, 1500), _grass(0, 32, 0.30, 0.21, 0.85, 0.055)),
-    ("Env_Grass_Clump_C", 2103, (200, 1500), _grass(0, 24, 0.64, 0.14, 0.35, 0.038)),
-    ("Env_Grass_Clump_D", 2104, (200, 1500), _grass(0, 38, 0.24, 0.27, 1.10, 0.062)),
-    # tall grass: encounter cover, GPU instanced, no LODs, one material
+    # lawn: ankle to shin, and pointedly shorter than the encounter clusters
+    ("Env_Grass_Clump_A", 2101, (200, 1500), _grass(50, 0.43, 0.17, 0.042)),
+    ("Env_Grass_Clump_B", 2102, (200, 1500), _grass(56, 0.31, 0.21, 0.046)),
+    ("Env_Grass_Clump_C", 2103, (200, 1500), _grass(46, 0.46, 0.15, 0.038)),
+    ("Env_Grass_Clump_D", 2104, (200, 1500), _grass(60, 0.26, 0.25, 0.044)),
+    # tall grass: encounter cover, GPU instanced, no LODs, one material.
+    # blades x5 tris + fillers x3 tris, all landing 248-256 against the 260 cap
+    # `height` is blade LENGTH, and an arched blade stands ~0.93 of its own
+    # length, so these run a little above the finished heights they aim at.
+    # `spread` is up from the 0.12-0.19 the 1.2 m version used, but only a
+    # little: that build got most of its metre-square footprint from 1.3 m
+    # blades splaying as they leaned, which is a starburst rather than a patch,
+    # and pushing the crowns far enough apart to reproduce it at half the length
+    # gave a ring of separate rosettes. These cover ~0.55-0.68 m, so the layout
+    # needs more instances or a larger per-instance scale to keep its coverage.
     ("Env_TallGrass_Cluster_A", 2111, (40, 260),
-     _tall(0, 32, 1.24, 0.15, 0.24, 0.100, 3, 0.06)),
+     _tall(40, 16, 0.71, 0.24, 0.044, 3, 0.35)),
     ("Env_TallGrass_Cluster_B", 2112, (40, 260),
-     _tall(0, 34, 1.08, 0.19, 0.36, 0.092, 4, 0.11)),
+     _tall(38, 20, 0.65, 0.26, 0.046, 4, 0.45)),
     ("Env_TallGrass_Cluster_C", 2113, (40, 260),
-     _tall(0, 30, 1.34, 0.12, 0.15, 0.106, 2, 0.04)),
+     _tall(44, 12, 0.73, 0.20, 0.040, 2, 0.25)),
     ("Env_TallGrass_Cluster_D", 2114, (40, 260),
-     _tall(0, 36, 1.16, 0.17, 0.30, 0.086, 5, 0.09)),
-    ("Env_Grass_Blade", 2105, (8, 1500),
-     lambda bm, wp, rng: grass_clump(bm, wp, rng, 1, 0.46, 0.0, GRASS, 0.5, 0.055)),
+     _tall(36, 24, 0.63, 0.28, 0.048, 5, 0.40)),
+    # the loose blade is the same geometry as one blade of a clump, so it is 5
+    # tris now that the mirrored half is gone rather than the 10 the manifest's
+    # budget exemption still quotes
+    ("Env_Grass_Blade", 2105, (5, 1500),
+     lambda bm, wp, rng: grass_clump(bm, wp, rng, 1, 0.46, 0.0, 0.046)),
     ("Env_Bush_A", 2201, (200, 1500),
      lambda bm, wp, rng: bush(bm, wp, rng, 0.52, 0.66, 8)),
     ("Env_Bush_B", 2202, (200, 1500),
@@ -1311,13 +1504,19 @@ def main():
             part[-1]["gpuInstanced"] = True
             part[-1]["materialSlots"] = 1
             part[-1]["notes"] = (
-                "Encounter-height grass, 1.0-1.3 m, covering roughly 1 x 1 m -- "
-                "one instance is a patch, so ~80 of these replace the layout's "
-                "834 lawn clumps. Built to the instancing contract: one mesh, "
-                "one material, no LODs, pivot at the base and centred so a "
-                "per-instance Y rotation spins it in place. The green channel "
-                "is the WITHIN-cluster wind phase only; add the per-instance "
-                "phase on top at draw time.")
+                "Encounter-height grass, 0.60-0.69 m -- knee to waist against "
+                "the 0.97 m the player is drawn at. 56-60 single-sided blades "
+                "3-6 cm wide at the root, tapered to a point and rolled about "
+                "their own length. FOOTPRINT IS NOW 0.55-0.70 m, not the ~0.85 "
+                "the 1.2 m version reached by splaying: raise the instance "
+                "count or the per-instance scale to keep the route's coverage. "
+                "Built to the instancing contract: one mesh, one material, no "
+                "LODs, pivot at the base and centred so a per-instance Y "
+                "rotation spins it in place. The green channel is the "
+                "WITHIN-cluster wind phase only; add the per-instance phase on "
+                "top at draw time. PL_FoliageWind displaces in absolute metres, "
+                "so M_Env_Foliage's _SwayAmplitude 0.24 is now a third of a "
+                "blade's length -- retune it downward or these will boil.")
     E.write_part(FAM, part)
 
     E.log("---- %d foliage assets, %d with problems" % (len(entries), len(problems)))

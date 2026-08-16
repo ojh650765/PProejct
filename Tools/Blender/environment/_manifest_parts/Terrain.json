@@ -214,17 +214,17 @@
     "family": "Terrain",
     "subfamily": "Cave",
     "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch.fbx",
-    "triangles": 5134,
+    "triangles": 5126,
     "lods": [
       {
         "level": 1,
         "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch_LOD1.fbx",
-        "triangles": 2052
+        "triangles": 2050
       },
       {
         "level": 2,
         "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch_LOD2.fbx",
-        "triangles": 770
+        "triangles": 767
       }
     ],
     "pivot": "base, XY centred",

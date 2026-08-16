@@ -720,7 +720,11 @@ def a_cave_arch(bm, rng, seed):
             # the darkest surface in the terrain atlas
             f.material_index = WET_ROCK if k == 0 else CAVE_ROCK
             f.smooth = False
-    cap = bm.faces.new(tuple(rings[-1]))
+    # reversed: this is the end wall of the throat and the only place it is
+    # ever seen from is back up the bore, so it faces the mouth like the rest
+    # of the tube.  Wound the other way it is the one surface a player who
+    # walks in is looking straight at, and the one that is not drawn.
+    cap = bm.faces.new(tuple(reversed(rings[-1])))
     cap.material_index = CAVE_ROCK
     cap.smooth = False
 
@@ -753,7 +757,11 @@ def a_cave_arch(bm, rng, seed):
             f.material_index = ROCK_GREY if k else STRATA
             f.smooth = False
         prev = ring
-    plate = bm.faces.new(tuple(reversed(prev)))
+    # not reversed: prev runs the same way round as the rings it was lofted
+    # from, so taking it as-is puts this cap's back to them -- which is what the
+    # rearmost face of the block wants, 33.6 m2 of it, the whole silhouette from
+    # anywhere behind the mouth.
+    plate = bm.faces.new(tuple(prev))
     plate.material_index = ROCK_GREY
     plate.smooth = False
 
@@ -797,10 +805,120 @@ def a_cave_arch(bm, rng, seed):
     # facingYaw 190 -- pointing back down the gorge at a player walking up
     # Path_CaveBranch -- so the opening has to leave this function facing +Y.
     # The old asset was front/back symmetric, so nothing here was ever tested;
-    # get this backwards and the mouth opens into the hillside.  Winding is left
-    # to the recalc_face_normals in E.finalize rather than reversed by hand.
+    # get this backwards and the mouth opens into the hillside.
+    #
+    # The reverse_faces is not optional and used to be missing.  A mirror is a
+    # reflection: it turns every face inside out, and the winding has to be put
+    # back by hand.  This was left to the recalc_face_normals in E.finalize
+    # instead, which does not get it right here -- it decides per shell against
+    # the whole mesh, so the threshold apron came out facing the ground and a
+    # scree block came out inside out, 416 triangles that Unity's back-face
+    # cull then removed.  With the winding authored the whole way through, this
+    # asset opts out of that recalc (see AUTHORED_WINDING) and there is nothing
+    # left to guess.
     for v in bm.verts:
         v.co.y = -v.co.y
+    bmesh.ops.reverse_faces(bm, faces=list(bm.faces))
+
+
+def _shells(bm):
+    """The face sets of the mesh's connected shells, walking shared edges."""
+    seen = {}
+    comps = []
+    for f in bm.faces:
+        if f.index in seen:
+            continue
+        seen[f.index] = len(comps)
+        stack, comp = [f], []
+        while stack:
+            g = stack.pop()
+            comp.append(g)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h.index not in seen:
+                        seen[h.index] = len(comps)
+                        stack.append(h)
+        comps.append(comp)
+    return comps
+
+
+def _shell_volume(faces):
+    """Signed volume of one shell about the object origin.  Negative means the
+    shell is inside out.
+
+    Works on the open shells too, and that is not luck.  The origin is on the
+    ground plane by the time this runs (pivot_to_base), and a_cave_arch has
+    already flattened every vertex below 0.02 m onto it, so every open boundary
+    on this asset lies in z = 0 -- exactly where the divergence theorem's
+    missing-cap term vanishes.  So a boulder the ground clamp has cut in half
+    measures its true buried volume, and the flat threshold sheet, which
+    encloses nothing at all, reduces to mean height times area: positive when
+    it faces up.  One number reads both, which is why there is no separate
+    open/closed case here.
+    """
+    v = 0.0
+    for f in faces:
+        p = [l.vert.co for l in f.loops]
+        for i in range(1, len(p) - 1):
+            v += p[0].dot(p[i].cross(p[i + 1])) / 6.0
+    return v
+
+
+def _edge_dir(f, e):
+    """+1 if f runs the shared edge from e.verts[0] to e.verts[1], -1 if the
+    other way, 0 if it does not use it.  Two neighbours wound the same way
+    round always come out opposite here; agreeing is the defect."""
+    for l in f.loops:
+        if l.vert is e.verts[0] and l.link_loop_next.vert is e.verts[1]:
+            return 1
+        if l.vert is e.verts[1] and l.link_loop_next.vert is e.verts[0]:
+            return -1
+    return 0
+
+
+def cave_winding_report(obj):
+    """Count what a back-face cull would take off this asset.
+
+    Nothing here repairs anything -- every face is wound where it is built now,
+    and the whole point of that is that there is no repair pass to trust.  What
+    this does is put the number in the build log, because the way this asset
+    broke was silently: the mirror at the end of a_cave_arch reversed every
+    face, E.finalize's recalc put most of them back, and the two shells it did
+    not stayed wrong all the way into Unity because nothing ever counted them.
+
+    Two numbers, both camera independent, and both should be as near zero as the
+    asset gets -- at the time of writing, 0 and 1:
+
+      faces on inside-out shells   a shell measured against the ground plane the
+                                   pivot sits on, so a half-buried boulder and
+                                   the flat threshold sheet are read by the same
+                                   signed volume
+      seam edges                   manifold edges whose two faces run the shared
+                                   edge the same way round, i.e. a tear between
+                                   two surfaces that disagree.  What is left is
+                                   where remove_doubles pinched a scree block
+                                   into the headwall and folded it back on
+                                   itself; reversing either side of a fold only
+                                   moves the seam, so those are left alone.
+
+    The bore does not show up in either.  It is one continuous surface with the
+    headwall -- out over the lip and back down the inside of the tube, the way
+    the inside of a mug is -- so it is wound with the wall, not against it.
+    """
+    bm = E.obj_bm(obj)
+    bm.faces.index_update()
+    bm.faces.ensure_lookup_table()
+    inside_out = sum(len(c) for c in _shells(bm) if _shell_volume(c) < 0.0)
+    seams = []
+    for e in bm.edges:
+        if len(e.link_faces) != 2:
+            continue
+        d = _edge_dir(e.link_faces[0], e)
+        if d != 0 and d == _edge_dir(e.link_faces[1], e):
+            seams.append(e)
+    area = sum(f.calc_area() for e in seams for f in e.link_faces)
+    bm.free()
+    return inside_out, len(seams), area
 
 
 def cave_fix_bore_normals(obj):
@@ -814,9 +932,16 @@ def cave_fix_bore_normals(obj):
     the whole throat invisible and the player sees straight through the mountain
     to the skybox.  This was not theoretical: it is what the first build did.
 
-    Fixed from the geometry rather than from connectivity.  The bore's own cross
-    section at each depth gives the axis, and a face is right way round when its
-    normal points at that axis.
+    That recalc is gone now -- Env_Cave_Arch is in AUTHORED_WINDING -- so on a
+    good build this reverses nothing and returns 0.  It is kept as the guard,
+    not as the fix: the bore's is the one orientation on the asset that a reader
+    would get backwards on purpose, because a tube the player walks into is the
+    one surface here that is meant to be seen from the inside, and "point it
+    outward like everything else" is the wrong instinct to leave unguarded.
+
+    Decided from the geometry rather than from connectivity.  The bore's own
+    cross section at each depth gives the axis, and a face is right way round
+    when its normal points at that axis.
     """
     bm = E.obj_bm(obj)
     inner = {CAVE_ROCK, WET_ROCK}      # bore-only materials, see _wall_mat
@@ -1437,6 +1562,14 @@ UV_MODE = {
     "Env_Cave_Arch": "box",
 }
 
+# Assets that wind every face deliberately and must keep it.  E.finalize's
+# recalc_face_normals is the right default for a builder that stamps one solid
+# at a time, and the wrong one for a mouth cut into a headwall with boulders
+# bedded into it: it picks an orientation per shell by testing against the
+# whole mesh, so the shells this one buries inside others come out reversed.
+# See the mirror at the end of a_cave_arch.
+AUTHORED_WINDING = {"Env_Cave_Arch"}
+
 ASSET_NOTES = {
     "Env_Cave_Arch":
         "Directional: the mouth faces the model's +Z in Unity, so the level's "
@@ -1473,7 +1606,8 @@ def split_normals(obj, angle=SPLIT_ANGLE, material_breaks=True):
 
 def finish(bm, name, ms, budget, pivot, smooth=SPLIT_ANGLE):
     obj = E.bm_to_obj(bm, name, ms.materials())
-    E.finalize(obj, smooth_angle=smooth)
+    E.finalize(obj, smooth_angle=smooth,
+               recalc=name not in AUTHORED_WINDING)
     if pivot == 'corner':
         E.pivot_to_base(obj, xy='corner')
     elif pivot == 'top':
@@ -1520,9 +1654,13 @@ def main():
         obj, tris, probs = finish(bm, name, ms, budget, pivot,
                                   smooth=SMOOTH_OVERRIDE.get(name, SPLIT_ANGLE))
         if name == "Env_Cave_Arch":
-            # order matters: the normal fix round-trips through bmesh, which
+            # order matters: the bore guard round-trips through bmesh, which
             # would drop a colour attribute added before it
-            cave_fix_bore_normals(obj)
+            bore = cave_fix_bore_normals(obj)
+            inv, seams, seam_area = cave_winding_report(obj)
+            E.log("  cave winding: %d faces on inside-out shells, %d seam "
+                  "edges over %.2f m2, %d bore faces reversed"
+                  % (inv, seams, seam_area, bore))
             obj.data.use_auto_smooth = True
             obj.data.auto_smooth_angle = math.radians(SPLIT_ANGLE)
             cave_occlusion_vcol(obj)

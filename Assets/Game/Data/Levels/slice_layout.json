@@ -5126,7 +5126,7 @@
       2.439,
       2.439,
       2.363,
-      2.418,
+      2.423,
       2.442,
       2.452,
       2.468,
@@ -5250,10 +5250,10 @@
       2.446,
       2.446,
       2.451,
-      2.57,
+      2.581,
+      2.705,
+      2.707,
       2.704,
-      2.703,
-      2.703,
       2.706,
       2.708,
       2.71,
@@ -5625,7 +5625,7 @@
       2.449,
       2.448,
       2.455,
-      2.613,
+      2.62,
       2.728,
       2.728,
       2.728,
@@ -16070,11 +16070,11 @@
      ],
      [
       -19.0,
-      -14.2
+      -14.4
      ],
      [
-      -10.4,
-      -13.8
+      -8.6,
+      -14.6
      ],
      [
       -8.8,
@@ -19020,7 +19020,7 @@
      2.8,
      -10.9
     ],
-    "width": 2.8,
+    "width": 3.4,
     "gradeDegrees": 14.0,
     "note": "0.4 m step up to the lab. Inside PlayerLocomotion's 0.45 m step limit, so it needs no stair geometry."
    }
@@ -21900,67 +21900,72 @@
   },
   {
    "name": "Path_TownLane_Lab",
-   "width": 2.8,
+   "width": 3.4,
    "edgeBlend": 0.6,
    "material": "road_cobble_town",
    "centreline": [
     [
-     -9.6,
+     -9.8,
      2.42,
-     -12.2
+     -12.4
     ],
     [
-     -8.91,
-     2.463,
-     -11.9
+     -9.13,
+     2.462,
+     -12.06
     ],
     [
-     -8.23,
-     2.513,
-     -11.59
+     -8.46,
+     2.51,
+     -11.73
     ],
     [
-     -7.55,
-     2.589,
-     -11.27
+     -7.79,
+     2.574,
+     -11.39
     ],
     [
-     -6.88,
-     2.685,
-     -10.94
+     -7.12,
+     2.654,
+     -11.06
     ],
     [
-     -6.19,
-     2.767,
-     -10.63
+     -6.46,
+     2.717,
+     -10.7
     ],
     [
-     -5.9,
+     -5.82,
+     2.759,
+     -10.31
+    ],
+    [
+     -5.0,
      2.8,
-     -10.5
+     -9.8
     ]
    ],
-   "lengthMetres": 4.1,
+   "lengthMetres": 5.5,
    "controlPoints": [
     [
-     -9.6,
+     -9.8,
      2.42,
-     -12.2
+     -12.4
     ],
     [
-     -8.0,
+     -8.2,
      2.52,
-     -11.5
+     -11.6
     ],
     [
-     -6.8,
-     2.7,
-     -10.9
+     -6.6,
+     2.72,
+     -10.8
     ],
     [
-     -5.9,
+     -5.0,
      2.8,
-     -10.5
+     -9.8
     ]
    ],
    "conformsTerrain": true,
@@ -26097,19 +26102,27 @@
    "parent": "Town/Foliage",
    "polygon": [
     [
-     -4.2,
-     0.6
+     -4.4,
+     0.8
     ],
     [
-     0.4,
-     -1.6
+     -0.6,
+     1.0
     ],
     [
      3.0,
-     -6.0
+     0.2
     ],
     [
-     4.6,
+     5.0,
+     -2.4
+    ],
+    [
+     5.6,
+     -7.0
+    ],
+    [
+     5.6,
      -12.0
     ],
     [
@@ -26149,17 +26162,21 @@
      -12.0
     ],
     [
-     -0.8,
-     -6.0
+     1.8,
+     -6.4
     ],
     [
-     -2.8,
-     -1.0
+     0.4,
+     -2.6
+    ],
+    [
+     -2.6,
+     -0.8
     ]
    ],
-   "areaSquareMetres": 131.1,
+   "areaSquareMetres": 154.9,
    "densityPerSquareMetre": 0.95,
-   "instanceBudget": 124,
+   "instanceBudget": 147,
    "prefabs": [
     {
      "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
@@ -26206,7 +26223,7 @@
    "rendering": "instanced",
    "conformsToHeightField": true,
    "generatesEncounters": false,
-   "note": "Behind the terrace's retaining wall, from the gate down to the south-east shoulder. The wall is the thing you see and this is what stands over it."
+   "note": "Behind the terrace's retaining wall, from the gate down to the south-east shoulder, and round the *back* of the lab. That north-east corner used to be bare: the lab's own rear elevation looked out over the shelf at +2.73 m and straight off the rim, a 3.4 m drop to the route, which is the same 'the town just stops' reading as the street running into the horizon. The wood now stands on the shelf 10-12 m behind it -- on the flat, not on the 25-37 degree rim face, which the emitter would drop at MAX_PLANT_SLOPE anyway -- and closes to within 4 m of the east gatepost, so the treeline funnels into the gate rather than offering a second way out beside it."
   },
   {
    "name": "Field_Town_WoodSouth",
@@ -26739,16 +26756,16 @@
   "playerSpawn": {
    "name": "Spawn_Player",
    "position": [
-    -10.5,
-    2.401,
-    -15.0
+    -9.0,
+    2.717,
+    -13.5
    ],
    "rotation": [
     0,
     45,
     0
    ],
-   "note": "Still on the exact 45 degree camera axis to the lab -- the lab sits at (-1.5, -6) and this is (-1.5 - 9, -6 - 9) -- but nine metres out instead of five and a half. The old spawn's claim was that 'the first frame of the game is the dome filling the top of the screen'. It was not: at 7.8 m the camera frames 5.6 m of a 9.3 m building, so the opening shot was the lab's doorstep with the dome off the top of the screen. From here the camera stands 17.7 m off it and frames 12.9 m, which is the building plus sky. The plaza, the market row and the well fall away to the left, the street runs out of frame behind."
+   "note": "On the plaza's south-east corner, on the exact 45 degree camera axis to the lab: the lab is at (-1.5, -6) and this is (-1.5 - 7.5, -6 - 7.5). Moved 2.6 m back down that axis so the shot opens on the plaza rather than on the lab's doorstep, and so the market row and the well are in the same frame. The note this replaces claimed the opening frame was 'the dome filling the top of the screen'. That is not achievable and never was. The exploration camera is pitched 38 degrees down with a 40 degree vertical FOV, so the top edge of the frame is a ray leaving the camera 18 degrees BELOW horizontal: from a camera eye 5.2 m up nothing above 5.2 m is ever in shot, and it falls a further 0.33 m for every metre of distance. The lab is 9.33 m tall and its dome starts at 6 m. No ground-level position in this town can frame it. What the opening frame actually is, and what it is now composed for, is the lab's ground floor and door filling the top third with the plaza falling away below -- see the report against this pass."
   },
   "spawnPoints": [
    {
@@ -29331,24 +29348,25 @@
   }
  ],
  "counts": {
-  "objects": 538,
-  "barrierVolumes": 54,
+  "objects": 532,
+  "barrierVolumes": 56,
   "foliageFields": 17,
-  "foliageInstanceBudget": 4640,
+  "foliageInstanceBudget": 4663,
   "paths": 10,
-  "pathMetres": 237.3,
+  "pathMetres": 238.7,
   "cliffs": 5,
   "bySubfamily": {
-   "Tree": 270,
+   "Tree": 271,
    "Bush": 61,
    "Cave": 34,
    "Fence": 31,
    "Rock": 23,
    "Fern": 21,
-   "Riverbank": 20,
    "Lamp": 17,
+   "Riverbank": 10,
    "Wall": 9,
    "House": 8,
+   "Prop": 7,
    "Signpost": 6,
    "Barrel": 5,
    "Crate": 5,
@@ -29357,8 +29375,6 @@
    "Bench": 3,
    "Market": 3,
    "Trough": 3,
-   "Prop": 2,
-   "Ledge": 2,
    "Cart": 2,
    "Bridge": 1,
    "Stepping": 1,
@@ -29374,15 +29390,15 @@
    "Lakeside/Props": 1,
    "Lakeside/Terrain": 11,
    "Route/Foliage": 205,
-   "Route/Props": 1,
-   "Route/Terrain": 31,
+   "Route/Props": 3,
+   "Route/Terrain": 19,
    "Town/Buildings": 9,
    "Town/Detail": 64,
-   "Town/Foliage": 35,
-   "Town/Props": 18,
+   "Town/Foliage": 36,
+   "Town/Props": 21,
    "Town/Terrain": 7
   },
-  "rejectedPlacements": 391
+  "rejectedPlacements": 388
  },
  "barrierVolumes": [
   {
@@ -30093,106 +30109,136 @@
   {
    "name": "Barrier_TownEast_11",
    "centre": [
-    1.589,
+    1.607,
     3.461,
-    -15.993
+    -15.991
    ],
    "size": [
-    3.1,
+    3.099,
     4.0,
     0.6
    ],
-   "yawDegrees": 264.21,
+   "yawDegrees": 265.02,
    "layer": "Environment"
   },
   {
    "name": "Barrier_TownEast_12",
    "centre": [
-    1.26,
+    1.538,
     3.72,
-    -13.516
+    -13.499
    ],
    "size": [
-    3.099,
+    3.097,
     4.0,
     0.6
    ],
-   "yawDegrees": 260.64,
+   "yawDegrees": 271.82,
    "layer": "Environment"
   },
   {
    "name": "Barrier_TownEast_13",
    "centre": [
-    0.767,
+    1.806,
     3.728,
-    -11.068
+    -11.025
    ],
    "size": [
-    3.099,
+    3.095,
     4.0,
     0.6
    ],
-   "yawDegrees": 256.58,
+   "yawDegrees": 280.57,
    "layer": "Environment"
   },
   {
    "name": "Barrier_TownEast_14",
    "centre": [
-    0.08,
+    2.428,
     3.728,
-    -8.667
+    -8.613
    ],
    "size": [
-    3.1,
+    3.096,
     4.0,
     0.6
    ],
-   "yawDegrees": 251.48,
+   "yawDegrees": 288.33,
    "layer": "Environment"
   },
   {
    "name": "Barrier_TownEast_15",
    "centre": [
-    -0.742,
+    2.93,
     3.728,
-    -6.307
+    -6.19
    ],
    "size": [
-    3.1,
+    3.087,
     4.0,
     0.6
    ],
-   "yawDegrees": 250.13,
+   "yawDegrees": 275.05,
    "layer": "Environment"
   },
   {
    "name": "Barrier_TownEast_16",
    "centre": [
-    -1.624,
+    2.683,
     3.728,
-    -3.968
+    -3.766
    ],
    "size": [
-    3.1,
+    3.076,
     4.0,
     0.6
    ],
-   "yawDegrees": 248.52,
+   "yawDegrees": 253.26,
    "layer": "Environment"
   },
   {
    "name": "Barrier_TownEast_17",
    "centre": [
-    -3.041,
+    1.398,
     3.728,
-    -1.502
+    -1.779
    ],
    "size": [
-    3.835,
+    3.052,
     4.0,
     0.6
    ],
-   "yawDegrees": 233.63,
+   "yawDegrees": 220.81,
+   "layer": "Environment"
+  },
+  {
+   "name": "Barrier_TownEast_18",
+   "centre": [
+    -0.73,
+    3.728,
+    -0.65
+   ],
+   "size": [
+    3.089,
+    4.0,
+    0.6
+   ],
+   "yawDegrees": 195.29,
+   "layer": "Environment"
+  },
+  {
+   "name": "Barrier_TownEast_19",
+   "centre": [
+    -2.965,
+    3.728,
+    -0.261
+   ],
+   "size": [
+    2.673,
+    4.0,
+    0.6
+   ],
+   "yawDegrees": 183.37,
    "layer": "Environment"
   }
  ],
@@ -35153,7 +35199,7 @@
    ],
    "rotation": [
     0.0,
-    135.0,
+    45.0,
     0.0
    ],
    "scale": [
@@ -38567,7 +38613,8 @@
    ],
    "layer": "Interactable",
    "tag": "Interactable",
-   "static": true
+   "static": true,
+   "pickup": "poke-ball"
   },
   {
    "prefab": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_B.fbx",
@@ -39237,289 +39284,13 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankEast_01",
-   "parent": "Route/Terrain",
-   "position": [
-    14.65,
-    -1.343,
-    21.241
-   ],
-   "rotation": [
-    0.0,
-    254.05,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankEast_02",
-   "parent": "Route/Terrain",
-   "position": [
-    18.029,
-    -1.617,
-    14.868
-   ],
-   "rotation": [
-    0.0,
-    231.71,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankEast_03",
-   "parent": "Route/Terrain",
-   "position": [
-    21.014,
-    -1.761,
-    12.279
-   ],
-   "rotation": [
-    0.0,
-    216.72,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankEast_04",
-   "parent": "Route/Terrain",
-   "position": [
-    23.976,
-    -1.912,
-    11.762
-   ],
-   "rotation": [
-    0.0,
-    193.28,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankEast_05",
-   "parent": "Route/Terrain",
-   "position": [
-    27.065,
-    -2.026,
-    12.683
-   ],
-   "rotation": [
-    0.0,
-    165.85,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankEast_06",
-   "parent": "Route/Terrain",
-   "position": [
-    29.912,
-    -2.128,
-    14.463
-   ],
-   "rotation": [
-    0.0,
-    145.28,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankEast_07",
-   "parent": "Route/Terrain",
-   "position": [
-    36.866,
-    -2.541,
-    23.6
-   ],
-   "rotation": [
-    0.0,
-    117.99,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankEast_08",
-   "parent": "Route/Terrain",
-   "position": [
-    37.927,
-    -3.075,
-    26.903
-   ],
-   "rotation": [
-    0.0,
-    112.16,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankEast_09",
-   "parent": "Route/Terrain",
-   "position": [
-    39.676,
-    -3.366,
-    30.633
-   ],
-   "rotation": [
-    0.0,
-    115.77,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Riverbank_4m.fbx",
-   "name": "Route_BankEast_10",
-   "parent": "Route/Terrain",
-   "position": [
-    41.49,
-    -2.955,
-    34.228
-   ],
-   "rotation": [
-    0.0,
-    116.57,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Ledge_4m.fbx",
-   "name": "Route_LedgeLip_01",
-   "parent": "Route/Terrain",
-   "position": [
-    4.391,
-    -1.893,
-    9.181
-   ],
-   "rotation": [
-    0.0,
-    338.2,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Ledge_4m.fbx",
-   "name": "Route_LedgeLip_02",
-   "parent": "Route/Terrain",
-   "position": [
-    7.197,
-    -1.924,
-    9.997
-   ],
-   "rotation": [
-    0.0,
-    332.43,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Town/Env_Building_PokeLab.fbx",
    "name": "Town_Lab_01",
    "parent": "Town/Buildings",
    "position": [
-    -2.156,
-    2.504,
-    -8.115
+    -2.164,
+    2.728,
+    -6.414
    ],
    "rotation": [
     0.0,
@@ -41403,9 +41174,9 @@
    "name": "Town_LaneLamp_03",
    "parent": "Town/Detail",
    "position": [
-    -20.773,
+    -20.814,
     2.369,
-    -31.237
+    -30.85
    ],
    "rotation": [
     0.0,
@@ -41472,9 +41243,9 @@
    "name": "Town_SouthGate_01",
    "parent": "Town/Detail",
    "position": [
-    -16.264,
+    -16.345,
     2.44,
-    -40.418
+    -39.968
    ],
    "rotation": [
     0.0,
@@ -41853,6 +41624,29 @@
     1.45,
     1.45,
     1.45
+   ],
+   "layer": "Environment",
+   "tag": "Untagged",
+   "static": true
+  },
+  {
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
+   "name": "Town_GatePost_02",
+   "parent": "Town/Foliage",
+   "position": [
+    -3.773,
+    2.728,
+    -0.701
+   ],
+   "rotation": [
+    0.0,
+    319.6,
+    0.0
+   ],
+   "scale": [
+    1.5,
+    1.5,
+    1.5
    ],
    "layer": "Environment",
    "tag": "Untagged",
@@ -42300,9 +42094,9 @@
    "name": "Town_HedgeLoop_01",
    "parent": "Town/Foliage",
    "position": [
-    -31.759,
+    -31.05,
     2.6,
-    -29.889
+    -29.246
    ],
    "rotation": [
     0.0,
@@ -42323,9 +42117,9 @@
    "name": "Town_HedgeLoop_02",
    "parent": "Town/Foliage",
    "position": [
-    -29.556,
+    -29.588,
     2.591,
-    -29.861
+    -29.396
    ],
    "rotation": [
     0.0,
@@ -42346,9 +42140,9 @@
    "name": "Town_HedgeLoop_03",
    "parent": "Town/Foliage",
    "position": [
-    -28.099,
+    -28.126,
     2.584,
-    -29.691
+    -29.308
    ],
    "rotation": [
     0.0,
@@ -42570,6 +42364,126 @@
    "layer": "Environment",
    "tag": "Untagged",
    "static": true
+  },
+  {
+   "prefab": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Great.fbx",
+   "name": "Route_StonesItemBall_01",
+   "parent": "Route/Props",
+   "position": [
+    36.5,
+    -0.246,
+    11.0
+   ],
+   "rotation": [
+    0.0,
+    28.0,
+    0.0
+   ],
+   "scale": [
+    2.6,
+    2.6,
+    2.6
+   ],
+   "layer": "Interactable",
+   "tag": "Interactable",
+   "static": true,
+   "pickup": "great-ball"
+  },
+  {
+   "prefab": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Net.fbx",
+   "name": "Route_GrassItemBall_01",
+   "parent": "Route/Props",
+   "position": [
+    7.0,
+    -0.426,
+    22.5
+   ],
+   "rotation": [
+    0.0,
+    312.0,
+    0.0
+   ],
+   "scale": [
+    2.6,
+    2.6,
+    2.6
+   ],
+   "layer": "Interactable",
+   "tag": "Interactable",
+   "static": true,
+   "pickup": "net-ball"
+  },
+  {
+   "prefab": "Assets/Game/Art/Props/Env_Prop_CaptureBall.fbx",
+   "name": "Town_LabShelfItemBall_01",
+   "parent": "Town/Props",
+   "position": [
+    -0.4,
+    2.871,
+    -12.6
+   ],
+   "rotation": [
+    0.0,
+    196.0,
+    0.0
+   ],
+   "scale": [
+    2.6,
+    2.6,
+    2.6
+   ],
+   "layer": "Interactable",
+   "tag": "Interactable",
+   "static": true,
+   "pickup": "poke-ball"
+  },
+  {
+   "prefab": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Quick.fbx",
+   "name": "Town_OrchardItemBall_01",
+   "parent": "Town/Props",
+   "position": [
+    -29.0,
+    2.786,
+    -3.4
+   ],
+   "rotation": [
+    0.0,
+    74.0,
+    0.0
+   ],
+   "scale": [
+    2.6,
+    2.6,
+    2.6
+   ],
+   "layer": "Interactable",
+   "tag": "Interactable",
+   "static": true,
+   "pickup": "quick-ball"
+  },
+  {
+   "prefab": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Timer.fbx",
+   "name": "Town_YardItemBall_01",
+   "parent": "Town/Props",
+   "position": [
+    -30.2,
+    2.937,
+    -37.9
+   ],
+   "rotation": [
+    0.0,
+    140.0,
+    0.0
+   ],
+   "scale": [
+    2.6,
+    2.6,
+    2.6
+   ],
+   "layer": "Interactable",
+   "tag": "Interactable",
+   "static": true,
+   "pickup": "timer-ball"
   }
  ]
 }
