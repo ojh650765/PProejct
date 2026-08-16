@@ -163,6 +163,24 @@ namespace PokeLab.Overworld.People
                 if (_byKey.TryGetValue(alias, out entry))
                     return entry;
 
+            // Level names say where a character is as well as who they are —
+            // Trainer_Route_Youngster, Trainer_Cave_Hiker — while the art is keyed on the
+            // archetype alone. Walking in from the right drops the placement and keeps the
+            // person, so a trainer moved from the route to the lake keeps their sprite
+            // instead of silently losing it.
+            var trimmed = key;
+            while (true)
+            {
+                var cut = trimmed.IndexOf('_');
+                if (cut < 0 || cut + 1 >= trimmed.Length) break;
+                trimmed = trimmed.Substring(cut + 1);
+
+                if (_byKey.TryGetValue(trimmed, out entry)) return entry;
+                foreach (var alias in Aliases(trimmed))
+                    if (_byKey.TryGetValue(alias, out entry))
+                        return entry;
+            }
+
             if (_warned.Add(key))
                 Debug.LogWarning($"[People] No art for '{key}'; that character will not be drawn.");
             return null;

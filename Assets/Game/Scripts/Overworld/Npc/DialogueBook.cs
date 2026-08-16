@@ -2,14 +2,95 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using PokeLab.Core;
 
 namespace PokeLab.Overworld
 {
     /// <summary>
-    /// One authored conversation as it sits on disk. Field-for-field a
-    /// <see cref="DialogueSequence"/>, so the file can be read with no hand-written parser:
-    /// <see cref="JsonUtility"/> fills <see cref="Lines"/> straight into the same struct the
-    /// dialogue UI already renders, and the extra keys the writers keep beside them
+    /// One branch as it sits on disk: a <see cref="DialogueChoice"/> carrying both languages.
+    /// </summary>
+    [Serializable]
+    public sealed class DialogueBookChoice
+    {
+        public string Text;
+        public string TextKo;
+        public int GoToLine;
+        public string ResultEventId;
+    }
+
+    /// <summary>
+    /// One line as it sits on disk: a <see cref="DialogueLine"/> plus its Korean half.
+    ///
+    /// The two texts are paired here rather than in <see cref="DialogueLine"/> because that
+    /// struct is the contract the runner and the dialogue UI already speak, and widening it
+    /// would push the language decision out to every one of them — the exact split
+    /// <see cref="Loc"/> exists to prevent. A book line knows both; a
+    /// <see cref="DialogueLine"/> is always in one language, and <see cref="ToLine"/> is the
+    /// only place that chooses.
+    /// </summary>
+    [Serializable]
+    public sealed class DialogueBookLine
+    {
+        public string SpeakerId;
+        public string SpeakerName;
+        public string SpeakerNameKo;
+        public string SpeakerSubtitle;
+        public string SpeakerSubtitleKo;
+        public string PortraitKey;
+        public DialogueTone Tone;
+        public float AutoAdvanceSeconds;
+        public string EventId;
+        public string Text;
+        public string TextKo;
+        public DialogueBookChoice[] Choices = Array.Empty<DialogueBookChoice>();
+
+        /// <summary>
+        /// Collapses the pair to the single-language line the UI renders.
+        ///
+        /// A fresh <see cref="DialogueChoice"/> array is built every call. The book's own array
+        /// is shared with every future play of this sequence, so writing a substituted label
+        /// back into it would bake the first player's name into the file's only copy.
+        /// </summary>
+        public DialogueLine ToLine(Func<string, string> substitute)
+        {
+            var line = new DialogueLine
+            {
+                SpeakerId = SpeakerId,
+                SpeakerName = Loc.Pick(SpeakerName, SpeakerNameKo),
+                SpeakerSubtitle = Loc.Pick(SpeakerSubtitle, SpeakerSubtitleKo),
+                PortraitKey = PortraitKey,
+                Tone = Tone,
+                AutoAdvanceSeconds = AutoAdvanceSeconds,
+                EventId = EventId,
+                Text = Apply(substitute, Loc.Pick(Text, TextKo)),
+                Choices = Array.Empty<DialogueChoice>(),
+            };
+
+            if (Choices == null || Choices.Length == 0) return line;
+
+            var choices = new DialogueChoice[Choices.Length];
+            for (var c = 0; c < choices.Length; c++)
+            {
+                var source = Choices[c];
+                if (source == null) continue;
+                choices[c] = new DialogueChoice
+                {
+                    Text = Apply(substitute, Loc.Pick(source.Text, source.TextKo)),
+                    GoToLine = source.GoToLine,
+                    ResultEventId = source.ResultEventId,
+                };
+            }
+            line.Choices = choices;
+            return line;
+        }
+
+        private static string Apply(Func<string, string> substitute, string text) =>
+            substitute == null || string.IsNullOrEmpty(text) ? text : substitute(text);
+    }
+
+    /// <summary>
+    /// One authored conversation as it sits on disk. <see cref="JsonUtility"/> fills
+    /// <see cref="Lines"/> directly, and the extra keys the writers keep beside them
     /// ("Note", "ToneName") are ignored rather than having to be stripped.
     /// </summary>
     [Serializable]
@@ -17,7 +98,7 @@ namespace PokeLab.Overworld
     {
         public string SequenceId;
         public bool PlaysOnlyOnce;
-        public DialogueLine[] Lines = Array.Empty<DialogueLine>();
+        public DialogueBookLine[] Lines = Array.Empty<DialogueBookLine>();
     }
 
     [Serializable]
@@ -33,6 +114,12 @@ namespace PokeLab.Overworld
     /// scenes that speak them are authored the same way: an episode names a sequence id, and a
     /// writer who wants to rewrite the opening should not have to open the editor, create an
     /// asset and drag it into a scene to do it.
+    ///
+    /// The book keeps both languages; a built sequence is in one. Every line and every choice
+    /// label is resolved through <see cref="Loc.Pick"/> on the way out, which is why a
+    /// half-translated book degrades to English on the untranslated lines instead of showing a
+    /// blank box, and why switching <see cref="Loc.Language"/> before the next conversation is
+    /// all that a language change requires.
     ///
     /// Every sequence is built fresh on request and run through a substitution callback on the
     /// way out. That is what makes <c>{PLAYER}</c> work: the token is resolved once, over every
@@ -101,9 +188,10 @@ namespace PokeLab.Overworld
         /// <summary>
         /// Builds a playable sequence, or null when the id is not in the book.
         ///
-        /// The result is a runtime <see cref="DialogueSequence"/> instance with the token
-        /// substitution already applied, and it belongs to the caller — destroy it once the
-        /// conversation has ended, or a long session leaks one object per line spoken.
+        /// The result is a runtime <see cref="DialogueSequence"/> instance in the language
+        /// <see cref="Loc.Language"/> names, with the token substitution already applied, and it
+        /// belongs to the caller — destroy it once the conversation has ended, or a long session
+        /// leaks one object per line spoken.
         /// </summary>
         public DialogueSequence Build(string sequenceId, Func<string, string> substitute = null)
         {
@@ -112,30 +200,12 @@ namespace PokeLab.Overworld
             var lines = new DialogueLine[entry.Lines.Length];
             for (var i = 0; i < lines.Length; i++)
             {
-                var line = entry.Lines[i];
-                line.Text = Apply(substitute, line.Text);
-
-                if (line.Choices != null && line.Choices.Length > 0)
-                {
-                    // Copied rather than mutated in place: the array came out of the parsed book
-                    // and is shared with every future play of this sequence, so substituting into
-                    // it would bake the first player's name into the file's only copy.
-                    var choices = new DialogueChoice[line.Choices.Length];
-                    for (var c = 0; c < choices.Length; c++)
-                    {
-                        choices[c] = line.Choices[c];
-                        choices[c].Text = Apply(substitute, choices[c].Text);
-                    }
-                    line.Choices = choices;
-                }
-
-                lines[i] = line;
+                var source = entry.Lines[i];
+                if (source == null) continue;
+                lines[i] = source.ToLine(substitute);
             }
 
             return DialogueSequence.FromLines(entry.SequenceId, lines);
         }
-
-        private static string Apply(Func<string, string> substitute, string text) =>
-            substitute == null || string.IsNullOrEmpty(text) ? text : substitute(text);
     }
 }
