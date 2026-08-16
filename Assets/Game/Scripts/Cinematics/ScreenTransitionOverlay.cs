@@ -126,6 +126,15 @@ namespace PokeLab.Cinematics
             if (_rig != null) return;
             EnsureResources();
 
+            // The rig is rebuilt whenever the old one has been destroyed — a scene reload, a
+            // camera replaced under it, an editor rebuild. The bar lists have to be emptied
+            // with it. They were not, so each rebuild appended a fresh set of bars behind the
+            // previous set's corpses, and the next LayoutBars wrote a localPosition to a
+            // destroyed Transform: MissingReferenceException every LateUpdate, for the rest
+            // of the session, from a component that had already repaired itself.
+            _bars.Clear();
+            _barRenderers.Clear();
+
             var rigGo = new GameObject("~ScreenWipe") { hideFlags = HideFlags.DontSave };
             _rig = rigGo.transform;
             _rig.SetParent(transform, false);
@@ -179,6 +188,7 @@ namespace PokeLab.Cinematics
             for (int i = 0; i < _bars.Count; i++)
             {
                 var t = _bars[i];
+                if (t == null) continue;
                 t.localPosition = new Vector3(-sweptWidth * 0.5f + barWidth * (i + 0.5f), 0f, z);
                 t.localRotation = Quaternion.Euler(0f, 0f, barTilt);
                 t.localScale = new Vector3(_barBaseScale.x, _barBaseScale.y, 1f);
@@ -280,6 +290,9 @@ namespace PokeLab.Cinematics
                 float local = StyleProgress(style, i, n, progress);
                 var mr = _barRenderers[i];
                 var t = _bars[i];
+                // Same reason as LayoutBars: a bar can be destroyed under this list between
+                // frames, and the draw must not be what discovers it.
+                if (t == null || mr == null) continue;
 
                 if (isFade)
                 {
