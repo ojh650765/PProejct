@@ -33,6 +33,10 @@ namespace PokeLab.Overworld
                  "screen is the abrupt transition the brief rules out.")]
         [SerializeField] private float _fadeOutSeconds = 0.35f;
 
+        [Tooltip("Slower coming back than going out. The player knows why the screen went " +
+                 "dark; they are looking at somewhere new when it lifts.")]
+        [SerializeField] private float _fadeInSeconds = 0.55f;
+
         [Tooltip("Tag the trigger reacts to. Only the player travels between levels.")]
         [SerializeField] private string _travellerTag = "Player";
 
@@ -108,7 +112,32 @@ namespace PokeLab.Overworld
             // to outlive the scene load, which rules out anything held by a component.
             PendingArrivalSpawn = _arrivalSpawn;
 
-            if (_fadeOutSeconds > 0f) yield return new WaitForSeconds(_fadeOutSeconds);
+            // Cover the screen before the world changes, rather than waiting out a fade
+            // duration and then cutting anyway — which is what this did, and is a teleport
+            // with a pause in front of it. ScreenTransitionOverlay has been able to do this
+            // since it was written; nothing outside its own assembly could reach it until
+            // IScreenCover existed.
+            var covered = false;
+            if (PokeLab.Core.ServiceHub.TryGet<PokeLab.Core.IScreenCover>(out var cover)
+                && cover != null)
+            {
+                var done = false;
+                cover.Cover(_fadeOutSeconds, () => done = true);
+
+                var waited = 0f;
+                while (!done && waited < _fadeOutSeconds * 4f + 1f)
+                {
+                    waited += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+                covered = true;
+            }
+            else if (_fadeOutSeconds > 0f)
+            {
+                Debug.LogWarning("[LevelTransition] Nothing can cover the screen, so this door " +
+                                 "is a hard cut. Add a ScreenCoverHost to the scene.", this);
+                yield return new WaitForSeconds(_fadeOutSeconds);
+            }
 
             if (!Application.CanStreamedLevelBeLoaded(_sceneName))
             {
@@ -121,6 +150,18 @@ namespace PokeLab.Overworld
 
             var load = SceneManager.LoadSceneAsync(_sceneName, LoadSceneMode.Single);
             while (load != null && !load.isDone) yield return null;
+
+            // Uncovered on the far side. The cover host is registered fresh by the scene that
+            // just loaded, so this is resolved again rather than reusing the one from the
+            // scene that has since been torn down.
+            if (!covered) yield break;
+
+            yield return null;   // one frame, so the arrival marker has repositioned the player
+            if (PokeLab.Core.ServiceHub.TryGet<PokeLab.Core.IScreenCover>(out var arrival)
+                && arrival != null)
+            {
+                arrival.Reveal(_fadeInSeconds, null);
+            }
         }
     }
 }

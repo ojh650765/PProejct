@@ -598,11 +598,15 @@ namespace PokeLab.UI
                 new Vector2(-96f, -40f), new Vector2(ControlAutoWidth + ControlMenuWidth + ControlGap,
                     ControlHeight));
 
-            _menuButton = ControlSlab(bar, "Menu", "MENU", ControlMenuWidth, 0f, out _,
+            // Both labels come from the table rather than from a literal here. The slabs are
+            // the loudest thing in the composition and they sit directly above a Korean
+            // dialogue line, so two English words there is the one place the mixed-language
+            // seam would be impossible not to see.
+            _menuButton = ControlSlab(bar, "Menu", Core.Loc.Get("ui.menu"), ControlMenuWidth, 0f, out _,
                 () => _onMenu?.Invoke());
             _menuButton.gameObject.SetActive(false);
 
-            _autoButton = ControlSlab(bar, "Auto", "AUTO", ControlAutoWidth, 0f, out _autoFill,
+            _autoButton = ControlSlab(bar, "Auto", Core.Loc.Get("ui.auto"), ControlAutoWidth, 0f, out _autoFill,
                 () => AutoAdvance = !AutoAdvance);
         }
 

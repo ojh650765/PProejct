@@ -491,6 +491,11 @@ namespace PokeLab.Boot.Editor
 
             BuildTransitions(go, rig);
 
+            // Lets a door cover the screen. Without it LevelTransition waits out its fade
+            // duration and then hard-cuts, which is a teleport with a pause in front of it.
+            if (go.GetComponent<PokeLab.Boot.ScreenCoverHost>() == null)
+                go.AddComponent<PokeLab.Boot.ScreenCoverHost>();
+
             if (go.GetComponent<PokeLab.Boot.StarterPresenter>() == null)
                 go.AddComponent<PokeLab.Boot.StarterPresenter>();
         }
