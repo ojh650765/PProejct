@@ -71,6 +71,11 @@ Shader "PokeLab/PropGroundBlend"
         _PickupPulseSpeed("Pickup Pulse Speed", Range(0,8)) = 2.4
         _PickupPulseDepth("Pickup Pulse Depth", Range(0,1)) = 0.45
 
+        [Header(Camera Fade)][Space(4)]
+        // 0 is solid. Driven per renderer through a property block by the camera rig when
+        // this object stands between the camera and the player.
+        _FadeAmount("Camera Fade", Range(0,1)) = 0
+
         [Header(Wetness)][Space(4)]
         _Wetness("Wetness", Range(0,1)) = 0
 
@@ -125,6 +130,7 @@ Shader "PokeLab/PropGroundBlend"
             half   _PickupEdge;
             half   _PickupPulseSpeed;
             half   _PickupPulseDepth;
+            half   _FadeAmount;
             half   _Wetness;
             half   _Cutoff;
             half   _Cull;
@@ -320,6 +326,20 @@ Shader "PokeLab/PropGroundBlend"
                 half rim = PL_Rim(normalWS, viewDirWS, _RimPower, 0.22);
                 half3 rimColour = _RimColor.rgb + _PL_RimTint.rgb * _PL_RimBoost;
                 colour += rimColour * rim * (_RimStrength + _PL_RimBoost) * occlusion;
+
+                // Camera fade. A screen-space dither clip rather than real transparency:
+                // the boom on this camera is a fixed length by design, so when a building
+                // stands between the camera and the player the building has to give way
+                // instead of the camera. Doing that with alpha would mean a transparent
+                // queue, sorting against everything behind it, and a per-renderer material
+                // instance that leaves the batch. Punching holes on a noise threshold costs
+                // one clip, needs no sorting, and reads as a dissolve rather than a ghost —
+                // which is also what stops the player mistaking a faded wall for a doorway.
+                UNITY_BRANCH
+                if (_FadeAmount > 0.001)
+                {
+                    clip(PL_IGN(svPosition.xy) - _FadeAmount);
+                }
 
                 // Pickup glow. Emissive, so it survives being in shadow — an item in the
                 // lee of a building has to read as collectable exactly as well as one in

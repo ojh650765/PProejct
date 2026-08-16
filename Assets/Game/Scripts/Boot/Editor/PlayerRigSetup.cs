@@ -101,6 +101,12 @@ namespace PokeLab.Boot.Editor
             foreach (var rig in Object.FindObjectsByType<OverworldCameraRig>(
                          FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
+                if (rig.GetComponent<CameraOccluderFade>() == null)
+                {
+                    rig.gameObject.AddComponent<CameraOccluderFade>();
+                    repairs++;
+                }
+
                 var so = new SerializedObject(rig);
                 SetFloat(so, "_fixedPitch", 8f);
                 SetFloat(so, "_minPitch", -12f);
@@ -350,6 +356,9 @@ namespace PokeLab.Boot.Editor
             Assign(rig, "_camera", vcam);
             Assign(rig, "_followTarget", focus);
             Assign(rig, "_locomotion", player);
+
+            // The boom never shortens, so the thing in the way has to give way instead.
+            go.AddComponent<CameraOccluderFade>();
             return rig;
         }
 
