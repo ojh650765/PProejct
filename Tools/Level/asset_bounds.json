@@ -5,19 +5,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -1.3536,
+   -1.1097,
    0.0,
-   -1.4078
+   -1.0621
   ],
   "max": [
-   1.3536,
-   3.0608,
-   1.4078
+   1.1097,
+   3.2954,
+   1.0621
   ],
   "size": [
-   2.7071,
-   3.0608,
-   2.8155
+   2.2194,
+   3.2954,
+   2.1241
   ]
  },
  "Env_Tree_Broadleaf_B": {
@@ -26,19 +26,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -2.0939,
+   -1.7027,
    0.0,
-   -1.6059
+   -1.8343
   ],
   "max": [
-   2.0939,
-   4.5826,
-   1.6059
+   1.7027,
+   5.4547,
+   1.8343
   ],
   "size": [
-   4.1877,
-   4.5826,
-   3.2118
+   3.4054,
+   5.4547,
+   3.6687
   ]
  },
  "Env_Tree_Broadleaf_C": {
@@ -47,19 +47,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -3.0779,
+   -1.9803,
    0.0,
-   -2.6351
+   -2.737
   ],
   "max": [
-   3.0779,
-   6.7421,
-   2.6351
+   1.9803,
+   7.3045,
+   2.737
   ],
   "size": [
-   6.1558,
-   6.7421,
-   5.2703
+   3.9606,
+   7.3045,
+   5.474
   ]
  },
  "Env_Tree_Conifer_A": {
@@ -68,19 +68,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -0.7767,
+   -0.8664,
    0.0,
-   -0.7254
+   -0.9159
   ],
   "max": [
-   0.7767,
-   3.0629,
-   0.7254
+   0.8664,
+   2.9578,
+   0.9159
   ],
   "size": [
-   1.5534,
-   3.0629,
-   1.4509
+   1.7327,
+   2.9578,
+   1.8319
   ]
  },
  "Env_Tree_Conifer_B": {
@@ -89,19 +89,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -0.944,
+   -1.144,
    0.0,
-   -1.0215
+   -1.2255
   ],
   "max": [
-   0.944,
-   5.0743,
-   1.0215
+   1.144,
+   4.868,
+   1.2255
   ],
   "size": [
-   1.888,
-   5.0743,
-   2.043
+   2.2881,
+   4.868,
+   2.451
   ]
  },
  "Env_Tree_Conifer_C": {
@@ -110,19 +110,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -1.4589,
+   -1.4985,
    0.0,
-   -1.5063
+   -1.5206
   ],
   "max": [
-   1.4589,
-   7.372,
-   1.5063
+   1.4985,
+   6.6347,
+   1.5206
   ],
   "size": [
-   2.9178,
-   7.372,
-   3.0126
+   2.997,
+   6.6347,
+   3.0412
   ]
  },
  "Env_Tree_Birch_A": {
@@ -131,19 +131,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -1.0054,
+   -0.777,
    0.0,
-   -1.0423
+   -0.6245
   ],
   "max": [
-   1.0054,
-   2.9361,
-   1.0423
+   0.777,
+   3.0091,
+   0.6245
   ],
   "size": [
-   2.0108,
-   2.9361,
-   2.0846
+   1.554,
+   3.0091,
+   1.2489
   ]
  },
  "Env_Tree_Birch_B": {
@@ -152,19 +152,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -1.5569,
+   -1.2269,
    0.0,
-   -1.4179
+   -1.0414
   ],
   "max": [
-   1.5569,
-   5.2031,
-   1.4179
+   1.2269,
+   5.2586,
+   1.0414
   ],
   "size": [
-   3.1139,
-   5.2031,
-   2.8357
+   2.4539,
+   5.2586,
+   2.0828
   ]
  },
  "Env_Tree_Birch_C": {
@@ -173,19 +173,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_C.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -2.486,
+   -1.5923,
    0.0,
-   -2.284
+   -2.0159
   ],
   "max": [
-   2.486,
-   6.825,
-   2.284
+   1.5923,
+   7.0129,
+   2.0159
   ],
   "size": [
-   4.972,
-   6.825,
-   4.568
+   3.1846,
+   7.0129,
+   4.0318
   ]
  },
  "Env_Tree_Willow_A": {
@@ -194,19 +194,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -1.4018,
+   -1.5624,
    0.0,
-   -1.2427
+   -1.2832
   ],
   "max": [
-   1.4018,
-   2.4337,
-   1.2427
+   1.5624,
+   2.6186,
+   1.2832
   ],
   "size": [
-   2.8036,
-   2.4337,
-   2.4855
+   3.1248,
+   2.6186,
+   2.5664
   ]
  },
  "Env_Tree_Willow_B": {
@@ -215,19 +215,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -1.7018,
+   -1.8413,
    0.0,
-   -1.7471
+   -1.9575
   ],
   "max": [
-   1.7018,
-   3.7777,
-   1.7471
+   1.8413,
+   3.961,
+   1.9575
   ],
   "size": [
-   3.4037,
-   3.7777,
-   3.4941
+   3.6827,
+   3.961,
+   3.915
   ]
  },
  "Env_Tree_Willow_C": {
@@ -236,19 +236,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
   "pivot": "trunk base, XY centred on trunk",
   "min": [
-   -2.2998,
+   -2.3424,
    0.0,
-   -2.1492
+   -2.1525
   ],
   "max": [
-   2.2998,
-   4.6303,
-   2.1492
+   2.3424,
+   5.6934,
+   2.1525
   ],
   "size": [
-   4.5995,
-   4.6303,
-   4.2983
+   4.6849,
+   5.6934,
+   4.305
   ]
  },
  "Env_Grass_Clump_A": {
@@ -1097,19 +1097,19 @@
   "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -2.7254,
+   -4.451,
    0.0,
-   -0.8957
+   -4.4469
   ],
   "max": [
-   2.7254,
-   4.329,
-   0.8957
+   4.451,
+   6.5916,
+   4.4469
   ],
   "size": [
-   5.4509,
-   4.329,
-   1.7913
+   8.902,
+   6.5916,
+   8.8939
   ]
  },
  "Env_Cave_Stalactite_A": {
@@ -1307,19 +1307,19 @@
   "path": "Assets/Game/Art/Environment/Terrain/Env_Bridge_Wood.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -2.4996,
+   -4.5,
    0.0,
-   -0.7995
+   -0.8
   ],
   "max": [
-   2.4996,
-   1.1216,
-   0.7995
+   4.5,
+   2.18,
+   0.8
   ],
   "size": [
-   4.9991,
-   1.1216,
-   1.5989
+   9.0,
+   2.18,
+   1.6
   ]
  },
  "Env_Ground_RouteFloor": {
@@ -1876,17 +1876,17 @@
   "min": [
    -2.67,
    0.0,
-   -2.95
+   -2.8628
   ],
   "max": [
    2.67,
    6.92,
-   2.95
+   2.8628
   ],
   "size": [
    5.34,
    6.92,
-   5.9
+   5.7255
   ]
  },
  "Env_House_Farmhouse_C": {
@@ -2086,17 +2086,17 @@
   "min": [
    -1.42,
    0.0,
-   -1.045
+   -1.03
   ],
   "max": [
    1.42,
    2.7393,
-   1.045
+   1.03
   ],
   "size": [
    2.84,
    2.7393,
-   2.09
+   2.06
   ]
  },
  "Env_Well": {

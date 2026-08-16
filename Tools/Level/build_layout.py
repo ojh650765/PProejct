@@ -373,6 +373,14 @@ HOUSES = [
 CAVE_MOUTH_X, CAVE_MOUTH_Z, CAVE_MOUTH_YAW = 5.0, 51.0, 190.0
 # The shelf sits in front of the opening, not under the whole mouth: the cliff
 # immediately behind the arch is what makes it a cave.
+# The bridge. Its abutments need ground at a known height, and the natural bank
+# rises too fast on the +X side to give it any: at the authored height one end was
+# buried 0.52 m while the other floated 0.15 m. A shallow bed is cut under the whole
+# span instead of arguing with the bank. It sits below the waterline, so the stream
+# still runs under the bridge -- it just runs over a flat bed there.
+BRIDGE_X, BRIDGE_Z, BRIDGE_Y = 13.0, 18.2, -1.218
+BRIDGE_BED = BRIDGE_Y - 0.05
+
 CAVE_SHELF_OFFSET = 2.6
 CAVE_SHELF_HALF_X = 3.4
 CAVE_SHELF_HALF_Z = 2.0
@@ -433,6 +441,29 @@ def shore_band(lake_poly, keep, inner, outer):
     near = [push(p, inner) for p in arc]
     far = [push(p, outer) for p in reversed(arc)]
     return near + far
+
+
+def add_bridge_bed(field, bounds, yaw):
+    """A flat bed under the bridge, so both abutments meet ground.
+
+    Cut to the bridge's own rotated footprint rather than a circle: a radial pad
+    would reach out into the banks either side of the crossing and widen the channel
+    the bridge has to span, which is the problem, not the fix.
+    """
+    size = bounds.get("Env_Bridge_Wood", {}).get("size")
+    if not size:
+        return
+    r = math.radians(yaw)
+    c, sn = abs(math.cos(r)), abs(math.sin(r))
+    # Shrunk, and with a very short blend. The bed has to drop 1.33 m below the road
+    # for the abutments to meet ground, and anything that drop reaches on the road
+    # itself is a step the player cannot climb: at a 1.5 m blend it put 0.64 m and
+    # 0.60 m steps on Path_RouteSpine either side of the crossing, against a 0.45 m
+    # limit. Confined to the deck's own footprint, the drop happens under the deck,
+    # which is what the player walks across instead.
+    half_x = (size[0] * c + size[2] * sn) * 0.5 - 0.25
+    half_z = (size[0] * sn + size[2] * c) * 0.5 - 0.25
+    field.add_pad(BRIDGE_X, BRIDGE_Z, half_x, half_z, BRIDGE_BED, 0.35)
 
 
 def add_cave_outcrop(field):
@@ -993,14 +1024,14 @@ def build():
     # LAKESIDE
     # =====================================================================
     LAKE = "Lakeside"
-    b.place("Env_Bridge_Wood", 13.6, 18.2, yaw_towards(3.1, 2.4) + 90.0, ROUTE + "/Terrain",
+    b.place("Env_Bridge_Wood", BRIDGE_X, BRIDGE_Z, yaw_towards(3.1, 2.4) + 90.0, ROUTE + "/Terrain",
             # -1.194, not the road's 0.06. The asset's pivot is at the base of its
             # structure while the walking surface is the top of its 1.12 m bounding
             # box, so seating the pivot at road level floats the deck a metre above
             # the road it is supposed to continue. This is the figure the deck
             # actually lands at; it is a property of the asset, and it moves when the
             # bridge is rebuilt longer.
-            "Route_Bridge", y=-1.194)
+            "Route_Bridge", y=BRIDGE_Y)
     b.place("Env_Stepping_Stones", 33.2, 15.6, yaw_towards(4.0, 4.0) + 90.0,
             LAKE + "/Terrain", "Lake_SteppingStones", y=-1.55)
     # No waterfall lip. Env_Waterfall_Shelf is the overhanging lip only -- the falling
