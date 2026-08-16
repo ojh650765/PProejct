@@ -88,6 +88,10 @@ namespace PokeLab.Cinematics
         [SerializeField] private float gradeHold = 1.0f;
         [Tooltip("HUD fly-in duration.")]
         [SerializeField] private float hudFlyIn = 0.5f;
+        [Tooltip("Seconds the outro will wait for the presenter to finish its last beats before it " +
+                 "covers. Capped well under the watchdog: an outro that waits too long is a bug, an " +
+                 "outro that never fires strands the player.")]
+        [SerializeField] private float outroDrain = 8f;
 
         [Header("Safety")]
         [Tooltip("Seconds after which a sequence releases the flow regardless of its own progress. " +
@@ -220,7 +224,19 @@ namespace PokeLab.Cinematics
                     battlePresenter.Rig.Show(BattleShot.Field);
                     battlePresenter.Rig.Retarget();
                 }
-                if (_swingCamera != null) _swingCamera.Priority = 0;
+                if (_swingCamera != null)
+                {
+                    _swingCamera.Priority = 0;
+                    _swingCamera.gameObject.SetActive(false);
+                }
+
+                // Cut to the battle rig rather than blending onto it. The arena stands a long
+                // way from the map, and the authored None-to-Field blend is 0.95 s against a
+                // 0.55 s wipe — so the reveal would open on a camera still flying in across the
+                // world. A cut is free here because the screen is opaque, which is the one moment
+                // the "never teleport the camera" rule is not about anything the player can see.
+                if (brain != null) brain.ResetState();
+                yield return null;
 
                 yield return overlay.CoverOut(revealDuration, WipeStyle.SplitWipe);
 
@@ -262,6 +278,12 @@ namespace PokeLab.Cinematics
         {
             try
             {
+                // The stage resolves on the turn that ends the battle, so the flow asks for the
+                // outro while the knockout, the experience and the victory pose are still queued.
+                // Covering on that frame throws away the end of every battle the player wins.
+                if (battlePresenter != null)
+                    yield return battlePresenter.WaitUntilIdle(Mathf.Max(0f, outroDrain));
+
                 CinematicHooks.HudVisible(false, 0.35f);
                 yield return CinematicRunner.Wait(0.35f);
 
@@ -312,6 +334,11 @@ namespace PokeLab.Cinematics
                         overworldFollowCamera.PreviousStateIsValid = false;
                     }
                 }
+
+                // Same cut as on the way in, for the same reason in reverse: the shot being left
+                // behind is a kilometre away, so a blend back would smear the whole return trip
+                // across the reveal.
+                if (brain != null) brain.ResetState();
 
                 // One frame so the rig evaluates its new pose before it is revealed.
                 yield return null;

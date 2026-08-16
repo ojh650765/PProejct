@@ -112,7 +112,21 @@ namespace PokeLab.Overworld
         /// <summary>Encounter check index. Saved with the seed so a reload resumes the same stream.</summary>
         public int CheckCounter { get => _checkCounter; set => _checkCounter = value; }
 
-        private void Awake() => _instance = this;
+        private void Awake()
+        {
+            // First one wins. A scene loaded additively brings its own copy — every playable
+            // scene is built to stand alone — and an unguarded `_instance = this` hands the
+            // static to whichever woke last, leaving the original alive and unreferenced.
+            // ZoneDirector already did this; these three did not.
+            if (_instance != null && _instance != this)
+            {
+                Debug.LogWarning($"[EncounterDirector] A second one arrived with another scene; destroying " +
+                                 "the duplicate.", this);
+                Destroy(this);
+                return;
+            }
+            _instance = this;
+        }
 
         private void OnDestroy()
         {

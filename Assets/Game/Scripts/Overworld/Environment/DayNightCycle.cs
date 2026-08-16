@@ -84,6 +84,17 @@ namespace PokeLab.Overworld
 
         private void Awake()
         {
+            // First one wins. A scene loaded additively brings its own copy — every playable
+            // scene is built to stand alone — and an unguarded `_instance = this` hands the
+            // static to whichever woke last, leaving the original alive and unreferenced.
+            // ZoneDirector already did this; these three did not.
+            if (_instance != null && _instance != this)
+            {
+                Debug.LogWarning($"[DayNight] A second one arrived with another scene; destroying " +
+                                 "the duplicate.", this);
+                Destroy(this);
+                return;
+            }
             _instance = this;
             _normalised = Mathf.Repeat(_startTime, 1f);
             _phase = PhaseFor(_normalised);

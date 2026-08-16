@@ -141,7 +141,7 @@ namespace PokeLab.Cinematics
         {
             if (_simulation != null) return;
 
-            if (!ServiceHub.TryGet<IBattleStage>(out var registered) || !(registered is Simulation stage))
+            if (!ServiceHub.TryGet<IBattleStage>(out var registered) || !(registered is Simulation concrete))
             {
                 Debug.LogWarning("[BattlePresenter] No PokeLab.Battle.BattleStage is registered, so this " +
                                  "presenter cannot claim encounters and every battle will resolve as an " +
@@ -149,7 +149,7 @@ namespace PokeLab.Cinematics
                 return;
             }
 
-            _simulation = stage;
+            _simulation = concrete;
             _simulation.EventsProduced += OnBattleEvents;
             _simulation.BattleStaged += OnBattleStaged;
         }

@@ -67,10 +67,10 @@ namespace PokeLab.Overworld.World
                  "stands on the line.")]
         [SerializeField] private float _unloadMargin = 80f;
 
-        [Tooltip("Off until the duplicate-owner problem below is solved. Turning this on " +
-                 "loads a second copy of everything that owns the session, and their Awakes " +
-                 "run during the additive load — before this component can strip them.")]
-        [SerializeField] private bool _enabled;
+        [Tooltip("On. Every system a streamed scene duplicates now refuses to be the second " +
+                 "instance in its own Awake, which is the only place that can work — see the " +
+                 "note in Start.")]
+        [SerializeField] private bool _enabled = true;
 
         [Tooltip("Load every band at startup and never unload. On a map this size that is " +
                  "the right call: the whole world is 122 x 120 m, so holding both halves " +
@@ -88,23 +88,22 @@ namespace PokeLab.Overworld.World
 
         private void Start()
         {
-            // Deliberately inert by default, and this is not caution — it is a defect that
-            // has to be fixed before this is switched on.
+            // Every playable scene stands alone, so each carries a GameBoot, an EventSystem,
+            // a camera, a player rig and its own scene links. Unity runs all of their Awakes
+            // *during* the additive load, before this component can strip anything — so
+            // stripping was never going to be the fix, and this was switched off until each
+            // system could refuse to be the second instance in its own Awake.
             //
-            // Every playable scene is built to stand alone, so each carries a GameBoot, an
-            // EventSystem, a camera, a player rig and a set of scene links. Loading one
-            // additively runs all of their Awakes *during the load*, before StripDuplicateHosts
-            // gets a turn, and four things break in that window: the second GameBoot
-            // re-initialises ServiceHub and wipes the battle stage the first one registered;
-            // two EventSystems fight; the screen wipe parents its bars to whichever camera
-            // Camera.main answered with and they are destroyed under it; and the streamed
-            // scene's own To_Town trigger sits in the ten-metre overlap and hard-loads Town
-            // as the player walks past their friend, which is the teleport that was reported.
+            // That is now true of every one that mattered: GameBoot records which instance
+            // owns the services rather than letting any copy tear them down; DialogueRunner,
+            // EncounterDirector, DayNightCycle and WeatherDirector all stand down as
+            // duplicates, as ZoneDirector already did; the screen wipe rebuilds its bars
+            // instead of writing to destroyed ones; and LevelTransition refuses to load a
+            // scene that is already loaded or is the one it is standing in.
             //
-            // The fix is not more stripping, which is always too late. Each session owner
-            // needs to check for an existing one in its own Awake and stand down — the
-            // ordinary singleton guard — and that means touching GameBoot and the rig, which
-            // is a change worth making on its own rather than inside this.
+            // StripDuplicateHosts still runs, for the objects that own nothing shared but
+            // would be visible twice — the second player, the second camera. It runs in the
+            // frame the load completes, before anything renders.
             if (!_enabled) return;
 
             if (_preloadAll) StartCoroutine(PreloadAll());
