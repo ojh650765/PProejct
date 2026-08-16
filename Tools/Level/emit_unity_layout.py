@@ -1,92 +1,278 @@
-"""Flatten the level layout into something Unity can build directly.
+"""Flatten the designed level into meshes Unity can upload directly.
 
-Two problems make a straight read impossible on the C# side. JsonUtility deserialises
-neither jagged arrays nor dictionaries, and the deck heights are authored as analytic
-formulas — strings like `y = 0.0 + 0.28*sin(0.075x) + 0.22*cos(0.09z)`.
+The previous version of this script emitted the terrain as `decks`: flat polygonal
+plates, one per area, each held at a constant height or at a named analytic formula
+transcribed into this file by hand. That is why the level looked like planes laid on
+top of each other. The design has not been made of plates for some time — it is one
+continuous height field, and `slice_layout.json` already ships the baked 115 x 105
+grid that every object's Y was sampled from.
 
-Reimplementing those formulas in C# would be a second source of truth for the one number
-the whole level depends on: 4,682 objects had their Y sampled from these fields, and a
-surface that disagrees by centimetres leaves props floating or buried. So the fields are
-evaluated *here*, against the same expressions, and the decks ship as pre-triangulated
-meshes. C# only has to upload vertices and indices.
+So this script no longer computes terrain height. It reads the baked grid and
+interpolates it exactly the way `worldgen.BakedField.at` does, which is the function
+the placement pass used. A prop and the ground beneath it therefore cannot disagree:
+they are reading the same numbers through the same interpolation.
 
-    python emit_unity_layout.py
+Two things are deliberately *not* separate geometry:
+
+  Roads. The height field already conforms the terrain to each road's own elevation
+  inside its width and feathers out over `edgeBlend + 0.7`, so the road surface *is*
+  the terrain there. Laying a ribbon mesh on top would z-fight along 191 m of road.
+  Roads are painted into the ground's vertex colours instead, which is what
+  PokeLab/TerrainBlend's four weight channels exist for.
+
+  Cliffs. The shader steers weight into its rock layer by slope on its own, and rock
+  is the one layer it samples triplanar, so steep ground gets rock without stretching
+  and without a second mesh to keep aligned with the first.
+
+    python Tools/Level/emit_unity_layout.py
 """
 
 import json
 import math
 import os
+import random
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+sys.path.insert(0, HERE)
+
+from worldgen import (chaikin, clamp, closest_on_polyline, lerp, point_in_poly,
+                      poly_area, poly_bounds, poly_sdf, resample)
 
 SOURCE = os.path.join(ROOT, "Assets", "Game", "Data", "Levels", "slice_layout.json")
 OUT = os.path.join(ROOT, "Assets", "Game", "Data", "Levels", "slice_layout_unity.json")
 
-# Grid spacing for generated ground. 1 m is finer than the gentlest field varies and
-# keeps the vertex count reasonable across eight decks.
-CELL = 1.0
+# Ground is split into chunks so the camera can frustum-cull it and so no single mesh
+# carries the whole world. 32 m is a little over one screenful at the exploration
+# camera's framing, which is the size at which culling starts paying for itself.
+CHUNK_METRES = 32.0
 
+# Vertex colour channels, matching PokeLab/TerrainBlend's documented convention.
+GRASS, DIRT, SAND, ROCK = 0, 1, 2, 3
 
-# --- the height fields, transcribed from terrain.heightFields -----------------------
-
-def h_route(x, z):
-    return 0.0 + 0.28 * math.sin(0.075 * x) + 0.22 * math.cos(0.09 * z)
-
-
-def h_cave(x, z):
-    return 1.5 + 0.13 * math.sin(0.22 * x) + 0.11 * math.cos(0.26 * z)
-
-
-def h_shore(x, z):
-    d = math.hypot(x + 6.0, 1.15 * (z + 2.0))
-    t = max(0.0, min(1.0, (d - 21.0) / 8.0))
-    return -1.5 + t * 1.5 + 0.12 * math.sin(0.3 * x)
-
-
-HEIGHT_FIELDS = {
-    "heightFields.route": h_route,
-    "heightFields.cave": h_cave,
-    "heightFields.shore": h_shore,
+# Which weight channel each authored material name drives. Every surface material in
+# the layout has to appear here; an unknown name is a hard error rather than a silent
+# fallback to grass, because a road that quietly renders as lawn is exactly the kind
+# of thing that survives review.
+MATERIAL_LAYER = {
+    "road_flagstone": ROCK,
+    "road_cobble_town": ROCK,
+    "road_dirt_town": DIRT,
+    "road_dirt_route": DIRT,
+    "trail_worn": DIRT,
+    "shore_sand": SAND,
+    "cave_gravel": DIRT,
+    "terrain_grass": GRASS,
 }
 
 
-def height_at(y_spec, x, z):
-    """A deck's Y is either a constant or a named analytic field."""
-    if isinstance(y_spec, (int, float)):
-        return float(y_spec)
-    field = HEIGHT_FIELDS.get(y_spec)
-    if field is None:
-        raise ValueError(f"unknown height field {y_spec!r}")
-    return field(x, z)
+# --- reading the baked height grid ---------------------------------------------
+
+class Grid:
+    """Bilinear sampler over the baked height grid shipped in the layout.
+
+    This mirrors `worldgen.BakedField.at` deliberately and exactly. It is not an
+    independent implementation of the terrain: the grid it reads was produced by the
+    same build that placed every object, so any difference here would show up as
+    props floating or sunk.
+    """
+
+    def __init__(self, block):
+        self.x0 = float(block["originX"])
+        self.z0 = float(block["originZ"])
+        self.step = float(block["step"])
+        self.nx = int(block["countX"])
+        self.nz = int(block["countZ"])
+        self.rows = block["rows"]
+        if len(self.rows) != self.nz or len(self.rows[0]) != self.nx:
+            raise ValueError("height grid rows do not match countX/countZ")
+
+    def at(self, x, z):
+        fx = clamp((x - self.x0) / self.step, 0.0, self.nx - 1.001)
+        fz = clamp((z - self.z0) / self.step, 0.0, self.nz - 1.001)
+        ix, iz = int(fx), int(fz)
+        tx, tz = fx - ix, fz - iz
+        g = self.rows
+        a = lerp(g[iz][ix], g[iz][ix + 1], tx)
+        b = lerp(g[iz + 1][ix], g[iz + 1][ix + 1], tx)
+        return lerp(a, b, tz)
+
+    def normal(self, x, z):
+        """Central-difference normal. Computed here, not by Unity, so that adjacent
+        chunks agree along their shared edge — per-mesh RecalculateNormals would give
+        each chunk a one-sided derivative there and leave a visible lighting seam."""
+        h = self.step
+        dx = (self.at(x + h, z) - self.at(x - h, z)) / (2.0 * h)
+        dz = (self.at(x, z + h) - self.at(x, z - h)) / (2.0 * h)
+        n = (-dx, 1.0, -dz)
+        m = math.sqrt(n[0] * n[0] + 1.0 + n[2] * n[2]) or 1.0
+        return (n[0] / m, n[1] / m, n[2] / m)
+
+    def slope_degrees(self, x, z):
+        h = self.step
+        dx = (self.at(x + h, z) - self.at(x - h, z)) / (2.0 * h)
+        dz = (self.at(x, z + h) - self.at(x, z - h)) / (2.0 * h)
+        return math.degrees(math.atan(math.hypot(dx, dz)))
 
 
-# --- polygon helpers ----------------------------------------------------------------
+# --- surface weights ------------------------------------------------------------
 
-def point_in_polygon(x, z, poly):
-    """Standard ray cast. Polygons here are simple and small, so this is fast enough."""
-    inside = False
-    n = len(poly)
-    for i in range(n):
-        x1, z1 = poly[i]
-        x2, z2 = poly[(i + 1) % n]
-        if (z1 > z) != (z2 > z):
-            xin = (x2 - x1) * (z - z1) / (z2 - z1) + x1
-            if x < xin:
-                inside = not inside
-    return inside
+def smoothstep(t):
+    t = clamp(t)
+    return t * t * (3.0 - 2.0 * t)
 
 
+class SurfacePainter:
+    """Resolves the four terrain weights at any point.
+
+    Paints in the order the world was built: grass everywhere, then the broad
+    surface patches, then the roads over the top of them. A road crossing the plaza
+    is still a road, and the plaza is a widening of the street rather than a
+    separate square, so that order is the one the design describes.
+    """
+
+    def __init__(self, layout):
+        self.patches = []
+        for p in layout["terrain"].get("surfacePatches", []):
+            self.patches.append((
+                [(float(a[0]), float(a[1])) for a in p["polygon"]],
+                float(p.get("edgeBlend", 1.0)),
+                layer_of(p["material"], p["name"]),
+            ))
+
+        self.roads = []
+        for p in layout.get("paths", []):
+            # Interior paths belong to a different scene and never touched this
+            # terrain — `build_height_field` skips them when adding conforms. Painting
+            # them here would run a gravel stripe across the mountainside directly
+            # above the cave, following a floor the player cannot see from outside.
+            if not p.get("conformsTerrain", True):
+                continue
+            # Resampled and smoothed exactly as build_height_field did, so the paint
+            # lands on the corridor the terrain was actually flattened along. Using
+            # the raw control points instead would drift off the road on every bend.
+            pts = resample(chaikin([tuple(float(v) for v in c)
+                                    for c in p["controlPoints"]], 3), 0.75)
+            self.roads.append((
+                pts,
+                float(p["width"]) * 0.5,
+                float(p.get("edgeBlend", 1.0)) + 0.7,
+                layer_of(p["material"], p["name"]),
+            ))
+
+    def at(self, x, z):
+        w = [0.0, 0.0, 0.0, 0.0]
+        w[GRASS] = 1.0
+
+        for poly, blend, layer in self.patches:
+            d = poly_sdf(x, z, poly)
+            if d >= blend:
+                continue
+            t = 1.0 if d <= 0.0 else smoothstep(1.0 - d / blend)
+            if t > 0.0:
+                self._mix(w, layer, t)
+
+        for pts, half, blend, layer in self.roads:
+            d, _, _ = closest_on_polyline(x, z, pts)
+            if d >= half + blend:
+                continue
+            t = 1.0 if d <= half else smoothstep(1.0 - (d - half) / blend)
+            if t > 0.0:
+                self._mix(w, layer, t)
+
+        return w
+
+    @staticmethod
+    def _mix(w, layer, t):
+        for i in range(4):
+            w[i] *= (1.0 - t)
+        w[layer] += t
+
+
+def layer_of(material, owner):
+    if material not in MATERIAL_LAYER:
+        raise ValueError(
+            "%s uses surface material %r, which is not mapped to a terrain weight "
+            "channel. Add it to MATERIAL_LAYER — defaulting it to grass would render "
+            "the surface as lawn and look like a placement bug." % (owner, material))
+    return MATERIAL_LAYER[material]
+
+
+# --- ground -----------------------------------------------------------------------
+
+def build_ground(grid, painter, extents):
+    """One continuous surface over the whole map, split into chunks.
+
+    Vertices land exactly on the baked grid points, so the mesh passes through the
+    same values `Grid.at` returns and props sit on it to the millimetre.
+    """
+    per = int(round(CHUNK_METRES / grid.step))
+    chunks = []
+
+    for cz in range(0, grid.nz - 1, per):
+        for cx in range(0, grid.nx - 1, per):
+            x1 = min(cx + per, grid.nx - 1)
+            z1 = min(cz + per, grid.nz - 1)
+            verts, norms, cols, uvs, tris = [], [], [], [], []
+            index = {}
+
+            def vertex(ix, iz):
+                key = (ix, iz)
+                got = index.get(key)
+                if got is not None:
+                    return got
+                x = grid.x0 + ix * grid.step
+                z = grid.z0 + iz * grid.step
+                y = grid.rows[iz][ix]
+                n = grid.normal(x, z)
+                w = painter.at(x, z)
+                index[key] = len(verts) // 3
+                verts.extend((x, y, z))
+                norms.extend(n)
+                cols.extend(w)
+                # World-space planar UVs. The shader projects its own layers from
+                # world XZ, but Unity still needs a UV set to derive tangents from
+                # for the normal maps.
+                uvs.extend((x, z))
+                return index[key]
+
+            for iz in range(cz, z1):
+                for ix in range(cx, x1):
+                    a = vertex(ix, iz)
+                    b = vertex(ix + 1, iz)
+                    c = vertex(ix + 1, iz + 1)
+                    d = vertex(ix, iz + 1)
+                    # Alternating diagonal. A grid that splits every quad the same
+                    # way develops a visible corduroy grain across open ground once
+                    # a low sun rakes it.
+                    if (ix + iz) & 1:
+                        tris.extend((a, c, b, a, d, c))
+                    else:
+                        tris.extend((a, d, b, b, d, c))
+
+            if tris:
+                chunks.append({
+                    "name": "Ground_%02d_%02d" % (cx // per, cz // per),
+                    "vertices": [round(v, 4) for v in verts],
+                    "normals": [round(v, 4) for v in norms],
+                    "colors": [round(v, 4) for v in cols],
+                    "uvs": [round(v, 3) for v in uvs],
+                    "triangles": tris,
+                })
+    return chunks
+
+
+# --- water ------------------------------------------------------------------------
 
 def triangulate(poly):
-    """Ear clipping. Handles concave outlines, which is the whole point.
+    """Ear clipping, which handles the concave lake and stream outlines.
 
-    The previous approach clipped grid cells against the outline with Sutherland-Hodgman,
-    which only holds for convex clip regions: on the concave cave outline it discarded 94%
-    of the floor, and on the route 11%. Ear clipping reproduces the polygon exactly.
+    Clipping grid cells against the outline was tried and is wrong: Sutherland-Hodgman
+    is only valid for a convex clip region, and on the concave cave outline it silently
+    discarded 94% of the floor.
     """
     pts = list(poly)
-    # Work counter-clockwise so the ear test has a consistent sense.
     area = 0.0
     for i in range(len(pts)):
         x1, z1 = pts[i]
@@ -98,10 +284,8 @@ def triangulate(poly):
     def cross(o, a, b):
         return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
 
-    def in_triangle(p, a, b, c):
-        d1 = cross(a, b, p)
-        d2 = cross(b, c, p)
-        d3 = cross(c, a, p)
+    def inside(p, a, b, c):
+        d1, d2, d3 = cross(a, b, p), cross(b, c, p), cross(c, a, p)
         neg = d1 < -1e-12 or d2 < -1e-12 or d3 < -1e-12
         pos = d1 > 1e-12 or d2 > 1e-12 or d3 > 1e-12
         return not (neg and pos)
@@ -109,209 +293,339 @@ def triangulate(poly):
     idx = list(range(len(pts)))
     tris = []
     guard = 0
-    while len(idx) > 3 and guard < 10000:
+    while len(idx) > 3 and guard < 20000:
         guard += 1
         clipped = False
         for k in range(len(idx)):
-            i0 = idx[(k - 1) % len(idx)]
-            i1 = idx[k]
-            i2 = idx[(k + 1) % len(idx)]
+            i0, i1, i2 = idx[(k - 1) % len(idx)], idx[k], idx[(k + 1) % len(idx)]
             a, b, c = pts[i0], pts[i1], pts[i2]
             if cross(a, b, c) <= 1e-12:
-                continue  # reflex vertex, not an ear
-            if any(in_triangle(pts[m], a, b, c) for m in idx if m not in (i0, i1, i2)):
-                continue  # another vertex is inside, not an ear
+                continue
+            if any(inside(pts[m], a, b, c) for m in idx if m not in (i0, i1, i2)):
+                continue
             tris.append((a, b, c))
             idx.pop(k)
             clipped = True
             break
         if not clipped:
-            break  # degenerate; emit what remains as a fan
+            break
     if len(idx) == 3:
         tris.append((pts[idx[0]], pts[idx[1]], pts[idx[2]]))
     return tris
 
 
 def subdivide(tri, max_edge):
-    """Split a triangle until no edge is longer than max_edge.
-
-    The outline comes from ear clipping and is exact; this exists so the interior carries
-    enough vertices to sample the height field, because a flat triangle spanning ten metres
-    would interpolate straight across the terrain the props were placed on.
-    """
-    out = []
-    stack = [tri]
-    guard = 0
-    while stack and guard < 200000:
+    out, stack, guard = [], [tri], 0
+    while stack and guard < 400000:
         guard += 1
         a, b, c = stack.pop()
-        ab = math.dist(a, b)
-        bc = math.dist(b, c)
-        ca = math.dist(c, a)
+        ab, bc, ca = math.dist(a, b), math.dist(b, c), math.dist(c, a)
         longest = max(ab, bc, ca)
         if longest <= max_edge:
             out.append((a, b, c))
             continue
-        # Split the longest edge, which keeps triangles from becoming slivers.
         if longest == ab:
-            m = ((a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5)
-            stack.append((a, m, c))
-            stack.append((m, b, c))
+            m = ((a[0] + b[0]) * .5, (a[1] + b[1]) * .5)
+            stack += [(a, m, c), (m, b, c)]
         elif longest == bc:
-            m = ((b[0] + c[0]) * 0.5, (b[1] + c[1]) * 0.5)
-            stack.append((b, m, a))
-            stack.append((m, c, a))
+            m = ((b[0] + c[0]) * .5, (b[1] + c[1]) * .5)
+            stack += [(b, m, a), (m, c, a)]
         else:
-            m = ((c[0] + a[0]) * 0.5, (c[1] + a[1]) * 0.5)
-            stack.append((c, m, b))
-            stack.append((m, a, b))
+            m = ((c[0] + a[0]) * .5, (c[1] + a[1]) * .5)
+            stack += [(c, m, b), (m, a, b)]
     return out
 
 
-def build_ramp(entry):
-    """A sloped strip joining two heights.
+def build_stream(body):
+    """A flowing ribbon whose surface falls along its length.
 
-    Without these the decks are disconnected plates: the player has no way between levels
-    and anything the layout placed on the join hangs in the air.
+    The stream has no polygon and no single waterline: it drops 1.70 m over 66 m, so
+    holding it at one Y would either bury it at the top or float it at the bottom.
+    Each rung of the ribbon takes the Y authored at that point of the centreline.
+
+    UV.y runs in metres along the flow so the water shader's scroll moves downstream
+    at a constant speed regardless of how the rungs happen to be spaced.
     """
-    a = entry["from"]
-    b = entry["to"]
-    half = float(entry.get("width", 4.0)) * 0.5
-
-    ax, ay, az = float(a[0]), float(a[1]), float(a[2])
-    bx, by, bz = float(b[0]), float(b[1]), float(b[2])
-
-    dx, dz = bx - ax, bz - az
-    length = math.hypot(dx, dz) or 1.0
-    # Perpendicular in the ground plane, to give the ramp its width.
-    px, pz = -dz / length * half, dx / length * half
-
-    verts = [
-        ax - px, ay, az - pz,
-        ax + px, ay, az + pz,
-        bx + px, by, bz + pz,
-        bx - px, by, bz - pz,
-    ]
-    return {
-        "name": entry.get("name", "Ramp"),
-        "material": "terrain_grass_dirt_paving",
-        "vertices": [round(v, 4) for v in verts],
-        "triangles": [0, 2, 1, 0, 3, 2],
-    }
-
-
-def build_ledge(entry):
-    """The vertical face of a one-way drop, so the level change is visible and solid."""
-    a = entry["from"]
-    b = entry["to"]
-    drop = float(entry.get("drop", 1.0))
-
-    ax, ay, az = float(a[0]), float(a[1]), float(a[2])
-    bx, by, bz = float(b[0]), float(b[1]), float(b[2])
-
-    verts = [
-        ax, ay, az,
-        bx, by, bz,
-        bx, by - drop, bz,
-        ax, ay - drop, az,
-    ]
-    return {
-        "name": entry.get("name", "Ledge"),
-        "material": "terrain_rock",
-        "vertices": [round(v, 4) for v in verts],
-        "triangles": [0, 1, 2, 0, 2, 3],
-    }
-
-
-def build_surface(entry, dense):
-    """Triangulate a polygon exactly, then subdivide it enough to follow the height field."""
-    poly = [(float(p[0]), float(p[1])) for p in entry.get("polygon", [])]
-    y_spec = entry.get("y", 0.0)
-    if len(poly) < 3:
+    line = [tuple(float(v) for v in p) for p in body["centreline"]]
+    if len(line) < 2:
         return None
+    half = float(body.get("halfWidth", 1.5))
 
-    max_edge = CELL if dense else 1e9
-    index = {}
-    verts = []
-    tris = []
-
-    def vertex(x, z):
-        key = (round(x, 3), round(z, 3))
-        got = index.get(key)
-        if got is not None:
-            return got
-        index[key] = len(verts) // 3
-        verts.extend((x, height_at(y_spec, x, z), z))
-        return index[key]
-
-    for tri in triangulate(poly):
-        for a, b, c in subdivide(tri, max_edge):
-            # Wound clockwise from above so the surface faces +Y.
-            tris.extend((vertex(*a), vertex(*c), vertex(*b)))
-
-    if not tris:
-        return None
+    verts, uvs, tris = [], [], []
+    run = 0.0
+    for i, (x, y, z) in enumerate(line):
+        if i > 0:
+            run += math.hypot(x - line[i - 1][0], z - line[i - 1][2])
+        # Tangent from the neighbours, so the ribbon does not pinch on bends.
+        a = line[max(0, i - 1)]
+        b = line[min(len(line) - 1, i + 1)]
+        tx, tz = b[0] - a[0], b[2] - a[2]
+        n = math.hypot(tx, tz) or 1.0
+        px, pz = -tz / n * half, tx / n * half
+        verts.extend((x + px, y, z + pz, x - px, y, z - pz))
+        uvs.extend((0.0, run, 1.0, run))
+        if i > 0:
+            k = (i - 1) * 2
+            tris.extend((k, k + 2, k + 1, k + 1, k + 2, k + 3))
 
     return {
-        "name": entry.get("name", "Surface"),
-        "material": entry.get("material", ""),
+        "name": body["name"],
+        "kind": body.get("kind", "flowing"),
+        "surfaceY": round(sum(p[1] for p in line) / len(line), 4),
         "vertices": [round(v, 4) for v in verts],
+        "uvs": [round(v, 3) for v in uvs],
         "triangles": tris,
     }
 
 
+def build_water(layout):
+    """Flat surfaces at each body's authored waterline, plus the flowing stream.
+
+    Subdivided even though they are flat, because the water shader displaces vertices
+    for its swell and a two-triangle lake cannot show a wave.
+    """
+    out = []
+    for body in layout["terrain"].get("water", []):
+        # Discriminated on the centreline, not on the absence of a polygon: the
+        # stream ships both, and its polygon is only the ribbon's flat outline —
+        # using it would hold a watercourse that falls 1.7 m at a single height.
+        if "centreline" in body:
+            strip = build_stream(body)
+            if strip:
+                out.append(strip)
+            continue
+
+        poly = [(float(p[0]), float(p[1])) for p in body["polygon"]]
+        if len(poly) < 3:
+            continue
+        y = float(body["surfaceY"])
+        index, verts, uvs, tris = {}, [], [], []
+
+        def vertex(x, z):
+            key = (round(x, 3), round(z, 3))
+            got = index.get(key)
+            if got is not None:
+                return got
+            index[key] = len(verts) // 3
+            verts.extend((x, y, z))
+            uvs.extend((x, z))
+            return index[key]
+
+        for tri in triangulate(poly):
+            for a, b, c in subdivide(tri, 1.5):
+                tris.extend((vertex(*a), vertex(*c), vertex(*b)))
+
+        if tris:
+            out.append({
+                "name": body["name"],
+                "kind": body.get("kind", "still"),
+                "surfaceY": y,
+                "vertices": [round(v, 4) for v in verts],
+                "uvs": [round(v, 3) for v in uvs],
+                "triangles": tris,
+            })
+    return out
+
+
+# --- the cave, which is a different scene ------------------------------------------
+
+def cave_interiors(layout):
+    """Footprints of anything that lives inside a cave rather than on this terrain.
+
+    Caves are their own scenes, entered through a trigger at the mouth, so nothing
+    inside one belongs in the overworld build. This is not merely tidiness: the height
+    grid describes the mountain's *outside*, so a cave prop emitted here is placed on
+    the surface above the cave. `Grass_Cave_Grass` was landing at y = 20.15 on the
+    massif's summit while its floor sits at y = 3.3.
+
+    Filtering is geometric rather than by zone name because the gorge approach is
+    tagged Zone_Cave too and is genuinely outdoors — it is the walk up to the mouth,
+    and dropping it would delete the level's whole approach sequence.
+    """
+    return [([(float(p[0]), float(p[1])) for p in c["floorPolygon"]], c)
+            for c in layout["terrain"].get("caves", [])]
+
+
+def inside_any(x, z, polys):
+    return any(point_in_poly(x, z, poly) for poly, _ in polys)
+
+
+def cave_entrances(layout, grid):
+    """Where the overworld hands off to a cave scene."""
+    out = []
+    for c in layout["terrain"].get("caves", []):
+        mouth = c.get("mouth")
+        if not mouth:
+            continue
+        mx, _, mz = [float(v) for v in mouth["position"]]
+        out.append({
+            "name": c["name"],
+            "scene": "Cave_" + c["name"].replace("Cave_", ""),
+            # Sat on the outside surface, not on the authored floor Y: the trigger
+            # lives in the overworld and the player walks into it from the gorge.
+            "position": [round(mx, 3), round(grid.at(mx, mz), 3), round(mz, 3)],
+            "facingYaw": float(mouth.get("facingYaw", 0.0)),
+            "size": [float(mouth.get("widthMetres", 4.0)),
+                     float(mouth.get("heightMetres", 4.0)), 1.0],
+        })
+    return out
+
+
+# --- foliage ----------------------------------------------------------------------
+
+def scatter_foliage(layout, grid, caves):
+    """Turn each field into concrete instance transforms.
+
+    Scattering happens here rather than in C# so the Y of every blade comes from the
+    same grid the props were placed against, and so the result is reproducible: the
+    RNG is seeded from the field's name, so rebuilding the level does not reshuffle
+    the grass.
+
+    A jittered grid rather than uniform random. Uniform random on a small budget
+    clumps and leaves bald patches, which on an encounter field reads as holes in
+    the cover the player is supposed to be walking through.
+    """
+    fields = []
+    for f in layout.get("foliageFields", []):
+        poly = [(float(p[0]), float(p[1])) for p in f["polygon"]]
+        budget = int(f.get("instanceBudget", 0))
+        if budget <= 0 or len(poly) < 3:
+            continue
+
+        prefabs = f.get("prefabs", [])
+        total_weight = sum(float(p.get("weight", 1)) for p in prefabs) or 1.0
+        lo, hi = [float(v) for v in f.get("scaleRange", [1.0, 1.0])]
+        yaw_jitter = float(f.get("yawJitterDegrees", 360.0))
+
+        minx, maxx, minz, maxz = poly_bounds(poly)
+        area = poly_area(poly)
+        # Cell size chosen so the jittered grid holds comfortably more candidate cells
+        # than the budget: the grid covers the bounding box while the budget is defined
+        # over the polygon, and every cell whose jittered point lands outside the
+        # outline is discarded. Sizing for exactly the budget leaves a field short by
+        # whatever fraction of its bounding box is not polygon.
+        cell = math.sqrt(max(area, 0.01) / (budget * 2.0))
+        rng = random.Random(f["name"])
+
+        buckets = {p["prefab"]: [] for p in prefabs}
+        placed = 0
+        nx = max(1, int(math.ceil((maxx - minx) / cell)))
+        nz = max(1, int(math.ceil((maxz - minz) / cell)))
+        cells = [(i, j) for j in range(nz) for i in range(nx)]
+        rng.shuffle(cells)
+
+        for i, j in cells:
+            if placed >= budget:
+                break
+            x = minx + (i + rng.random()) * cell
+            z = minz + (j + rng.random()) * cell
+            if not point_in_poly(x, z, poly):
+                continue
+            if inside_any(x, z, caves):
+                continue
+
+            roll = rng.random() * total_weight
+            chosen = prefabs[-1]["prefab"]
+            for p in prefabs:
+                roll -= float(p.get("weight", 1))
+                if roll <= 0.0:
+                    chosen = p["prefab"]
+                    break
+
+            buckets[chosen].append([
+                round(x, 3), round(grid.at(x, z), 3), round(z, 3),
+                round(rng.uniform(0.0, yaw_jitter), 1),
+                round(rng.uniform(lo, hi), 3),
+            ])
+            placed += 1
+
+        fields.append({
+            "name": f["name"],
+            "kind": f.get("kind", ""),
+            "parent": f.get("parent", ""),
+            "generatesEncounters": bool(f.get("generatesEncounters", False)),
+            "groups": [{"prefab": k, "instances": [v for inst in vs for v in inst]}
+                       for k, vs in buckets.items() if vs],
+            "placed": placed,
+        })
+    return fields
+
+
+# --- main --------------------------------------------------------------------------
+
 def main():
     with open(SOURCE, encoding="utf-8") as fh:
-        src = json.load(fh)
+        layout = json.load(fh)
 
-    terrain = src.get("terrain", {})
+    grid = Grid(layout["terrain"]["heightField"]["grid"])
+    painter = SurfacePainter(layout)
+    caves = cave_interiors(layout)
 
-    decks = [s for s in (build_surface(d, True) for d in terrain.get("decks", [])) if s]
-    # Water is flat by definition, so it needs no subdivision for height — but the wave
-    # shader displaces vertices, so give it a grid anyway.
-    water = [s for s in (build_surface(w, True) for w in terrain.get("water", [])) if s]
+    ground = build_ground(grid, painter, layout["extents"])
+    water = build_water(layout)
+    foliage = scatter_foliage(layout, grid, caves)
 
-    # Ramps and ledges were specified by the designer and skipped by the first pass of
-    # this script, which is why props sat in mid-air at every level change.
-    ramps = [build_ramp(r) for r in terrain.get("ramps", [])]
-    ledges = [build_ledge(l) for l in terrain.get("ledges", [])]
+    objects, interior = [], 0
+    for o in layout.get("objects", []):
+        pos = o.get("position") or [0.0, 0.0, 0.0]
+        x, y, z = float(pos[0]), float(pos[1]), float(pos[2])
+        # Two tests, because neither alone is enough. The floor polygon catches the
+        # chamber, but the entry passage and back alcove reach outside it — that is how
+        # Cave_Rocks_01/02 and Cave_ItemBall_01 were surviving the filter and landing
+        # 14 to 17 m under the hillside. Anything buried that far below the outside
+        # surface is inside the massif by definition, whatever polygon it falls in.
+        if inside_any(x, z, caves) or (y - grid.at(x, z)) < -2.0:
+            interior += 1
+            continue
+        objects.append(o)
 
-    gameplay = src.get("gameplay", {})
-    spawn = gameplay.get("playerSpawn") or gameplay.get("PlayerSpawn")
-    if isinstance(spawn, dict) and "position" in spawn:
-        spawn = [float(v) for v in spawn["position"]]
-    elif isinstance(spawn, list):
-        spawn = [float(v) for v in spawn]
-    else:
-        spawn = [0.0, 0.0, 0.0]
+    gameplay = layout.get("gameplay", {})
+    spawn = gameplay.get("playerSpawn", {})
+    spawn_pos = [float(v) for v in spawn["position"]] if "position" in spawn else [0.0, 0.0, 0.0]
 
-    camera = src.get("camera", {})
+    camera = layout.get("camera", {})
     out = {
-        "schema": "pokelab-level-unity/1",
-        "decks": decks + ramps,
-        "ledges": ledges,
+        "schema": "pokelab-level-unity/2",
+        "ground": ground,
         "water": water,
-        "objects": src.get("objects", []),
-        "ambientAnchors": src.get("ambientAnchors", []),
-        "playerSpawn": spawn,
-        "cameraPitch": float(camera.get("pitchDegrees", 42.0)),
+        "foliage": foliage,
+        "objects": objects,
+        "ambientAnchors": layout.get("ambientAnchors", []),
+        "caveEntrances": cave_entrances(layout, grid),
+        "tallGrass": [g for g in gameplay.get("tallGrassPatches", [])
+                      if not inside_any(float(g["centre"][0]), float(g["centre"][2]), caves)],
+        "playerSpawn": spawn_pos,
+        "cameraYaw": float(camera.get("yawDegrees", 45.0)),
+        "cameraPitch": float(camera.get("pitchDegrees", 38.0)),
         "cameraDistance": float(camera.get("restDistanceMetres", 5.5)),
         "cameraFov": float(camera.get("verticalFovDegrees", 40.0)),
+        "heightGrid": {
+            "originX": grid.x0, "originZ": grid.z0, "step": grid.step,
+            "countX": grid.nx, "countZ": grid.nz,
+            "heights": [round(v, 3) for row in grid.rows for v in row],
+        },
     }
 
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(out, fh)
 
-    print(f"wrote {OUT}")
-    for s in decks:
-        print(f"  deck  {s['name']:24} {len(s['vertices'])//3:5} verts  {len(s['triangles'])//3:5} tris")
-    for s in ramps:
-        print(f"  ramp  {s['name']:24} {len(s['vertices'])//3:5} verts")
-    for s in ledges:
-        print(f"  ledge {s['name']:24} {len(s['vertices'])//3:5} verts")
-    for s in water:
-        print(f"  water {s['name']:24} {len(s['vertices'])//3:5} verts  {len(s['triangles'])//3:5} tris")
-    print(f"  objects {len(out['objects'])}  anchors {len(out['ambientAnchors'])}  spawn {spawn}")
+    verts = sum(len(c["vertices"]) // 3 for c in ground)
+    tris = sum(len(c["triangles"]) // 3 for c in ground)
+    print("wrote %s" % OUT)
+    print("  ground     %d chunks, %d verts, %d tris" % (len(ground), verts, tris))
+    for w in water:
+        print("  water      %-22s %5d verts  %5d tris"
+              % (w["name"], len(w["vertices"]) // 3, len(w["triangles"]) // 3))
+    total_inst = 0
+    for f in foliage:
+        total_inst += f["placed"]
+        print("  foliage    %-24s %5d instances in %d group(s)"
+              % (f["name"], f["placed"], len(f["groups"])))
+    print("  foliage total %d instances" % total_inst)
+    print("  objects %d  (%d held back for cave scenes)" % (len(objects), interior))
+    print("  anchors %d  grass triggers %d  cave entrances %d  spawn %s"
+          % (len(out["ambientAnchors"]), len(out["tallGrass"]),
+             len(out["caveEntrances"]), spawn_pos))
 
 
 if __name__ == "__main__":

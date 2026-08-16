@@ -20,6 +20,10 @@ namespace PokeLab.Boot.Editor
         private const string CreatureRoot = "Assets/Game/Art/Creatures/";
         private const string EnvironmentRoot = "Assets/Game/Art/Environment/";
         private const string PropRoot = "Assets/Game/Art/Props/";
+        private const string FoliageRoot = "Assets/Game/Art/Environment/Foliage/";
+
+        private const string FoliageMaterial =
+            "Assets/Game/Art/Environment/Foliage/Materials/M_Env_Foliage.mat";
 
         /// <summary>Clips that must loop. Everything else is a one-shot.</summary>
         private static readonly string[] LoopingClips =
@@ -37,30 +41,14 @@ namespace PokeLab.Boot.Editor
             if (!IsGameArt(assetPath)) return;
             var importer = (ModelImporter)assetImporter;
 
-            // Unit handling differs by family because the two pipelines export differently,
-            // and getting it wrong is invisible until something is measured: the environment
-            // FBX were arriving at 1/100, so a cottage was 7 cm tall and simply vanished
-            // against the ground rather than looking wrong.
-            //
-            // Creatures are authored in true metres and want the file taken verbatim.
-            // Environment and props declare their units in the file, so Unity must honour that
-            // declaration and convert.
-            // The environment FBX are authored at 1/100 — a cottage arrives 4.9 cm tall, which
-            // does not look wrong so much as invisible: it vanishes into the ground and the
-            // level reads as empty. The export is what is actually wrong and is being fixed at
-            // source, but compensating here means the existing 89 assets are usable now and
-            // stay usable either way, because a corrected export will declare its units and
-            // useFileUnits will then do the work instead.
-            var isCreatureArt = assetPath.StartsWith(CreatureRoot, StringComparison.Ordinal);
-            importer.globalScale = isCreatureArt ? 1f : 100f;
-            importer.useFileUnits = false;
-
-            // The environment export writes Z-up without declaring the conversion, so the
-            // models arrive lying on their backs — a cottage reads as a slab on the ground.
-            // Baking the axis conversion at import rotates the mesh data itself rather than
-            // leaving a -90 degree rotation on every instance, which would fight every
-            // authored rotation in the layout.
-            importer.bakeAxisConversion = !isCreatureArt;
+            // Both pipelines now export real metres with a declared axis convention, so
+            // Unity's own unit conversion is correct and no compensation is needed. This
+            // briefly carried globalScale = 100 and a baked axis conversion for the
+            // environment art while its export was wrong; leaving those in place after the
+            // export was fixed would correct the same error twice.
+            importer.globalScale = 1f;
+            importer.useFileUnits = true;
+            importer.bakeAxisConversion = false;
 
             // Custom split normals are exported; recalculating them would flatten the
             // smooth-with-sharp-edges shading the models were authored for.
@@ -69,8 +57,19 @@ namespace PokeLab.Boot.Editor
             importer.importBlendShapes = true;
             importer.weldVertices = false;
 
-            importer.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
-            importer.materialLocation = ModelImporterMaterialLocation.External;
+            if (assetPath.StartsWith(FoliageRoot, StringComparison.Ordinal))
+            {
+                // Foliage gets one shared hand-authored material in OnPostprocessModel.
+                // Importing materials as well would keep regenerating the URP/Lit asset
+                // that culled the back of every grass clump, and leave it in the project
+                // as a second, wrong answer to "what shades the grass".
+                importer.materialImportMode = ModelImporterMaterialImportMode.None;
+            }
+            else
+            {
+                importer.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
+                importer.materialLocation = ModelImporterMaterialLocation.External;
+            }
 
             var isCreature = assetPath.StartsWith(CreatureRoot, StringComparison.Ordinal);
             var isLod = assetPath.EndsWith("_LOD1.fbx", StringComparison.OrdinalIgnoreCase)
@@ -95,8 +94,50 @@ namespace PokeLab.Boot.Editor
             }
         }
 
+        /// <summary>
+        /// Binds foliage to the two-sided foliage shader instead of the material Unity
+        /// generates from the FBX.
+        ///
+        /// This is not a preference. Every grass blade in the kit is authored as a single
+        /// sided ribbon — six triangles instead of twelve — on the explicit understanding
+        /// that the shader is <c>Cull Off</c> (see the comment in
+        /// <c>Tools/Blender/environment/gen_foliage.py</c>, `tall_grass`). Unity's imported
+        /// material is URP/Lit with <c>_Cull = Back</c>, so half of every clump vanished
+        /// when the camera crossed to the far side of it. Nothing about that is visible in
+        /// a mesh inspection: the geometry is exactly as designed, and the material is the
+        /// thing that is wrong.
+        ///
+        /// Assignment happens here rather than through the importer's own material slots
+        /// so it does not depend on the material's name inside the FBX. Routing the whole
+        /// family to one shared material also collapses it to a single draw call per
+        /// instanced batch, which is what makes dense grass affordable.
+        /// </summary>
+        private void AssignFoliageMaterial(GameObject root)
+        {
+            var shared = AssetDatabase.LoadAssetAtPath<Material>(FoliageMaterial);
+            if (shared == null)
+            {
+                Debug.LogWarning(
+                    $"[FoliageImport] {FoliageMaterial} is missing, so " +
+                    $"{System.IO.Path.GetFileName(assetPath)} kept an imported URP/Lit " +
+                    "material. That material culls back faces and the blades are single " +
+                    "sided, so the far side of every clump will be invisible.");
+                return;
+            }
+
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                var slots = renderer.sharedMaterials;
+                for (var i = 0; i < slots.Length; i++) slots[i] = shared;
+                renderer.sharedMaterials = slots;
+            }
+        }
+
         private void OnPostprocessModel(GameObject root)
         {
+            if (assetPath.StartsWith(FoliageRoot, StringComparison.Ordinal))
+                AssignFoliageMaterial(root);
+
             if (!assetPath.StartsWith(CreatureRoot, StringComparison.Ordinal)) return;
             if (assetPath.EndsWith("_LOD1.fbx", StringComparison.OrdinalIgnoreCase)) return;
 

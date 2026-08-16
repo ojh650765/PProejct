@@ -3,7 +3,8 @@
     "rootNamespace": "PokeLab.Boot.Editor",
     "references": [
         "PokeLab.Core",
-        "PokeLab.Boot"
+        "PokeLab.Boot",
+        "PokeLab.Overworld"
     ],
     "includePlatforms": [
         "Editor"

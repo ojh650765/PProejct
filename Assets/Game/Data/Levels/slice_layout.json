@@ -19554,19 +19554,23 @@
     ]
    ],
    "areaSquareMetres": 119.5,
-   "densityPerSquareMetre": 4.0,
-   "instanceBudget": 478,
+   "densityPerSquareMetre": 16.0,
+   "instanceBudget": 1912,
    "prefabs": [
     {
-     "prefab": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_C.fbx",
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_A.fbx",
      "weight": 4
     },
     {
-     "prefab": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_A.fbx",
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_B.fbx",
      "weight": 3
     },
     {
-     "prefab": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_D.fbx",
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_D.fbx",
+     "weight": 3
+    },
+    {
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_C.fbx",
      "weight": 2
     }
    ],
@@ -19616,19 +19620,23 @@
     ]
    ],
    "areaSquareMetres": 73.7,
-   "densityPerSquareMetre": 4.0,
-   "instanceBudget": 294,
+   "densityPerSquareMetre": 16.0,
+   "instanceBudget": 1179,
    "prefabs": [
     {
-     "prefab": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_C.fbx",
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_B.fbx",
      "weight": 4
     },
     {
-     "prefab": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_A.fbx",
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_A.fbx",
      "weight": 3
     },
     {
-     "prefab": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_B.fbx",
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_C.fbx",
+     "weight": 3
+    },
+    {
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_D.fbx",
      "weight": 2
     }
    ],
@@ -19674,15 +19682,19 @@
     ]
    ],
    "areaSquareMetres": 16.4,
-   "densityPerSquareMetre": 4.4,
-   "instanceBudget": 72,
+   "densityPerSquareMetre": 16.0,
+   "instanceBudget": 262,
    "prefabs": [
     {
-     "prefab": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_C.fbx",
-     "weight": 5
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_C.fbx",
+     "weight": 4
     },
     {
-     "prefab": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_A.fbx",
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_A.fbx",
+     "weight": 3
+    },
+    {
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_D.fbx",
      "weight": 3
     }
    ],
@@ -19922,16 +19934,20 @@
     ]
    ],
    "areaSquareMetres": 84.0,
-   "densityPerSquareMetre": 3.8,
-   "instanceBudget": 319,
+   "densityPerSquareMetre": 14.0,
+   "instanceBudget": 1176,
    "prefabs": [
     {
-     "prefab": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_C.fbx",
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_D.fbx",
      "weight": 4
     },
     {
-     "prefab": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_A.fbx",
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_B.fbx",
      "weight": 3
+    },
+    {
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_A.fbx",
+     "weight": 2
     }
    ],
    "scaleRange": [
@@ -20100,11 +20116,15 @@
     ]
    ],
    "areaSquareMetres": 57.0,
-   "densityPerSquareMetre": 3.0,
-   "instanceBudget": 171,
+   "densityPerSquareMetre": 12.0,
+   "instanceBudget": 684,
    "prefabs": [
     {
-     "prefab": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_C.fbx",
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_B.fbx",
+     "weight": 4
+    },
+    {
+     "prefab": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_C.fbx",
      "weight": 3
     },
     {
@@ -20863,7 +20883,7 @@
       20.5
      ]
     ],
-    "clumpCount": 478,
+    "clumpCount": 1912,
     "generatesEncounters": true,
     "setsTraversalState": true,
     "layer": "ZoneTrigger",
@@ -20912,7 +20932,7 @@
       12.5
      ]
     ],
-    "clumpCount": 294,
+    "clumpCount": 1179,
     "generatesEncounters": true,
     "setsTraversalState": true,
     "layer": "ZoneTrigger",
@@ -20957,7 +20977,7 @@
       7.0
      ]
     ],
-    "clumpCount": 72,
+    "clumpCount": 262,
     "generatesEncounters": true,
     "setsTraversalState": true,
     "layer": "ZoneTrigger",
@@ -20998,7 +21018,7 @@
       39
      ]
     ],
-    "clumpCount": 319,
+    "clumpCount": 1176,
     "generatesEncounters": true,
     "setsTraversalState": true,
     "layer": "ZoneTrigger",
@@ -21039,7 +21059,7 @@
       56.0
      ]
     ],
-    "clumpCount": 171,
+    "clumpCount": 684,
     "generatesEncounters": true,
     "setsTraversalState": true,
     "layer": "ZoneTrigger",
@@ -21517,51 +21537,49 @@
   }
  ],
  "counts": {
-  "objects": 498,
+  "objects": 424,
   "foliageFields": 12,
-  "foliageInstanceBudget": 1923,
+  "foliageInstanceBudget": 5802,
   "paths": 10,
   "pathMetres": 190.7,
   "cliffs": 5,
   "bySubfamily": {
-   "Tree": 314,
-   "Bush": 37,
-   "Cave": 34,
-   "Fence": 24,
+   "Tree": 247,
+   "Bush": 40,
+   "Cave": 33,
+   "Fence": 23,
    "Rock": 23,
-   "Fern": 23,
+   "Fern": 21,
    "House": 6,
    "Prop": 5,
    "Vine": 5,
    "Bench": 4,
    "Planter": 4,
    "Signpost": 4,
-   "Lamp": 4,
    "Market": 3,
-   "Barrel": 2,
    "Building": 1,
    "Well": 1,
-   "Crate": 1,
+   "Lamp": 1,
    "Bridge": 1,
    "Stepping": 1,
    "Waterfall": 1
   },
   "byParent": {
-   "Cave/Foliage": 18,
+   "Cave/Foliage": 16,
    "Cave/Props": 1,
-   "Cave/Terrain": 39,
-   "Lakeside/Foliage": 98,
+   "Cave/Terrain": 38,
+   "Lakeside/Foliage": 78,
    "Lakeside/Props": 1,
-   "Lakeside/Terrain": 12,
-   "Route/Foliage": 188,
+   "Lakeside/Terrain": 11,
+   "Route/Foliage": 162,
    "Route/Props": 2,
-   "Route/Terrain": 9,
+   "Route/Terrain": 10,
    "Town/Buildings": 7,
-   "Town/Detail": 35,
-   "Town/Foliage": 75,
+   "Town/Detail": 28,
+   "Town/Foliage": 57,
    "Town/Props": 13
   },
-  "rejectedPlacements": 511
+  "rejectedPlacements": 585
  },
  "objects": [
   {
@@ -22052,29 +22070,6 @@
    "name": "Town_FenceSouth_01",
    "parent": "Town/Detail",
    "position": [
-    -24.256,
-    2.594,
-    -28.968
-   ],
-   "rotation": [
-    0.0,
-    187.13,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Town/Env_Fence_Picket_2m.fbx",
-   "name": "Town_FenceSouth_02",
-   "parent": "Town/Detail",
-   "position": [
     -21.754,
     2.949,
     -29.205
@@ -22095,7 +22090,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Town/Env_Fence_Picket_2m.fbx",
-   "name": "Town_FenceSouth_03",
+   "name": "Town_FenceSouth_02",
    "parent": "Town/Detail",
    "position": [
     -19.24,
@@ -22118,7 +22113,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Town/Env_Fence_Picket_2m.fbx",
-   "name": "Town_FenceSouth_04",
+   "name": "Town_FenceSouth_03",
    "parent": "Town/Detail",
    "position": [
     -16.735,
@@ -22604,29 +22599,6 @@
    "name": "Town_Lamp_01",
    "parent": "Town/Detail",
    "position": [
-    -8.913,
-    2.272,
-    -24.695
-   ],
-   "rotation": [
-    0.0,
-    264.29,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Town/Env_Lamp_Post.fbx",
-   "name": "Town_Lamp_02",
-   "parent": "Town/Detail",
-   "position": [
     -16.176,
     2.39,
     -19.225
@@ -22640,121 +22612,6 @@
     1.0,
     1.0,
     1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Town/Env_Lamp_Post.fbx",
-   "name": "Town_Lamp_03",
-   "parent": "Town/Detail",
-   "position": [
-    -14.739,
-    2.394,
-    -6.21
-   ],
-   "rotation": [
-    0.0,
-    108.7,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Town/Env_Lamp_Post.fbx",
-   "name": "Town_Lamp_04",
-   "parent": "Town/Detail",
-   "position": [
-    -6.22,
-    2.513,
-    -3.065
-   ],
-   "rotation": [
-    0.0,
-    292.78,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Town/Env_Crate.fbx",
-   "name": "Town_MarketStock_01",
-   "parent": "Town/Detail",
-   "position": [
-    -19.966,
-    2.476,
-    -16.665
-   ],
-   "rotation": [
-    0.0,
-    324.28,
-    0.0
-   ],
-   "scale": [
-    0.941,
-    0.941,
-    0.941
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Town/Env_Barrel.fbx",
-   "name": "Town_EastStock_01",
-   "parent": "Town/Detail",
-   "position": [
-    -5.378,
-    2.234,
-    -22.756
-   ],
-   "rotation": [
-    0.0,
-    214.21,
-    0.0
-   ],
-   "scale": [
-    1.05,
-    1.05,
-    1.05
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Town/Env_Barrel.fbx",
-   "name": "Town_EastStock_02",
-   "parent": "Town/Detail",
-   "position": [
-    -5.087,
-    2.213,
-    -23.385
-   ],
-   "rotation": [
-    0.0,
-    291.23,
-    0.0
-   ],
-   "scale": [
-    0.882,
-    0.882,
-    0.882
    ],
    "layer": "Environment",
    "tag": "Untagged",
@@ -22899,54 +22756,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
-   "name": "Town_RimHedge_04",
-   "parent": "Town/Foliage",
-   "position": [
-    -30.426,
-    2.712,
-    -2.156
-   ],
-   "rotation": [
-    0.0,
-    178.14,
-    0.0
-   ],
-   "scale": [
-    1.064,
-    1.064,
-    1.064
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_RimHedge_05",
-   "parent": "Town/Foliage",
-   "position": [
-    -29.634,
-    2.662,
-    -1.651
-   ],
-   "rotation": [
-    0.0,
-    188.36,
-    0.0
-   ],
-   "scale": [
-    1.092,
-    1.092,
-    1.092
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_RimHedge_06",
+   "name": "Town_RimHedge_04",
    "parent": "Town/Foliage",
    "position": [
     -29.264,
@@ -22969,7 +22780,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_RimHedge_07",
+   "name": "Town_RimHedge_05",
    "parent": "Town/Foliage",
    "position": [
     -27.704,
@@ -22992,7 +22803,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_RimHedge_08",
+   "name": "Town_RimHedge_06",
    "parent": "Town/Foliage",
    "position": [
     -27.681,
@@ -23015,7 +22826,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_C.fbx",
-   "name": "Town_RimHedge_09",
+   "name": "Town_RimHedge_07",
    "parent": "Town/Foliage",
    "position": [
     -25.978,
@@ -23037,31 +22848,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_C.fbx",
-   "name": "Town_RimHedge_10",
-   "parent": "Town/Foliage",
-   "position": [
-    -25.143,
-    2.509,
-    -2.314
-   ],
-   "rotation": [
-    0.0,
-    229.57,
-    0.0
-   ],
-   "scale": [
-    0.917,
-    0.917,
-    0.917
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
-   "name": "Town_RimHedge_11",
+   "name": "Town_RimHedge_08",
    "parent": "Town/Foliage",
    "position": [
     -23.692,
@@ -23084,7 +22872,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_RimHedge_12",
+   "name": "Town_RimHedge_09",
    "parent": "Town/Foliage",
    "position": [
     -23.805,
@@ -23107,7 +22895,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_RimHedge_13",
+   "name": "Town_RimHedge_10",
    "parent": "Town/Foliage",
    "position": [
     -23.159,
@@ -23130,7 +22918,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_RimHedge_14",
+   "name": "Town_RimHedge_11",
    "parent": "Town/Foliage",
    "position": [
     -21.796,
@@ -23152,8 +22940,31 @@
    "static": true
   },
   {
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
+   "name": "Town_RimHedge_12",
+   "parent": "Town/Foliage",
+   "position": [
+    -19.402,
+    2.408,
+    -3.026
+   ],
+   "rotation": [
+    0.0,
+    160.08,
+    0.0
+   ],
+   "scale": [
+    0.868,
+    0.868,
+    0.868
+   ],
+   "layer": "Environment",
+   "tag": "Untagged",
+   "static": true
+  },
+  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Town_RimHedge_15",
+   "name": "Town_RimHedge_13",
    "parent": "Town/Foliage",
    "position": [
     1.186,
@@ -23176,30 +22987,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
-   "name": "Town_RimHedge_16",
-   "parent": "Town/Foliage",
-   "position": [
-    -0.234,
-    2.506,
-    -13.106
-   ],
-   "rotation": [
-    0.0,
-    59.3,
-    0.0
-   ],
-   "scale": [
-    0.903,
-    0.903,
-    0.903
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
-   "name": "Town_RimHedge_17",
+   "name": "Town_RimHedge_14",
    "parent": "Town/Foliage",
    "position": [
     0.13,
@@ -23221,31 +23009,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
-   "name": "Town_RimHedge_18",
-   "parent": "Town/Foliage",
-   "position": [
-    -0.721,
-    2.533,
-    -15.651
-   ],
-   "rotation": [
-    0.0,
-    217.42,
-    0.0
-   ],
-   "scale": [
-    0.93,
-    0.93,
-    0.93
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_RimHedge_19",
+   "name": "Town_RimHedge_15",
    "parent": "Town/Foliage",
    "position": [
     1.56,
@@ -23267,31 +23032,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_RimHedge_20",
-   "parent": "Town/Foliage",
-   "position": [
-    0.835,
-    2.504,
-    -15.607
-   ],
-   "rotation": [
-    0.0,
-    54.1,
-    0.0
-   ],
-   "scale": [
-    1.113,
-    1.113,
-    1.113
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
-   "name": "Town_RimHedge_21",
+   "name": "Town_RimHedge_16",
    "parent": "Town/Foliage",
    "position": [
     1.18,
@@ -23314,7 +23056,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_RimHedge_22",
+   "name": "Town_RimHedge_17",
    "parent": "Town/Foliage",
    "position": [
     1.625,
@@ -23336,31 +23078,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Town_RimHedge_23",
-   "parent": "Town/Foliage",
-   "position": [
-    -0.013,
-    2.441,
-    -19.996
-   ],
-   "rotation": [
-    0.0,
-    226.74,
-    0.0
-   ],
-   "scale": [
-    0.886,
-    0.886,
-    0.886
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_RimHedge_24",
+   "name": "Town_RimHedge_18",
    "parent": "Town/Foliage",
    "position": [
     -0.041,
@@ -23383,7 +23102,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_RimHedge_25",
+   "name": "Town_RimHedge_19",
    "parent": "Town/Foliage",
    "position": [
     0.399,
@@ -23399,52 +23118,6 @@
     0.993,
     0.993,
     0.993
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_C.fbx",
-   "name": "Town_RimHedge_26",
-   "parent": "Town/Foliage",
-   "position": [
-    1.019,
-    2.451,
-    -21.903
-   ],
-   "rotation": [
-    0.0,
-    47.4,
-    0.0
-   ],
-   "scale": [
-    0.963,
-    0.963,
-    0.963
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_C.fbx",
-   "name": "Town_RimHedge_27",
-   "parent": "Town/Foliage",
-   "position": [
-    1.195,
-    2.451,
-    -23.964
-   ],
-   "rotation": [
-    0.0,
-    35.31,
-    0.0
-   ],
-   "scale": [
-    0.976,
-    0.976,
-    0.976
    ],
    "layer": "Environment",
    "tag": "Untagged",
@@ -23497,31 +23170,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Town_SouthWall_03",
-   "parent": "Town/Foliage",
-   "position": [
-    -30.643,
-    2.609,
-    -26.147
-   ],
-   "rotation": [
-    0.0,
-    354.37,
-    0.0
-   ],
-   "scale": [
-    1.012,
-    1.012,
-    1.012
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Town_SouthWall_04",
+   "name": "Town_SouthWall_03",
    "parent": "Town/Foliage",
    "position": [
     -32.13,
@@ -23544,7 +23194,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_SouthWall_05",
+   "name": "Town_SouthWall_04",
    "parent": "Town/Foliage",
    "position": [
     -25.235,
@@ -23567,7 +23217,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_SouthWall_06",
+   "name": "Town_SouthWall_05",
    "parent": "Town/Foliage",
    "position": [
     -22.814,
@@ -23590,7 +23240,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_SouthWall_07",
+   "name": "Town_SouthWall_06",
    "parent": "Town/Foliage",
    "position": [
     -22.254,
@@ -23613,7 +23263,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Town_SouthWall_08",
+   "name": "Town_SouthWall_07",
    "parent": "Town/Foliage",
    "position": [
     -20.185,
@@ -23636,7 +23286,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_SouthWall_09",
+   "name": "Town_SouthWall_08",
    "parent": "Town/Foliage",
    "position": [
     -19.47,
@@ -23658,31 +23308,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Town_SouthWall_10",
-   "parent": "Town/Foliage",
-   "position": [
-    -19.032,
-    3.057,
-    -29.006
-   ],
-   "rotation": [
-    0.0,
-    317.49,
-    0.0
-   ],
-   "scale": [
-    0.947,
-    0.947,
-    0.947
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_SouthWall_11",
+   "name": "Town_SouthWall_09",
    "parent": "Town/Foliage",
    "position": [
     -7.488,
@@ -23704,54 +23331,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_SouthWall_12",
-   "parent": "Town/Foliage",
-   "position": [
-    -7.312,
-    2.222,
-    -26.072
-   ],
-   "rotation": [
-    0.0,
-    24.71,
-    0.0
-   ],
-   "scale": [
-    1.153,
-    1.153,
-    1.153
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Town_WestWall_01",
-   "parent": "Town/Foliage",
-   "position": [
-    -33.376,
-    3.051,
-    -26.265
-   ],
-   "rotation": [
-    0.0,
-    317.72,
-    0.0
-   ],
-   "scale": [
-    1.117,
-    1.117,
-    1.117
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_WestWall_02",
+   "name": "Town_WestWall_01",
    "parent": "Town/Foliage",
    "position": [
     -31.798,
@@ -23774,7 +23355,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_WestWall_03",
+   "name": "Town_WestWall_02",
    "parent": "Town/Foliage",
    "position": [
     -32.019,
@@ -23797,7 +23378,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
-   "name": "Town_WestWall_04",
+   "name": "Town_WestWall_03",
    "parent": "Town/Foliage",
    "position": [
     -30.7,
@@ -23820,7 +23401,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_WestWall_05",
+   "name": "Town_WestWall_04",
    "parent": "Town/Foliage",
    "position": [
     -35.129,
@@ -23842,54 +23423,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
-   "name": "Town_WestWall_06",
-   "parent": "Town/Foliage",
-   "position": [
-    -28.982,
-    2.549,
-    -23.813
-   ],
-   "rotation": [
-    0.0,
-    224.02,
-    0.0
-   ],
-   "scale": [
-    0.915,
-    0.915,
-    0.915
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_WestWall_07",
-   "parent": "Town/Foliage",
-   "position": [
-    -31.284,
-    2.569,
-    -22.888
-   ],
-   "rotation": [
-    0.0,
-    276.49,
-    0.0
-   ],
-   "scale": [
-    1.111,
-    1.111,
-    1.111
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_WestWall_08",
+   "name": "Town_WestWall_05",
    "parent": "Town/Foliage",
    "position": [
     -32.324,
@@ -23911,31 +23446,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_C.fbx",
-   "name": "Town_WestWall_09",
-   "parent": "Town/Foliage",
-   "position": [
-    -31.111,
-    2.541,
-    -20.87
-   ],
-   "rotation": [
-    0.0,
-    148.05,
-    0.0
-   ],
-   "scale": [
-    1.068,
-    1.068,
-    1.068
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_WestWall_10",
+   "name": "Town_WestWall_06",
    "parent": "Town/Foliage",
    "position": [
     -32.98,
@@ -23958,7 +23470,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_WestWall_11",
+   "name": "Town_WestWall_07",
    "parent": "Town/Foliage",
    "position": [
     -32.354,
@@ -23981,7 +23493,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_WestWall_12",
+   "name": "Town_WestWall_08",
    "parent": "Town/Foliage",
    "position": [
     -33.697,
@@ -24004,7 +23516,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_WestWall_13",
+   "name": "Town_WestWall_09",
    "parent": "Town/Foliage",
    "position": [
     -31.066,
@@ -24027,7 +23539,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_WestWall_14",
+   "name": "Town_WestWall_10",
    "parent": "Town/Foliage",
    "position": [
     -31.986,
@@ -24050,7 +23562,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_WestWall_15",
+   "name": "Town_WestWall_11",
    "parent": "Town/Foliage",
    "position": [
     -30.983,
@@ -24073,7 +23585,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Town_WestWall_16",
+   "name": "Town_WestWall_12",
    "parent": "Town/Foliage",
    "position": [
     -32.983,
@@ -24095,31 +23607,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
-   "name": "Town_WestWall_17",
-   "parent": "Town/Foliage",
-   "position": [
-    -31.486,
-    2.825,
-    -13.236
-   ],
-   "rotation": [
-    0.0,
-    188.75,
-    0.0
-   ],
-   "scale": [
-    1.168,
-    1.168,
-    1.168
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_WestWall_18",
+   "name": "Town_WestWall_13",
    "parent": "Town/Foliage",
    "position": [
     -33.769,
@@ -24142,7 +23631,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Town_WestWall_19",
+   "name": "Town_WestWall_14",
    "parent": "Town/Foliage",
    "position": [
     -30.68,
@@ -24165,7 +23654,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_WestWall_20",
+   "name": "Town_WestWall_15",
    "parent": "Town/Foliage",
    "position": [
     -32.339,
@@ -24188,7 +23677,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_WestWall_21",
+   "name": "Town_WestWall_16",
    "parent": "Town/Foliage",
    "position": [
     -29.598,
@@ -24211,30 +23700,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_WestWall_22",
-   "parent": "Town/Foliage",
-   "position": [
-    -30.897,
-    2.844,
-    -8.456
-   ],
-   "rotation": [
-    0.0,
-    96.56,
-    0.0
-   ],
-   "scale": [
-    0.998,
-    0.998,
-    0.998
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_WestWall_23",
+   "name": "Town_WestWall_17",
    "parent": "Town/Foliage",
    "position": [
     -31.716,
@@ -24257,7 +23723,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_WestWall_24",
+   "name": "Town_WestWall_18",
    "parent": "Town/Foliage",
    "position": [
     -32.639,
@@ -24280,7 +23746,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_WestWall_25",
+   "name": "Town_WestWall_19",
    "parent": "Town/Foliage",
    "position": [
     -29.674,
@@ -24303,7 +23769,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Town_WestWall_26",
+   "name": "Town_WestWall_20",
    "parent": "Town/Foliage",
    "position": [
     -33.213,
@@ -24325,31 +23791,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_B.fbx",
-   "name": "Town_WestWall_27",
-   "parent": "Town/Foliage",
-   "position": [
-    -31.522,
-    2.803,
-    -3.209
-   ],
-   "rotation": [
-    0.0,
-    162.75,
-    0.0
-   ],
-   "scale": [
-    1.027,
-    1.027,
-    1.027
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Birch_A.fbx",
-   "name": "Town_WestWall_28",
+   "name": "Town_WestWall_21",
    "parent": "Town/Foliage",
    "position": [
     -32.718,
@@ -24365,29 +23808,6 @@
     1.141,
     1.141,
     1.141
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Town_WestWall_29",
-   "parent": "Town/Foliage",
-   "position": [
-    -33.223,
-    2.448,
-    -2.484
-   ],
-   "rotation": [
-    0.0,
-    257.97,
-    0.0
-   ],
-   "scale": [
-    0.961,
-    0.961,
-    0.961
    ],
    "layer": "Environment",
    "tag": "Untagged",
@@ -24509,8 +23929,31 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Bush_B.fbx",
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Bush_C.fbx",
    "name": "Town_HedgeBush_04",
+   "parent": "Town/Foliage",
+   "position": [
+    -16.25,
+    2.38,
+    -23.762
+   ],
+   "rotation": [
+    0.0,
+    73.02,
+    0.0
+   ],
+   "scale": [
+    1.073,
+    1.073,
+    1.073
+   ],
+   "layer": "Environment",
+   "tag": "Untagged",
+   "static": true
+  },
+  {
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Bush_B.fbx",
+   "name": "Town_HedgeBush_05",
    "parent": "Town/Foliage",
    "position": [
     -16.217,
@@ -24533,7 +23976,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Bush_A.fbx",
-   "name": "Town_HedgeBush_05",
+   "name": "Town_HedgeBush_06",
    "parent": "Town/Foliage",
    "position": [
     -16.192,
@@ -24766,29 +24209,6 @@
    "name": "Route_NorthWall_10",
    "parent": "Route/Foliage",
    "position": [
-    -19.81,
-    -0.637,
-    16.429
-   ],
-   "rotation": [
-    0.0,
-    23.7,
-    0.0
-   ],
-   "scale": [
-    1.054,
-    1.054,
-    1.054
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Route_NorthWall_11",
-   "parent": "Route/Foliage",
-   "position": [
     -18.409,
     -0.555,
     12.778
@@ -24809,7 +24229,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_NorthWall_12",
+   "name": "Route_NorthWall_11",
    "parent": "Route/Foliage",
    "position": [
     -17.708,
@@ -24832,7 +24252,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_NorthWall_13",
+   "name": "Route_NorthWall_12",
    "parent": "Route/Foliage",
    "position": [
     -18.278,
@@ -24855,7 +24275,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_NorthWall_14",
+   "name": "Route_NorthWall_13",
    "parent": "Route/Foliage",
    "position": [
     -15.317,
@@ -24878,7 +24298,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_NorthWall_15",
+   "name": "Route_NorthWall_14",
    "parent": "Route/Foliage",
    "position": [
     -14.857,
@@ -24900,31 +24320,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Route_NorthWall_16",
-   "parent": "Route/Foliage",
-   "position": [
-    -14.142,
-    -0.697,
-    18.33
-   ],
-   "rotation": [
-    0.0,
-    59.17,
-    0.0
-   ],
-   "scale": [
-    1.163,
-    1.163,
-    1.163
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_NorthWall_17",
+   "name": "Route_NorthWall_15",
    "parent": "Route/Foliage",
    "position": [
     -12.449,
@@ -24947,7 +24344,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Route_NorthWall_18",
+   "name": "Route_NorthWall_16",
    "parent": "Route/Foliage",
    "position": [
     -12.044,
@@ -24969,69 +24366,23 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_NorthWall_19",
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
+   "name": "Route_NorthWall_17",
    "parent": "Route/Foliage",
    "position": [
-    -10.789,
-    -0.653,
-    16.754
+    -13.264,
+    -0.674,
+    17.244
    ],
    "rotation": [
     0.0,
-    139.76,
+    133.49,
     0.0
    ],
    "scale": [
-    1.191,
-    1.191,
-    1.191
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_NorthWall_20",
-   "parent": "Route/Foliage",
-   "position": [
-    -11.238,
-    -0.657,
-    19.052
-   ],
-   "rotation": [
-    0.0,
-    122.25,
-    0.0
-   ],
-   "scale": [
-    1.23,
-    1.23,
-    1.23
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Route_NorthWall_21",
-   "parent": "Route/Foliage",
-   "position": [
-    -10.54,
-    -0.667,
-    19.577
-   ],
-   "rotation": [
-    0.0,
-    218.87,
-    0.0
-   ],
-   "scale": [
-    1.21,
-    1.21,
-    1.21
+    1.096,
+    1.096,
+    1.096
    ],
    "layer": "Environment",
    "tag": "Untagged",
@@ -25039,7 +24390,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Route_NorthWall_22",
+   "name": "Route_NorthWall_18",
    "parent": "Route/Foliage",
    "position": [
     -9.086,
@@ -25061,31 +24412,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Route_NorthWall_23",
-   "parent": "Route/Foliage",
-   "position": [
-    -8.179,
-    -0.678,
-    17.555
-   ],
-   "rotation": [
-    0.0,
-    38.19,
-    0.0
-   ],
-   "scale": [
-    1.267,
-    1.267,
-    1.267
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_NorthWall_24",
+   "name": "Route_NorthWall_19",
    "parent": "Route/Foliage",
    "position": [
     -8.667,
@@ -25107,31 +24435,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_NorthWall_25",
-   "parent": "Route/Foliage",
-   "position": [
-    -7.609,
-    -0.724,
-    20.178
-   ],
-   "rotation": [
-    0.0,
-    314.11,
-    0.0
-   ],
-   "scale": [
-    1.267,
-    1.267,
-    1.267
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Route_NorthWall_26",
+   "name": "Route_NorthWall_20",
    "parent": "Route/Foliage",
    "position": [
     -6.417,
@@ -25153,54 +24458,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_NorthWall_27",
-   "parent": "Route/Foliage",
-   "position": [
-    -6.382,
-    -0.743,
-    19.047
-   ],
-   "rotation": [
-    0.0,
-    241.99,
-    0.0
-   ],
-   "scale": [
-    1.257,
-    1.257,
-    1.257
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_NorthWall_28",
-   "parent": "Route/Foliage",
-   "position": [
-    -7.666,
-    -0.696,
-    18.396
-   ],
-   "rotation": [
-    0.0,
-    291.96,
-    0.0
-   ],
-   "scale": [
-    1.214,
-    1.214,
-    1.214
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_NorthWall_29",
+   "name": "Route_NorthWall_21",
    "parent": "Route/Foliage",
    "position": [
     -5.552,
@@ -25222,31 +24481,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_NorthWall_30",
-   "parent": "Route/Foliage",
-   "position": [
-    -5.014,
-    -0.774,
-    18.391
-   ],
-   "rotation": [
-    0.0,
-    143.31,
-    0.0
-   ],
-   "scale": [
-    1.076,
-    1.076,
-    1.076
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_NorthWall_31",
+   "name": "Route_NorthWall_22",
    "parent": "Route/Foliage",
    "position": [
     -4.767,
@@ -25269,7 +24505,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_NorthWall_32",
+   "name": "Route_NorthWall_23",
    "parent": "Route/Foliage",
    "position": [
     -5.106,
@@ -25292,7 +24528,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_NorthWall_33",
+   "name": "Route_NorthWall_24",
    "parent": "Route/Foliage",
    "position": [
     -3.07,
@@ -25315,7 +24551,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_NorthWall_34",
+   "name": "Route_NorthWall_25",
    "parent": "Route/Foliage",
    "position": [
     -1.597,
@@ -25338,7 +24574,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Route_NorthWall_35",
+   "name": "Route_NorthWall_26",
    "parent": "Route/Foliage",
    "position": [
     -2.84,
@@ -25360,54 +24596,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_NorthWall_36",
-   "parent": "Route/Foliage",
-   "position": [
-    -2.569,
-    -0.871,
-    21.549
-   ],
-   "rotation": [
-    0.0,
-    359.24,
-    0.0
-   ],
-   "scale": [
-    1.142,
-    1.142,
-    1.142
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_NorthWall_37",
-   "parent": "Route/Foliage",
-   "position": [
-    -1.827,
-    -0.868,
-    20.087
-   ],
-   "rotation": [
-    0.0,
-    33.36,
-    0.0
-   ],
-   "scale": [
-    1.199,
-    1.199,
-    1.199
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_NorthWall_38",
+   "name": "Route_NorthWall_27",
    "parent": "Route/Foliage",
    "position": [
     -4.162,
@@ -25429,54 +24619,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_NorthWall_39",
-   "parent": "Route/Foliage",
-   "position": [
-    -1.888,
-    -0.878,
-    21.005
-   ],
-   "rotation": [
-    0.0,
-    258.04,
-    0.0
-   ],
-   "scale": [
-    1.141,
-    1.141,
-    1.141
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_NorthWall_40",
-   "parent": "Route/Foliage",
-   "position": [
-    -1.78,
-    -0.877,
-    21.52
-   ],
-   "rotation": [
-    0.0,
-    66.64,
-    0.0
-   ],
-   "scale": [
-    1.092,
-    1.092,
-    1.092
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_NorthWall_41",
+   "name": "Route_NorthWall_28",
    "parent": "Route/Foliage",
    "position": [
     -1.243,
@@ -25498,54 +24642,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_NorthWall_42",
-   "parent": "Route/Foliage",
-   "position": [
-    -0.729,
-    -0.859,
-    22.813
-   ],
-   "rotation": [
-    0.0,
-    145.91,
-    0.0
-   ],
-   "scale": [
-    0.952,
-    0.952,
-    0.952
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Route_NorthWall_43",
-   "parent": "Route/Foliage",
-   "position": [
-    -0.524,
-    -0.866,
-    20.678
-   ],
-   "rotation": [
-    0.0,
-    4.57,
-    0.0
-   ],
-   "scale": [
-    0.903,
-    0.903,
-    0.903
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_NorthWall_44",
+   "name": "Route_NorthWall_29",
    "parent": "Route/Foliage",
    "position": [
     -0.935,
@@ -25567,23 +24665,46 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_NorthWall_45",
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
+   "name": "Route_NorthWall_30",
    "parent": "Route/Foliage",
    "position": [
-    0.464,
-    -0.842,
-    22.553
+    0.31,
+    -0.854,
+    21.391
    ],
    "rotation": [
     0.0,
-    137.8,
+    193.9,
     0.0
    ],
    "scale": [
-    1.069,
-    1.069,
-    1.069
+    1.1,
+    1.1,
+    1.1
+   ],
+   "layer": "Environment",
+   "tag": "Untagged",
+   "static": true
+  },
+  {
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
+   "name": "Route_NorthWall_31",
+   "parent": "Route/Foliage",
+   "position": [
+    -0.425,
+    -0.852,
+    23.012
+   ],
+   "rotation": [
+    0.0,
+    329.04,
+    0.0
+   ],
+   "scale": [
+    0.96,
+    0.96,
+    0.96
    ],
    "layer": "Environment",
    "tag": "Untagged",
@@ -25591,7 +24712,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_NorthWall_46",
+   "name": "Route_NorthWall_32",
    "parent": "Route/Foliage",
    "position": [
     1.588,
@@ -25613,31 +24734,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_NorthWall_47",
-   "parent": "Route/Foliage",
-   "position": [
-    1.502,
-    -0.818,
-    22.034
-   ],
-   "rotation": [
-    0.0,
-    218.39,
-    0.0
-   ],
-   "scale": [
-    1.031,
-    1.031,
-    1.031
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_NorthWall_48",
+   "name": "Route_NorthWall_33",
    "parent": "Route/Foliage",
    "position": [
     3.91,
@@ -25660,7 +24758,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_NorthWall_49",
+   "name": "Route_NorthWall_34",
    "parent": "Route/Foliage",
    "position": [
     2.817,
@@ -25682,54 +24780,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_NorthWall_50",
-   "parent": "Route/Foliage",
-   "position": [
-    2.536,
-    -0.765,
-    23.663
-   ],
-   "rotation": [
-    0.0,
-    211.49,
-    0.0
-   ],
-   "scale": [
-    0.908,
-    0.908,
-    0.908
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Route_NorthWall_51",
-   "parent": "Route/Foliage",
-   "position": [
-    4.819,
-    -0.624,
-    19.422
-   ],
-   "rotation": [
-    0.0,
-    106.81,
-    0.0
-   ],
-   "scale": [
-    1.074,
-    1.074,
-    1.074
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_NorthWall_52",
+   "name": "Route_NorthWall_35",
    "parent": "Route/Foliage",
    "position": [
     5.045,
@@ -25752,7 +24804,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_NorthWall_53",
+   "name": "Route_NorthWall_36",
    "parent": "Route/Foliage",
    "position": [
     5.027,
@@ -25775,7 +24827,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_NorthWall_54",
+   "name": "Route_NorthWall_37",
    "parent": "Route/Foliage",
    "position": [
     5.28,
@@ -25791,29 +24843,6 @@
     1.087,
     1.087,
     1.087
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_NorthWall_55",
-   "parent": "Route/Foliage",
-   "position": [
-    4.747,
-    -0.679,
-    23.116
-   ],
-   "rotation": [
-    0.0,
-    28.59,
-    0.0
-   ],
-   "scale": [
-    1.224,
-    1.224,
-    1.224
    ],
    "layer": "Environment",
    "tag": "Untagged",
@@ -25866,31 +24895,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Route_SouthWall_02",
-   "parent": "Route/Foliage",
-   "position": [
-    -4.164,
-    2.008,
-    -0.221
-   ],
-   "rotation": [
-    0.0,
-    15.23,
-    0.0
-   ],
-   "scale": [
-    0.922,
-    0.922,
-    0.922
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_SouthWall_03",
+   "name": "Route_SouthWall_02",
    "parent": "Route/Foliage",
    "position": [
     -0.75,
@@ -25913,7 +24919,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Route_SouthWall_04",
+   "name": "Route_SouthWall_03",
    "parent": "Route/Foliage",
    "position": [
     2.297,
@@ -25936,7 +24942,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Route_SouthWall_05",
+   "name": "Route_SouthWall_04",
    "parent": "Route/Foliage",
    "position": [
     2.561,
@@ -25959,7 +24965,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
-   "name": "Route_SouthWall_06",
+   "name": "Route_SouthWall_05",
    "parent": "Route/Foliage",
    "position": [
     3.257,
@@ -25982,7 +24988,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Route_SouthWall_07",
+   "name": "Route_SouthWall_06",
    "parent": "Route/Foliage",
    "position": [
     4.329,
@@ -26005,7 +25011,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Route_SouthWall_08",
+   "name": "Route_SouthWall_07",
    "parent": "Route/Foliage",
    "position": [
     5.008,
@@ -26028,7 +25034,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_SouthWall_09",
+   "name": "Route_SouthWall_08",
    "parent": "Route/Foliage",
    "position": [
     4.634,
@@ -26051,7 +25057,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_SouthWall_10",
+   "name": "Route_SouthWall_09",
    "parent": "Route/Foliage",
    "position": [
     5.667,
@@ -26074,7 +25080,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Route_SouthWall_11",
+   "name": "Route_SouthWall_10",
    "parent": "Route/Foliage",
    "position": [
     6.891,
@@ -26097,7 +25103,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Route_SouthWall_12",
+   "name": "Route_SouthWall_11",
    "parent": "Route/Foliage",
    "position": [
     6.821,
@@ -26120,7 +25126,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_SouthWall_13",
+   "name": "Route_SouthWall_12",
    "parent": "Route/Foliage",
    "position": [
     7.174,
@@ -26143,7 +25149,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_SouthWall_14",
+   "name": "Route_SouthWall_13",
    "parent": "Route/Foliage",
    "position": [
     9.923,
@@ -26166,7 +25172,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
-   "name": "Route_SouthWall_15",
+   "name": "Route_SouthWall_14",
    "parent": "Route/Foliage",
    "position": [
     8.286,
@@ -26189,7 +25195,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_SouthWall_16",
+   "name": "Route_SouthWall_15",
    "parent": "Route/Foliage",
    "position": [
     10.606,
@@ -26212,7 +25218,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
-   "name": "Route_SouthWall_17",
+   "name": "Route_SouthWall_16",
    "parent": "Route/Foliage",
    "position": [
     11.479,
@@ -26235,7 +25241,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Route_SouthWall_18",
+   "name": "Route_SouthWall_17",
    "parent": "Route/Foliage",
    "position": [
     10.542,
@@ -26258,7 +25264,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
-   "name": "Route_SouthWall_19",
+   "name": "Route_SouthWall_18",
    "parent": "Route/Foliage",
    "position": [
     12.111,
@@ -26281,7 +25287,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_SouthWall_20",
+   "name": "Route_SouthWall_19",
    "parent": "Route/Foliage",
    "position": [
     13.685,
@@ -26304,7 +25310,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
-   "name": "Route_SouthWall_21",
+   "name": "Route_SouthWall_20",
    "parent": "Route/Foliage",
    "position": [
     11.848,
@@ -26327,7 +25333,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Route_SouthWall_22",
+   "name": "Route_SouthWall_21",
    "parent": "Route/Foliage",
    "position": [
     12.761,
@@ -26970,31 +25976,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Route_StreamSouth_28",
-   "parent": "Route/Foliage",
-   "position": [
-    32.627,
-    -0.599,
-    9.616
-   ],
-   "rotation": [
-    0.0,
-    187.5,
-    0.0
-   ],
-   "scale": [
-    0.94,
-    0.94,
-    0.94
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
-   "name": "Route_StreamSouth_29",
+   "name": "Route_StreamSouth_28",
    "parent": "Route/Foliage",
    "position": [
     35.972,
@@ -27017,7 +26000,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_StreamSouth_30",
+   "name": "Route_StreamSouth_29",
    "parent": "Route/Foliage",
    "position": [
     34.051,
@@ -27040,7 +26023,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_StreamSouth_31",
+   "name": "Route_StreamSouth_30",
    "parent": "Route/Foliage",
    "position": [
     35.889,
@@ -27063,7 +26046,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
-   "name": "Route_StreamSouth_32",
+   "name": "Route_StreamSouth_31",
    "parent": "Route/Foliage",
    "position": [
     35.039,
@@ -27086,7 +26069,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
-   "name": "Route_StreamSouth_33",
+   "name": "Route_StreamSouth_32",
    "parent": "Route/Foliage",
    "position": [
     35.498,
@@ -27109,7 +26092,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Route_StreamSouth_34",
+   "name": "Route_StreamSouth_33",
    "parent": "Route/Foliage",
    "position": [
     38.254,
@@ -27132,7 +26115,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_StreamSouth_35",
+   "name": "Route_StreamSouth_34",
    "parent": "Route/Foliage",
    "position": [
     35.831,
@@ -27155,7 +26138,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
-   "name": "Route_StreamSouth_36",
+   "name": "Route_StreamSouth_35",
    "parent": "Route/Foliage",
    "position": [
     40.286,
@@ -27178,7 +26161,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_StreamSouth_37",
+   "name": "Route_StreamSouth_36",
    "parent": "Route/Foliage",
    "position": [
     37.612,
@@ -27201,7 +26184,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_StreamSouth_38",
+   "name": "Route_StreamSouth_37",
    "parent": "Route/Foliage",
    "position": [
     37.673,
@@ -27224,7 +26207,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_StreamSouth_39",
+   "name": "Route_StreamSouth_38",
    "parent": "Route/Foliage",
    "position": [
     42.158,
@@ -27247,7 +26230,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_StreamSouth_40",
+   "name": "Route_StreamSouth_39",
    "parent": "Route/Foliage",
    "position": [
     40.587,
@@ -27270,7 +26253,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Route_StreamSouth_41",
+   "name": "Route_StreamSouth_40",
    "parent": "Route/Foliage",
    "position": [
     41.341,
@@ -27293,7 +26276,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
-   "name": "Route_StreamSouth_42",
+   "name": "Route_StreamSouth_41",
    "parent": "Route/Foliage",
    "position": [
     39.378,
@@ -27316,7 +26299,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Route_StreamSouth_43",
+   "name": "Route_StreamSouth_42",
    "parent": "Route/Foliage",
    "position": [
     43.313,
@@ -27339,7 +26322,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
-   "name": "Route_StreamSouth_44",
+   "name": "Route_StreamSouth_43",
    "parent": "Route/Foliage",
    "position": [
     44.61,
@@ -27362,7 +26345,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Route_StreamSouth_45",
+   "name": "Route_StreamSouth_44",
    "parent": "Route/Foliage",
    "position": [
     41.995,
@@ -27385,7 +26368,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_StreamSouth_46",
+   "name": "Route_StreamSouth_45",
    "parent": "Route/Foliage",
    "position": [
     44.871,
@@ -27499,31 +26482,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_StreamNorth_05",
-   "parent": "Route/Foliage",
-   "position": [
-    22.369,
-    -0.788,
-    19.117
-   ],
-   "rotation": [
-    0.0,
-    313.69,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_StreamNorth_06",
+   "name": "Route_StreamNorth_05",
    "parent": "Route/Foliage",
    "position": [
     25.236,
@@ -27546,7 +26506,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_StreamNorth_07",
+   "name": "Route_StreamNorth_06",
    "parent": "Route/Foliage",
    "position": [
     23.399,
@@ -27569,7 +26529,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_StreamNorth_08",
+   "name": "Route_StreamNorth_07",
    "parent": "Route/Foliage",
    "position": [
     24.966,
@@ -27592,7 +26552,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_StreamNorth_09",
+   "name": "Route_StreamNorth_08",
    "parent": "Route/Foliage",
    "position": [
     25.721,
@@ -27614,77 +26574,31 @@
    "static": true
   },
   {
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
+   "name": "Route_StreamNorth_09",
+   "parent": "Route/Foliage",
+   "position": [
+    27.31,
+    -0.869,
+    17.774
+   ],
+   "rotation": [
+    0.0,
+    70.12,
+    0.0
+   ],
+   "scale": [
+    1.147,
+    1.147,
+    1.147
+   ],
+   "layer": "Environment",
+   "tag": "Untagged",
+   "static": true
+  },
+  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
    "name": "Route_StreamNorth_10",
-   "parent": "Route/Foliage",
-   "position": [
-    25.123,
-    -0.839,
-    19.776
-   ],
-   "rotation": [
-    0.0,
-    285.05,
-    0.0
-   ],
-   "scale": [
-    1.112,
-    1.112,
-    1.112
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_StreamNorth_11",
-   "parent": "Route/Foliage",
-   "position": [
-    26.316,
-    -0.864,
-    16.874
-   ],
-   "rotation": [
-    0.0,
-    176.35,
-    0.0
-   ],
-   "scale": [
-    1.067,
-    1.067,
-    1.067
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Route_StreamNorth_12",
-   "parent": "Route/Foliage",
-   "position": [
-    26.881,
-    -0.87,
-    18.458
-   ],
-   "rotation": [
-    0.0,
-    131.61,
-    0.0
-   ],
-   "scale": [
-    1.057,
-    1.057,
-    1.057
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_StreamNorth_13",
    "parent": "Route/Foliage",
    "position": [
     29.266,
@@ -27707,7 +26621,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_StreamNorth_14",
+   "name": "Route_StreamNorth_11",
    "parent": "Route/Foliage",
    "position": [
     30.323,
@@ -27730,7 +26644,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_StreamNorth_15",
+   "name": "Route_StreamNorth_12",
    "parent": "Route/Foliage",
    "position": [
     29.722,
@@ -27752,54 +26666,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_StreamNorth_16",
-   "parent": "Route/Foliage",
-   "position": [
-    30.345,
-    -0.8,
-    19.371
-   ],
-   "rotation": [
-    0.0,
-    245.12,
-    0.0
-   ],
-   "scale": [
-    0.961,
-    0.961,
-    0.961
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Route_StreamNorth_17",
-   "parent": "Route/Foliage",
-   "position": [
-    31.812,
-    -1.616,
-    17.902
-   ],
-   "rotation": [
-    0.0,
-    332.27,
-    0.0
-   ],
-   "scale": [
-    1.088,
-    1.088,
-    1.088
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_StreamNorth_18",
+   "name": "Route_StreamNorth_13",
    "parent": "Route/Foliage",
    "position": [
     30.903,
@@ -27821,8 +26689,31 @@
    "static": true
   },
   {
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
+   "name": "Route_StreamNorth_14",
+   "parent": "Route/Foliage",
+   "position": [
+    31.963,
+    -0.794,
+    19.941
+   ],
+   "rotation": [
+    0.0,
+    30.21,
+    0.0
+   ],
+   "scale": [
+    1.188,
+    1.188,
+    1.188
+   ],
+   "layer": "Environment",
+   "tag": "Untagged",
+   "static": true
+  },
+  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_StreamNorth_19",
+   "name": "Route_StreamNorth_15",
    "parent": "Route/Foliage",
    "position": [
     30.107,
@@ -27845,7 +26736,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_StreamNorth_20",
+   "name": "Route_StreamNorth_16",
    "parent": "Route/Foliage",
    "position": [
     33.096,
@@ -27868,7 +26759,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Route_StreamNorth_21",
+   "name": "Route_StreamNorth_17",
    "parent": "Route/Foliage",
    "position": [
     31.6,
@@ -27891,30 +26782,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_StreamNorth_22",
-   "parent": "Route/Foliage",
-   "position": [
-    33.231,
-    -1.122,
-    22.971
-   ],
-   "rotation": [
-    0.0,
-    287.2,
-    0.0
-   ],
-   "scale": [
-    1.117,
-    1.117,
-    1.117
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_StreamNorth_23",
+   "name": "Route_StreamNorth_18",
    "parent": "Route/Foliage",
    "position": [
     30.452,
@@ -27937,7 +26805,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Route_StreamNorth_24",
+   "name": "Route_StreamNorth_19",
    "parent": "Route/Foliage",
    "position": [
     33.727,
@@ -27960,7 +26828,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_StreamNorth_25",
+   "name": "Route_StreamNorth_20",
    "parent": "Route/Foliage",
    "position": [
     35.215,
@@ -27983,7 +26851,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Route_StreamNorth_26",
+   "name": "Route_StreamNorth_21",
    "parent": "Route/Foliage",
    "position": [
     34.843,
@@ -28005,31 +26873,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Route_StreamNorth_27",
-   "parent": "Route/Foliage",
-   "position": [
-    33.98,
-    -2.567,
-    27.188
-   ],
-   "rotation": [
-    0.0,
-    135.18,
-    0.0
-   ],
-   "scale": [
-    1.0,
-    1.0,
-    1.0
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Route_StreamNorth_28",
+   "name": "Route_StreamNorth_22",
    "parent": "Route/Foliage",
    "position": [
     36.803,
@@ -28948,6 +27793,29 @@
    "static": true
   },
   {
+   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_A.fbx",
+   "name": "Route_VergeRock_06",
+   "parent": "Route/Terrain",
+   "position": [
+    17.049,
+    -1.585,
+    13.924
+   ],
+   "rotation": [
+    0.0,
+    30.41,
+    0.0
+   ],
+   "scale": [
+    1.002,
+    1.002,
+    1.002
+   ],
+   "layer": "Environment",
+   "tag": "Untagged",
+   "static": true
+  },
+  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Fern_B.fbx",
    "name": "Route_RampVerge_01",
    "parent": "Route/Foliage",
@@ -29500,31 +28368,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Lake_ShoreTrees_15",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    28.789,
-    -1.734,
-    44.176
-   ],
-   "rotation": [
-    0.0,
-    48.92,
-    0.0
-   ],
-   "scale": [
-    0.923,
-    0.923,
-    0.923
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
-   "name": "Lake_ShoreTrees_16",
+   "name": "Lake_ShoreTrees_15",
    "parent": "Lakeside/Foliage",
    "position": [
     29.407,
@@ -29547,7 +28392,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Lake_ShoreTrees_17",
+   "name": "Lake_ShoreTrees_16",
    "parent": "Lakeside/Foliage",
    "position": [
     31.996,
@@ -29570,7 +28415,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Lake_ShoreTrees_18",
+   "name": "Lake_ShoreTrees_17",
    "parent": "Lakeside/Foliage",
    "position": [
     30.364,
@@ -29593,7 +28438,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Lake_ShoreTrees_19",
+   "name": "Lake_ShoreTrees_18",
    "parent": "Lakeside/Foliage",
    "position": [
     28.989,
@@ -29616,7 +28461,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Lake_ShoreTrees_20",
+   "name": "Lake_ShoreTrees_19",
    "parent": "Lakeside/Foliage",
    "position": [
     30.961,
@@ -29639,7 +28484,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Lake_ShoreTrees_21",
+   "name": "Lake_ShoreTrees_20",
    "parent": "Lakeside/Foliage",
    "position": [
     29.266,
@@ -29662,7 +28507,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Lake_ShoreTrees_22",
+   "name": "Lake_ShoreTrees_21",
    "parent": "Lakeside/Foliage",
    "position": [
     33.248,
@@ -29685,7 +28530,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Lake_ShoreTrees_23",
+   "name": "Lake_ShoreTrees_22",
    "parent": "Lakeside/Foliage",
    "position": [
     29.276,
@@ -29708,7 +28553,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Lake_ShoreTrees_24",
+   "name": "Lake_ShoreTrees_23",
    "parent": "Lakeside/Foliage",
    "position": [
     30.775,
@@ -29731,7 +28576,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
-   "name": "Lake_ShoreTrees_25",
+   "name": "Lake_ShoreTrees_24",
    "parent": "Lakeside/Foliage",
    "position": [
     28.992,
@@ -29754,7 +28599,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_B.fbx",
-   "name": "Lake_ShoreTrees_26",
+   "name": "Lake_ShoreTrees_25",
    "parent": "Lakeside/Foliage",
    "position": [
     32.994,
@@ -29777,7 +28622,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
-   "name": "Lake_ShoreTrees_27",
+   "name": "Lake_ShoreTrees_26",
    "parent": "Lakeside/Foliage",
    "position": [
     32.133,
@@ -29800,7 +28645,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_A.fbx",
-   "name": "Lake_ShoreTrees_28",
+   "name": "Lake_ShoreTrees_27",
    "parent": "Lakeside/Foliage",
    "position": [
     30.922,
@@ -29823,7 +28668,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Lake_ShoreTrees_29",
+   "name": "Lake_ShoreTrees_28",
    "parent": "Lakeside/Foliage",
    "position": [
     30.544,
@@ -29845,31 +28690,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Lake_ShoreTrees_30",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    33.918,
-    -2.338,
-    56.207
-   ],
-   "rotation": [
-    0.0,
-    213.63,
-    0.0
-   ],
-   "scale": [
-    1.105,
-    1.105,
-    1.105
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Willow_C.fbx",
-   "name": "Lake_ShoreTrees_31",
+   "name": "Lake_ShoreTrees_29",
    "parent": "Lakeside/Foliage",
    "position": [
     33.69,
@@ -29892,7 +28714,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Lake_ShoreTrees_32",
+   "name": "Lake_ShoreTrees_30",
    "parent": "Lakeside/Foliage",
    "position": [
     31.254,
@@ -29937,100 +28759,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
    "name": "Lake_SouthTrees_02",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    44.886,
-    -3.17,
-    23.422
-   ],
-   "rotation": [
-    0.0,
-    156.85,
-    0.0
-   ],
-   "scale": [
-    0.951,
-    0.951,
-    0.951
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_SouthTrees_03",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    44.217,
-    -2.353,
-    22.189
-   ],
-   "rotation": [
-    0.0,
-    211.09,
-    0.0
-   ],
-   "scale": [
-    1.117,
-    1.117,
-    1.117
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Lake_SouthTrees_04",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    45.621,
-    -1.671,
-    20.355
-   ],
-   "rotation": [
-    0.0,
-    296.35,
-    0.0
-   ],
-   "scale": [
-    1.028,
-    1.028,
-    1.028
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_SouthTrees_05",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    45.787,
-    -3.449,
-    23.656
-   ],
-   "rotation": [
-    0.0,
-    57.13,
-    0.0
-   ],
-   "scale": [
-    1.06,
-    1.06,
-    1.06
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_SouthTrees_06",
    "parent": "Lakeside/Foliage",
    "position": [
     47.268,
@@ -30053,7 +28783,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_SouthTrees_07",
+   "name": "Lake_SouthTrees_03",
    "parent": "Lakeside/Foliage",
    "position": [
     48.031,
@@ -30075,54 +28805,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_SouthTrees_08",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    48.64,
-    -3.483,
-    22.82
-   ],
-   "rotation": [
-    0.0,
-    324.73,
-    0.0
-   ],
-   "scale": [
-    0.943,
-    0.943,
-    0.943
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_SouthTrees_09",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    48.768,
-    -2.638,
-    21.247
-   ],
-   "rotation": [
-    0.0,
-    83.65,
-    0.0
-   ],
-   "scale": [
-    1.065,
-    1.065,
-    1.065
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_SouthTrees_10",
+   "name": "Lake_SouthTrees_04",
    "parent": "Lakeside/Foliage",
    "position": [
     49.231,
@@ -30145,30 +28829,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_SouthTrees_11",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    50.207,
-    -3.318,
-    22.041
-   ],
-   "rotation": [
-    0.0,
-    8.83,
-    0.0
-   ],
-   "scale": [
-    0.989,
-    0.989,
-    0.989
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_SouthTrees_12",
+   "name": "Lake_SouthTrees_05",
    "parent": "Lakeside/Foliage",
    "position": [
     51.544,
@@ -30191,7 +28852,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_SouthTrees_13",
+   "name": "Lake_SouthTrees_06",
    "parent": "Lakeside/Foliage",
    "position": [
     51.487,
@@ -30214,7 +28875,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_SouthTrees_14",
+   "name": "Lake_SouthTrees_07",
    "parent": "Lakeside/Foliage",
    "position": [
     52.717,
@@ -30237,53 +28898,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Lake_SouthTrees_15",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    52.702,
-    -4.058,
-    23.258
-   ],
-   "rotation": [
-    0.0,
-    33.33,
-    0.0
-   ],
-   "scale": [
-    1.181,
-    1.181,
-    1.181
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_SouthTrees_16",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    52.631,
-    -2.764,
-    21.199
-   ],
-   "rotation": [
-    0.0,
-    271.7,
-    0.0
-   ],
-   "scale": [
-    0.982,
-    0.982,
-    0.982
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Lake_SouthTrees_17",
+   "name": "Lake_SouthTrees_08",
    "parent": "Lakeside/Foliage",
    "position": [
     53.792,
@@ -30306,7 +28921,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Lake_SouthTrees_18",
+   "name": "Lake_SouthTrees_09",
    "parent": "Lakeside/Foliage",
    "position": [
     55.808,
@@ -30329,7 +28944,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_SouthTrees_19",
+   "name": "Lake_SouthTrees_10",
    "parent": "Lakeside/Foliage",
    "position": [
     71.046,
@@ -30352,7 +28967,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_SouthTrees_20",
+   "name": "Lake_SouthTrees_11",
    "parent": "Lakeside/Foliage",
    "position": [
     72.513,
@@ -30443,54 +29058,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_EastTrees_04",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    76.502,
-    15.913,
-    37.798
-   ],
-   "rotation": [
-    0.0,
-    202.93,
-    0.0
-   ],
-   "scale": [
-    1.059,
-    1.059,
-    1.059
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Lake_EastTrees_05",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    77.752,
-    15.786,
-    38.968
-   ],
-   "rotation": [
-    0.0,
-    229.4,
-    0.0
-   ],
-   "scale": [
-    1.023,
-    1.023,
-    1.023
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_EastTrees_06",
+   "name": "Lake_EastTrees_04",
    "parent": "Lakeside/Foliage",
    "position": [
     75.487,
@@ -30512,23 +29081,23 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Lake_EastTrees_07",
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
+   "name": "Lake_EastTrees_05",
    "parent": "Lakeside/Foliage",
    "position": [
-    77.276,
-    15.782,
-    40.514
+    77.024,
+    15.79,
+    41.153
    ],
    "rotation": [
     0.0,
-    85.21,
+    238.33,
     0.0
    ],
    "scale": [
-    1.137,
-    1.137,
-    1.137
+    1.002,
+    1.002,
+    1.002
    ],
    "layer": "Environment",
    "tag": "Untagged",
@@ -30536,7 +29105,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Lake_EastTrees_08",
+   "name": "Lake_EastTrees_06",
    "parent": "Lakeside/Foliage",
    "position": [
     77.114,
@@ -30559,7 +29128,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_EastTrees_09",
+   "name": "Lake_EastTrees_07",
    "parent": "Lakeside/Foliage",
    "position": [
     75.108,
@@ -30582,7 +29151,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Lake_EastTrees_10",
+   "name": "Lake_EastTrees_08",
    "parent": "Lakeside/Foliage",
    "position": [
     78.529,
@@ -30605,7 +29174,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Lake_EastTrees_11",
+   "name": "Lake_EastTrees_09",
    "parent": "Lakeside/Foliage",
    "position": [
     74.65,
@@ -30628,7 +29197,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Lake_EastTrees_12",
+   "name": "Lake_EastTrees_10",
    "parent": "Lakeside/Foliage",
    "position": [
     78.646,
@@ -30651,7 +29220,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Lake_EastTrees_13",
+   "name": "Lake_EastTrees_11",
    "parent": "Lakeside/Foliage",
    "position": [
     75.574,
@@ -30674,30 +29243,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_EastTrees_14",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    76.619,
-    16.028,
-    49.703
-   ],
-   "rotation": [
-    0.0,
-    263.31,
-    0.0
-   ],
-   "scale": [
-    1.123,
-    1.123,
-    1.123
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_EastTrees_15",
+   "name": "Lake_EastTrees_12",
    "parent": "Lakeside/Foliage",
    "position": [
     75.695,
@@ -30720,7 +29266,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_EastTrees_16",
+   "name": "Lake_EastTrees_13",
    "parent": "Lakeside/Foliage",
    "position": [
     73.133,
@@ -30743,7 +29289,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Lake_EastTrees_17",
+   "name": "Lake_EastTrees_14",
    "parent": "Lakeside/Foliage",
    "position": [
     75.197,
@@ -30766,7 +29312,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_EastTrees_18",
+   "name": "Lake_EastTrees_15",
    "parent": "Lakeside/Foliage",
    "position": [
     73.57,
@@ -30789,7 +29335,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Lake_EastTrees_19",
+   "name": "Lake_EastTrees_16",
    "parent": "Lakeside/Foliage",
    "position": [
     76.241,
@@ -30812,7 +29358,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_B.fbx",
-   "name": "Lake_EastTrees_20",
+   "name": "Lake_EastTrees_17",
    "parent": "Lakeside/Foliage",
    "position": [
     73.763,
@@ -30835,7 +29381,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Lake_EastTrees_21",
+   "name": "Lake_EastTrees_18",
    "parent": "Lakeside/Foliage",
    "position": [
     75.535,
@@ -30858,7 +29404,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Lake_EastTrees_22",
+   "name": "Lake_EastTrees_19",
    "parent": "Lakeside/Foliage",
    "position": [
     71.137,
@@ -30880,54 +29426,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_EastTrees_23",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    73.803,
-    17.095,
-    57.263
-   ],
-   "rotation": [
-    0.0,
-    257.45,
-    0.0
-   ],
-   "scale": [
-    1.015,
-    1.015,
-    1.015
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx",
-   "name": "Lake_EastTrees_24",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    70.274,
-    16.201,
-    56.58
-   ],
-   "rotation": [
-    0.0,
-    57.4,
-    0.0
-   ],
-   "scale": [
-    1.048,
-    1.048,
-    1.048
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_C.fbx",
-   "name": "Lake_EastTrees_25",
+   "name": "Lake_EastTrees_20",
    "parent": "Lakeside/Foliage",
    "position": [
     70.543,
@@ -30949,31 +29449,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_EastTrees_26",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    69.605,
-    16.267,
-    57.876
-   ],
-   "rotation": [
-    0.0,
-    210.07,
-    0.0
-   ],
-   "scale": [
-    1.05,
-    1.05,
-    1.05
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_EastTrees_27",
+   "name": "Lake_EastTrees_21",
    "parent": "Lakeside/Foliage",
    "position": [
     68.636,
@@ -30996,7 +29473,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_EastTrees_28",
+   "name": "Lake_EastTrees_22",
    "parent": "Lakeside/Foliage",
    "position": [
     66.62,
@@ -31019,7 +29496,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_EastTrees_29",
+   "name": "Lake_EastTrees_23",
    "parent": "Lakeside/Foliage",
    "position": [
     70.29,
@@ -31042,7 +29519,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_EastTrees_30",
+   "name": "Lake_EastTrees_24",
    "parent": "Lakeside/Foliage",
    "position": [
     66.939,
@@ -31064,31 +29541,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Lake_EastTrees_31",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    67.761,
-    16.401,
-    61.504
-   ],
-   "rotation": [
-    0.0,
-    264.43,
-    0.0
-   ],
-   "scale": [
-    0.975,
-    0.975,
-    0.975
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Lake_EastTrees_32",
+   "name": "Lake_EastTrees_25",
    "parent": "Lakeside/Foliage",
    "position": [
     64.074,
@@ -31104,29 +29558,6 @@
     1.159,
     1.159,
     1.159
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Lake_EastTrees_33",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    66.522,
-    16.452,
-    62.245
-   ],
-   "rotation": [
-    0.0,
-    151.89,
-    0.0
-   ],
-   "scale": [
-    1.197,
-    1.197,
-    1.197
    ],
    "layer": "Environment",
    "tag": "Untagged",
@@ -31478,46 +29909,23 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Fern_B.fbx",
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Bush_A.fbx",
    "name": "Lake_BankCover_10",
    "parent": "Lakeside/Foliage",
    "position": [
-    32.484,
-    -0.874,
-    20.83
+    31.456,
+    -1.67,
+    17.248
    ],
    "rotation": [
     0.0,
-    65.89,
+    263.57,
     0.0
    ],
    "scale": [
-    0.886,
-    0.886,
-    0.886
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Fern_B.fbx",
-   "name": "Lake_BankCover_11",
-   "parent": "Lakeside/Foliage",
-   "position": [
-    34.57,
-    -1.763,
-    23.754
-   ],
-   "rotation": [
-    0.0,
-    170.83,
-    0.0
-   ],
-   "scale": [
-    0.852,
-    0.852,
-    0.852
+    0.875,
+    0.875,
+    0.875
    ],
    "layer": "Environment",
    "tag": "Untagged",
@@ -31525,7 +29933,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Bush_C.fbx",
-   "name": "Lake_BankCover_12",
+   "name": "Lake_BankCover_11",
    "parent": "Lakeside/Foliage",
    "position": [
     43.611,
@@ -31548,7 +29956,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Bush_B.fbx",
-   "name": "Lake_BankCover_13",
+   "name": "Lake_BankCover_12",
    "parent": "Lakeside/Foliage",
    "position": [
     40.866,
@@ -31618,29 +30026,6 @@
   {
    "prefab": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_A.fbx",
    "name": "Lake_BankRock_03",
-   "parent": "Lakeside/Terrain",
-   "position": [
-    34.2,
-    -2.07,
-    20.402
-   ],
-   "rotation": [
-    0.0,
-    234.58,
-    0.0
-   ],
-   "scale": [
-    0.913,
-    0.913,
-    0.913
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Rock_Boulder_A.fbx",
-   "name": "Lake_BankRock_04",
    "parent": "Lakeside/Terrain",
    "position": [
     44.288,
@@ -32490,29 +30875,6 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Terrain/Env_Cave_Rubble.fbx",
-   "name": "Cave_Rubble_02",
-   "parent": "Cave/Terrain",
-   "position": [
-    -16.364,
-    3.3,
-    57.984
-   ],
-   "rotation": [
-    0.0,
-    277.4,
-    0.0
-   ],
-   "scale": [
-    1.026,
-    1.026,
-    1.026
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Vine_Hanging_A.fbx",
    "name": "Cave_Vine_01",
    "parent": "Cave/Foliage",
@@ -32743,31 +31105,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_B.fbx",
-   "name": "Gorge_TreesEast_02",
-   "parent": "Cave/Foliage",
-   "position": [
-    6.354,
-    -0.625,
-    35.85
-   ],
-   "rotation": [
-    0.0,
-    300.99,
-    0.0
-   ],
-   "scale": [
-    0.803,
-    0.803,
-    0.803
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Gorge_TreesEast_03",
+   "name": "Gorge_TreesEast_02",
    "parent": "Cave/Foliage",
    "position": [
     4.899,
@@ -32790,7 +31129,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Gorge_TreesEast_04",
+   "name": "Gorge_TreesEast_03",
    "parent": "Cave/Foliage",
    "position": [
     5.757,
@@ -32806,29 +31145,6 @@
     0.952,
     0.952,
     0.952
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Gorge_TreesEast_05",
-   "parent": "Cave/Foliage",
-   "position": [
-    5.376,
-    3.253,
-    45.247
-   ],
-   "rotation": [
-    0.0,
-    29.16,
-    0.0
-   ],
-   "scale": [
-    0.848,
-    0.848,
-    0.848
    ],
    "layer": "Environment",
    "tag": "Untagged",
@@ -32858,31 +31174,8 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_C.fbx",
-   "name": "Gorge_TreesWest_02",
-   "parent": "Cave/Foliage",
-   "position": [
-    -1.117,
-    0.778,
-    30.539
-   ],
-   "rotation": [
-    0.0,
-    328.07,
-    0.0
-   ],
-   "scale": [
-    0.934,
-    0.934,
-    0.934
-   ],
-   "layer": "Environment",
-   "tag": "Untagged",
-   "static": true
-  },
-  {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Conifer_A.fbx",
-   "name": "Gorge_TreesWest_03",
+   "name": "Gorge_TreesWest_02",
    "parent": "Cave/Foliage",
    "position": [
     -0.899,
@@ -32950,8 +31243,31 @@
    "static": true
   },
   {
-   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Fern_A.fbx",
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Bush_A.fbx",
    "name": "Gorge_Verge_03",
+   "parent": "Cave/Foliage",
+   "position": [
+    7.176,
+    -0.582,
+    31.419
+   ],
+   "rotation": [
+    0.0,
+    42.7,
+    0.0
+   ],
+   "scale": [
+    1.186,
+    1.186,
+    1.186
+   ],
+   "layer": "Environment",
+   "tag": "Untagged",
+   "static": true
+  },
+  {
+   "prefab": "Assets/Game/Art/Environment/Foliage/Env_Fern_A.fbx",
+   "name": "Gorge_Verge_04",
    "parent": "Cave/Foliage",
    "position": [
     1.227,
@@ -32974,7 +31290,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Fern_A.fbx",
-   "name": "Gorge_Verge_04",
+   "name": "Gorge_Verge_05",
    "parent": "Cave/Foliage",
    "position": [
     5.686,
@@ -32997,7 +31313,7 @@
   },
   {
    "prefab": "Assets/Game/Art/Environment/Foliage/Env_Bush_A.fbx",
-   "name": "Gorge_Verge_05",
+   "name": "Gorge_Verge_06",
    "parent": "Cave/Foliage",
    "position": [
     5.116,

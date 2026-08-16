@@ -129,6 +129,13 @@ TREE_WILLOW = ["Env_Tree_Willow_A", "Env_Tree_Willow_B", "Env_Tree_Willow_C"]
 BUSHES = ["Env_Bush_A", "Env_Bush_B", "Env_Bush_C"]
 FERNS = ["Env_Fern_A", "Env_Fern_B"]
 GRASS = ["Env_Grass_Clump_A", "Env_Grass_Clump_B", "Env_Grass_Clump_C", "Env_Grass_Clump_D"]
+# Encounter cover, and the only assets that belong in a tall_grass field. The meadow
+# clumps above top out at 0.70 m, which is ankle height on a 1.7 m character: a field of
+# them reads as lawn, not as the thing wild Pokemon come out of. These stand 1.12-1.41 m,
+# so the player wades into them. They are also the only foliage authored for instancing
+# with no LODs and one material, which is what lets the fields be dense.
+TALL_GRASS = ["Env_TallGrass_Cluster_A", "Env_TallGrass_Cluster_B",
+              "Env_TallGrass_Cluster_C", "Env_TallGrass_Cluster_D"]
 BLADE = ["Env_Grass_Blade"]
 FLOWERS = ["Env_Flower_Red", "Env_Flower_Yellow", "Env_Flower_Purple", "Env_Flower_White"]
 REEDS = ["Env_Reed_A", "Env_Reed_B"]
@@ -846,21 +853,24 @@ def build():
 
     field("Field_Route_NorthGrass", "tall_grass",
           [(-4, 15.0), (4, 16.6), (11, 19.0), (14, 22.0), (11, 25.5), (2, 24.0), (-5, 20.5)],
-          4.0, [("Env_Grass_Clump_C", 4), ("Env_Grass_Clump_A", 3), ("Env_Grass_Clump_D", 2)],
+          16.0, [("Env_TallGrass_Cluster_A", 4), ("Env_TallGrass_Cluster_B", 3),
+                 ("Env_TallGrass_Cluster_D", 3), ("Env_TallGrass_Cluster_C", 2)],
           ROUTE + "/TallGrass", "Zone_Route",
           "The big encounter field, filling the gap between the road's north edge and the "
           "massif foot. One contiguous mass with a readable silhouette -- BDSP tall grass is "
           "never a sprinkle.", scale=(0.95, 1.25), encounters=True)
     field("Field_Route_SouthGrass", "tall_grass",
           [(-1, 10.0), (7, 11.2), (14.5, 14.0), (16, 17.0), (11, 17.5), (3, 15.0), (-3, 12.5)],
-          4.0, [("Env_Grass_Clump_C", 4), ("Env_Grass_Clump_A", 3), ("Env_Grass_Clump_B", 2)],
+          16.0, [("Env_TallGrass_Cluster_B", 4), ("Env_TallGrass_Cluster_A", 3),
+                 ("Env_TallGrass_Cluster_C", 3), ("Env_TallGrass_Cluster_D", 2)],
           ROUTE + "/TallGrass", "Zone_Route",
           "Second field, south verge. Deliberately narrower so the player can choose to "
           "skirt it -- avoidable encounters are what make the wide ones a decision.",
           scale=(0.95, 1.25), encounters=True)
     field("Field_Route_ShelfGrass", "tall_grass",
           [(5.5, 6.0), (10, 8.0), (13, 10.5), (13.5, 12.5), (9, 10.0), (5.0, 7.0)],
-          4.4, [("Env_Grass_Clump_C", 5), ("Env_Grass_Clump_A", 3)],
+          16.0, [("Env_TallGrass_Cluster_C", 4), ("Env_TallGrass_Cluster_A", 3),
+                 ("Env_TallGrass_Cluster_D", 3)],
           ROUTE + "/TallGrass", "Zone_Route",
           "On the shelf below the ledge, around the item ball. The reward for hopping down.",
           scale=(1.0, 1.3), encounters=True)
@@ -939,7 +949,8 @@ def build():
           "reads as open water you would want to surf across.", scale=(0.9, 1.4))
     field("Field_Lake_ShoreGrass", "tall_grass",
           [(39, 32), (47, 30), (53, 33), (51, 38), (43, 39)],
-          3.8, [("Env_Grass_Clump_C", 4), ("Env_Grass_Clump_A", 3)],
+          14.0, [("Env_TallGrass_Cluster_D", 4), ("Env_TallGrass_Cluster_B", 3),
+                 ("Env_TallGrass_Cluster_A", 2)],
           LAKE + "/TallGrass", "Zone_Lakeside",
           "Beach-side encounter field, the only one in the zone -- water Pokemon come from "
           "the surf trigger instead.", scale=(0.95, 1.25), encounters=True)
@@ -1007,7 +1018,8 @@ def build():
           "the whole colour note.", scale=(0.85, 1.3))
     field("Field_Cave_Grass", "tall_grass",
           [(-5, 58), (-13, 61.5), (-19.5, 64), (-20.5, 59.5), (-11, 56.0)],
-          3.0, [("Env_Grass_Clump_C", 3), ("Env_Moss_Cave_B", 2)],
+          12.0, [("Env_TallGrass_Cluster_B", 4), ("Env_TallGrass_Cluster_C", 3),
+                 ("Env_Moss_Cave_B", 2)],
           CAVE + "/TallGrass", "Zone_Cave",
           "The chamber's encounter patch, pushed to the back so the player has to commit to "
           "the dark before anything happens.", scale=(0.9, 1.15), encounters=True)
