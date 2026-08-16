@@ -379,7 +379,6 @@ namespace PokeLab.Boot.Editor
             if (go.GetComponent<EncounterDirector>() == null)
                 go.AddComponent<EncounterDirector>();
         }
-        }
 
         /// <summary>
         /// Writes a private serialized field. These components expect the inspector to
