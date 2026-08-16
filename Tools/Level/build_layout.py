@@ -370,7 +370,13 @@ HOUSES = [
 # The terrain there has no outcrop, so one is authored: a small shoulder raised at the
 # mouth, which is what makes a cave read as set into a bluff rather than as a hole in
 # a hillside.
-CAVE_MOUTH_X, CAVE_MOUTH_Z, CAVE_MOUTH_YAW = 5.0, 51.0, 190.0
+# 10, not 190. The asset used to be front/back symmetric, so nobody could tell which
+# way it faced; the rebuilt one has a real mouth on one side and a solid mass on the
+# other, and it authors its front at Blender -Y, which the generator now mirrors once
+# to the manifest's "+Z forward". With the old 190 the opening pointed into the
+# hillside and the approach met the back of it -- a domed slab of stone, which is
+# exactly what three review passes photographed.
+CAVE_MOUTH_X, CAVE_MOUTH_Z, CAVE_MOUTH_YAW = 5.0, 51.0, 10.0
 # The shelf sits in front of the opening, not under the whole mouth: the cliff
 # immediately behind the arch is what makes it a cave.
 # The bridge. Its pivot is at the base of the trestle and its walking surface is
@@ -381,9 +387,17 @@ CAVE_MOUTH_X, CAVE_MOUTH_Z, CAVE_MOUTH_YAW = 5.0, 51.0, 190.0
 BRIDGE_X, BRIDGE_Z, BRIDGE_Y = 13.0, 18.2, -1.190
 BRIDGE_BED = BRIDGE_Y - 0.05
 
-CAVE_SHELF_OFFSET = 2.6
-CAVE_SHELF_HALF_X = 3.4
-CAVE_SHELF_HALF_Z = 2.0
+# A cut, not a shelf. A height field cannot have a hole in it, so the only way the
+# mouth is visible at all is if the terrain around the headwall is taken away and the
+# stone face becomes the cliff. Two things had to be got right and both were wrong in
+# turn: it has to be as wide as the 8.6 m headwall (it was 3.4), and it has to reach
+# *behind* the declared mouth, because the asset's pivot sits 1.95 m in front of its
+# own mouth plane so the stone stands back from the point the design names. Cutting
+# only forward left the arch buried in the hillside and the path running into a blank
+# slab of terrain rock -- which is exactly what it looked like, twice.
+CAVE_SHELF_OFFSET = 0.4
+CAVE_SHELF_HALF_X = 5.2
+CAVE_SHELF_HALF_Z = 4.6
 
 CONFORM_SKIPS = [((13.6, 18.2), 2.1, "Bridge_Stream"),
                  ((33.2, 15.6), 1.9, "SteppingStones_Stream")]
@@ -483,7 +497,7 @@ def add_cave_outcrop(field):
     cx = CAVE_MOUTH_X + fx * CAVE_SHELF_OFFSET
     cz = CAVE_MOUTH_Z + fz * CAVE_SHELF_OFFSET
     height = field.height(CAVE_MOUTH_X, CAVE_MOUTH_Z)
-    field.add_pad(cx, cz, CAVE_SHELF_HALF_X, CAVE_SHELF_HALF_Z, height, 1.6)
+    field.add_pad(cx, cz, CAVE_SHELF_HALF_X, CAVE_SHELF_HALF_Z, height, 2.2)
 
 
 def add_building_pads(field, bounds):
@@ -1112,7 +1126,16 @@ def build():
     CAVE = "Cave"
     cave_floor = [(6.5, 49.0), (4.0, 53.5), (-2.0, 57.5), (-9.0, 61.0), (-16.0, 64.5),
                   (-21.5, 63.0), (-20.0, 57.0), (-13.0, 54.0), (-5.0, 51.5), (1.0, 47.5)]
-    b.place("Env_Cave_Arch", CAVE_MOUTH_X, CAVE_MOUTH_Z, CAVE_MOUTH_YAW, CAVE + "/Terrain", "Cave_Arch",
+    # Set back along its own facing. The asset's pivot is 1.95 m in FRONT of the
+    # mouth plane -- the throat is one-sided, so "base, XY centred" does not put the
+    # origin at the opening -- and placing the pivot on the declared mouth stands the
+    # solid headwall exactly where the hole is supposed to be. Which is what it did:
+    # the arch rendered as a blank slab of stone with no opening at all.
+    _cr = math.radians(CAVE_MOUTH_YAW)
+    b.place("Env_Cave_Arch",
+            CAVE_MOUTH_X - math.sin(_cr) * 1.95,
+            CAVE_MOUTH_Z - math.cos(_cr) * 1.95,
+            CAVE_MOUTH_YAW, CAVE + "/Terrain", "Cave_Arch",
             y=baked.at(2.2, 49.4))
 
     # Everything past the arch sits on the cave's own floor, not the massif's surface.

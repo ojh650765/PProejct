@@ -408,7 +408,7 @@ def mask_stream_channel(rows, x0, z0, step, line, half_width, lake_y):
                 out[iz][ix] = 99.0
     return out
 
-def build_stream(body, grid):
+def build_stream(body, grid, stop_polygon=None):
     """A flowing ribbon whose surface falls along its length.
 
     The stream has no single waterline: it drops 1.70 m over 66 m, so holding it at
@@ -429,6 +429,20 @@ def build_stream(body, grid):
     if len(line) < 2:
         return None
     half = float(body.get("halfWidth", 1.5))
+
+    # Stop where the lake takes over. The stream's last rungs sit inside the lake
+    # polygon at the same height, so both surfaces were drawn over the same water and
+    # z-fought -- visible as a patchwork of slightly different tones near the mouth.
+    # One overlapping rung is kept so the two meshes meet rather than leaving a seam.
+    if stop_polygon:
+        cut = len(line)
+        for i, (x, _, z) in enumerate(line):
+            if point_in_poly(x, z, stop_polygon):
+                cut = min(len(line), i + 2)
+                break
+        line = line[:cut]
+        if len(line) < 2:
+            return None
     # Cap the search so a rung crossing an unusually flat bank cannot run away across
     # the meadow; past this the bank is too shallow for the trick to help anyway.
     # Kept short. The point is to bury the seam inside the bank, not to flood it: at
@@ -486,12 +500,33 @@ def build_water(layout, grid):
     for its swell and a two-triangle lake cannot show a wave.
     """
     out = []
+
+    # Still bodies are traced first, so a flowing one can be told where to stop. The
+    # stream's last rungs sit inside the lake at the same height, and drawing both
+    # left two surfaces over the same water: a patchwork of slightly different tones
+    # near the mouth, and holes wherever the two z-fought.
+    still = {}
+    for body in layout["terrain"].get("water", []):
+        if "centreline" in body or "surfaceY" not in body:
+            continue
+        y = float(body["surfaceY"])
+        rows = grid.rows
+        for other in layout["terrain"].get("water", []):
+            if "centreline" not in other:
+                continue
+            line = [tuple(float(v) for v in p) for p in other["centreline"]]
+            rows = mask_stream_channel(rows, grid.x0, grid.z0, grid.step, line,
+                                       float(other.get("halfWidth", 1.5)), y)
+        still[body["name"]] = contour(rows, grid.x0, grid.z0, grid.step, y)
+
+    receiving = next(iter(still.values()), None)
+
     for body in layout["terrain"].get("water", []):
         # Discriminated on the centreline, not on the absence of a polygon: the
         # stream ships both, and its polygon is only the ribbon's flat outline —
         # using it would hold a watercourse that falls 1.7 m at a single height.
         if "centreline" in body:
-            strip = build_stream(body, grid)
+            strip = build_stream(body, grid, receiving)
             if strip:
                 out.append(strip)
             continue
@@ -505,14 +540,7 @@ def build_water(layout, grid):
         # surface ended in mid-slope with a dry pit beside it and its own edge standing
         # proud of the ground. The waterline is not a design choice — it is wherever the
         # terrain crosses this height — so it is derived here.
-        rows = grid.rows
-        for other in layout["terrain"].get("water", []):
-            if "centreline" not in other:
-                continue
-            line = [tuple(float(v) for v in p) for p in other["centreline"]]
-            rows = mask_stream_channel(rows, grid.x0, grid.z0, grid.step, line,
-                                       float(other.get("halfWidth", 1.5)), y)
-        traced = contour(rows, grid.x0, grid.z0, grid.step, y)
+        traced = still.get(body["name"], [])
         poly = traced if len(traced) >= 3 else [
             (float(p[0]), float(p[1])) for p in body.get("polygon", [])]
         if len(poly) < 3:

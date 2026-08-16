@@ -1097,19 +1097,19 @@
   "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -4.451,
+   -4.6741,
    0.0,
-   -4.4469
+   -4.4678
   ],
   "max": [
-   4.451,
+   4.6741,
    6.5916,
-   4.4469
+   4.4678
   ],
   "size": [
-   8.902,
+   9.3481,
    6.5916,
-   8.8939
+   8.9356
   ]
  },
  "Env_Cave_Stalactite_A": {

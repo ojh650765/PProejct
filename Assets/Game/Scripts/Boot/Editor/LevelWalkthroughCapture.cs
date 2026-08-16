@@ -265,7 +265,13 @@ namespace PokeLab.Boot.Editor
             // building it was asked to look at, so the review frame is a picture of the
             // inside of a wall rather than of anything the player would ever see.
             var back = -(rotation * Vector3.forward);
-            if (Physics.SphereCast(focus, 0.32f, back, out var hit, distance,
+            // Suppressible per station. Pulling in is right for a review frame taken
+            // from where the player stands, and wrong for an inspection shot that is
+            // deliberately outside or above the level: there it drags the camera into
+            // the nearest hill and photographs the inside of it, which is how three
+            // passes of "look at the cave" came back as flat dark green.
+            if (!station.noOcclusion &&
+                Physics.SphereCast(focus, 0.32f, back, out var hit, distance,
                                    ~0, QueryTriggerInteraction.Ignore))
             {
                 distance = Mathf.Max(1.2f, hit.distance - 0.16f);
@@ -310,6 +316,7 @@ namespace PokeLab.Boot.Editor
             public float pitch;
             public bool overrideDistance;
             public float distance;
+            public bool noOcclusion;
         }
 
         [Serializable]

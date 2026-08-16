@@ -242,6 +242,14 @@ def audit_buried(layout, bounds, threshold, grid):
             continue
         if buried <= threshold and buried / height <= 0.2:
             continue
+        # The same exemptions as the floating check, and for the same reason read the
+        # other way round: a bridge's abutments are *supposed* to be buried in the
+        # bank, and lifting one until its base clears the ground stands the whole
+        # abutment proud like a plinth. That is precisely what happened -- the fix
+        # raised Route_Bridge_01 by 1.13 m, out of the banks it had just been seated
+        # into.
+        if is_exempt(obj["name"], obj["prefab"]):
+            continue
         found.append({
             "name": obj["name"],
             "prefab": obj["prefab"].split("/")[-1],
