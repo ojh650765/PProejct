@@ -806,6 +806,15 @@ namespace PokeLab.Overworld
 
         // --- Starter -------------------------------------------------------------------------
 
+        /// <summary>
+        /// True while the runner is waiting for the player to pick a starter.
+        ///
+        /// The presentation layer needs to know it is being asked, and StarterSelection only
+        /// raises the answer. Without this the choice screen has no cue to appear on, and
+        /// the moment the whole opening builds to resolves on a timeout.
+        /// </summary>
+        public bool IsAwaitingStarter { get; private set; }
+
         private IEnumerator RunStarterChoice()
         {
             if (_starterSelection == null)
@@ -819,6 +828,7 @@ namespace PokeLab.Overworld
             var done = false;
             void OnChosen(StarterOption _) => done = true;
             _starterSelection.Chosen += OnChosen;
+            IsAwaitingStarter = true;
 
             // Presentation subscribes to StarterSelection and calls Choose; the runner
             // only waits. That keeps the moment independent of how it is drawn.
@@ -830,6 +840,7 @@ namespace PokeLab.Overworld
             }
 
             _starterSelection.Chosen -= OnChosen;
+            IsAwaitingStarter = false;
 
             if (!done)
             {

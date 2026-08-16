@@ -212,6 +212,43 @@ namespace PokeLab.Boot.Editor
             Debug.Log($"[Rig] Repaired {repairs} thing(s) on the existing rig in '{scene.name}'.");
         }
 
+        /// <summary>
+        /// The screen wipe and the director that drives it.
+        ///
+        /// GameFlowController warns "No transition director; falling back to a timed hold"
+        /// and then does exactly that: the screen does not change, the player is frozen for
+        /// a fixed number of seconds, and a battle happens somewhere they cannot see. The
+        /// director is what turns that hold into a transition, and it was in the project
+        /// and in no scene.
+        ///
+        /// The overlay builds its own canvas and material in Awake, so it needs nothing
+        /// authored — only to exist, and to be handed to the director.
+        /// </summary>
+        private static void BuildTransitions(GameObject hosts, OverworldCameraRig rig)
+        {
+            var existing = Object.FindFirstObjectByType<PokeLab.Cinematics.TransitionDirector>();
+            if (existing == null)
+            {
+                var go = new GameObject("Transitions");
+                go.transform.SetParent(hosts.transform, false);
+
+                var overlay = go.AddComponent<PokeLab.Cinematics.ScreenTransitionOverlay>();
+                existing = go.AddComponent<PokeLab.Cinematics.TransitionDirector>();
+                Assign(existing, "overlay", overlay);
+            }
+
+            // The brain is what a transition blends through; without it the director has
+            // nothing to hand the camera over to.
+            var camera = Camera.main;
+            if (camera != null)
+                Assign(existing, "brain", camera.GetComponent<CinemachineBrain>());
+
+            Assign(existing, "overworldFollowCamera", rig.GetComponent<CinemachineCamera>());
+
+            var flow = hosts.GetComponent<GameFlowController>();
+            if (flow != null) flow.SetTransitionDirector(existing);
+        }
+
         /// <summary>Components on GameHosts, so Repair can tell whether it added any.</summary>
         private static int CountHosts()
         {
@@ -436,6 +473,17 @@ namespace PokeLab.Boot.Editor
             // into a place where the player keeps walking.
             if (go.GetComponent<PokeLab.Overworld.World.WorldStreamer>() == null)
                 go.AddComponent<PokeLab.Overworld.World.WorldStreamer>();
+
+            // The battle. BattleStage is pure C# and registers itself through this host, so
+            // without the host in the scene IGameFlow finds no stage and every encounter —
+            // wild or trainer — resolves as a silent simulation the player never sees.
+            if (go.GetComponent<PokeLab.Battle.BattleStageHost>() == null)
+                go.AddComponent<PokeLab.Battle.BattleStageHost>();
+
+            BuildTransitions(go, rig);
+
+            if (go.GetComponent<PokeLab.Boot.StarterPresenter>() == null)
+                go.AddComponent<PokeLab.Boot.StarterPresenter>();
         }
 
         /// <summary>

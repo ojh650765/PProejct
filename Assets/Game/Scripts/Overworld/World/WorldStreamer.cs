@@ -67,6 +67,12 @@ namespace PokeLab.Overworld.World
                  "stands on the line.")]
         [SerializeField] private float _unloadMargin = 80f;
 
+        [Tooltip("Load every band at startup and never unload. On a map this size that is " +
+                 "the right call: the whole world is 122 x 120 m, so holding both halves " +
+                 "costs a few thousand triangles and removes every chance of the player " +
+                 "outrunning a load. Turn it off only if the map grows past what fits.")]
+        [SerializeField] private bool _preloadAll = true;
+
         [SerializeField] private float _checkInterval = 0.5f;
 
         private Transform _player;
@@ -75,7 +81,33 @@ namespace PokeLab.Overworld.World
         /// <summary>Scenes this streamer currently has loaded, for anything that needs to ask.</summary>
         public static readonly HashSet<string> Streamed = new HashSet<string>();
 
-        private void Start() => StartCoroutine(Watch());
+        private void Start()
+        {
+            if (_preloadAll) StartCoroutine(PreloadAll());
+            else StartCoroutine(Watch());
+        }
+
+        /// <summary>
+        /// Brings every band in before the player takes a step.
+        ///
+        /// Streaming on approach still has a moment where the neighbour is arriving, and on
+        /// a walk toward the boundary that moment is visible as ground appearing. The user's
+        /// requirement was that the join not be felt at all, and the cheapest way to
+        /// guarantee that is to never do it while they are watching.
+        /// </summary>
+        private IEnumerator PreloadAll()
+        {
+            var active = SceneManager.GetActiveScene().name;
+            foreach (var band in _bands)
+            {
+                if (band == null || string.IsNullOrEmpty(band.scene)) continue;
+                if (band.scene == active) continue;
+                if (Array.IndexOf(_alreadyContained, band.scene) >= 0) continue;
+                if (SceneManager.GetSceneByName(band.scene).isLoaded) continue;
+
+                yield return Load(band.scene);
+            }
+        }
 
         private IEnumerator Watch()
         {
