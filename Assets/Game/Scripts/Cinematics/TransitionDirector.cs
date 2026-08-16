@@ -213,7 +213,7 @@ namespace PokeLab.Cinematics
                 // Opaque. The flow may now build the arena unseen.
                 stageReady.Fire();
 
-                PrepareBattleRoots();
+                PrepareBattleRoots(request);
                 yield return CinematicRunner.Wait(stagingHold);
 
                 // The rig is retargeted while still covered, so the first visible frame is
@@ -347,6 +347,12 @@ namespace PokeLab.Cinematics
                 if (freezeWorld) yield return ThawTime();
 
                 StagedMode = GameMode.Exploring;
+
+                // Fired here as well as in the finally. Without it the only path that ever
+                // released this sequence was the finally's abnormal one, so every successful
+                // reveal logged "released abnormally" — a warning that is always present is a
+                // warning nobody reads when it starts meaning something.
+                done.Fire();
             }
             finally
             {
@@ -359,7 +365,18 @@ namespace PokeLab.Cinematics
             }
         }
 
-        private void PrepareBattleRoots()
+        /// <summary>
+        /// Brings the arena up behind the cover.
+        ///
+        /// <paramref name="request"/> is what makes the battle happen somewhere rather than
+        /// nowhere: the arena is stood up at the spot the encounter fired and its field discs are
+        /// made of that zone's ground, so the backdrop is the cave when the fight starts in the
+        /// cave. <see cref="overworldRoot"/> is therefore expected to be <b>unassigned</b> for an
+        /// in-world arena — assigning it switches the level off and takes the backdrop with it.
+        /// It is kept for the other configuration, a dedicated set standing somewhere the player
+        /// never walks.
+        /// </summary>
+        private void PrepareBattleRoots(EncounterRequest request)
         {
             if (battleRoot != null) battleRoot.SetActive(true);
             if (overworldRoot != null && battleRoot != null && overworldRoot != battleRoot)
@@ -373,8 +390,34 @@ namespace PokeLab.Cinematics
 
             if (battlePresenter == null) return;
             battlePresenter.ResetForNewBattle();
+
+            var stage = battlePresenter.Stage;
+            if (stage != null && request != null)
+            {
+                stage.PlaceInWorld(request.WorldPosition, request.PlayerRotation);
+                stage.SetGroundSurface(SurfaceFor(request.BiomeId));
+            }
+
             // Ordered after the reset, which clears any hold left by a previous encounter.
             battlePresenter.HoldPerformance(coverDuration + stagingHold + revealDuration + 4f);
+        }
+
+        /// <summary>
+        /// Which terrain layer the field discs are made of, from the zone the encounter fired in.
+        ///
+        /// Matched on the biome id rather than on <c>ZoneKind</c> because the id is what the
+        /// request already carries, and reaching into the overworld assembly for an enum the
+        /// cinematics layer would use once is a dependency that buys nothing. Unknown ids fall
+        /// through to grass, which is wrong quietly rather than pink and loud.
+        /// </summary>
+        private static BattleFieldSurface SurfaceFor(string biomeId)
+        {
+            if (string.IsNullOrEmpty(biomeId)) return BattleFieldSurface.Grass;
+            string id = biomeId.ToLowerInvariant();
+            if (id.Contains("cave")) return BattleFieldSurface.Rock;
+            if (id.Contains("lake") || id.Contains("shore") || id.Contains("beach")) return BattleFieldSurface.Sand;
+            if (id.Contains("town")) return BattleFieldSurface.Dirt;
+            return BattleFieldSurface.Grass;
         }
 
         /// <summary>

@@ -55,6 +55,11 @@ namespace PokeLab.Boot.Editor
             Assign(player, "_cameraTransform", Camera.main != null ? Camera.main.transform : rig.transform);
             BuildHosts(player, input, rig);
 
+
+            // The arena, built by its own setup for the same reason the rig is: a scene
+            // rebuild otherwise produces a complete player and no battle to hand over to.
+            BattleArenaSetup.CreateArena();
+
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveOpenScenes();
             Debug.Log($"[Rig] Built the player rig in '{scene.name}' at {start}.");
@@ -229,6 +234,11 @@ namespace PokeLab.Boot.Editor
                 Debug.Log($"[Rig] '{scene.name}' already has a complete player rig.");
                 return;
             }
+
+
+            // The arena, built by its own setup for the same reason the rig is: a scene
+            // rebuild otherwise produces a complete player and no battle to hand over to.
+            BattleArenaSetup.CreateArena();
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveOpenScenes();

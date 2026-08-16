@@ -44,6 +44,12 @@ namespace PokeLab.Cinematics
         [SerializeField] private CreatureView playerView;
         [SerializeField] private CreatureView opponentView;
 
+        [Header("Field")]
+        [Tooltip("The lit patch each combatant stands on. Optional; the arena reads fine without " +
+                 "them and the creatures lose their contact with the ground.")]
+        [SerializeField] private BattleFieldDisc playerDisc;
+        [SerializeField] private BattleFieldDisc opponentDisc;
+
         private bool _built;
 
         /// <summary>Horizontal direction from the player's mark to the opponent's.</summary>
@@ -170,8 +176,71 @@ namespace PokeLab.Cinematics
             view.transform.localPosition = Vector3.zero;
             view.transform.localRotation = Quaternion.identity;
             view.Motion.ResetLayer();
+
+            // The traditional pair, pinned rather than derived. The player's creature is drawn
+            // from behind and the opponent's from the front — that is what the two sprite sheets
+            // are for, and it is a property of the layout rather than something to be recovered
+            // from the angle between a creature's forward and the lens.
+            view.ForceFacing(side == BattleSide.Player ? SpriteFacing.Back : SpriteFacing.Front);
             view.Bind(creature);
+
+            // Sized after the bind, never before: the display height is not known until the
+            // species is resolved, and a disc fitted to the previous occupant is worse than none
+            // — it tells the player the wrong thing about how big the thing standing on it is.
+            var disc = DiscOf(side);
+            if (disc != null) disc.Fit(view.DisplayHeight);
             return view;
+        }
+
+        /// <summary>The ground patch a side stands on, or null when the arena has none.</summary>
+        public BattleFieldDisc DiscOf(BattleSide side)
+        {
+            EnsureBuilt();
+            return side == BattleSide.Player ? playerDisc : opponentDisc;
+        }
+
+        /// <summary>
+        /// Sets which terrain layer both field discs are made of.
+        ///
+        /// Called once per encounter from whatever knows where the fight started. The discs are
+        /// the only part of the arena that is authored — everything else the player sees behind
+        /// the combatants is the level itself — so this is the whole of the arena's response to
+        /// "a cave fight happens in the cave".
+        /// </summary>
+        public void SetGroundSurface(BattleFieldSurface surface)
+        {
+            EnsureBuilt();
+            if (playerDisc != null) playerDisc.SetSurface(surface);
+            if (opponentDisc != null) opponentDisc.SetSurface(surface);
+        }
+
+        /// <summary>
+        /// Stands the arena up at the spot the encounter fired, facing the way the player was.
+        ///
+        /// This is what makes the backdrop the zone rather than a set: the fight is staged in the
+        /// live world, so the cave is the cave and the lakeside is the lakeside without anything
+        /// having to be built or kept in sync with a level that is regenerated constantly.
+        ///
+        /// Anchored on the <i>player's trainer mark</i> rather than on the stage centre, so the
+        /// player stands where they were standing and the field opens out in front of them. Any
+        /// other anchor puts the player's own creature behind them or drops the camera inside
+        /// whatever they were walking past.
+        /// </summary>
+        public void PlaceInWorld(Vector3 origin, Quaternion facing)
+        {
+            EnsureBuilt();
+
+            Vector3 forward = facing * Vector3.forward;
+            forward.y = 0f;
+            Quaternion flat = forward.sqrMagnitude < 1e-5f
+                ? Quaternion.identity
+                : Quaternion.LookRotation(forward.normalized, Vector3.up);
+
+            transform.SetPositionAndRotation(origin, flat);
+
+            Vector3 drift = origin - playerTrainerMark.position;
+            drift.y = 0f;
+            transform.position += drift;
         }
 
         /// <summary>Turns both creatures to face each other over <paramref name="duration"/> seconds.</summary>

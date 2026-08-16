@@ -89,6 +89,7 @@ namespace PokeLab.Cinematics
         private CreatureMotionLayer _motion;
         private Coroutine _turn;
         private CreatureAnimation _currentAnimation = CreatureAnimation.Idle;
+        private SpriteFacing? _forcedFacing;
         private bool _built;
         private bool _hidden;
 
@@ -115,6 +116,21 @@ namespace PokeLab.Cinematics
 
         /// <summary>Which authored view is on screen. <c>Back</c> for the player's creature in a battle.</summary>
         public SpriteFacing Facing => _billboard != null ? _billboard.Facing : SpriteFacing.Front;
+
+        /// <summary>
+        /// Pins the drawn view, or restores the automatic choice when passed null.
+        ///
+        /// Held on the view rather than only on the quad because a switch rebinds the art, and a
+        /// pin that did not survive that would hold for one creature and then quietly stop —
+        /// which shows up as the replacement being the only creature in the battle facing the
+        /// wrong way.
+        /// </summary>
+        public void ForceFacing(SpriteFacing? facing)
+        {
+            EnsureBuilt();
+            _forcedFacing = facing;
+            if (_billboard != null) _billboard.ForcedFacing = facing;
+        }
 
         // --- ICreatureView ----------------------------------------------------------------
 
@@ -449,6 +465,7 @@ namespace PokeLab.Cinematics
                 }
                 if (_ownBillboard != null) _ownBillboard.gameObject.SetActive(_billboard == _ownBillboard);
                 _billboard.Mirror = mirrorMode;
+                _billboard.ForcedFacing = _forcedFacing;
                 _billboard.Bind(speciesId, DisplayHeight, ResolvePortrait(speciesId));
 
                 if (!_billboard.HasArt)

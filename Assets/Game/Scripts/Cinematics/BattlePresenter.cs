@@ -98,7 +98,20 @@ namespace PokeLab.Cinematics
 
         private void OnEnable()
         {
-            if (claimStagedBattles) ClaimSimulation();
+            if (claimStagedBattles) ClaimSimulation(false);
+        }
+
+        /// <summary>
+        /// Second attempt at the claim, and the one allowed to complain.
+        ///
+        /// <c>OnEnable</c> can run before the stage host has registered — the arena is enabled
+        /// from inside a transition, and nothing orders that against another component's Awake.
+        /// Start runs after every Awake in the frame, so a claim that failed once has had its
+        /// chance by here and a claim that fails now is a real missing dependency.
+        /// </summary>
+        private void Start()
+        {
+            if (claimStagedBattles) ClaimSimulation(true);
         }
 
         private void OnDisable()
@@ -137,15 +150,18 @@ namespace PokeLab.Cinematics
         /// opening events before it raises <c>BattleStaged</c>, so a presenter that only
         /// subscribed on being claimed would miss the battle start and both send-outs.
         /// </summary>
-        private void ClaimSimulation()
+        private void ClaimSimulation(bool complainWhenMissing)
         {
             if (_simulation != null) return;
 
             if (!ServiceHub.TryGet<IBattleStage>(out var registered) || !(registered is Simulation concrete))
             {
-                Debug.LogWarning("[BattlePresenter] No PokeLab.Battle.BattleStage is registered, so this " +
-                                 "presenter cannot claim encounters and every battle will resolve as an " +
-                                 "unattended simulation. Add a BattleStageHost to the scene.", this);
+                if (complainWhenMissing)
+                {
+                    Debug.LogWarning("[BattlePresenter] No PokeLab.Battle.BattleStage is registered, so this " +
+                                     "presenter cannot claim encounters and every battle will resolve as an " +
+                                     "unattended simulation. Add a BattleStageHost to the scene.", this);
+                }
                 return;
             }
 
@@ -1105,6 +1121,10 @@ namespace PokeLab.Cinematics
                 // creature has shown its back sprite for the whole battle and this is the one
                 // beat that turns it around. Aimed along the camera's own view direction rather
                 // than at an arbitrary offset, so the front view lands square.
+                // Releases the pinned back view for this one beat, so the turn actually shows the
+                // front sprite. Pinned, the creature would rotate and go on showing its back,
+                // which reads as it turning away from its own victory.
+                winner.ForceFacing(null);
                 Vector3 outward = winner.transform.position - Rig.ViewDirection * 3f;
                 yield return winner.FaceTowardsAndWait(outward, 0.5f);
 

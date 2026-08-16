@@ -19,41 +19,31 @@ namespace PokeLab.Boot.Editor
     /// and in no scene. Nothing errored: from the simulation's point of view a battle with no
     /// audience is a battle.
     ///
-    /// The arena is built <b>inactive, in the overworld scene</b>, because that is what
-    /// <see cref="TransitionDirector"/>'s <c>battleRoot</c>/<c>overworldRoot</c> pair is for —
-    /// the director swaps two roots rather than loading a battle scene, which is why
-    /// <c>Battle.unity</c> is empty and is meant to stay that way.
+    /// <b>The arena is staged in the live world, not in a set.</b> It is built inactive in the
+    /// overworld scene and <see cref="TransitionDirector"/> stands it up at the spot the
+    /// encounter fired, with the level left switched on behind it. The alternative — four
+    /// authored dioramas, one per zone, switched in against a disabled overworld — was rejected
+    /// for one concrete reason: the level is regenerated from the layout tool constantly, so
+    /// four hand-built copies of it would be four things to notice had gone stale, and the
+    /// backdrop would be a place that resembles where the player is standing rather than the
+    /// place itself. Staging in the world makes a cave fight happen in the cave for free, and
+    /// correctly for zones nobody has authored yet.
     ///
-    /// It stands well away from the map rather than on it. The director disables the level
-    /// root during a battle, but the player, the NPCs and the lighting director are all
-    /// separate roots that stay live, so an arena built on top of the town would have the
-    /// frozen player standing in the middle of the shot.
+    /// What is authored is what the world cannot supply: the marks, the camera, and the lit
+    /// field disc under each combatant — see <see cref="BattleFieldDisc"/> for why a sprite
+    /// needs one.
+    ///
+    /// Follows the shape of <c>PlayerRigSetup</c>, including the repair path, because the scene
+    /// is rebuilt constantly and a builder that only works on a scene that has never seen it
+    /// runs exactly once and is then dead code.
     /// </summary>
     public static class BattleArenaSetup
     {
         private const string RootName = "BattleArena";
-        private const string LevelRootName = "Level";
 
+        /// <summary>The material the level ground is drawn with. The field discs share it so their grain continues the ground's.</summary>
         private const string TerrainMaterial =
             "Assets/Game/Art/Environment/Terrain/Materials/M_Ground_TerrainBlend.mat";
-
-        /// <summary>
-        /// Where the arena stands, in world space. Far enough from the 200 m slice that nothing
-        /// authored can reach it, and at ground level rather than buried: the terrain shader
-        /// derives its wetness and shore band from world height, so an arena sunk below the
-        /// map would be lit and shaded as lake bed.
-        /// </summary>
-        private static readonly Vector3 ArenaOrigin = new Vector3(1000f, 0f, 1000f);
-
-        /// <summary>
-        /// Radius of the arena floor, in metres. Solved rather than guessed: at the shipped
-        /// framing the camera sits ~7 m back and 2.6 m up, and the top of its frame meets the
-        /// ground plane about 24 m out. A disc smaller than that puts a hard edge and a band of
-        /// skybox across the back of every battle.
-        /// </summary>
-        private const float FloorRadius = 30f;
-
-        private const int FloorSegments = 64;
 
         [MenuItem("Tools/Poké Lab/Rebuild/Create Battle Arena In Open Scene", priority = 13)]
         public static void CreateArena()
@@ -63,72 +53,63 @@ namespace PokeLab.Boot.Editor
             var existing = FindArena();
             if (existing != null)
             {
-                // Repair rather than refuse, for the same reason PlayerRigSetup does: the scene
-                // is rebuilt constantly, and a builder that only works on a scene that has never
-                // seen it runs exactly once and is then dead code.
                 Repair(scene, existing);
                 return;
             }
 
             var root = new GameObject(RootName);
-            root.transform.position = ArenaOrigin;
             SetLayer(root, "BattleStage");
 
-            BuildFloor(root.transform);
             var stage = BuildStage(root.transform);
             var rig = BuildCameraRig(root.transform, stage);
             var presenter = BuildPresenter(root.transform, stage, rig);
 
-            // Last, and it matters that it is last: activating a child of an inactive root does
-            // nothing, but adding a component to an *active* root runs nothing either way in the
-            // editor, so the only thing this ordering protects is the reader's expectations.
             root.SetActive(false);
-
             WireTransitionDirector(root, presenter);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveOpenScenes();
-            Debug.Log($"[Arena] Built the battle arena in '{scene.name}' at {ArenaOrigin}, inactive.");
+            Debug.Log($"[Arena] Built the battle arena in '{scene.name}', inactive. " +
+                      "It is placed in the world when an encounter fires.");
         }
 
         /// <summary>
         /// Brings an already-built arena up to date.
         ///
-        /// Every fix here names the symptom it produces when absent, because each one is
-        /// something a serialized scene value can be silently wrong about — the scene's copy of
-        /// a field always wins over the code default, so changing a default alone looks like a
-        /// change that did not work.
+        /// Every fix names the symptom it produces when absent, because each one is something a
+        /// serialized scene value can be silently wrong about — the scene's copy of a field
+        /// always wins over the code default, so changing a default alone looks like a change
+        /// that did not work.
         /// </summary>
         private static void Repair(UnityEngine.SceneManagement.Scene scene, CinematicStage stage)
         {
             var repairs = 0;
             var root = ArenaRootOf(stage);
 
-            // A play session that ended in a battle leaves the arena enabled and the level root
-            // disabled. Loading that scene gives an overworld with no ground in it.
+            // A play session that ended in a battle leaves the arena enabled, standing in the
+            // middle of the map where the last encounter happened.
             if (root.activeSelf)
             {
                 root.SetActive(false);
                 repairs++;
             }
 
-            if (root.transform.parent == null &&
-                (root.transform.position - ArenaOrigin).sqrMagnitude > 0.01f)
+            // An arena left standing where the last battle happened, or parked off the map by an
+            // older version of this file that built a set instead of staging in the world. The
+            // stage is moved to the encounter on every battle, so the authored position is only
+            // ever what someone opening the scene sees.
+            if (root.transform.parent == null && root.transform.position != Vector3.zero)
             {
-                root.transform.position = ArenaOrigin;
+                root.transform.position = Vector3.zero;
+                repairs++;
+            }
+            if (stage.transform.localPosition != Vector3.zero)
+            {
+                stage.transform.localPosition = Vector3.zero;
                 repairs++;
             }
 
-            if (root.transform.Find("Floor") == null)
-            {
-                BuildFloor(root.transform);
-                repairs++;
-            }
-
-            // Marks and views. The stage creates whatever is missing at runtime, but only in
-            // memory: an arena repaired here can be inspected and nudged, and one that is not
-            // has an empty inspector that says nothing about where anything stands.
-            repairs += EnsureMarksAndViews(stage);
+            repairs += EnsureMarksViewsAndDiscs(stage);
 
             var rig = root.GetComponentInChildren<BattleCameraRig>(true);
             if (rig == null)
@@ -154,6 +135,10 @@ namespace PokeLab.Boot.Editor
                 Assign(presenter, "rig", rig);
             }
 
+            // Always re-wired. The level builder destroys and rebuilds the 'Level' root, which
+            // nulls anything pointing at it, and the arena root is a play-mode casualty in the
+            // same way — so a scene that has been rebuilt since the arena was built has a
+            // director holding references to objects that no longer exist.
             repairs += WireTransitionDirector(root, presenter);
 
             if (repairs == 0)
@@ -176,21 +161,22 @@ namespace PokeLab.Boot.Editor
             SetLayer(go, "BattleStage");
 
             var stage = go.AddComponent<CinematicStage>();
-            EnsureMarksAndViews(stage);
+            EnsureMarksViewsAndDiscs(stage);
             return stage;
         }
 
         /// <summary>
-        /// Creates the four marks, the stage centre and the two creature views, at the same
-        /// local positions <see cref="CinematicStage"/> would compute for itself.
+        /// Creates the four marks, the stage centre, the two creature views and the two field
+        /// discs, at the same local positions <see cref="CinematicStage"/> would compute for
+        /// itself.
         ///
         /// The numbers are read back out of the component rather than duplicated here, so a
         /// tuned <c>creatureSeparation</c> in the inspector is what gets built. Only the layout
-        /// is authored: everything the presenter needs beyond it — facings, the stage axis, the
-        /// burst points — is derived, and the stage rewrites the marks again on send-out to
-        /// suit the two creatures actually standing on them.
+        /// is authored: the facings, the stage axis and the burst points are derived, and the
+        /// stage rewrites the marks again on send-out to suit the two creatures actually
+        /// standing on them.
         /// </summary>
-        private static int EnsureMarksAndViews(CinematicStage stage)
+        private static int EnsureMarksViewsAndDiscs(CinematicStage stage)
         {
             var created = 0;
             var so = new SerializedObject(stage);
@@ -210,15 +196,18 @@ namespace PokeLab.Boot.Editor
                 new Vector3(stagger * 1.25f, 0f, half + setback));
 
             // The midpoint of the two creature marks, which by construction is the stage's own
-            // origin. Authored rather than left null, because the camera rig takes this
-            // transform as its framing anchor and a null one silently falls back to the rig's
-            // own position — several metres out, and the whole field then sits off centre.
+            // origin. Authored rather than left null, because the camera rig takes this transform
+            // as its framing anchor and a null one silently falls back to the rig's own position
+            // — several metres out, and the whole field then sits off centre.
             created += EnsureMark(so, stage, "stageCenter", "Mark_StageCenter", Vector3.zero);
 
             so.ApplyModifiedPropertiesWithoutUndo();
 
             created += EnsureView(stage, "playerView", "playerCreatureMark", "CreatureView_Player");
             created += EnsureView(stage, "opponentView", "opponentCreatureMark", "CreatureView_Opponent");
+
+            created += EnsureDisc(stage, "playerDisc", "playerCreatureMark", "FieldDisc_Player");
+            created += EnsureDisc(stage, "opponentDisc", "opponentCreatureMark", "FieldDisc_Opponent");
             return created;
         }
 
@@ -263,8 +252,7 @@ namespace PokeLab.Boot.Editor
             }
             if (property.objectReferenceValue != null) return 0;
 
-            var markProperty = so.FindProperty(markField);
-            var mark = markProperty != null ? markProperty.objectReferenceValue as Transform : null;
+            var mark = TransformOf(so, markField);
             if (mark == null) return 0;
 
             var go = new GameObject(viewName);
@@ -272,11 +260,50 @@ namespace PokeLab.Boot.Editor
             go.transform.localPosition = Vector3.zero;
             go.transform.localRotation = Quaternion.identity;
             // The Creature layer, not the arena's. The rig exempts whatever layer its subjects
-            // sit on from occlusion resolution, and a creature on the same layer as the floor
-            // would make every billboard an obstacle that shoves the camera.
+            // sit on from occlusion resolution, and a creature sharing a layer with the scenery
+            // would be an obstacle that shoves the camera off its authored angle.
             SetLayer(go, "Creature");
 
             property.objectReferenceValue = go.AddComponent<CreatureView>();
+            so.ApplyModifiedPropertiesWithoutUndo();
+            return 1;
+        }
+
+        private static int EnsureDisc(CinematicStage stage, string field, string markField, string discName)
+        {
+            var so = new SerializedObject(stage);
+            var property = so.FindProperty(field);
+            if (property == null) return 0;
+
+            var material = AssetDatabase.LoadAssetAtPath<Material>(TerrainMaterial);
+            if (material == null)
+            {
+                Debug.LogWarning($"[Arena] {TerrainMaterial} not found, so the field discs will draw " +
+                                 "with the error shader instead of the ground's own material.");
+            }
+
+            if (property.objectReferenceValue is BattleFieldDisc present)
+            {
+                // The material is re-applied on repair: the disc has to be made of the same thing
+                // the ground is, and a level rebuild can retarget which material that is.
+                Assign(present, "groundMaterial", material);
+                return 0;
+            }
+
+            var mark = TransformOf(so, markField);
+            if (mark == null) return 0;
+
+            var go = new GameObject(discName);
+            go.transform.SetParent(mark, false);
+            go.transform.localPosition = Vector3.zero;
+            go.AddComponent<MeshFilter>();
+            go.AddComponent<MeshRenderer>();
+            SetLayer(go, "Ground");
+
+            var disc = go.AddComponent<BattleFieldDisc>();
+            Assign(disc, "groundMaterial", material);
+
+            property.objectReferenceValue = disc;
             so.ApplyModifiedPropertiesWithoutUndo();
             return 1;
         }
@@ -295,16 +322,37 @@ namespace PokeLab.Boot.Editor
         }
 
         /// <summary>
-        /// The battle framing, written explicitly.
+        /// The battle framing, written explicitly, and it is a different camera from the one the
+        /// player explores with.
         ///
-        /// This is a separate camera set from the exploration rig and shares nothing with it.
-        /// The overworld camera is a fixed 8° pitch on an 8.5 m boom and is deliberately not
-        /// touched here: a battle framed at exploration angles is a top-down view of two
-        /// sprites, and an exploration camera pitched for battle is unplayable.
+        /// The overworld rig is a fixed 8° pitch on an 8.5 m boom and is deliberately not touched
+        /// here — a battle framed at exploration angles is a plan view of two sprites. The
+        /// reference framing is lower, closer and turned off the axis, so the near combatant is
+        /// visibly larger than the far one and the shot reads as real perspective rather than as
+        /// an isometric layout.
         ///
-        /// The rig builds its own <c>CinemachineCamera</c> per shot on Awake, so there is
-        /// nothing to author per shot — only the four numbers that place the single anchor
-        /// every shot shares, and the masks that decide what is allowed to push it.
+        /// The three numbers below are the whole of it, and each one has a failure it is set
+        /// against:
+        ///
+        /// <list type="bullet">
+        /// <item><b>Yaw 18°.</b> What separates the two combatants diagonally in frame; at 0 they
+        /// stack exactly, because both marks lie on the stage axis by definition. It is set well
+        /// below the rig's shipped 32° for a reason that is invisible until you look at a frame:
+        /// the sprite billboard chooses between the drawn front and back views by sector, and at
+        /// 32° the player's creature lands within a degree of the front/back boundary and is
+        /// drawn as a <i>mirrored side view</i> instead of its back. Here it sits 10° clear of
+        /// the boundary, so the back/front pair the sprites are drawn for comes out right.</item>
+        /// <item><b>Pitch 18°.</b> Inside the HD-2D band, and the low end of it is not free: the
+        /// arena stands in the live world, so a camera at creature height looks through whatever
+        /// the player was walking in. This is high enough to see over waist-high foliage and low
+        /// enough that the shot is still a perspective view rather than a plan.</item>
+        /// <item><b>Standoff (0.9, 2.0).</b> Close, which is what makes perspective do the work:
+        /// at the shipped separation the near combatant is drawn about 1.9× the far one.</item>
+        /// </list>
+        ///
+        /// The rig builds its own <c>CinemachineCamera</c> per shot on Awake, so there is nothing
+        /// to author per shot — only the anchor every shot shares and the masks that decide what
+        /// is allowed to push it.
         /// </summary>
         private static void ApplyRigFraming(BattleCameraRig rig, Transform stageCenter)
         {
@@ -317,16 +365,22 @@ namespace PokeLab.Boot.Editor
             SetObject(so, "brain", brain);
             SetObject(so, "stageCenter", stageCenter);
 
-            SetFloat(so, "layoutYaw", 32f);
-            SetFloat(so, "layoutPitch", 20f);
-            SetVector2(so, "standoff", new Vector2(1.2f, 2.6f));
+            SetFloat(so, "layoutYaw", 18f);
+            SetFloat(so, "layoutPitch", 18f);
+            SetVector2(so, "standoff", new Vector2(0.9f, 2.0f));
+
+            // Mirrored, which puts the player's creature near-left and the opponent far-right —
+            // the series layout, and the one the sprite pair is drawn for. Unmirrored the sides
+            // are swapped and the player's creature is the one on the right.
+            SetBool(so, "mirrorLayout", true);
 
             // Occlusion masks. The defaults are "everything is an obstacle, nothing is a
             // subject", which makes the creatures themselves obstacles and lets the decollider
-            // shove the camera whenever a billboard's bounds cross it.
+            // shove the camera whenever a billboard's bounds cross it. It matters more now the
+            // arena stands in the live world, where there really is scenery around it.
             SetLayerMask(so, "obstacleLayers", "Ground", "Environment", "Prop");
             SetLayerMask(so, "subjectLayers", "Creature", "Vfx");
-            SetLayerMask(so, "terrainLayers", "Ground", "BattleStage");
+            SetLayerMask(so, "terrainLayers", "Ground");
 
             so.ApplyModifiedPropertiesWithoutUndo();
 
@@ -357,12 +411,18 @@ namespace PokeLab.Boot.Editor
         // --- Transition director ------------------------------------------------------------------
 
         /// <summary>
-        /// Hands the director the two roots it swaps and the presenter it readies behind the
+        /// Hands the director the arena it stands up and the presenter it readies behind the
         /// cover.
         ///
-        /// The presenter reference is the one that cannot be left to the director's own
-        /// fallback: it resolves with <c>FindAnyObjectByType</c>, which does not see inactive
-        /// objects, so an arena that is correctly inactive is an arena the director cannot find.
+        /// The presenter reference is the one that cannot be left to the director's own fallback:
+        /// it resolves with <c>FindAnyObjectByType</c>, which does not see inactive objects, so an
+        /// arena that is correctly inactive is an arena the director cannot find.
+        ///
+        /// <c>overworldRoot</c> is cleared rather than assigned, and that is the whole in-world
+        /// decision expressed in one line: assigning it switches the level off for the duration
+        /// of the battle, which is exactly the backdrop the fight is supposed to be happening in
+        /// front of. It stays on the component for the other configuration — a dedicated set
+        /// standing somewhere the player never walks — and this builder does not produce one.
         /// </summary>
         private static int WireTransitionDirector(GameObject battleRoot, BattlePresenter presenter)
         {
@@ -377,85 +437,8 @@ namespace PokeLab.Boot.Editor
 
             Assign(director, "battleRoot", battleRoot);
             Assign(director, "battlePresenter", presenter);
-
-            // The level geometry, and only that. The player, the input reader, the game hosts
-            // and the lighting director are separate roots on purpose: disabling the one that
-            // carries GameFlowController would stop the coroutine that is waiting for the
-            // battle result, and the player would never come back out of the encounter.
-            var level = GameObject.Find(LevelRootName);
-            if (level != null) Assign(director, "overworldRoot", level);
-            else
-                Debug.LogWarning($"[Arena] No '{LevelRootName}' root in the scene, so overworldRoot was " +
-                                 "left unassigned and the town will be visible behind the battle.");
-
+            Assign(director, "overworldRoot", null);
             return 1;
-        }
-
-        // --- Floor -----------------------------------------------------------------------------
-
-        /// <summary>
-        /// The ground the battle is fought on.
-        ///
-        /// It has to be built rather than borrowed because the director disables the level root
-        /// for the duration, so the arena takes its own floor with it or the creatures stand in
-        /// the skybox. Painted fully grass through vertex colour, which is how the terrain
-        /// shader's four layers are weighted, and given the same material the level ground uses
-        /// so the battle reads as somewhere in this world rather than as a separate stage.
-        /// </summary>
-        private static void BuildFloor(Transform parent)
-        {
-            var mesh = new Mesh { name = "BattleArenaFloor" };
-
-            var vertices = new Vector3[FloorSegments + 1];
-            var normals = new Vector3[FloorSegments + 1];
-            var uvs = new Vector2[FloorSegments + 1];
-            var colours = new Color[FloorSegments + 1];
-            var triangles = new int[FloorSegments * 3];
-
-            vertices[0] = Vector3.zero;
-            for (var i = 0; i < FloorSegments; i++)
-            {
-                float angle = i / (float)FloorSegments * Mathf.PI * 2f;
-                vertices[i + 1] = new Vector3(Mathf.Cos(angle) * FloorRadius, 0f, Mathf.Sin(angle) * FloorRadius);
-
-                triangles[i * 3] = 0;
-                triangles[i * 3 + 1] = i + 1;
-                triangles[i * 3 + 2] = (i + 1) % FloorSegments + 1;
-            }
-
-            for (var i = 0; i < vertices.Length; i++)
-            {
-                normals[i] = Vector3.up;
-                // The layer textures are sampled from world position, not from these, so the UVs
-                // only ever address the optional control map — which this floor does not use.
-                uvs[i] = new Vector2(vertices[i].x, vertices[i].z) * 0.05f;
-                colours[i] = new Color(1f, 0f, 0f, 0f);
-            }
-
-            mesh.vertices = vertices;
-            mesh.normals = normals;
-            mesh.uv = uvs;
-            mesh.colors = colours;
-            mesh.triangles = triangles;
-            mesh.RecalculateTangents();
-            mesh.RecalculateBounds();
-
-            var go = new GameObject("Floor");
-            go.transform.SetParent(parent, false);
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-
-            var renderer = go.AddComponent<MeshRenderer>();
-            var material = AssetDatabase.LoadAssetAtPath<Material>(TerrainMaterial);
-            if (material != null) renderer.sharedMaterial = material;
-            else
-                Debug.LogWarning($"[Arena] {TerrainMaterial} not found, so the arena floor will draw " +
-                                 "with the error shader. The battle is still reviewable; the ground is not.");
-
-            // The decollider raycasts down against the terrain layers to keep the camera above
-            // ground. Without a collider it has nothing to hit and the rescue silently does
-            // nothing, which only shows up as a camera inside the floor on a low shot.
-            go.AddComponent<MeshCollider>().sharedMesh = mesh;
-            SetLayer(go, "Ground");
         }
 
         // --- Scene helpers -------------------------------------------------------------------------
@@ -477,16 +460,19 @@ namespace PokeLab.Boot.Editor
         }
 
         private static Transform StageCenterOf(CinematicStage stage)
+            => TransformOf(new SerializedObject(stage), "stageCenter");
+
+        private static Transform TransformOf(SerializedObject so, string field)
         {
-            var property = new SerializedObject(stage).FindProperty("stageCenter");
+            var property = so.FindProperty(field);
             return property != null ? property.objectReferenceValue as Transform : null;
         }
 
         /// <summary>
         /// Writes a private serialized field, the way <c>PlayerRigSetup</c> does: these
-        /// components expect an inspector to wire them and this scene is built by script, so
-        /// this does what a person dragging references would rather than forcing a public
-        /// setter onto every field for the sake of a one-time setup.
+        /// components expect an inspector to wire them and this scene is built by script, so this
+        /// does what a person dragging references would rather than forcing a public setter onto
+        /// every field for the sake of a one-time setup.
         /// </summary>
         private static void Assign(Object target, string field, Object value)
         {
@@ -512,6 +498,12 @@ namespace PokeLab.Boot.Editor
         {
             var property = so.FindProperty(field);
             if (property != null) property.floatValue = value;
+        }
+
+        private static void SetBool(SerializedObject so, string field, bool value)
+        {
+            var property = so.FindProperty(field);
+            if (property != null) property.boolValue = value;
         }
 
         private static float FloatOf(SerializedObject so, string field, float fallback)

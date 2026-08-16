@@ -176,6 +176,22 @@ namespace PokeLab.Cinematics
         /// <summary>Overrides the camera the quad faces. Left null, <c>Camera.main</c> is used.</summary>
         public void SetCamera(Camera camera) => _camera = camera;
 
+        /// <summary>
+        /// Pins which drawn view is shown, overriding the sector test.
+        ///
+        /// The sector test is right for the overworld, where a creature really does turn through
+        /// every angle and the drawn view has to follow it. A battle is not that: the layout is
+        /// fixed, the two sides are drawn for it — the player's from behind, the opponent's from
+        /// the front — and which one is shown is a decision, not a measurement. Left to the
+        /// sector test it is a measurement taken a few degrees from a boundary, and a camera
+        /// tuning change several files away silently turns the player's creature round to face
+        /// the camera it is supposed to have its back to.
+        ///
+        /// Null restores the sector test, which is what the victory beat wants: turning the
+        /// winner out toward the lens is the one moment the back sprite is meant to give way.
+        /// </summary>
+        public SpriteFacing? ForcedFacing { get; set; }
+
         private void Awake() => EnsureBuilt();
 
         private void EnsureBuilt()
@@ -516,6 +532,13 @@ namespace PokeLab.Cinematics
         /// </summary>
         private void SelectFacing(Vector3 forward, Vector3 toCamera, Camera cam)
         {
+            if (ForcedFacing.HasValue)
+            {
+                _facing = ForcedFacing.Value;
+                UpdateMirror(forward, cam);
+                return;
+            }
+
             // Signed angle from "facing the lens" — 0 means looking at the camera, ±180 away.
             //
             // +90 is the subject's *left* flank toward the camera, not its right. Worked

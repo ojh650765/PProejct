@@ -44,7 +44,7 @@
         { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0, "Note": "Before anything. The player never has control during the prologue." },
         { "Kind": 1,  "KindName": "FadeOut", "Seconds": 0.0, "Note": "Guarantee black on the first frame rather than trusting the boot state." },
         { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_LabDome", "Seconds": 0.0, "Note": "Framed behind the black, so the fade-in reveals the dome already composed." },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_prologue", "Seconds": 0.0, "Note": "7 lines over black. Auto-advancing except the last two. ~28s." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_prologue", "Seconds": 0.0, "Note": "8 lines over black. Auto-advancing except the last two. ~32s. Line 0 is Linden naming himself, which the Korean script needs and the English gained with it." },
         { "Kind": 13, "KindName": "AskName", "Id": "Ren", "Target": "profile.trainer_name", "Seconds": 0.0 },
         { "Kind": 4,  "KindName": "Dialogue", "Id": "op_prologue_confirm", "Seconds": 0.0, "Note": "2 lines. Uses {PLAYER}." },
         { "Kind": 2,  "KindName": "FadeIn", "Seconds": 2.4, "Note": "Slow. This is the shot the whole town was built around." },
