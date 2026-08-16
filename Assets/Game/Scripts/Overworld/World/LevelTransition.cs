@@ -85,7 +85,8 @@ namespace PokeLab.Overworld
             // town layout, so its To_Town link points at content the player is standing in.
             // Loading any of those tears down the world they are in to rebuild the one they
             // are already in, which is the teleport that was reported at the town gate.
-            if (World.WorldStreamer.Streamed.Contains(_sceneName)
+            if (World.WorldStreamer.Claimed.Contains(_sceneName)
+                || World.WorldStreamer.Streamed.Contains(_sceneName)
                 || SceneManager.GetSceneByName(_sceneName).isLoaded
                 || string.Equals(_sceneName, SceneManager.GetActiveScene().name,
                                  System.StringComparison.OrdinalIgnoreCase))

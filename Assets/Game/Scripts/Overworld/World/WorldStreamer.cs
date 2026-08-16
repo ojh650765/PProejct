@@ -86,6 +86,16 @@ namespace PokeLab.Overworld.World
         /// <summary>Scenes this streamer currently has loaded, for anything that needs to ask.</summary>
         public static readonly HashSet<string> Streamed = new HashSet<string>();
 
+        /// <summary>
+        /// Scenes this streamer is responsible for, whether or not they have arrived yet.
+        ///
+        /// A door must stand down on this rather than on <see cref="Streamed"/>. Preloading
+        /// takes time, and the player walking into the boundary before the neighbour has
+        /// finished arriving would find it "not loaded" and hard-cut to it — the teleport,
+        /// back again, and only sometimes, which is the worst kind.
+        /// </summary>
+        public static readonly HashSet<string> Claimed = new HashSet<string>();
+
         private void Start()
         {
             // Every playable scene stands alone, so each carries a GameBoot, an EventSystem,
@@ -105,6 +115,17 @@ namespace PokeLab.Overworld.World
             // would be visible twice — the second player, the second camera. It runs in the
             // frame the load completes, before anything renders.
             if (!_enabled) return;
+
+            // Claimed up front, before a single load begins, so a door can refuse from the
+            // first frame rather than from whenever the load happens to finish.
+            var active = SceneManager.GetActiveScene().name;
+            foreach (var band in _bands)
+            {
+                if (band == null || string.IsNullOrEmpty(band.scene)) continue;
+                if (band.scene == active) continue;
+                if (Array.IndexOf(_alreadyContained, band.scene) >= 0) continue;
+                Claimed.Add(band.scene);
+            }
 
             if (_preloadAll) StartCoroutine(PreloadAll());
             else StartCoroutine(Watch());
