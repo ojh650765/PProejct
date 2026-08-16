@@ -132,7 +132,9 @@ namespace PokeLab.Overworld
                  "to the state the beat asked for.")]
         [SerializeField] private float _fadeTimeoutSeconds = 8f;
         [Tooltip("Seconds a single line may sit on screen unchanged before the runner advances " +
-                 "the conversation itself. Only ever reached when nothing is presenting it.")]
+                 "the conversation itself. Only ever reached when nothing is presenting it, so " +
+                 "keep it well above the longest authored AutoAdvanceSeconds — set below one and " +
+                 "this stops being a safety net and starts being the pacing.")]
         [SerializeField] private float _dialogueStallSeconds = 15f;
         [Tooltip("Hard ceiling on a whole Dialogue beat.")]
         [SerializeField] private float _dialogueBeatTimeoutSeconds = 180f;

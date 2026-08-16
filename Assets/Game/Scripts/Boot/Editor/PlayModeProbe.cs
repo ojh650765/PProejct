@@ -255,7 +255,14 @@ namespace PokeLab.Boot.Editor
                         {
                             // Re-queued every frame: the input system consumes a state event
                             // once, so a single queue would read as a one-frame tap.
-                            InputSystem.QueueStateEvent(pad, new GamepadState { leftStick = move });
+                            //
+                            // Interact is held for the whole leg rather than tapped, and that
+                            // is what makes it fire exactly once: OverworldInputReader reads
+                            // WasPressedThisFrame, so a held button is a single press on the
+                            // leg's first frame. The stick is released between legs, which
+                            // releases this too, so two interact legs are two presses.
+                            InputSystem.QueueStateEvent(pad, new GamepadState { leftStick = move }
+                                .WithButton(GamepadButton.North, leg.interact));
                             elapsed += Time.deltaTime;
                             yield return null;
                         }
@@ -359,6 +366,15 @@ namespace PokeLab.Boot.Editor
             public float[] move;
             public float seconds = 2f;
             public int shots = 3;
+            /// <summary>
+            /// Press interact once as this leg starts.
+            ///
+            /// Walking past a thing does not prove the thing works. Everything the player
+            /// can do beyond move is behind this one button — signs, doors, healing, item
+            /// balls — and a probe that only feeds the stick can report that a pickup is
+            /// visible while saying nothing about whether it can be picked up.
+            /// </summary>
+            public bool interact;
         }
 
         [Serializable]

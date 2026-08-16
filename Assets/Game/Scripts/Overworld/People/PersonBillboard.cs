@@ -323,6 +323,13 @@ namespace PokeLab.Overworld.People
             var texture = PersonSpriteLibrary.Shared.Texture(_clip.texture);
             if (texture == null) return;
 
+            // Rebuild() reaches here through the PersonKey setter, which the level builder
+            // and the rig setup both call immediately after AddComponent — before Awake has
+            // run and therefore before _block exists. GetPropertyBlock(null) throws
+            // ArgumentNullException every LateUpdate after that, which does not stop the
+            // game so much as bury the console and cost an order of magnitude of frame time.
+            _block ??= new MaterialPropertyBlock();
+
             var frame = Mathf.Clamp(_clip.sequence[Mathf.Clamp(_step, 0, _clip.sequence.Length - 1)],
                 0, Mathf.Max(0, _clip.frames - 1));
             var column = frame % _clip.columns;

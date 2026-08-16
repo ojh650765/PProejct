@@ -454,7 +454,13 @@ namespace PokeLab.Boot.Editor
 
                 // Where the player is put down arriving from the other side. Resolved by
                 // name across the load, so neither scene holds a reference into the other.
-                var arrival = new GameObject(link.arrivalSpawn);
+                //
+                // Named for where the traveller came *from*, which is the other end of this
+                // link. `link.arrivalSpawn` is the name the destination must host, not this
+                // scene — building it here put Spawn_FromTown in Town and Spawn_FromField in
+                // Field, so each scene held the marker the other one needed and every
+                // transition landed the player at the origin.
+                var arrival = new GameObject($"Spawn_From{link.scene}");
                 arrival.transform.SetParent(ResolveParent(root, parents, "Gameplay/Arrivals"), false);
                 arrival.transform.localPosition =
                     ToVector(link.position) + Quaternion.Euler(0f, link.facingYaw, 0f) * Vector3.back * 2.5f;
@@ -823,11 +829,43 @@ namespace PokeLab.Boot.Editor
             }
         }
 
+        /// <summary>
+        /// The marker the player rig starts from when this scene is opened on its own.
+        ///
+        /// Only the town layout authors one; the field's is empty, because the field is
+        /// designed to be walked into rather than started in. Left at the layout's value
+        /// that puts the spawn at the world origin, which on this map is open air — and a
+        /// scene opened for a five-second check is exactly when nobody is watching for it.
+        /// So an unspecified spawn falls back to a door: arriving on the town's doorstep is
+        /// a defensible place to be when nothing said otherwise.
+        /// </summary>
         private static void BuildSpawn(Layout layout, Transform root)
         {
             var spawn = new GameObject("PlayerSpawn");
             spawn.transform.SetParent(root, false);
-            spawn.transform.localPosition = ToVector(layout.playerSpawn);
+
+            var authored = ToVector(layout.playerSpawn, Vector3.zero);
+            if (authored == Vector3.zero)
+            {
+                var link = layout.sceneLinks != null && layout.sceneLinks.Length > 0
+                    ? layout.sceneLinks[0]
+                    : null;
+                if (link != null)
+                {
+                    authored = ToVector(link.position)
+                               + Quaternion.Euler(0f, link.facingYaw, 0f) * Vector3.back * 2.5f;
+                    Debug.Log($"[Level] '{layout.scene}' authors no player spawn; using the " +
+                              $"{link.name} doorway at {authored}.");
+                }
+                else
+                {
+                    Debug.LogWarning($"[Level] '{layout.scene}' has neither a player spawn nor " +
+                                     "a scene link, so opening it alone drops the player at the " +
+                                     "origin.");
+                }
+            }
+
+            spawn.transform.localPosition = authored;
         }
 
         // --- helpers ---------------------------------------------------------------------
@@ -901,6 +939,7 @@ namespace PokeLab.Boot.Editor
         private sealed class Layout
         {
             public string schema;
+            public string scene;
             public GroundChunk[] ground;
             public WaterSurface[] water;
             public FoliageField[] foliage;

@@ -358,6 +358,27 @@ namespace PokeLab.Boot.Editor
                 Assign(runner, "_starterSelection", starterGo.AddComponent<StarterSelection>());
                 Assign(runner, "_cameraRig", rig);
             }
+
+            // Conversation. The runner sequences lines and the view draws them, and until
+            // now no scene contained either — so every conversation in the game ran to
+            // completion invisibly while the player stood frozen watching nothing happen.
+            // Neither side errors, because from each one's point of view it worked.
+            if (go.GetComponent<DialogueRunner>() == null)
+            {
+                var dialogue = go.AddComponent<DialogueRunner>();
+                Assign(dialogue, "_input", input);
+                Assign(dialogue, "_player", player);
+                Assign(dialogue, "_interactor", player.GetComponent<PlayerInteractor>());
+            }
+
+            if (go.GetComponent<PokeLab.Boot.DialoguePresenter>() == null)
+                go.AddComponent<PokeLab.Boot.DialoguePresenter>();
+
+            // Wild encounters. Without one, walking through tall grass is walking through
+            // grass.
+            if (go.GetComponent<EncounterDirector>() == null)
+                go.AddComponent<EncounterDirector>();
+        }
         }
 
         /// <summary>
