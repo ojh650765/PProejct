@@ -107,6 +107,26 @@ namespace PokeLab.Overworld
         public bool CanInteract(GameObject instigator) =>
             !_talking && ResolveDialogue() != null && (_dialogueRunner == null || !_dialogueRunner.IsPlaying);
 
+        /// <summary>
+        /// Applied by the level builder from the authored layout.
+        ///
+        /// These are private serialized fields because the inspector is their normal
+        /// home, but the level is generated: six residents and four trainers are
+        /// authored in slice_layout.json with positions, schedules and sight cones, and
+        /// nothing was reading them. Hand-placing them once would be thrown away by the
+        /// next regeneration.
+        /// </summary>
+        public void Configure(string npcId, string displayName, IReadOnlyList<NpcScheduleEntry> schedule)
+        {
+            if (!string.IsNullOrEmpty(npcId)) _npcId = npcId;
+            if (!string.IsNullOrEmpty(displayName)) _displayName = displayName;
+            if (schedule != null && schedule.Count > 0)
+            {
+                _schedule.Clear();
+                _schedule.AddRange(schedule);
+            }
+        }
+
         private void Awake()
         {
             _agent = GetComponent<NavMeshAgent>();

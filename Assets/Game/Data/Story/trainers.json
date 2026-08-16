@@ -1,0 +1,73 @@
+{
+  "schema": {
+    "version": 1,
+    "authoredBy": "narrative-design",
+    "shapedFor": "Assets/Game/Scripts/Overworld/Npc/TrainerDefinition.cs",
+    "note": "Field names match TrainerDefinition's serialized fields so a loader can build the ScriptableObject without an asset. The dialogue fields hold SEQUENCE IDS into dialogue.json rather than object references, because a JSON file cannot hold a ScriptableObject reference and an inspector-wired asset cannot be authored by this workstream.",
+    "gaps": [
+      "TrainerDefinition has no notion of a party derived from the player's starter choice. trainer_rival_01 needs exactly that, and the mechanism proposed is the Battle beat's Target='starter_counter' -- the runner substitutes StarterOption.RivalCounterSpeciesId for the party entry marked partyFromStarterCounter.",
+      "TrainerController.ReturnToPost walks a trainer back to where it was standing when it woke up. For the rival that is the lab lane, 8m from where the scene needs him. Give him a new rest post or suppress the return once."
+    ]
+  },
+
+  "trainers": [
+    {
+      "_trainerId": "trainer_rival_01",
+      "_displayName": "Kes",
+      "_trainerClass": "Rival",
+      "npcId": "npc_rival_01",
+      "sceneObject": "NPC_Rival",
+
+      "_party": [
+        {
+          "SpeciesId": 0,
+          "partyFromStarterCounter": true,
+          "Level": 5,
+          "Nickname": "",
+          "HeldItemId": "",
+          "note": "SpeciesId 0 is a placeholder and must never reach CreatureFactory. The real value is the chosen StarterOption.RivalCounterSpeciesId -- game id 5 if the player took 1, game id 10 if they took 5, game id 1 if they took 10. Level 5 matches StarterSelection._level, so the fight is decided by the type chart and nothing else, which is exactly what makes it read as a rival battle rather than a difficulty spike."
+        }
+      ],
+
+      "_prizeMoney": 600,
+      "_partySeed": 8675310,
+
+      "_preBattle": "riv_pre",
+      "_onDefeat": "riv_lost",
+      "_onPlayerDefeat": "riv_won",
+      "_afterDefeat": "riv_idle",
+      "_rematchIntro": "",
+
+      "_allowsRematch": false,
+      "_rematchCooldownHours": 24.0,
+      "_rematchLevelBonus": 2,
+
+      "controllerSettings": {
+        "_sightRange": 6.0,
+        "_sightHalfAngle": 40.0,
+        "_stopDistance": 2.0,
+        "_approachSpeed": 4.2,
+        "_exclamationSeconds": 0.7,
+        "_approachTimeout": 4.0,
+        "note": "Wide cone and short range because this is not an ambush down a route -- he is two metres away, at the gate, and the player is walking past him on purpose. The approach speed is faster than the route trainers' 3.4 because he runs everywhere and it is the only characterisation the walk can carry. The battle is triggered by the rival_first_battle episode's Battle beat rather than left to the cone, so the cone only matters if the player wanders back."
+      },
+
+      "designNote": "Uphill by design. Kes always holds the type advantage, at the same level, with no items -- which means a straight-ahead player usually loses this fight, and riv_won is written to be the more likely branch and to not read as a failure. This is Platinum's arrangement, not Diamond/Pearl's: in DP the first battle is two wild Starly at Lake Verity and the rival has no Pokémon at all until Route 203. See the episode note on rival_first_battle for why the Platinum version is the right one for a one-town slice.",
+      "notDone": "The battle engine's difficulty is unknown to this workstream. If a level-5 type-disadvantaged starter cannot win at all, the fix is Kes at level 4, not a change to the writing."
+    }
+  ],
+
+  "npcDialogueBindings": {
+    "note": "Not trainers -- the three plain NPCs whose lines change with the story. NpcController supports exactly one alternate (_alternateDialogue + _alternateFlag), and Bram needs two. That is the one extension this section asks for: a list of (flag, sequenceId) tested in order, falling through to the default.",
+    "npc_gate_01": {
+      "default": "gate_block_no_starter",
+      "states": [
+        { "flag": "story.pokedex", "sequenceId": "gate_open" },
+        { "flag": "story.starter_chosen", "sequenceId": "gate_block_no_dex" }
+      ],
+      "order": "Most-progressed first. Testing story.starter_chosen before story.pokedex would leave Bram refusing to open a gate he has already opened."
+    },
+    "npc_market_01": { "default": "sela_hint", "states": [ { "flag": "story.pokedex", "sequenceId": "sela_after" } ] },
+    "npc_garden_01": { "default": "odell_flavour", "states": [] }
+  }
+}

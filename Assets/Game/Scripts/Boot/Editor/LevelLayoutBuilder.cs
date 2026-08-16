@@ -101,6 +101,7 @@ namespace PokeLab.Boot.Editor
                 BuildTallGrass(layout, root.transform, parents);
                 BuildCaveEntrances(layout, root.transform, parents);
                 BuildSceneLinks(layout, root.transform, parents);
+                BuildPeople(layout, root.transform, parents);
                 BuildAnchors(layout, root.transform, parents);
                 BuildSpawn(layout, root.transform);
             }
@@ -123,6 +124,7 @@ namespace PokeLab.Boot.Editor
                 $"{layout.tallGrass?.Length ?? 0} grass triggers, " +
                 $"{layout.caveEntrances?.Length ?? 0} cave entrance(s), " +
                 $"{layout.sceneLinks?.Length ?? 0} scene link(s), " +
+                $"{layout.npcs?.Length ?? 0} npc(s), {layout.trainers?.Length ?? 0} trainer(s), " +
                 $"{layout.ambientAnchors?.Length ?? 0} anchors.");
         }
 
@@ -371,6 +373,94 @@ namespace PokeLab.Boot.Editor
             }
         }
 
+        /// <summary>
+        /// Stands the authored residents and trainers up in the world.
+        ///
+        /// Nothing was doing this. Six NPCs and four trainers are authored in the layout
+        /// with positions, schedules and sight cones, the sprite pipeline has finished
+        /// sixteen characters, and the scene came up empty every time — two separate
+        /// workstreams reported it independently as "the level has no people".
+        ///
+        /// They are built as bare transforms carrying their controller. The visual is a
+        /// billboarded sprite bound at runtime from the person manifest, which is why
+        /// there is no prefab to instantiate: a prefab per character would be sixteen
+        /// assets that only differ by which sheet they name.
+        /// </summary>
+        private static void BuildPeople(Layout layout, Transform root,
+            Dictionary<string, Transform> parents)
+        {
+            foreach (var npc in layout.npcs ?? Array.Empty<NpcRecord>())
+            {
+                var go = new GameObject(npc.name);
+                go.transform.SetParent(ResolveParent(root, parents, "Gameplay/Npcs"), false);
+                go.transform.localPosition = ToVector(npc.position);
+                go.transform.localEulerAngles = ToVector(npc.rotation);
+
+                var body = go.AddComponent<CapsuleCollider>();
+                body.height = 1.7f;
+                body.radius = 0.28f;
+                body.center = new Vector3(0f, 0.85f, 0f);
+
+                var controller = go.AddComponent<NpcController>();
+                controller.Configure(npc.npcId, npc.displayName,
+                                     ToSchedule(npc.schedule, go.transform));
+                SetLayer(go, "Interactable");
+                TrySetTag(go, "Interactable");
+            }
+
+            foreach (var trainer in layout.trainers ?? Array.Empty<TrainerRecord>())
+            {
+                var go = new GameObject(trainer.name);
+                go.transform.SetParent(ResolveParent(root, parents, "Gameplay/Trainers"), false);
+                go.transform.localPosition = ToVector(trainer.position);
+                go.transform.localEulerAngles = ToVector(trainer.rotation);
+
+                var body = go.AddComponent<CapsuleCollider>();
+                body.height = 1.7f;
+                body.radius = 0.28f;
+                body.center = new Vector3(0f, 0.85f, 0f);
+
+                go.AddComponent<TrainerController>()
+                  .Configure(trainer.trainerId, trainer.sightRange, trainer.sightHalfAngle);
+                SetLayer(go, "Interactable");
+                TrySetTag(go, "Interactable");
+            }
+        }
+
+        /// <summary>
+        /// Turns the authored schedule into entries the controller can use.
+        ///
+        /// Each waypoint becomes a real Transform, because that is what
+        /// NpcScheduleEntry holds — an NPC's destination is a thing in the world that can
+        /// be moved, not a coordinate baked into a component. They are parented to the
+        /// NPC so a rebuild takes its markers with it, and placed in world space so they
+        /// stay put when the NPC walks away from them.
+        /// </summary>
+        private static List<NpcScheduleEntry> ToSchedule(ScheduleRecord[] records, Transform owner)
+        {
+            var list = new List<NpcScheduleEntry>();
+            var index = 0;
+            foreach (var record in records ?? Array.Empty<ScheduleRecord>())
+            {
+                var marker = new GameObject($"Waypoint_{index:D2}_{record.activity}");
+                marker.transform.SetParent(owner, false);
+                marker.transform.position = ToVector(record.waypoint, owner.position);
+
+                list.Add(new NpcScheduleEntry
+                {
+                    StartHour = record.startHour,
+                    Activity = ParseActivity(record.activity),
+                    Waypoint = marker.transform,
+                    WanderRadius = record.wanderRadius,
+                });
+                index++;
+            }
+            return list;
+        }
+
+        private static NpcActivity ParseActivity(string value) =>
+            Enum.TryParse<NpcActivity>(value, true, out var parsed) ? parsed : NpcActivity.Idle;
+
         // --- props, anchors, spawn -------------------------------------------------------
 
         private static void BuildObjects(Layout layout, Transform root,
@@ -570,6 +660,8 @@ namespace PokeLab.Boot.Editor
             public GrassTrigger[] tallGrass;
             public CaveEntrance[] caveEntrances;
             public SceneLink[] sceneLinks;
+            public NpcRecord[] npcs;
+            public TrainerRecord[] trainers;
             public float[] playerSpawn;
             public float cameraYaw;
             public float cameraPitch;
@@ -634,6 +726,37 @@ namespace PokeLab.Boot.Editor
             public float[] position;
             public float facingYaw;
             public float[] size;
+        }
+
+        [Serializable]
+        private sealed class NpcRecord
+        {
+            public string name;
+            public string npcId;
+            public string displayName;
+            public float[] position;
+            public float[] rotation;
+            public ScheduleRecord[] schedule;
+        }
+
+        [Serializable]
+        private sealed class ScheduleRecord
+        {
+            public float startHour;
+            public string activity;
+            public float[] waypoint;
+            public float wanderRadius;
+        }
+
+        [Serializable]
+        private sealed class TrainerRecord
+        {
+            public string name;
+            public string trainerId;
+            public float[] position;
+            public float[] rotation;
+            public float sightRange;
+            public float sightHalfAngle;
         }
 
         [Serializable]

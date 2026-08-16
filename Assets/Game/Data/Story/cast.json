@@ -1,0 +1,123 @@
+{
+  "schema": {
+    "version": 1,
+    "authoredBy": "narrative-design",
+    "note": "Staging data for the episodes: who speaks, where the camera looks, where actors walk to, and the copy on the three balls. Nothing reads this file yet -- it is here so that the numbers a beat depends on live next to the scene that depends on them instead of only in a scene asset. Every position is in the slice_layout.json coordinate space.",
+    "yWarning": "The Y values below were taken from the nearest path control point in slice_layout.json, not resampled from terrain.heightField.grid. Snap them to the grid before trusting them; a marker 20cm under the cobbles is a camera that looks at the ground."
+  },
+
+  "speakers": [
+    {
+      "speakerId": "npc_professor_01",
+      "name": "Linden",
+      "subtitle": "Aster Field Lab",
+      "role": "professor",
+      "spriteKey": "professor",
+      "note": "Named for the lime tree, following the series' habit of naming professors after plants, and matching a town named for a flower. Seventy-one, unhurried, and specific about paperwork -- the joke and the characterisation are the same thing: he is the person who believes writing it down is the work. DOES NOT EXIST IN THE LEVEL. slice_layout.json gameplay.npcs has no professor. He must be placed before any episode that names NPC_Professor can run.",
+      "requiredNpc": {
+        "name": "NPC_Professor",
+        "npcId": "npc_professor_01",
+        "displayName": "Professor Linden",
+        "position": [-4.6, 2.8, -7.6],
+        "rotation": [0, 222, 0],
+        "positionNote": "The far end of Path_TownLane_Lab, at the lab door, facing the same way as Town_Lab_01 (yaw 222) so he reads as having just come out of it. He is on the 45 deg camera axis with the dome behind him."
+      }
+    },
+    {
+      "speakerId": "npc_rival_01",
+      "name": "Kes",
+      "subtitle": "Aster Town",
+      "role": "rival",
+      "spriteKey": "rival",
+      "existsAs": "NPC_Rival at (-6.2, 2.728, -7.4), yaw 226",
+      "note": "Short for Kestrel. One syllable because he is interrupted constantly and the name plate has to survive being read forty times. He is Barry's function, not Barry: the momentum the player has not earned yet. He talks in three-word sentences when excited and complete ones when he has lost, which is the only characterisation the writing has room for."
+    },
+    {
+      "speakerId": "npc_gate_01",
+      "name": "Bram",
+      "subtitle": "Aster Gate",
+      "role": "gatekeeper",
+      "spriteKey": "townsman",
+      "existsAs": "NPC_GateKeeper at (-9.6, 2.654, 0.4), yaw 150 -- standing at the head of the gate ramp, facing back down the street",
+      "note": "MISMATCH: slice_layout.json gives this NPC displayName 'Townsfolk'. He carries the whole first act's gating and needs a name in the plate; either update the layout or let the dialogue's SpeakerName win over displayName. He is DP's mother-at-the-tall-grass and DP's route guard folded together."
+    },
+    {
+      "speakerId": "npc_market_01",
+      "name": "Sela",
+      "subtitle": "Aster Market",
+      "role": "stallholder",
+      "spriteKey": "shopkeeper",
+      "existsAs": "NPC_Stallholder at (-13.6, 2.453, -12.2), yaw 8 -- market row, in the same shot as the spawn",
+      "note": "Same displayName mismatch as Bram. Her only structural job is to answer 'what am I supposed to do' for a player who has been given control and no arrow."
+    },
+    {
+      "speakerId": "npc_garden_01",
+      "name": "Odell",
+      "subtitle": "Town Gardens",
+      "role": "gardener",
+      "spriteKey": "gardener",
+      "existsAs": "NPC_Gardener at (-19.0, 2.355, -5.4), yaw 100",
+      "note": "Same displayName mismatch. Pure flavour, one line, and it is the only corroboration the bulletin gets."
+    },
+    {
+      "speakerId": "prop_research_terminal",
+      "name": "Aster Field Lab",
+      "subtitle": "Morning Bulletin",
+      "role": "prop",
+      "existsAs": "gameplay.researchTerminal at (-5.2, 2.728, -3.2), interact anchor (-6.2, 2.728, -4.0)",
+      "note": "Speaks the opening bulletin without the player interacting with it -- it is playing to the empty plaza, which is the point. Tone System, so DialogueView renders it in the flat register rather than as a person."
+    }
+  ],
+
+  "markers": [
+    { "name": "Look_LabDome", "position": [-1.45, 8.2, -5.69], "usedBy": "opening",
+      "note": "CameraTo target for the first frame. Town_Lab_01 stands at (-1.453, 2.728, -5.691), 0.4m up and 8.8m tall, dead on the 45 deg camera axis from the player spawn; this marker is the dome itself at roughly 5.5m above its base. The fade-in reveals it already composed." },
+    { "name": "Look_GateRamp", "position": [-7.4, 2.1, 3.2], "usedBy": "opening_departure",
+      "note": "Second control point of Path_GateRamp. Framing the ramp head with the two of them walking into it, so the drop is visible before Bram says anything about it." },
+    { "name": "Look_RouteHead", "position": [-5.7, 1.6, 10.0], "usedBy": "opening_departure",
+      "note": "Bottom of the gate ramp / Spawn_RouteHead, lifted 1.5m so the flock has sky to go up into. The one shot in the opening that looks at the route." },
+    { "name": "Look_GateStand", "position": [-9.2, 3.1, -1.6], "usedBy": "opening_departure, rival_first_battle",
+      "note": "Head height over the group standing at the top of the street. The default framing for everything spoken at the gate, including the rival battle." },
+    { "name": "Look_Case", "position": [-10.1, 2.95, -2.9], "usedBy": "opening_departure",
+      "note": "The open case between Linden and the player, at chest height. The only close shot in the episode -- it exists so the three balls are the largest thing on screen at the moment of choosing." },
+    { "name": "Look_LabDoor", "position": [-4.0, 3.6, -7.0], "usedBy": "leaving_town",
+      "note": "Linden in his own doorway with the dome above him. Deliberately rhymes with Look_LabDome from the first frame: the episode that opens the world is framed on the same building that opened the game." },
+
+    { "name": "Mark_Rival_GateStand", "position": [-8.8, 2.41, -0.6], "usedBy": "opening_departure",
+      "note": "MoveActor destination for Kes. Just short of Bram, on Path_TownMain between (-9.6,-1.5) and (-8.2,1.0)." },
+    { "name": "Mark_Player_GateStand", "position": [-10.4, 2.42, -2.6], "usedBy": "opening_departure",
+      "note": "MoveActor destination for the player, ~2m behind Kes and facing north-east up the street. Roughly 9m of walk from the plaza spawn." },
+    { "name": "Mark_Prof_Case", "position": [-10.9, 2.42, -3.6], "usedBy": "opening_departure",
+      "note": "Where Linden stops, behind and to the side of the player, having come up Path_TownMain from the lab lane junction near (-11.4,-5.0). ~11m of walk; the beat allows 6s and he should use most of it." },
+    { "name": "Mark_Rival_GateWait", "position": [-8.4, 2.41, 0.2], "usedBy": "rival_first_battle",
+      "note": "Where Kes settles after the battle, at the very lip of the ramp, so he is the last thing in frame before the player descends. Conflicts with TrainerController.ReturnToPost -- see the beat note." }
+  ],
+
+  "starterOptions": {
+    "note": "Copy for the three balls. The species ids are GAME ids from SliceRoster, verified against Assets/StreamingAssets/pokelab/species.json (Species[].Id / NameEn) and against the sprite cast in Tools/Sprites/species.py: game 1 = Bulbasaur (dex 1), game 5 = Charmander (dex 4), game 10 = Squirtle (dex 7). All three are in the 53-species sprite cast, so all three render. StarterSelection.cs already ships defaults; these are proposed replacements -- shorter, and written as a label on a ball rather than as a sentence about a type chart. The order matches SliceRoster.Starters, and each RivalCounterSpeciesId is the one Kes announces in op_choice_result_*.",
+    "level": 5,
+    "options": [
+      { "SpeciesId": 1,  "DisplayName": "Bulbasaur", "Blurb": "Grass · Poison — carries its own garden. Hard to finish.", "RivalCounterSpeciesId": 5 },
+      { "SpeciesId": 5,  "DisplayName": "Charmander", "Blurb": "Fire — thin early, frightening later. Keep the tail dry.", "RivalCounterSpeciesId": 10 },
+      { "SpeciesId": 10, "DisplayName": "Squirtle", "Blurb": "Water — steady, and forgiving of a bad first month.", "RivalCounterSpeciesId": 1 }
+    ]
+  },
+
+  "flags": [
+    { "key": "story.opening_seen", "setBy": "opening", "gates": "opening_departure" },
+    { "key": "story.starter_chosen", "setBy": "opening_departure", "gates": "Bram's dialogue state 2; also the episode's own CompletionFlag" },
+    { "key": "story.rival_battle_done", "setBy": "rival_first_battle", "gates": "leaving_town's trigger" },
+    { "key": "story.pokedex", "setBy": "leaving_town", "gates": "Bram's dialogue state 3, Sela's alternate line" },
+    { "key": "story.gate_open", "setBy": "leaving_town", "gates": "the LevelTransition on the gate ramp. NOTHING TESTS THIS TODAY -- the ramp is walkable from the first frame." },
+    { "key": "profile.body.male / profile.body.female", "setBy": "op_prologue choice ResultEventId", "gates": "which player sprite sheet is used (Tools/Sprites/people.py has player_m and player_f). Nothing listens for these signals yet." }
+  ],
+
+  "signals": {
+    "note": "Ids raised through OverworldEvents.RaiseDialogueSignal by DialogueLine.EventId and DialogueChoice.ResultEventId. Every one of them is optional -- the scene plays without a listener, it just plays flatter.",
+    "vfx.flock_startle": "A dozen Pidgey out of the grass below the ramp, north over the gate. Prop/VFX work that does not exist. Pidgey is game id 21 and has a sprite, so a real flock is buildable rather than faked.",
+    "story.case_open": "The case opens: three balls, a light, a sting.",
+    "story.starter_registered": "Register stamp. Small.",
+    "story.dex_given": "The item-get moment for the Pokédex. This is the loudest cue in the three episodes and should be the only one that stops the music.",
+    "rival.answer.eager / rival.answer.dry": "Cosmetic. Recorded only so a later scene could remember how the player answered."
+  }
+}

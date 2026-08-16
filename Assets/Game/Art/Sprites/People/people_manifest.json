@@ -1,0 +1,2650 @@
+{
+  "generator": "Tools/Sprites/extract_people.py",
+  "source": "Official Gen 4 (Platinum) overworld sprites from the pret/pokeplatinum decompilation, staged in Tools/Sprites/source_overworld/.",
+  "policy": "Decode, integer-align, pack. No resampling, no re-quantisation, no filtering is applied to the artwork at any point. For this cast the alignment translation is zero: the source is already registered to a common ground row.",
+  "provenance": "Every character is traced -- imported pixel-for-pixel from official artwork. None is drawn by hand.",
+  "cell_size": 32,
+  "ground_row": 29,
+  "pixels_per_unit": 13.714286,
+  "scale_note": "People are 96/7 texels per metre; creatures (sprite_manifest.json) are 96. The two source sets are drawn at densities that differ by 7:1 and cannot be reconciled without redrawing one of them. 96/7 was chosen over a rounder number so the ratio is an exact integer and both sets land on a common screen texel grid.",
+  "view_scheme": {
+    "authored": [
+      "front",
+      "back",
+      "side"
+    ],
+    "runtime_mirrored": "The opposite side is the side sheet with uv.x = 1 - uv.x. Never a negative X scale: that inverts winding and flips normal-map interpretation in URP."
+  },
+  "clip_scheme": "Clips share one texture and differ only in play order, which is what SpriteSheetInfo.sequence already expresses. idle is a single held cell; walk is the four-beat 0 1 0 3; run is the same beats from the run block.",
+  "walk_timing_note": "133 ms per beat is derived, not sourced: the frame-sequence files beside the artwork carry a cell remap and no durations. It is the DS field cadence, 8 frames at 59.83 Hz.",
+  "import_settings": {
+    "textureType": "Sprite (2D and UI)",
+    "spriteMode": "Multiple - slice by Grid By Cell Size, 32x32, no padding",
+    "pixelsPerUnit": 13.714286,
+    "filterMode": "Point (no filter)",
+    "compression": "None",
+    "generateMipMaps": false,
+    "sRGBTexture": true,
+    "alphaIsTransparency": true,
+    "alphaSource": "Input Texture Alpha",
+    "maxTextureSize": 2048,
+    "wrapMode": "Clamp",
+    "meshType": "Full Rect",
+    "extrudeEdges": 0,
+    "note": "Identical in kind to the creature sheets' settings and mandatory for the same reasons -- but note pixelsPerUnit differs. People are Gen 4 field art at 96/7 texels per metre; creatures are Gen 5 battle art at 96. Importing a person sheet at 96 makes a 1.7 m adult 0.24 m tall."
+  },
+  "placement": {
+    "npc_market_01": "shopkeeper",
+    "npc_rival_01": "rival",
+    "npc_gate_01": "townsman",
+    "npc_garden_01": "gardener",
+    "npc_fisher_01": "elder_man",
+    "npc_hiker_01": "labourer",
+    "trainer_route_01": "youngster",
+    "trainer_route_02": "lass",
+    "trainer_lake_01": "fisher",
+    "trainer_cave_01": "hiker"
+  },
+  "procedural_states": {
+    "Talk": {
+      "base": "idle",
+      "recipe": "Hold the idle cell. Translate the whole sprite up 1 px on a 0.45 s square wave -- up for 0.15 s, down for 0.30 s -- snapped to whole pixels. This is Gen 4's own in-place vocabulary (its '!' reaction is a whole-sprite hop) scaled down to a breath. Translating the WHOLE sprite is the point: it keeps the figure rigid, so nothing is deleted, stretched or redrawn, and the 1 px ground break reads as emphasis rather than as a character sinking.",
+      "note": "Needed by the opening. No artwork exists for it and none is faked."
+    },
+    "TalkEmphasis": {
+      "base": "idle",
+      "recipe": "As Talk, but 2 px and a 0.3 s wave, for a line that lands. Use sparingly -- at 2 px this reads as a bounce."
+    },
+    "Present": {
+      "base": "idle",
+      "recipe": "Hold the idle cell facing the player. The gesture is carried by the prop, not the sprite: place PROPS['briefcase'] on the ground in front of the character and open it. This is how DPPt itself stages the starter choice -- the case is a field object with its own sprite, never part of the professor's sheet -- so it is the one beat that needs no new character art at all.",
+      "note": "Pairs with PROPS['briefcase'] and PROPS['player_takes_ball']."
+    },
+    "Turn": {
+      "base": "idle",
+      "recipe": "Snap between the idle cells of the two facings, no blend, one frame of the intermediate facing if turning 180 degrees. Sprite games turn by swapping the image; interpolating rotates a billboard and reads as the character sliding."
+    }
+  },
+  "states_note": "The source contains a standing pose and a walk and nothing else. Every other state -- talking above all, which the opening needs -- is a runtime transform of frames that exist, specified in whole pixels, exactly as extract.py does it for the creatures. Three ways of faking a talking pose out of pixels were tried and all three were rejected; see people.PROCEDURAL_STATES for what was tried and why none of it shipped.",
+  "characters": [
+    {
+      "key": "player",
+      "name": "Player",
+      "role": "player",
+      "note": "Platinum male protagonist. 32 cells: walk and run.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/player_m.png",
+        "staged": "Tools/Sprites/source_overworld/player_m.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/player.png",
+      "sheet_size": [
+        256,
+        96
+      ],
+      "unique_frames": 18,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          },
+          "run": {
+            "sequence": [
+              9,
+              10,
+              9,
+              11
+            ],
+            "durations_ms": [
+              67,
+              67,
+              67,
+              67
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          },
+          "run": {
+            "sequence": [
+              12,
+              13,
+              12,
+              14
+            ],
+            "durations_ms": [
+              67,
+              67,
+              67,
+              67
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          },
+          "run": {
+            "sequence": [
+              15,
+              16,
+              15,
+              17
+            ],
+            "durations_ms": [
+              67,
+              67,
+              67,
+              67
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 23,
+        "world_height_m": 1.6771,
+        "crown_row": 7,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 7
+          },
+          "body": {
+            "x": 16,
+            "y": 18
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 14,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "player_f",
+      "name": "Player (female)",
+      "role": "player",
+      "note": "Platinum female protagonist. Built so a gender select is possible; the opening does not require her. 32 cells: walk and run.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/player_f.png",
+        "staged": "Tools/Sprites/source_overworld/player_f.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/player_f.png",
+      "sheet_size": [
+        256,
+        96
+      ],
+      "unique_frames": 18,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          },
+          "run": {
+            "sequence": [
+              9,
+              10,
+              9,
+              11
+            ],
+            "durations_ms": [
+              67,
+              67,
+              67,
+              67
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          },
+          "run": {
+            "sequence": [
+              12,
+              13,
+              12,
+              14
+            ],
+            "durations_ms": [
+              67,
+              67,
+              67,
+              67
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          },
+          "run": {
+            "sequence": [
+              15,
+              16,
+              15,
+              17
+            ],
+            "durations_ms": [
+              67,
+              67,
+              67,
+              67
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 24,
+        "world_height_m": 1.75,
+        "crown_row": 6,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 6
+          },
+          "body": {
+            "x": 16,
+            "y": 18
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 13,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "professor",
+      "name": "Professor Oak",
+      "role": "professor",
+      "note": "Swept grey hair, white lab coat over a mauve shirt. The white coat mass is the read: no other character in the cast has it, so he is legible from the three-quarter camera before any dialogue starts. Kanto's professor, which is also the right one for a cast of 53 Kanto species.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/prof_oak.png",
+        "staged": "Tools/Sprites/source_overworld/prof_oak.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/professor.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 25,
+        "world_height_m": 1.8229,
+        "crown_row": 5,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 5
+          },
+          "body": {
+            "x": 16,
+            "y": 17
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 15,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "rival",
+      "name": "Rival",
+      "role": "rival",
+      "note": "Blond spiked hair, orange-striped shirt, green scarf. The Diamond/Pearl rival, whose role in the opening is exactly the one being written -- he takes the starter that beats yours and fights you on the spot. Chosen over reusing the female protagonist because he has to read as a different person from the player at a glance, not as the other slot.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/barry.png",
+        "staged": "Tools/Sprites/source_overworld/barry.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/rival.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 23,
+        "world_height_m": 1.6771,
+        "crown_row": 7,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 7
+          },
+          "body": {
+            "x": 16,
+            "y": 18
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 15,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "elder_man",
+      "name": "Old Man",
+      "role": "resident",
+      "note": "Bald, grey beard, long green coat. Stooped -- shortest adult in the cast.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/old_man.png",
+        "staged": "Tools/Sprites/source_overworld/old_man.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/elder_man.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 23,
+        "world_height_m": 1.6771,
+        "crown_row": 7,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 7
+          },
+          "body": {
+            "x": 16,
+            "y": 18
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 14,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "elder_woman",
+      "name": "Old Woman",
+      "role": "resident",
+      "note": "Grey bun, spectacles, apron.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/old_woman.png",
+        "staged": "Tools/Sprites/source_overworld/old_woman.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/elder_woman.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 23,
+        "world_height_m": 1.6771,
+        "crown_row": 7,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 7
+          },
+          "body": {
+            "x": 16,
+            "y": 18
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 14,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "shopkeeper",
+      "name": "Shopkeeper",
+      "role": "resident",
+      "note": "Shop apron over a plain top. The market stallholder.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/cashier_f.png",
+        "staged": "Tools/Sprites/source_overworld/cashier_f.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/shopkeeper.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 24,
+        "world_height_m": 1.75,
+        "crown_row": 6,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 6
+          },
+          "body": {
+            "x": 16,
+            "y": 18
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 15,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "gardener",
+      "name": "Gardener",
+      "role": "resident",
+      "note": "Wide brimmed hat and dungarees. Reads as someone who works outdoors rather than someone who battles.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/rancher.png",
+        "staged": "Tools/Sprites/source_overworld/rancher.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/gardener.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 26,
+        "world_height_m": 1.8958,
+        "crown_row": 4,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 4
+          },
+          "body": {
+            "x": 16,
+            "y": 17
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 13,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "labourer",
+      "name": "Labourer",
+      "role": "resident",
+      "note": "Hard hat and work overalls.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/worker.png",
+        "staged": "Tools/Sprites/source_overworld/worker.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/labourer.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 24,
+        "world_height_m": 1.75,
+        "crown_row": 6,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 6
+          },
+          "body": {
+            "x": 16,
+            "y": 18
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 12,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "townsman",
+      "name": "Townsman",
+      "role": "resident",
+      "note": "Middle-aged, plain shirt, no class marker. Tallest ordinary adult.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/middle_aged_man.png",
+        "staged": "Tools/Sprites/source_overworld/middle_aged_man.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/townsman.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 25,
+        "world_height_m": 1.8229,
+        "crown_row": 5,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 5
+          },
+          "body": {
+            "x": 16,
+            "y": 17
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 14,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "townswoman",
+      "name": "Townswoman",
+      "role": "resident",
+      "note": "Middle-aged, dark dress.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/middle_aged_woman.png",
+        "staged": "Tools/Sprites/source_overworld/middle_aged_woman.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/townswoman.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 25,
+        "world_height_m": 1.8229,
+        "crown_row": 5,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 5
+          },
+          "body": {
+            "x": 16,
+            "y": 17
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 13,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "child",
+      "name": "Child",
+      "role": "resident",
+      "note": "Small girl with red hair ties. 21 px -- the shortest of the cast.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/twin.png",
+        "staged": "Tools/Sprites/source_overworld/twin.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/child.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 20,
+        "world_height_m": 1.4583,
+        "crown_row": 10,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 10
+          },
+          "body": {
+            "x": 16,
+            "y": 20
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 14,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "youngster",
+      "name": "Youngster",
+      "role": "trainer",
+      "note": "Cap and shorts. The canonical route trainer.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/youngster.png",
+        "staged": "Tools/Sprites/source_overworld/youngster.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/youngster.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 23,
+        "world_height_m": 1.6771,
+        "crown_row": 7,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 7
+          },
+          "body": {
+            "x": 16,
+            "y": 18
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 13,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "lass",
+      "name": "Lass",
+      "role": "trainer",
+      "note": "Olive bob, orange skirt.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/lass.png",
+        "staged": "Tools/Sprites/source_overworld/lass.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/lass.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 23,
+        "world_height_m": 1.6771,
+        "crown_row": 7,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 7
+          },
+          "body": {
+            "x": 16,
+            "y": 18
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 14,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "fisher",
+      "name": "Fisher",
+      "role": "trainer",
+      "note": "Red cap and vest.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/fisherman.png",
+        "staged": "Tools/Sprites/source_overworld/fisherman.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/fisher.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 24,
+        "world_height_m": 1.75,
+        "crown_row": 6,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 6
+          },
+          "body": {
+            "x": 16,
+            "y": 18
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 14,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    },
+    {
+      "key": "hiker",
+      "name": "Hiker",
+      "role": "trainer",
+      "note": "Broad hat, heavy pack, stocky. Tallest character in the cast at 26 px.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/hiker.png",
+        "staged": "Tools/Sprites/source_overworld/hiker.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/hiker.png",
+      "sheet_size": [
+        256,
+        64
+      ],
+      "unique_frames": 9,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "pivot_normalised": {
+        "x": 0.5,
+        "y": 0.0625
+      },
+      "views": {
+        "front": {
+          "idle": {
+            "sequence": [
+              0
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              0,
+              1,
+              0,
+              2
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "back": {
+          "idle": {
+            "sequence": [
+              3
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              3,
+              4,
+              3,
+              5
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        },
+        "side": {
+          "idle": {
+            "sequence": [
+              6
+            ],
+            "durations_ms": [
+              0
+            ],
+            "loop": true
+          },
+          "walk": {
+            "sequence": [
+              6,
+              7,
+              6,
+              8
+            ],
+            "durations_ms": [
+              133,
+              133,
+              133,
+              133
+            ],
+            "loop": true
+          }
+        }
+      },
+      "side_view": {
+        "walks_toward": "screen_left",
+        "flank_to_lens": "left",
+        "mirror_for_the_other_side": true,
+        "note": "One side sheet is authored. The opposite side is this sheet flipped in U, never a negative X scale. The source shipped the mirror as real cells and they were verified identical before being dropped."
+      },
+      "display": {
+        "sprite_height_px": 26,
+        "world_height_m": 1.8958,
+        "crown_row": 4,
+        "ground_row": 29,
+        "note": "world_height_m is the height actually rendered: the drawn pixels divided by this cast's PPU. It is the number a spawner should pass as displayHeight.",
+        "anchors_px": {
+          "root": {
+            "x": 16,
+            "y": 29
+          },
+          "head": {
+            "x": 16,
+            "y": 4
+          },
+          "body": {
+            "x": 16,
+            "y": 17
+          }
+        },
+        "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
+      },
+      "palette_colours": 13,
+      "alignment": {
+        "translation_applied": [
+          0,
+          0
+        ],
+        "measured_ground_row": 29,
+        "note": "Zero translation: the source is natively registered."
+      }
+    }
+  ],
+  "props": [
+    {
+      "key": "briefcase",
+      "name": "Starter Briefcase",
+      "note": "The case the starters come out of, as a field object on the same 32x32 cell and the same ground row as the cast. 14 px tall = 1.02 m of footprint at this PPU, which is right for a case on the floor.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) field-object artwork, imported pixel-for-pixel.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/briefcase.png",
+        "staged": "Tools/Sprites/source_overworld/briefcase.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/prop_briefcase.png",
+      "sheet_size": [
+        256,
+        32
+      ],
+      "unique_frames": 1,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "clips": {
+        "idle": {
+          "sequence": [
+            0
+          ],
+          "durations_ms": [
+            0
+          ],
+          "loop": true
+        }
+      },
+      "display": {
+        "sprite_height_px": 14,
+        "world_height_m": 1.0208,
+        "ground_row": 29,
+        "on_cast_ground_row": true
+      }
+    },
+    {
+      "key": "player_takes_ball",
+      "name": "Player Takes Ball",
+      "note": "Four official cells of the player raising a ball overhead. Front view only -- it is a scripted beat, always played to camera. This is real gesture artwork, which is exactly what the professor has none of.",
+      "origin": {
+        "kind": "traced",
+        "detail": "Official Gen 4 (Platinum) field-object artwork, imported pixel-for-pixel.",
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/player_m_holding_pokeball.png",
+        "staged": "Tools/Sprites/source_overworld/player_m_holding_pokeball.png"
+      },
+      "sheet": "Assets/Game/Art/Sprites/People/prop_player_takes_ball.png",
+      "sheet_size": [
+        256,
+        32
+      ],
+      "unique_frames": 4,
+      "cell": {
+        "width": 32,
+        "height": 32,
+        "columns": 8
+      },
+      "pixels_per_unit": 13.714286,
+      "pivot_px": {
+        "x": 16,
+        "y_from_bottom": 2
+      },
+      "clips": {
+        "idle": {
+          "sequence": [
+            0
+          ],
+          "durations_ms": [
+            0
+          ],
+          "loop": true
+        },
+        "play": {
+          "sequence": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "durations_ms": [
+            133,
+            133,
+            133,
+            133
+          ],
+          "loop": false
+        }
+      },
+      "display": {
+        "sprite_height_px": 24,
+        "world_height_m": 1.75,
+        "ground_row": 29,
+        "on_cast_ground_row": true
+      }
+    }
+  ]
+}

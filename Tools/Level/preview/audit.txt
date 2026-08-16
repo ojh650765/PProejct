@@ -16,66 +16,66 @@ AUDIT -- checked against the five failures of the rejected layout
 
 2. EVERYTHING WAS FLAT
    height range -5.39 .. 31.61 m over 115 x 105 samples
-        -6..   -4 m     552 cells  ####
-        -4..   -2 m     374 cells  ##
-        -2..   +0 m    1845 cells  #############
-        +0..   +2 m    1225 cells  #########
-        +2..   +4 m    1570 cells  ###########
-        +4..   +6 m     307 cells  ##
-        +6..   +8 m     297 cells  ##
-        +8..  +10 m     348 cells  ##
+        -6..   -4 m     553 cells  ####
+        -4..   -2 m     393 cells  ##
+        -2..   +0 m    1820 cells  #############
+        +0..   +2 m    1134 cells  ########
+        +2..   +4 m    1777 cells  #############
+        +4..   +6 m     286 cells  ##
+        +6..   +8 m     282 cells  ##
+        +8..  +10 m     356 cells  ##
        +10..  +12 m     393 cells  ##
-       +12..  +14 m    1542 cells  ###########
-       +14..  +16 m     807 cells  ######
-       +16..  +18 m     665 cells  ####
-       +18..  +20 m     583 cells  ####
-       +20..  +22 m    1131 cells  ########
-       +22..  +24 m     268 cells  #
-       +24..  +26 m      48 cells  
-       +26..  +28 m      46 cells  
+       +12..  +14 m    1517 cells  ###########
+       +14..  +16 m     781 cells  #####
+       +16..  +18 m     651 cells  ####
+       +18..  +20 m     577 cells  ####
+       +20..  +22 m    1127 cells  ########
+       +22..  +24 m     266 cells  #
+       +24..  +26 m      45 cells  
+       +26..  +28 m      43 cells  
        +28..  +30 m      34 cells  
        +30..  +32 m      40 cells  
-   slope percentiles (deg): p50 17.9  p75 46.0  p90 63.5  p99 80.2
-   walkable-surface slope (deg), sampled where a material is assigned: p50 2.9  p90 37.0  p99 78.1
-   fraction of the map flatter than 1 deg: 6.1%  (a deck-based layout would be near 100%)
+   slope percentiles (deg): p50 17.4  p75 46.2  p90 64.6  p99 80.3
+   walkable-surface slope (deg), sampled where a material is assigned: p50 4.1  p90 53.1  p99 78.8
+   fraction of the map flatter than 1 deg: 9.3%  (a deck-based layout would be near 100%)
 
 3. BUILDINGS SCATTERED RATHER THAN COMPOSED
-   Town_Lab_01            setback  3.5 m, best front-to-frontage cos = +0.99 OK
-   Town_House_01          setback  2.3 m, best front-to-frontage cos = +1.00 OK
-   Town_House_02          setback  5.0 m, best front-to-frontage cos = +1.00 OK
+   Town_Lab_01            setback  3.7 m, best front-to-frontage cos = +0.99 OK
+   Town_House_01          setback  0.0 m, best front-to-frontage cos = +1.00 OK
+   Town_House_02          setback  5.4 m, best front-to-frontage cos = +1.00 OK
    Town_House_03          setback  8.1 m, best front-to-frontage cos = +0.90 OK
    Town_House_04          setback  9.2 m, best front-to-frontage cos = +1.00 OK
    Town_House_05          setback  8.9 m, best front-to-frontage cos = +0.98 OK
    Town_House_06          setback  7.6 m, best front-to-frontage cos = +1.00 OK
 
 4. OBJECTS FLOATING WHERE THERE IS NO GROUND
-   objects checked against the baked height field: 437
-   max |offset| 0.001 m, mean 0.0003 m
-     Route_StreamSouth_09         -0.001 m
-     Lake_SouthTrees_10           -0.001 m
-     Route_ShelfRocks_02          +0.001 m
-     Lake_ShoreTrees_11           +0.001 m
-     Town_HedgeBush_01            -0.001 m
-     Route_StreamSouth_13         +0.001 m
+   objects checked against the baked height field: 381
+   max |offset| 0.622 m, mean 0.0890 m
+     Route_ShelfRocks_02          -0.622 m
+     Route_BankEast_09            -0.512 m
+     Lake_BankCover_01            -0.508 m
+     Route_VergeRock_05           -0.472 m
+     Town_FenceEast_01            -0.463 m
+     Lake_BankCover_07            -0.437 m
 
 5. DENSITY WITHOUT INTENT
-   authored objects: 498   (rejected layout: 4682, of which 2201 grass)
-   ground cover moved to 12 declared foliage fields, 1923 instances, rendering=instanced
-   by subfamily: Tree 314, Bush 37, Cave 34, Fence 24, Rock 23, Fern 23, House 6, Prop 5, Vine 5, Bench 4, Planter 4, Signpost 4, Lamp 4, Market 3, Barrel 2, Building 1, Well 1, Crate 1, Bridge 1, Stepping 1, Waterfall 1
-   authored object density: 0.042 / m2 over 11856 m2
-   objects standing inside a road corridor: 0  
+   authored objects: 437   (rejected layout: 4682, of which 2201 grass)
+   ground cover moved to 12 declared foliage fields, 3802 instances, rendering=instanced
+   by subfamily: Tree 237, Bush 39, Cave 33, Fence 24, Rock 24, Fern 22, Riverbank 20, House 6, Prop 5, Vine 5, Bench 4, Planter 4, Signpost 4, Market 3, Ledge 2, Building 1, Well 1, Lamp 1, Bridge 1, Stepping 1
+   authored object density: 0.037 / m2 over 11856 m2
+   objects standing inside a road corridor: 6  Route_BankEast_01, Route_BankEast_09, Route_BankWest_01, Route_BankWest_02, Route_BankWest_10, Town_House_01
    solid-vs-solid overlaps: 0
 
 6. STANDABILITY OF ANCHORS
-   playerSpawn                slope  3.1 deg  OK
-   Spawn_TownGate             slope  0.1 deg  OK
+   playerSpawn                slope  0.0 deg  OK
+   Spawn_TownGate             slope  1.0 deg  OK
    Spawn_RouteHead            slope  4.9 deg  OK
-   Spawn_Crossroads           slope  0.4 deg  OK
+   Spawn_Crossroads           slope 24.2 deg  OK
    Spawn_CaveMouth            (cave floor, not height-field)
    Spawn_CaveChamber          (cave floor, not height-field)
-   Spawn_Beach                slope  2.7 deg  OK
+   Spawn_Beach                slope 27.8 deg  OK
    Spawn_Lookout              slope 13.9 deg  OK
    Trainer_Route_Youngster    slope  0.7 deg  OK
-   Trainer_Route_Lass         slope 18.9 deg  OK
+   Trainer_Route_Lass         slope  2.4 deg  OK
    Trainer_Lake_Fisher        slope  9.3 deg  OK
    Trainer_Cave_Hiker         (cave floor, not height-field)

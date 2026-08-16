@@ -1094,6 +1094,12 @@ def main():
         "objects": objects,
         "ambientAnchors": layout.get("ambientAnchors", []),
         "caveEntrances": cave_entrances(layout, grid),
+        # People. Nothing was building these: the layout has authored six residents and
+        # four trainers with positions, schedules and sight cones, and the scene came up
+        # empty every time. Two separate workstreams reported it independently -- the
+        # sprite pipeline finished sixteen characters that had nowhere to stand.
+        "npcs": gameplay.get("npcs", []),
+        "trainers": gameplay.get("trainers", []),
         "tallGrass": [g for g in gameplay.get("tallGrassPatches", [])
                       if not inside_any(float(g["centre"][0]), float(g["centre"][2]), caves)],
         "playerSpawn": spawn_pos,
@@ -1137,6 +1143,10 @@ def main():
         doc["objects"] = scene_objects
         doc["ambientAnchors"] = [a for a in out["ambientAnchors"]
                                  if in_scene(float(a["position"][2]), lo, hi)]
+        doc["npcs"] = [n for n in out["npcs"]
+                       if in_scene(float(n["position"][2]), lo, hi)]
+        doc["trainers"] = [t for t in out["trainers"]
+                           if in_scene(float(t["position"][2]), lo, hi)]
         doc["tallGrass"] = [g for g in out["tallGrass"]
                             if in_scene(float(g["centre"][2]), lo, hi)]
         doc["caveEntrances"] = [c for c in out["caveEntrances"]
@@ -1176,10 +1186,11 @@ def main():
     print()
     for name, path, doc in written:
         print("  scene %-6s %2d ground, %d water, %3d objects, %4d foliage, "
-              "%d links, %d doors, spawn %s"
+              "%d links, %d doors, %d npc, %d trainer, spawn %s"
               % (name, len(doc["ground"]), len(doc["water"]), len(doc["objects"]),
                  sum(f["placed"] for f in doc["foliage"]), len(doc["sceneLinks"]),
-                 len(doc["buildingDoors"]), "yes" if doc["playerSpawn"] else "-"))
+                 len(doc["buildingDoors"]), len(doc["npcs"]), len(doc["trainers"]),
+                 "yes" if doc["playerSpawn"] else "-"))
 
 
 if __name__ == "__main__":

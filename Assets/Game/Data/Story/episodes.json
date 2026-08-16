@@ -1,0 +1,123 @@
+{
+  "schema": {
+    "version": 1,
+    "authoredBy": "narrative-design",
+    "consumedBy": "Assets/Game/Scripts/Overworld/Flow/EpisodeRunner.cs",
+    "note": "An episode is an ordered list of beats. Beats block: each one finishes before the next starts, because a scripted scene whose steps overlap is a race, not a scene. This file is shaped for UnityEngine.JsonUtility, which is why 'Kind' is an integer and not a string -- JsonUtility deserialises enums from numbers only. 'KindName' and 'Note' sit beside them for humans and are ignored by the parser. Do not delete the integers.",
+    "beatKinds": {
+      "1": "FadeOut   -- cover the screen. Seconds is the fade length.",
+      "2": "FadeIn    -- reveal. Seconds is the fade length.",
+      "3": "Wait      -- hold. Seconds.",
+      "4": "Dialogue  -- play the sequence named by Id from dialogue.json, block until it ends. Target='starter' means: suffix Id with '_' + the chosen starter's game species id, so one beat can resolve to one of three authored sequences.",
+      "5": "TakeControl -- freeze the player, flow to Cutscene.",
+      "6": "GiveControl -- unfreeze, flow to Exploring.",
+      "7": "MoveActor -- walk the actor named by Id to the marker named by Target, block until it arrives. The actor faces the player on arrival. Seconds is a timeout, not a duration: if the walk has not finished by then, snap and continue, so blocked geometry can never strand the scene.",
+      "8": "CameraTo  -- frame the camera on the marker named by Id (OverworldCameraRig.LookToward). Markers are listed in cast.json.",
+      "9": "ChooseStarter -- open the starter choice, block until the player commits. StarterSelection.Commit runs InitialiseNewGame, so this beat is the point of no return.",
+      "10": "GiveItem -- Id is a FieldItems id, Amount is the count.",
+      "11": "SetFlag  -- Id is the flag, Value is on/off. Flags gate episodes, NPC dialogue variants and the gate ramp.",
+      "12": "Battle   -- Id is a trainer id. The runner hands off to that trainer's TrainerController and blocks until NotifyBattleResolved. Target='starter_counter' means the party is built from StarterOption.RivalCounterSpeciesId rather than from the TrainerDefinition's fixed list.",
+      "13": "AskName  -- NEW. Opens name entry, blocks, writes PlayerProfile.SetTrainerName. Id is the default used if the player confirms an empty field or the UI does not exist yet. Target names the profile field."
+    },
+    "episodeFields": {
+      "Id": "stable id; EpisodeRunner._openingEpisodeId points at 'opening'.",
+      "CompletionFlag": "set when the episode ends; an episode with its flag set never replays.",
+      "NextEpisodeId": "NEW. Played immediately when this one finishes. Used only where two scenes are really one scene split for authoring.",
+      "Trigger": "NEW, advisory. How this episode starts when it is not chained and not the auto-played opening. Nothing reads it yet; it is here so the wiring is written down next to the scene it belongs to rather than only in a scene file."
+    },
+    "gaps": [
+      "FadeIn/FadeOut, Dialogue, MoveActor and Battle are logged-and-skipped in EpisodeRunner today. Everything below assumes they land.",
+      "AskName (13) has no UI anywhere in the project. Until it does, the beat must fall through to its Id ('Ren') rather than block forever.",
+      "CameraTo resolves markers with GameObject.Find. None of the markers named here exist in the scenes yet; their world positions are in cast.json.",
+      "NPC_Professor does not exist in slice_layout.json. Every beat that names it needs that NPC placed first; position in cast.json.",
+      "Dialogue text uses a {PLAYER} token. Nothing substitutes it yet -- DialogueRunner is the natural place."
+    ]
+  },
+
+  "Episodes": [
+    {
+      "Id": "opening",
+      "DisplayName": "Aster Town, morning",
+      "CompletionFlag": "story.opening_seen",
+      "Note": "Cold open. Black screen, the professor's voice, the name, then the game's signature first frame: the lab dome filling the top of the screen from the plaza spawn. Structural model is Diamond/Pearl's title-screen Rowan monologue plus the red-Gyarados TV report, compressed into one because this game has no bedroom interior to watch a television in. Ends with control, and the rival four metres up the lab lane. Target length ~75s.",
+      "Beats": [
+        { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0, "Note": "Before anything. The player never has control during the prologue." },
+        { "Kind": 1,  "KindName": "FadeOut", "Seconds": 0.0, "Note": "Guarantee black on the first frame rather than trusting the boot state." },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_LabDome", "Seconds": 0.0, "Note": "Framed behind the black, so the fade-in reveals the dome already composed." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_prologue", "Seconds": 0.0, "Note": "7 lines over black. Auto-advancing except the last two. ~28s." },
+        { "Kind": 13, "KindName": "AskName", "Id": "Ren", "Target": "profile.trainer_name", "Seconds": 0.0 },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_prologue_confirm", "Seconds": 0.0, "Note": "2 lines. Uses {PLAYER}." },
+        { "Kind": 2,  "KindName": "FadeIn", "Seconds": 2.4, "Note": "Slow. This is the shot the whole town was built around." },
+        { "Kind": 3,  "KindName": "Wait", "Seconds": 1.8, "Note": "No text. Let the dome sit there." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_broadcast", "Seconds": 0.0, "Note": "The morning bulletin off the plaza research terminal. This is the Diamond/Pearl television report: it names the mystery and points at the lake. 3 lines, all auto-advancing, ~11s." },
+        { "Kind": 11, "KindName": "SetFlag", "Id": "story.opening_seen", "Value": true, "Seconds": 0.0 },
+        { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0, "Note": "Free on the plaza. Kes is up the lab lane; Sela in the market row points at him if the player wanders." }
+      ]
+    },
+
+    {
+      "Id": "opening_departure",
+      "DisplayName": "The case at the gate",
+      "CompletionFlag": "story.starter_chosen",
+      "NextEpisodeId": "rival_first_battle",
+      "Trigger": { "kind": "interact", "actorId": "npc_rival_01", "requiresFlag": "story.opening_seen", "forbidsFlag": "story.starter_chosen", "fallback": "proximity 3.0m, so a player who walks past Kes without pressing anything still starts the game" },
+      "Note": "The heart of it. Diamond/Pearl's structure with one documented deviation. DP: rival drags you out of town -> an adult stops you from entering the grass -> wild birds attack -> the briefcase is opened out of necessity -> you choose. All four of those survive here; only the stage moves, from Lake Verity to the head of the gate ramp, because that is where this map puts the boundary between safe and not. Target length ~3min.",
+      "Beats": [
+        { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_rival_start", "Seconds": 0.0, "Note": "4 lines, one cosmetic choice. Both options land on the same line -- DP does not let you refuse, and pretending otherwise is worse than not asking." },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_GateRamp", "Seconds": 0.0 },
+        { "Kind": 7,  "KindName": "MoveActor", "Id": "NPC_Rival", "Target": "Mark_Rival_GateStand", "Seconds": 4.0, "Note": "Kes runs. He should arrive well before the player." },
+        { "Kind": 7,  "KindName": "MoveActor", "Id": "Player", "Target": "Mark_Player_GateStand", "Seconds": 5.0, "Note": "Walk, not run. 9m up the main street. The camera is already looking past them both at the ramp." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_gate_block", "Seconds": 0.0, "Note": "Bram. This is DP's mother warning you out of the tall grass, given to the NPC the layout already stood at the gate. 5 lines." },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_RouteHead", "Seconds": 0.0, "Note": "Swing down the ramp to the route floor -- the shot the flock comes up through." },
+        { "Kind": 3,  "KindName": "Wait", "Seconds": 0.7 },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_flock", "Seconds": 0.0, "Note": "DP's two wild Starly, restaged as a scare rather than a battle. Line 0 carries EventId 'vfx.flock_startle'; the flock itself is VFX/prop work that does not exist. 5 lines." },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_GateStand", "Seconds": 0.0 },
+        { "Kind": 7,  "KindName": "MoveActor", "Id": "NPC_Professor", "Target": "Mark_Prof_Case", "Seconds": 6.0, "Note": "Linden comes up the main street from the lab lane, ~11m. He is slow on purpose; the line he speaks on arrival is about being old." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_professor_arrives", "Seconds": 0.0, "Note": "9 lines. Line 7 carries EventId 'story.case_open' for the case-opening VFX and sting." },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_Case", "Seconds": 0.0, "Note": "Push in. Three balls fill the frame; this is the only close shot in the episode." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_choice_prompt", "Seconds": 0.0, "Note": "1 line, then the choice opens. Deliberately short -- the player should be reading ball labels, not dialogue." },
+        { "Kind": 9,  "KindName": "ChooseStarter", "Seconds": 0.0, "Note": "Option copy is in cast.json under starterOptions. StarterSelection.Commit fires here: party, bag and save all begin at this instant." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_choice_result", "Target": "starter", "Seconds": 0.0, "Note": "Resolves to op_choice_result_1 / _5 / _10 by the chosen game species id. Each is Linden's read on the one you took plus Kes announcing the one that beats it." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_handover", "Seconds": 0.0, "Note": "5 lines. Linden explicitly calls it a loan until you come to the lab -- that is DP, where the starter is only formally yours when Rowan registers it at Sandgem, and it is what gives 'leaving_town' a reason to exist." },
+        { "Kind": 11, "KindName": "SetFlag", "Id": "story.starter_chosen", "Value": true, "Seconds": 0.0, "Note": "Switches Bram from gate_block_no_starter to gate_block_no_dex." },
+        { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0, "Note": "Handed back for a beat before Kes turns round. Chained, not merged, so the opening can be played and judged on its own." }
+      ]
+    },
+
+    {
+      "Id": "rival_first_battle",
+      "DisplayName": "Kes, at the gate",
+      "CompletionFlag": "story.rival_battle_done",
+      "Trigger": { "kind": "chained", "from": "opening_departure" },
+      "Note": "Platinum's structure, not Diamond/Pearl's. In DP the first battle is two wild Starly and Kes has no Pokemon until Route 203, several hours later; Platinum moved the starter choice to Route 201 and made the rival battle immediate. Immediate is the right call here: this slice is one town, one route, one lake, and a rival who challenges you two towns from now has nowhere to do it. The battle runs through TrainerController -- exclamation, approach, dialogue, battle -- not through a second path. Target length ~2min including the battle.",
+      "Beats": [
+        { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_GateStand", "Seconds": 0.0 },
+        { "Kind": 12, "KindName": "Battle", "Id": "trainer_rival_01", "Target": "starter_counter", "Seconds": 0.0, "Note": "TrainerController plays riv_pre before and riv_lost/riv_won after; both are on the definition in trainers.json. The party is one creature at level 5, the counter to whatever the player took." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "riv_after", "Seconds": 0.0, "Note": "Linden, and written to play identically whether the player won or lost -- he is commenting on the fact of the battle, not its result. 3 lines." },
+        { "Kind": 7,  "KindName": "MoveActor", "Id": "NPC_Rival", "Target": "Mark_Rival_GateWait", "Seconds": 4.0, "Note": "CONFLICT: TrainerController.ReturnToPost walks him back to the lab lane the moment the battle resolves. Either give the controller a new rest post or suppress the return for this one fight." },
+        { "Kind": 11, "KindName": "SetFlag", "Id": "story.rival_battle_done", "Value": true, "Seconds": 0.0 },
+        { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0 }
+      ]
+    },
+
+    {
+      "Id": "leaving_town",
+      "DisplayName": "The register, and the ramp",
+      "CompletionFlag": "story.pokedex",
+      "Trigger": { "kind": "interact", "actorId": "npc_professor_01", "requiresFlag": "story.rival_battle_done", "forbidsFlag": "story.pokedex" },
+      "Note": "What gates the ramp. Three states, in this order: no Pokemon -> Bram refuses outright; Pokemon but no dex -> Bram sends you back up the hill because Linden asked him to; dex -> open. That is DP's shape (starter at the lake, but the real freedom -- the dex, the balls, permission -- comes from the lab afterwards) folded into one town. The dex handover is also where the bag gets explained: InitialiseNewGame already granted 10 balls, 5 potions and 2 antidotes at the moment of choosing, so Linden names that exact kit instead of the data and the fiction disagreeing. Target length ~60s.",
+      "Beats": [
+        { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_LabDoor", "Seconds": 0.0 },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "dex_handover", "Seconds": 0.0, "Note": "8 lines. Line 1 carries EventId 'story.starter_registered', line 2 carries 'story.dex_given' for the item-get jingle and card." },
+        { "Kind": 11, "KindName": "SetFlag", "Id": "story.pokedex", "Value": true, "Seconds": 0.0 },
+        { "Kind": 10, "KindName": "GiveItem", "Id": "repel", "Amount": 2, "Seconds": 0.0, "Note": "The one thing actually handed over here, because the rest of the kit came with the starter. A Town Map / journal key item would be the DP-faithful gift and FieldItems has no key items at all." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "dex_close", "Seconds": 0.0, "Note": "2 lines. Sends the player at the ramp." },
+        { "Kind": 11, "KindName": "SetFlag", "Id": "story.gate_open", "Value": true, "Seconds": 0.0, "Note": "The LevelTransition at the gate ramp must test this. Nothing tests it today -- the ramp is walkable from frame one." },
+        { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0 }
+      ]
+    }
+  ]
+}

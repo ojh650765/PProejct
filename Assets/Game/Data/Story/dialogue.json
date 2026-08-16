@@ -1,0 +1,389 @@
+{
+  "schema": {
+    "version": 1,
+    "authoredBy": "narrative-design",
+    "shapedFor": "Assets/Game/Scripts/Overworld/Npc/DialogueData.cs -- DialogueSequence / DialogueLine / DialogueChoice",
+    "note": "Every Lines[] entry is field-for-field a DialogueLine, so a loader can read this straight into DialogueSequence.FromLines and never touch a ScriptableObject asset. 'Tone' is an integer because JsonUtility deserialises enums from numbers; 'ToneName' sits beside it for humans and is ignored. Choices jump by line index and -1 ends the sequence, exactly as the struct documents.",
+    "tones": { "0": "Neutral", "1": "Friendly", "2": "Excited", "3": "Worried", "4": "Hostile", "5": "System" },
+    "conventions": {
+      "PortraitKey": "Left empty everywhere on purpose. Tools/Sprites/people.py produces 32px overworld sheets and no portraits at all, and DialogueView's portrait frame is 116x172. The frame collapses when the sprite is null, so an empty key renders correctly today. When busts exist, the key is the SpeakerId.",
+      "{PLAYER}": "Substituted with PlayerProfile.TrainerName. Nothing substitutes it yet.",
+      "AutoAdvanceSeconds": "Non-zero only where the scene should play itself -- the prologue over black and the plaza bulletin. Everything a character says to the player's face waits for a press.",
+      "lineLength": "Kept under ~150 characters. DialogueView's body band is two lines of 30pt across a 1480px measure; longer than that scrolls out of the scrim."
+    }
+  },
+
+  "Sequences": [
+    {
+      "SequenceId": "op_prologue",
+      "PlaysOnlyOnce": true,
+      "Note": "Over black. Diamond/Pearl's title-screen professor monologue: state the world, state the problem, ask who the player is. Auto-advancing until the two questions.",
+      "Lines": [
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.2, "EventId": "", "Choices": [],
+          "Text": "People have kept records of this valley for four hundred years. Rainfall. Harvests. The depth of the lake in spring." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.0, "EventId": "", "Choices": [],
+          "Text": "And in the margin of every one of them, in a different hand, somebody has drawn a creature." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.0, "EventId": "", "Choices": [],
+          "Text": "Pokémon. We have lived beside them the entire time and written them down last." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.0, "EventId": "", "Choices": [],
+          "Text": "I intend to correct the order of that list. But I am seventy-one, and the valley is large." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 4.4, "EventId": "", "Choices": [],
+          "Text": "So I have been waiting for somebody to come and stand in front of me. It appears to be you." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "",
+          "Text": "Before anything else. How do you see yourself?",
+          "Choices": [
+            { "Text": "A boy.", "GoToLine": 6, "ResultEventId": "profile.body.male" },
+            { "Text": "A girl.", "GoToLine": 6, "ResultEventId": "profile.body.female" }
+          ] },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Good. Then tell me your name." }
+      ]
+    },
+
+    {
+      "SequenceId": "op_prologue_confirm",
+      "PlaysOnlyOnce": true,
+      "Note": "Two lines, still over black. The second one is the cue for the fade.",
+      "Lines": [
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 1.8, "EventId": "", "Choices": [],
+          "Text": "{PLAYER}. Yes. That will do." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Open your eyes, then. It is already morning, and the valley does not record itself." }
+      ]
+    },
+
+    {
+      "SequenceId": "op_broadcast",
+      "PlaysOnlyOnce": true,
+      "Note": "Diamond/Pearl's television report, moved to the plaza research terminal because this game has no house interiors. Its job is identical: name the anomaly, point at the lake, and be the only thing in the scene that has told the player anything.",
+      "Lines": [
+        { "SpeakerId": "prop_research_terminal", "SpeakerName": "Aster Field Lab", "SpeakerSubtitle": "Morning Bulletin", "PortraitKey": "", "Tone": 5, "ToneName": "System", "AutoAdvanceSeconds": 4.2, "EventId": "", "Choices": [],
+          "Text": "— and repeating the notice. The lake rose eleven centimetres overnight. There was no rain." },
+        { "SpeakerId": "prop_research_terminal", "SpeakerName": "Aster Field Lab", "SpeakerSubtitle": "Morning Bulletin", "PortraitKey": "", "Tone": 5, "ToneName": "System", "AutoAdvanceSeconds": 3.8, "EventId": "", "Choices": [],
+          "Text": "Residents are asked to keep clear of the basin until the survey team has been down." },
+        { "SpeakerId": "prop_research_terminal", "SpeakerName": "Aster Field Lab", "SpeakerSubtitle": "Morning Bulletin", "PortraitKey": "", "Tone": 5, "ToneName": "System", "AutoAdvanceSeconds": 3.0, "EventId": "", "Choices": [],
+          "Text": "That is all. Have a pleasant morning." }
+      ]
+    },
+
+    {
+      "SequenceId": "op_rival_start",
+      "PlaysOnlyOnce": true,
+      "Note": "Kes is Barry's function: he supplies the momentum the player has not earned yet. The choice on line 2 is cosmetic -- both answers land on line 3 -- because DP does not let you decline and offering a refusal you cannot take is worse than not asking.",
+      "Lines": [
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Eleven centimetres. With no rain. You heard it too — tell me you heard it." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "The entire street heard that and went back to their bread." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "",
+          "Text": "I'm going down to the lake. Now, before the survey crew gets there and puts rope round it.",
+          "Choices": [
+            { "Text": "I'm right behind you.", "GoToLine": 3, "ResultEventId": "rival.answer.eager" },
+            { "Text": "You're going to fall in.", "GoToLine": 3, "ResultEventId": "rival.answer.dry" }
+          ] },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Then keep up. If I'm at the ramp and you aren't, I'm counting out loud." }
+      ]
+    },
+
+    {
+      "SequenceId": "op_gate_block",
+      "PlaysOnlyOnce": true,
+      "Note": "DP's mother warning you out of the tall grass, given to the NPC the layout already stood at the gate. Bram states the rule the whole first act is built on, in one sentence, before the player has any reason to resent it.",
+      "Lines": [
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Stop. Both of you. Stop." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "That ramp goes down into grass that comes up past your chest, and there is something living in every metre of it." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "I don't stand here for the view. Nobody goes down without a Pokémon. The rule is short so that people remember it." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "The lake is right there —" },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "It has been right there your whole life." }
+      ]
+    },
+
+    {
+      "SequenceId": "op_flock",
+      "PlaysOnlyOnce": true,
+      "Note": "DP's two wild Starly, restaged as a scare instead of a battle. In DP the birds are the reason the briefcase gets opened; keeping that logic and dropping the fight means this opening has exactly one battle in it, and it is the one that matters. Line 0 is unattributed narration -- DialogueView drops the name plate and rule when SpeakerName is empty, which is what makes it read as the world rather than as a person.",
+      "Lines": [
+        { "SpeakerId": "", "SpeakerName": "", "SpeakerSubtitle": "", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "vfx.flock_startle", "Choices": [],
+          "Text": "Something came up out of the grass below the ramp. A dozen of them, brown, shrieking, straight over the gate and gone north." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "...okay. That's new." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "That is not new. That is Pidgey. They go up like that when something bigger walks under them." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "So what's walking under them?" },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Ask me again when I know." }
+      ]
+    },
+
+    {
+      "SequenceId": "op_professor_arrives",
+      "PlaysOnlyOnce": true,
+      "Note": "DP's Rowan arriving to call the rival reckless, and then handing over the case anyway. Line 7 carries story.case_open for the VFX and sting.",
+      "Lines": [
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Bram. Let them past." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Professor —" },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "I heard the birds from the lane. I have waited a long time for that lake to do something, and it has picked this morning." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Kes. You were going down there with nothing." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "I was going down there fast." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Yes. That is the part that worries me." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "I was carrying these down to the basin myself. I am not carrying them and keeping up with you. So." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "story.case_open", "Choices": [],
+          "Text": "Three. Born at the lab, healthy, and not one of them has ever been outside that building." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Take one. Then you may both go down that ramp, with my blessing and with Bram's." }
+      ]
+    },
+
+    {
+      "SequenceId": "op_choice_prompt",
+      "PlaysOnlyOnce": true,
+      "Note": "One line, then the balls. Short on purpose -- at this moment the player should be reading labels, not dialogue.",
+      "Lines": [
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Take your time over it. It is a long walk with the wrong one." }
+      ]
+    },
+
+    {
+      "SequenceId": "op_choice_result_1",
+      "PlaysOnlyOnce": true,
+      "Note": "Player took Bulbasaur (game id 1). Kes takes Charmander (game id 5).",
+      "Lines": [
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Bulbasaur. Grass and poison, with a garden strapped to its back. It does not win quickly. It declines to be finished." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Then I'm taking the one that sets gardens on fire. Charmander. Sorry. Not really sorry." }
+      ]
+    },
+
+    {
+      "SequenceId": "op_choice_result_5",
+      "PlaysOnlyOnce": true,
+      "Note": "Player took Charmander (game id 5). Kes takes Squirtle (game id 10).",
+      "Lines": [
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Charmander. Fire, and not a great deal else yet. Keep that tail out of the rain and in six months you will not recognise it." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Water puts out fire. Squirtle, please. That isn't me being clever, that's just how it works." }
+      ]
+    },
+
+    {
+      "SequenceId": "op_choice_result_10",
+      "PlaysOnlyOnce": true,
+      "Note": "Player took Squirtle (game id 10). Kes takes Bulbasaur (game id 1).",
+      "Lines": [
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Squirtle. Water, and a roof it can climb inside when the day goes badly — which is more than most of us manage." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "And a plant drinks water. Bulbasaur, then. See? I do read." }
+      ]
+    },
+
+    {
+      "SequenceId": "op_handover",
+      "PlaysOnlyOnce": true,
+      "Note": "The loan, not the gift. This is Diamond/Pearl exactly: at the lake the starter is only borrowed, and it becomes formally yours when Rowan registers it at the Sandgem lab. Keeping that distinction is what gives 'leaving_town' something to be about.",
+      "Lines": [
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "It is yours to carry. Not yours to keep — not yet." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Come up to the lab when you have had your look at the lake and I will put it in the register in ink. Then it is a gift." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Bram. The ramp." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "The ramp is open." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Mind the second step. It stays wet all morning." }
+      ]
+    },
+
+    {
+      "SequenceId": "riv_pre",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.PreBattle for trainer_rival_01. Played by TrainerController after the exclamation and the approach walk, so it starts mid-motion and does not need to re-establish anything.",
+      "Lines": [
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Wait. Wait, wait, wait." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "We are not walking down there with two brand-new Pokémon and no idea which of us is better at this." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "One battle. Here, at the gate, where Bram can watch it and tell the whole street." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "I will not be telling anybody." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "He'll tell everybody. Go!" }
+      ]
+    },
+
+    {
+      "SequenceId": "riv_lost",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.OnDefeat -- the player won.",
+      "Lines": [
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "...huh." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "No — that's fine. That's information. Now I know." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Next time I'm not going first." }
+      ]
+    },
+
+    {
+      "SequenceId": "riv_won",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.OnPlayerDefeat -- the player lost. The rival battle is uphill by design (Kes always holds the type advantage), so this branch is likely and must not feel like a failure state. He points at the healing machine on the plaza, which is 3m from the spawn.",
+      "Lines": [
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "HA! Ha!" },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Don't look like that. It was four moves. Four moves is barely a battle." },
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Go and use the machine on the plaza. I'll wait. I'll even wait quietly." }
+      ]
+    },
+
+    {
+      "SequenceId": "riv_idle",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.AfterDefeat -- talking to him again once the fight is over.",
+      "Lines": [
+        { "SpeakerId": "npc_rival_01", "SpeakerName": "Kes", "SpeakerSubtitle": "Aster Town", "PortraitKey": "", "Tone": 2, "ToneName": "Excited", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Lake. As soon as you're ready. I'm not going down there on my own, obviously." }
+      ]
+    },
+
+    {
+      "SequenceId": "riv_after",
+      "PlaysOnlyOnce": true,
+      "Note": "Played by the episode after the battle resolves, on BOTH branches. Written so it does not know or care who won -- Linden is commenting on the fact of the battle, not the result, which is what lets one sequence serve both outcomes without a branch the runner would have to carry.",
+      "Lines": [
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "There. That is the thing I cannot teach and would not want to." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Two of them, five minutes old, and they already know what they are for." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Go on. And come up to the lab afterwards — I meant what I said about the ink." }
+      ]
+    },
+
+    {
+      "SequenceId": "dex_handover",
+      "PlaysOnlyOnce": true,
+      "Note": "Diamond/Pearl's Sandgem lab scene, one town closer. The bag inventory in line 5 is not flavour: PlayerProfile.InitialiseNewGame grants exactly 10 poke-ball, 5 potion and 2 antidote at the moment of choosing, so this line names what the player already has rather than inventing a second handout that would not match the save.",
+      "Lines": [
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "You came back up the hill. Half the people I hand a Pokémon to never do." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "story.starter_registered", "Choices": [],
+          "Text": "Registered. Signed for, in ink. It is yours now, properly, and nobody gets to take it back." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "story.dex_given", "Choices": [],
+          "Text": "And this. Hold it steady — it takes a moment to wake up." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "It records what you meet. Not what you catch — what you meet. Look at something long enough for it to look back and the entry writes itself." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "There are more kinds living between this gate and the lake than I have entries for. I have been meaning to fix that for eleven years." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Your bag: ten balls, five potions, two antidotes. Standard kit. It comes off the lab's budget and I would like the empty tins back." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Take these as well. Repels. They keep the small ones off you while you work out which end of a battle you are on." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "That is everything. Bram has been told." }
+      ]
+    },
+
+    {
+      "SequenceId": "dex_close",
+      "PlaysOnlyOnce": true,
+      "Note": "The last thing said before the ramp opens. It restates the anomaly from the morning bulletin, which is the only piece of plot the player is carrying.",
+      "Lines": [
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Go and look at the lake for me, {PLAYER}. Eleven centimetres." },
+        { "SpeakerId": "npc_professor_01", "SpeakerName": "Linden", "SpeakerSubtitle": "Aster Field Lab", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "And write down what you see before you decide what it means. That order. Always that order." }
+      ]
+    },
+
+    {
+      "SequenceId": "gate_block_no_starter",
+      "PlaysOnlyOnce": false,
+      "Note": "Bram, state 1 of 3. NpcController._defaultDialogue. Active until story.starter_chosen.",
+      "Lines": [
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Not without a Pokémon. It isn't personal and it isn't negotiable." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "The professor is up at the lab. Go and be charming at him." }
+      ]
+    },
+
+    {
+      "SequenceId": "gate_block_no_dex",
+      "PlaysOnlyOnce": false,
+      "Note": "Bram, state 2 of 3. Active on story.starter_chosen, until story.pokedex. This is the state that actually gates leaving town, and it exists so the reason is a person with an opinion rather than an invisible wall.",
+      "Lines": [
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "You've got one. Good. That's my rule satisfied." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 0, "ToneName": "Neutral", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "The professor's rule isn't. He wants you at the lab first — something about ink. It's a two-minute walk." }
+      ]
+    },
+
+    {
+      "SequenceId": "gate_open",
+      "PlaysOnlyOnce": false,
+      "Note": "Bram, state 3 of 3. Active on story.pokedex.",
+      "Lines": [
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Ramp's yours. Mind the second step." },
+        { "SpeakerId": "npc_gate_01", "SpeakerName": "Bram", "SpeakerSubtitle": "Aster Gate", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "And come back through here now and then. It's a quiet job." }
+      ]
+    },
+
+    {
+      "SequenceId": "sela_hint",
+      "PlaysOnlyOnce": false,
+      "Note": "Stallholder, default. DP's mother telling you Barry came round and it was an emergency -- the pointer that stops a player who has control and no idea what to do with it.",
+      "Lines": [
+        { "SpeakerId": "npc_market_01", "SpeakerName": "Sela", "SpeakerSubtitle": "Aster Market", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Your friend came through at a run, took an apple, said he'd pay me Tuesday, and went straight up the lab lane." },
+        { "SpeakerId": "npc_market_01", "SpeakerName": "Sela", "SpeakerSubtitle": "Aster Market", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "He's still up there. He has not stopped talking since he arrived." }
+      ]
+    },
+
+    {
+      "SequenceId": "sela_after",
+      "PlaysOnlyOnce": false,
+      "Note": "Stallholder, alternate on story.pokedex.",
+      "Lines": [
+        { "SpeakerId": "npc_market_01", "SpeakerName": "Sela", "SpeakerSubtitle": "Aster Market", "PortraitKey": "", "Tone": 1, "ToneName": "Friendly", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Off, then. Bring me back something with feathers on it and I'll paint it on the sign." }
+      ]
+    },
+
+    {
+      "SequenceId": "odell_flavour",
+      "PlaysOnlyOnce": false,
+      "Note": "Gardener, default. One line, and its only job is to make the bulletin's eleven centimetres sound strange to somebody who would know.",
+      "Lines": [
+        { "SpeakerId": "npc_garden_01", "SpeakerName": "Odell", "SpeakerSubtitle": "Town Gardens", "PortraitKey": "", "Tone": 3, "ToneName": "Worried", "AutoAdvanceSeconds": 0.0, "EventId": "", "Choices": [],
+          "Text": "Eleven centimetres. I've put a stick in that lake every spring for thirty years and it has never once done that." }
+      ]
+    }
+  ]
+}

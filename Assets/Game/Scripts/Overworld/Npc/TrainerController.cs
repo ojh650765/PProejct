@@ -91,6 +91,23 @@ namespace PokeLab.Overworld
 
         public bool CanInteract(GameObject instigator) => !_sequenceRunning && _definition != null;
 
+        /// <summary>
+        /// Applied by the level builder from the authored layout.
+        ///
+        /// The sight cone is per-trainer in the design and it matters: the youngster's
+        /// 9 m / 22 deg cone "crosses the road from the south verge, between the two
+        /// tall-grass fields", which is a composed encounter, not a default.
+        /// </summary>
+        public void Configure(string trainerId, float sightRange, float sightHalfAngle)
+        {
+            // The id is the object's name when no definition is assigned — see TrainerId
+            // above — so naming it is how the layout's trainerId reaches
+            // EncounterRequest. A definition asset, once one exists, wins over this.
+            if (!string.IsNullOrEmpty(trainerId) && _definition == null) gameObject.name = trainerId;
+            if (sightRange > 0f) _sightRange = sightRange;
+            if (sightHalfAngle > 0f) _sightHalfAngle = sightHalfAngle;
+        }
+
         private void Awake()
         {
             _agent = GetComponent<NavMeshAgent>();

@@ -516,8 +516,15 @@ namespace PokeLab.Cinematics
         /// </summary>
         private void SelectFacing(Vector3 forward, Vector3 toCamera, Camera cam)
         {
-            // Signed angle from "facing the lens" — 0 means looking at the camera, ±180 away,
-            // +90 means the subject's right side is toward the camera.
+            // Signed angle from "facing the lens" — 0 means looking at the camera, ±180 away.
+            //
+            // +90 is the subject's *left* flank toward the camera, not its right. Worked
+            // through: a subject at the origin facing +X seen from +Z gives +90 here,
+            // and for forward = (1,0,0) with up = (0,1,0) the transform's right is
+            // cross(up, forward) = (0,0,-1) — pointing away from the lens. This read the
+            // other way round for a long time, harmlessly, because both side sectors fall
+            // back to a mirrored front or back view; it would have surfaced as characters
+            // walking backwards the first time a real side sheet was bound.
             float angle = Vector3.SignedAngle(toCamera, forward, Vector3.up);
 
             // Hold the current sector a little past its true edge.
@@ -528,7 +535,7 @@ namespace PokeLab.Cinematics
             float a = Mathf.Abs(angle);
             if (a <= front) _facing = SpriteFacing.Front;
             else if (a >= back) _facing = SpriteFacing.Back;
-            else _facing = angle > 0f ? SpriteFacing.Right : SpriteFacing.Left;
+            else _facing = angle > 0f ? SpriteFacing.Left : SpriteFacing.Right;
 
             // A side sector with no drawn side view falls back to whichever of front and back
             // it is nearer to, so the creature at least faces the correct half of the world.
@@ -538,7 +545,10 @@ namespace PokeLab.Cinematics
                 if (!haveSide)
                 {
                     _sideBorrowsBack = a > 90f;
-                    _sideFlip = _facing == SpriteFacing.Left;
+                    // Side sheets are drawn with the subject's left flank to the lens —
+                    // the Gen 4 field sprites walk screen-left as authored — so the right
+                    // facing is the one that needs mirroring.
+                    _sideFlip = _facing == SpriteFacing.Right;
                 }
                 else
                 {
