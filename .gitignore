@@ -116,3 +116,12 @@ Assets/Screenshots.meta
 # Windows has no /dev/null, so a stray `> /dev/null` in a shell script creates
 # this as a real directory in the repo root. Ignored so it cannot be committed again.
 /dev/
+
+# Review screenshots. Regenerated on demand by the play-mode probe and the
+# walkthrough capture; committing them means every review pass is a binary diff.
+/Captures/
+
+# Temporary editor harnesses. A worker that needs one to trigger a code path is
+# expected to delete it; this stops one surviving a `git add -A` if they do not.
+**/Temp*Harness.cs
+**/Temp*Harness.cs.meta
