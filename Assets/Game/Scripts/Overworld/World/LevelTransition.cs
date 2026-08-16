@@ -76,6 +76,23 @@ namespace PokeLab.Overworld
                 return;
             }
 
+            // Already here. When the destination is streamed in beside us the player is not
+            // going anywhere — both halves share one world space, so they are simply walking
+            // across the join. Loading it again would tear down the world they are standing
+            // in to rebuild the one they are already in.
+            if (World.WorldStreamer.Streamed.Contains(_sceneName)
+                || SceneManager.GetSceneByName(_sceneName).isLoaded)
+            {
+                return;
+            }
+
+            // Never mid-conversation. Walking into a doorway while someone is talking to you
+            // used to cut them off and load the next scene, so a story beat could be lost by
+            // taking one step — and the beat that fires at the town gate is the one the whole
+            // opening builds to.
+            var dialogue = DialogueRunner.Instance;
+            if (dialogue != null && dialogue.IsPlaying) return;
+
             StartCoroutine(Travel());
         }
 

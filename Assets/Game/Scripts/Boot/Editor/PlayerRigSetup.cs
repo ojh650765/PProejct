@@ -390,6 +390,12 @@ namespace PokeLab.Boot.Editor
             // of them knowing it exists.
             if (go.GetComponent<PokeLab.Boot.SurfMount>() == null)
                 go.AddComponent<PokeLab.Boot.SurfMount>();
+
+            // Streams the neighbouring band in around the player. Both halves of the map are
+            // emitted into one world space, so this turns the boundary from a scene load
+            // into a place where the player keeps walking.
+            if (go.GetComponent<PokeLab.Overworld.World.WorldStreamer>() == null)
+                go.AddComponent<PokeLab.Overworld.World.WorldStreamer>();
         }
 
         /// <summary>
