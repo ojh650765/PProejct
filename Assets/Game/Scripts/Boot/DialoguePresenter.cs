@@ -68,7 +68,10 @@ namespace PokeLab.Boot
 
         private void OnLine(DialogueLine line)
         {
-            if (_view == null || line == null) return;
+            // DialogueLine is a struct, so there is no null to test — an unset line arrives
+            // as a default one with no text, and drawing that is an empty box the player
+            // has to dismiss.
+            if (_view == null || string.IsNullOrEmpty(line.Text)) return;
 
             // The runner owns advancing — it is what the interact button is wired to, and it
             // is what knows whether the sequence has more lines. The view is told what to
