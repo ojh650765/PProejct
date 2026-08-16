@@ -26,29 +26,39 @@ namespace PokeLab.Overworld
         [SerializeField] private Transform _followTarget;
 
         [Header("Orbit limits")]
-        [SerializeField] private float _minPitch = -25f;
-        [SerializeField] private float _maxPitch = 60f;
+        [SerializeField] private float _minPitch = -12f;
+        [SerializeField] private float _maxPitch = 62f;
 
         [Header("HD-2D framing")]
-        [Tooltip("Hold the world at one angle. The camera still follows the player; it just never " +
-                 "orbits. Required while characters are billboarded sprites — a yaw change swaps " +
-                 "which drawn view is shown without the character having turned.")]
-        [SerializeField] private bool _lockYaw = true;
+        [Tooltip("Hold the world at one angle instead of letting the player orbit. Off: the " +
+                 "billboards carry three drawn views and mirror the sides, so they answer a " +
+                 "moving camera correctly — walk away from it and you see the character's " +
+                 "back, which is what makes free look affordable here at all.")]
+        [SerializeField] private bool _lockYaw;
         [Tooltip("The single yaw the world is viewed from. Battle uses its own layout yaw; this is exploration's.")]
         [Range(0f, 360f)]
         [SerializeField] private float _fixedYaw = 45f;
-        [Tooltip("Downward angle. Shallower than a true isometric so the sprites keep their height on screen.")]
-        [Range(10f, 70f)]
-        [SerializeField] private float _fixedPitch = 38f;
+        [Tooltip("Downward angle, and it is a narrow band. Too shallow and the sky takes " +
+                 "half the frame; 55 was tried and put the camera on the rooftops, with the " +
+                 "signboards edge-on and the sprites seen from above the angle they were " +
+                 "drawn at. This shows building fronts and the road ahead, which is what a " +
+                 "Sinnoh town is composed to be read from.")]
+        [Range(-12f, 70f)]
+        [SerializeField] private float _fixedPitch = 8f;
         [Tooltip("Degrees per second the yaw eases back after a cutscene has borrowed the camera.")]
         [SerializeField] private float _yawReturnRate = 120f;
         [Tooltip("Distance the rig sits at with a clear line of sight.")]
-        [SerializeField] private float _restDistance = 5.5f;
+        [SerializeField] private float _restDistance = 8.5f;
         [SerializeField] private float _minDistance = 1.4f;
-        [SerializeField] private float _maxDistance = 9f;
+        [SerializeField] private float _maxDistance = 14f;
 
         [Header("Occlusion")]
-        [SerializeField] private bool _avoidObstacles = true;
+        [Tooltip("Off by default, and that is the design rather than a compromise. A spring " +
+                 "arm that shortens behind walls is a third-person convention; a fixed " +
+                 "overhead camera is what makes a Pokémon town legible, because the distance " +
+                 "the world is read at never changes. With it on, walking past a building " +
+                 "swung the boom between 1.4 m and 16 m and the framing lurched with it.")]
+        [SerializeField] private bool _avoidObstacles;
         [SerializeField] private LayerMask _occluderMask = ~0;
         [Tooltip("Cast radius. Slightly larger than the near plane corner so the camera never clips a wall.")]
         [SerializeField] private float _probeRadius = 0.32f;
@@ -56,6 +66,11 @@ namespace PokeLab.Overworld
         [SerializeField] private float _pullInTime = 0.05f;
         [Tooltip("Seconds to ease back out once clear. Slow, so brushing a tree does not yo-yo the camera.")]
         [SerializeField] private float _pushOutTime = 0.55f;
+
+        [Header("Mouse look")]
+        [Tooltip("Capture the cursor so the mouse turns the camera instead of sliding a " +
+                 "pointer off the window. Escape releases it; the editor does that for you.")]
+        [SerializeField] private bool _captureCursor = true;
 
         [Header("Auto-frame")]
         [Tooltip("Degrees per second the yaw drifts behind the player when there is no look input.")]
@@ -98,6 +113,33 @@ namespace PokeLab.Overworld
 
             _currentDistance = _restDistance;
             ApplyDistance(_restDistance);
+            ApplyStartingPitch();
+
+            if (_captureCursor && !_lockYaw) SetCursorCaptured(true);
+        }
+
+        /// <summary>
+        /// Puts the camera at its resting height before the first frame is drawn.
+        ///
+        /// With the yaw unlocked, <see cref="ApplyLookInput"/> no longer writes the pitch
+        /// every frame — it is the player's to move — so whatever the axis was serialized
+        /// with is where the game opens. That was 17.5 degrees from a Cinemachine default
+        /// nobody chose, and it is the first shot of the game.
+        /// </summary>
+        private void ApplyStartingPitch()
+        {
+            if (_orbital == null) return;
+            var vertical = _orbital.VerticalAxis;
+            vertical.Range = new Vector2(_minPitch, _maxPitch);
+            vertical.Center = Mathf.Clamp(_fixedPitch, _minPitch, _maxPitch);
+            vertical.Value = vertical.Center;
+            _orbital.VerticalAxis = vertical;
+        }
+
+        private static void SetCursorCaptured(bool captured)
+        {
+            Cursor.lockState = captured ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !captured;
         }
 
         private void LateUpdate()

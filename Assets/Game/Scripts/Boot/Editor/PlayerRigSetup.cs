@@ -89,6 +89,29 @@ namespace PokeLab.Boot.Editor
                     vcam.LookAt = vcam.Follow;
                     repairs++;
                 }
+
+                // Framing values already serialized in the scene win over the defaults in
+                // OverworldCameraRig, so changing the code alone would leave the old shot in
+                // place and look like the change had not worked.
+                ApplyFraming(vcam.GetComponent<CinemachineOrbitalFollow>(),
+                             vcam.GetComponent<CinemachineRotationComposer>());
+                repairs++;
+            }
+
+            foreach (var rig in Object.FindObjectsByType<OverworldCameraRig>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                var so = new SerializedObject(rig);
+                SetFloat(so, "_fixedPitch", 8f);
+                SetFloat(so, "_minPitch", -12f);
+                SetFloat(so, "_maxPitch", 62f);
+                var lockYaw = so.FindProperty("_lockYaw");
+                if (lockYaw != null) lockYaw.boolValue = false;
+                SetFloat(so, "_restDistance", 8.5f);
+                SetFloat(so, "_maxDistance", 14f);
+                var avoid = so.FindProperty("_avoidObstacles");
+                if (avoid != null) avoid.boolValue = false;
+                so.ApplyModifiedPropertiesWithoutUndo();
             }
 
             // The player is a root object, so a level rebuild replaces the ground under it
@@ -222,10 +245,7 @@ namespace PokeLab.Boot.Editor
             // measured it: the rig tracked the player to within a centimetre while
             // reporting yaw 0, pitch 0 for every single sample.
             var composer = go.AddComponent<CinemachineRotationComposer>();
-            // Off-centre vertically so the player sits low in frame and the shot spends its
-            // pixels on the ground ahead rather than on sky.
-            composer.Composition.ScreenPosition = new Vector2(0f, -0.12f);
-            composer.Damping = new Vector2(0.35f, 0.35f);
+            ApplyFraming(orbital, composer);
 
             var rig = go.AddComponent<OverworldCameraRig>();
             Assign(rig, "_input", input);
@@ -233,6 +253,38 @@ namespace PokeLab.Boot.Editor
             Assign(rig, "_followTarget", focus);
             Assign(rig, "_locomotion", player);
             return rig;
+        }
+
+        /// <summary>
+        /// The Diamond/Pearl framing: one angle, one distance, and neither of them moves.
+        ///
+        /// The aim is undamped on purpose. Rotation damping makes the camera lean into a
+        /// turn, which is right for a third-person action camera and wrong here — combined
+        /// with a boom that changed length it produced a view whose pitch wandered between
+        /// 25 and 60 degrees while walking in a straight line. A fixed overhead camera earns
+        /// its readability by being the same shot every time.
+        /// </summary>
+        private static void ApplyFraming(CinemachineOrbitalFollow orbital,
+            CinemachineRotationComposer composer)
+        {
+            if (orbital != null)
+            {
+                orbital.OrbitStyle = CinemachineOrbitalFollow.OrbitStyles.Sphere;
+                orbital.Radius = 8.5f;
+                // Position damping stays: the camera easing after the player is the follow
+                // feeling, and it does not change the angle the world is seen from.
+                orbital.TrackerSettings.PositionDamping = new Vector3(0.45f, 0.45f, 0.45f);
+            }
+
+            if (composer != null)
+            {
+                // Off-centre vertically so the player sits low in frame and the shot spends
+                // its pixels on the ground ahead rather than on sky.
+                var composition = composer.Composition;
+                composition.ScreenPosition = new Vector2(0f, -0.10f);
+                composer.Composition = composition;
+                composer.Damping = Vector2.zero;
+            }
         }
 
         private static void BuildBrain()
@@ -311,6 +363,12 @@ namespace PokeLab.Boot.Editor
             }
             property.objectReferenceValue = value as Object;
             so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void SetFloat(SerializedObject so, string field, float value)
+        {
+            var property = so.FindProperty(field);
+            if (property != null) property.floatValue = value;
         }
 
         /// <summary>Writes a private serialized string, the same way <see cref="Assign"/> does.</summary>

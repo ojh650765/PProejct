@@ -58,6 +58,19 @@ Shader "PokeLab/PropGroundBlend"
         _RimStrength("Rim Strength", Range(0,3)) = 0.45
         _RimPower("Rim Power", Range(0.5,12)) = 3.5
 
+        [Header(Pickup Glow)][Space(4)]
+        // Zero on every ordinary prop. A pickup turns it on through a property block, so
+        // one shared material still means one draw call for the whole prop set — the thing
+        // that is glowing is a per-instance value, not a second material.
+        _PickupGlow("Pickup Glow", Range(0,4)) = 0
+        _PickupColor("Pickup Colour", Color) = (1,0.86,0.42,1)
+        [Tooltip(Silhouette edge width. Lower is a thicker outline.)]
+        _PickupRimPower("Pickup Rim Power", Range(0.5,8)) = 2.2
+        [Tooltip(How strongly creases and corners pick the glow up.)]
+        _PickupEdge("Pickup Edge Catch", Range(0,4)) = 1.6
+        _PickupPulseSpeed("Pickup Pulse Speed", Range(0,8)) = 2.4
+        _PickupPulseDepth("Pickup Pulse Depth", Range(0,1)) = 0.45
+
         [Header(Wetness)][Space(4)]
         _Wetness("Wetness", Range(0,1)) = 0
 
@@ -106,6 +119,12 @@ Shader "PokeLab/PropGroundBlend"
             half4  _RimColor;
             half   _RimStrength;
             half   _RimPower;
+            half   _PickupGlow;
+            half4  _PickupColor;
+            half   _PickupRimPower;
+            half   _PickupEdge;
+            half   _PickupPulseSpeed;
+            half   _PickupPulseDepth;
             half   _Wetness;
             half   _Cutoff;
             half   _Cull;
@@ -301,6 +320,31 @@ Shader "PokeLab/PropGroundBlend"
                 half rim = PL_Rim(normalWS, viewDirWS, _RimPower, 0.22);
                 half3 rimColour = _RimColor.rgb + _PL_RimTint.rgb * _PL_RimBoost;
                 colour += rimColour * rim * (_RimStrength + _PL_RimBoost) * occlusion;
+
+                // Pickup glow. Emissive, so it survives being in shadow — an item in the
+                // lee of a building has to read as collectable exactly as well as one in
+                // the sun, and a lit highlight would go out precisely where the player is
+                // least likely to spot the item.
+                //
+                // Two terms, because "the edges" means two different things on a rounded
+                // ball and on a chest. The Fresnel term draws the silhouette; the fwidth
+                // term catches creases and corners, where the interpolated normal changes
+                // fastest across a pixel, and leaves flat faces alone.
+                UNITY_BRANCH
+                if (_PickupGlow > 0.0001)
+                {
+                    half silhouette = pow(saturate(1.0 - saturate(dot(normalWS, viewDirWS))),
+                                          _PickupRimPower);
+                    half crease = saturate(length(fwidth(normalWS)) * _PickupEdge * 8.0);
+                    half edge = saturate(max(silhouette, crease));
+
+                    // Breathes rather than blinks: a hard flash reads as a warning, and
+                    // these are meant to be inviting.
+                    half pulse = 1.0 - _PickupPulseDepth
+                               + _PickupPulseDepth * (0.5 + 0.5 * sin(_Time.y * _PickupPulseSpeed));
+
+                    colour += _PickupColor.rgb * edge * _PickupGlow * pulse;
+                }
 
                 colour = MixFog(colour, input.fogAndHeight.x);
                 colour += PL_AdaptiveDither(svPosition, 1.0 / 255.0);

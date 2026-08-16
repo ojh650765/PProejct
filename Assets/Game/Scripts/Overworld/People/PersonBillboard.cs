@@ -38,6 +38,23 @@ namespace PokeLab.Overworld.People
                  "does not flicker between two drawings.")]
         [SerializeField] private float _viewHysteresis = 8f;
 
+        [Header("Framing")]
+        [Tooltip("How far the sprite leans back to meet a camera looking down at it. 0 is " +
+                 "upright, which is correct for a shallow camera: the squash is cos(pitch), " +
+                 "so at 20 degrees the character loses 6% of their height and nobody can " +
+                 "see it. Leaning is only worth its cost under a steep camera — at full " +
+                 "lean the quad lies flat on the ground, which is what it looks like from " +
+                 "any other camera in the scene.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float _leanToCamera;
+
+        [Tooltip("Overall size on top of the manifest's height. The art is a two-heads-tall " +
+                 "chibi, so the height it was traced at — a literal 1.68 m — reads as a giant " +
+                 "next to buildings drawn at real proportions. The drawn character has to be " +
+                 "smaller than the person they represent for the town to look like a town.")]
+        [Range(0.3f, 1.5f)]
+        [SerializeField] private float _scale = 0.72f;
+
         private static readonly string[] ShaderCandidates =
         {
             "Universal Render Pipeline/Unlit",
@@ -156,6 +173,15 @@ namespace PokeLab.Overworld.People
             if (material.HasProperty("_AlphaClip")) material.SetFloat("_AlphaClip", 1f);
             if (material.HasProperty("_Cutoff")) material.SetFloat("_Cutoff", 0.5f);
             material.EnableKeyword("_ALPHATEST_ON");
+
+            // Double-sided. A single quad has a front and a back, and a billboard that is
+            // culled from behind is a character who vanishes — which is exactly what
+            // happens the instant anything but the follow camera looks at them, or during
+            // the frame the yaw crosses over. The sprite already chooses which view to draw
+            // from the facing, so the back of the quad showing the same frame is right.
+            if (material.HasProperty("_Cull")) material.SetFloat("_Cull", 0f);
+            material.doubleSidedGI = true;
+
             material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
             return material;
         }
@@ -196,7 +222,24 @@ namespace PokeLab.Overworld.People
             var toCamera = _camera.transform.position - transform.position;
             toCamera.y = 0f;
             if (toCamera.sqrMagnitude < 1e-6f) return;
-            transform.rotation = Quaternion.LookRotation(-toCamera.normalized, Vector3.up);
+            var yawOnly = Quaternion.LookRotation(-toCamera.normalized, Vector3.up);
+
+            // Lean the quad back until it faces the camera squarely, pivoting on the feet.
+            //
+            // An upright quad viewed from above projects to cos(pitch) of its height while
+            // keeping its full width, so the character reads squashed and heavy — correct
+            // in world height, wrong in shape. Stretching the quad to compensate fixes the
+            // shape and breaks the height instead: at 55 degrees it made a 1.7 m character
+            // 3.3 m tall, taller than the lamp post beside them.
+            //
+            // Leaning gives up neither. A quad that faces the camera is seen at its true
+            // proportions *and* its true size, and because the pivot is the feet the
+            // character rotates about the ground they are standing on rather than sliding
+            // off it. The cost is that the sprite occupies some depth, which matters only
+            // where it must sort against something at the same spot.
+            var pitch = Mathf.Asin(Mathf.Clamp(-_camera.transform.forward.y, -1f, 1f)) * Mathf.Rad2Deg;
+            transform.rotation = yawOnly * Quaternion.Euler(-pitch * _leanToCamera, 0f, 0f);
+            transform.localScale = Vector3.one * _scale;
         }
 
         /// <summary>
