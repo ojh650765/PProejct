@@ -119,6 +119,15 @@ namespace PokeLab.Boot.Editor
                                  "Those entries were skipped:\n  " + string.Join("\n  ", missing));
             }
 
+            // Persist it. The builder runs in memory and nothing was saving the result,
+            // so the scene on disk held a camera and an empty spawn marker: pressing Play
+            // reloaded from disk and showed nothing at all. It never surfaced because the
+            // capture tool builds and renders in the same session, so every review frame
+            // was of a level that existed only for as long as the capture took.
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene();
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
+
             Debug.Log(
                 $"[Level] Built '{RootName}': {layout.ground.Length} ground chunks " +
                 $"({stats.GroundTriangles} tris), {layout.water?.Length ?? 0} water, " +
@@ -171,7 +180,31 @@ namespace PokeLab.Boot.Editor
             surface.voxelSize = 0.12f;
 
             surface.BuildNavMesh();
-            Debug.Log("[Level] Navigation baked over the generated terrain.");
+
+            // BuildNavMesh leaves the data in memory. Unless it is written out as an
+            // asset it is gone the moment the scene reloads, and every agent then reports
+            // "not close enough to the NavMesh" — which reads as a placement fault rather
+            // than as navigation that was never saved.
+            if (surface.navMeshData != null)
+            {
+                var scene = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene();
+                var dir = "Assets/Game/Data/Navigation";
+                if (!AssetDatabase.IsValidFolder(dir))
+                    AssetDatabase.CreateFolder("Assets/Game/Data", "Navigation");
+
+                var path = $"{dir}/NavMesh-{(string.IsNullOrEmpty(scene.name) ? "Level" : scene.name)}.asset";
+                var existing = AssetDatabase.LoadAssetAtPath<UnityEngine.AI.NavMeshData>(path);
+                if (existing != null) AssetDatabase.DeleteAsset(path);
+                AssetDatabase.CreateAsset(surface.navMeshData, path);
+                AssetDatabase.SaveAssets();
+                Debug.Log($"[Level] Navigation baked and saved to {path}.");
+            }
+            else
+            {
+                Debug.LogWarning("[Level] Navigation produced no data. Nothing on the " +
+                                 "Ground, Environment or Interactable layers was walkable, " +
+                                 "so every NPC will stand still.");
+            }
         }
 
         private static int MaskOf(int layer) => layer >= 0 ? 1 << layer : 0;

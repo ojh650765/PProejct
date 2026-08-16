@@ -57,7 +57,10 @@ OUT = os.path.join(OUT_DIR, "slice_layout_unity.json")
 # volume, and terrain that stops exactly at the boundary shows the edge of the world
 # from the other side.
 SCENES = [
-    ("Town",  -34.0,  8.0, "Zone_Town"),
+    # The Town band's south edge follows the world box, which moved from z=-34 to z=-50
+    # when the town was rebuilt: every metre the town grew is inside this band and none
+    # of it is loaded by the Field scene.
+    ("Town",  -50.0,  8.0, "Zone_Town"),
     ("Field",  -2.0, 70.0, "Zone_Route"),
 ]
 
@@ -544,9 +547,9 @@ def build_water(layout, grid):
         # stream ships both, and its polygon is only the ribbon's flat outline —
         # using it would hold a watercourse that falls 1.7 m at a single height.
         if "centreline" in body:
-            strip = build_stream(body, grid, receiving)
-            if strip:
-                out.append(strip)
+            # Not emitted. The stream's surface is dropped by design — see the note in
+            # build_layout's height field — while its channel stays, because the bridge,
+            # the lake shoreline and the terrain either side are all shaped against it.
             continue
 
         y = float(body["surfaceY"])
@@ -778,9 +781,68 @@ DEFAULT_WADE = -0.05
 MAX_PLANT_SLOPE = 32.0
 
 
+class SolidProps:
+    """Where a foliage field is not allowed to plant, because something solid is there.
+
+    Placed objects reject each other -- Builder.blocked -- but foliage fields never
+    consulted them at all, so a field polygon drawn over a house planted trees through
+    its roof and a field drawn along the terrace planted them through the retaining
+    wall. That was survivable while the fields were ankle-high meadow inside open
+    ground. It stops being survivable the moment a boundary wood is authored as a
+    dense field over the whole edge of the town, which is what closes it in.
+
+    Trees are deliberately not solid here. Their collider is a trunk capsule, their
+    canopies are supposed to interpenetrate, and treating them as obstacles would
+    make a wood unable to be a wood.
+    """
+
+    #  asset prefix -> clearance in metres beyond its own half-footprint
+    CLEARANCE = [
+        (("Env_Building_", "Env_House_"), 1.0),
+        (("Env_Wall_Stone_", "Env_Ledge_", "Env_Riverbank_"), 0.5),
+        (("Env_Market_", "Env_Well", "Env_Cart", "Env_Notice_", "Env_Signpost",
+          "Env_Lamp_Post", "Env_Bench", "Env_Trough", "Env_Bridge_"), 0.4),
+        (("Env_Fence_", "Env_Planter", "Env_Crate", "Env_Barrel"), 0.25),
+    ]
+    CELL = 4.0
+
+    def __init__(self, layout, bounds):
+        self.cells = {}
+        for o in layout.get("objects", []):
+            asset = o["prefab"].split("/")[-1].replace(".fbx", "")
+            pad = None
+            for prefixes, clearance in self.CLEARANCE:
+                if asset.startswith(prefixes):
+                    pad = clearance
+                    break
+            if pad is None:
+                continue
+            size = (bounds.get(asset) or {}).get("size")
+            if not size:
+                continue
+            scale = float((o.get("scale") or [1.0])[0])
+            x, _, z = [float(v) for v in o["position"]]
+            yaw = math.radians(float((o.get("rotation") or [0, 0, 0])[1]))
+            c, s = abs(math.cos(yaw)), abs(math.sin(yaw))
+            # Axis-aligned half extents of the rotated footprint. A circle would be
+            # wrong on a 9 m lab and a 2 m wall alike, in opposite directions.
+            hx = (size[0] * c + size[2] * s) * 0.5 * scale + pad
+            hz = (size[0] * s + size[2] * c) * 0.5 * scale + pad
+            box = (x, z, hx, hz)
+            for i in range(int((x - hx) // self.CELL), int((x + hx) // self.CELL) + 1):
+                for j in range(int((z - hz) // self.CELL), int((z + hz) // self.CELL) + 1):
+                    self.cells.setdefault((i, j), []).append(box)
+
+    def blocked(self, x, z):
+        for bx, bz, hx, hz in self.cells.get((int(x // self.CELL), int(z // self.CELL)), ()):
+            if abs(x - bx) <= hx and abs(z - bz) <= hz:
+                return True
+        return False
+
+
 # --- foliage ----------------------------------------------------------------------
 
-def scatter_foliage(layout, grid, caves, painter, water):
+def scatter_foliage(layout, grid, caves, painter, water, solids):
     """Turn each field into concrete instance transforms.
 
     Scattering happens here rather than in C# so the Y of every blade comes from the
@@ -834,6 +896,8 @@ def scatter_foliage(layout, grid, caves, painter, water):
                 continue
             if painter.paved_clearance(px, pz) > -0.25:
                 continue
+            if solids.blocked(px, pz):
+                continue
             if grid.slope_degrees(px, pz) > MAX_PLANT_SLOPE:
                 continue
             d = water.depth_at(px, pz, grid.at(px, pz))
@@ -851,6 +915,7 @@ def scatter_foliage(layout, grid, caves, painter, water):
         buckets = {p["prefab"]: [] for p in prefabs}
         placed = 0
         rejected_paved = 0
+        rejected_solid = 0
         rejected_water = 0
         rejected_slope = 0
         nx = max(1, int(math.ceil((maxx - minx) / cell)))
@@ -871,6 +936,10 @@ def scatter_foliage(layout, grid, caves, painter, water):
             # exactly on the kerb line still reads as growing out of the road.
             if painter.paved_clearance(x, z) > -0.25:
                 rejected_paved += 1
+                continue
+
+            if solids.blocked(x, z):
+                rejected_solid += 1
                 continue
 
             if grid.slope_degrees(x, z) > MAX_PLANT_SLOPE:
@@ -916,6 +985,7 @@ def scatter_foliage(layout, grid, caves, painter, water):
                        for k, vs in buckets.items() if vs],
             "placed": placed,
             "rejectedOnPaving": rejected_paved,
+            "rejectedOnProps": rejected_solid,
             "rejectedInWater": rejected_water,
             "rejectedOnSlope": rejected_slope,
         })
@@ -957,10 +1027,30 @@ SCENE_LINKS = [
 
 ENTERABLE = {
     "Env_Building_PokeLab": ("Lab", "Prof's lab"),
+    "Env_Building_PokeCentre": ("PokeCentre", "the Pokemon Centre"),
     "Env_House_Cottage_A": ("House", "a house"),
     "Env_House_Townhouse_B": ("House", "a house"),
     "Env_House_Farmhouse_C": ("House", "a house"),
 }
+
+# Checked before ENTERABLE, and matched on the object's name rather than on its mesh.
+#
+# The Pokemon Centre's own asset is still being modelled, so its plot is held by a
+# townhouse. Keyed on the asset alone that placeholder would emit a "House" door into
+# Interior_House, and the Centre would quietly not exist -- which is the same failure as
+# the healing machine standing in the street, one layer down. Keyed on the name, the
+# door is a Centre door today and stays one the moment the mesh is swapped, whichever
+# way round the swap happens.
+ENTERABLE_BY_NAME = {
+    "Town_PokeCentre": ("PokeCentre", "the Pokemon Centre"),
+}
+
+
+def enterable_entry(obj):
+    for prefix, entry in ENTERABLE_BY_NAME.items():
+        if obj["name"].startswith(prefix):
+            return entry
+    return ENTERABLE.get(obj["prefab"].split("/")[-1].replace(".fbx", ""))
 
 
 def building_doors(objects, bounds, grid):
@@ -974,7 +1064,7 @@ def building_doors(objects, bounds, grid):
     out = []
     for o in objects:
         asset = o["prefab"].split("/")[-1].replace(".fbx", "")
-        entry = ENTERABLE.get(asset)
+        entry = enterable_entry(o)
         if entry is None:
             continue
         size = (bounds.get(asset) or {}).get("size")
@@ -1031,7 +1121,8 @@ def main():
 
     ground = build_ground(grid, painter, layout["extents"])
     water = build_water(layout, grid)
-    foliage = scatter_foliage(layout, grid, caves, painter, water_test)
+    solids = SolidProps(layout, bounds)
+    foliage = scatter_foliage(layout, grid, caves, painter, water_test, solids)
 
     # Vegetation that would be rooted in a rock face. The steep ground is read as
     # rock by both the vertex weights and the shader, and a tree standing out of a
@@ -1174,8 +1265,9 @@ def main():
     total_inst = 0
     for f in foliage:
         total_inst += f["placed"]
-        print("  foliage    %-24s %5d instances, %d group(s), rejected: %d paved / %d water / %d slope"
-              % (f["name"], f["placed"], len(f["groups"]), f["rejectedOnPaving"], f["rejectedInWater"], f["rejectedOnSlope"]))
+        print("  foliage    %-26s %5d instances, %d group(s), rejected: %d paved / %d props / %d water / %d slope"
+              % (f["name"], f["placed"], len(f["groups"]), f["rejectedOnPaving"],
+                 f["rejectedOnProps"], f["rejectedInWater"], f["rejectedOnSlope"]))
     print("  foliage total %d instances" % total_inst)
     print("  objects %d  (%d for cave scenes, %d for interiors, %d off rock faces, "
           "%d out of the water)"

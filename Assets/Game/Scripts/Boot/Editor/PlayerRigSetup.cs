@@ -150,6 +150,15 @@ namespace PokeLab.Boot.Editor
         {
             var go = GameObject.Find("GameHosts") ?? new GameObject("GameHosts");
 
+            // The dex has to be up before anything reads it, and GameBoot only exists in
+            // the Boot scene. Playing a level scene on its own — which is how the level
+            // is actually worked on — meant CreatureFactory fell back to estimated base
+            // stats and said so, once per creature in the save. GameBoot is idempotent
+            // (it checks PokeLabBootstrap.IsInitialized) so having one in each playable
+            // scene costs nothing when the game is entered through Boot.
+            if (go.GetComponent<PokeLab.Boot.GameBoot>() == null)
+                go.AddComponent<PokeLab.Boot.GameBoot>();
+
             if (go.GetComponent<PlayerProfileHost>() == null)
             {
                 var profile = go.AddComponent<PlayerProfileHost>();
