@@ -53,9 +53,9 @@ namespace PokeLab.Overworld.World
         };
 
         [Tooltip("Scenes whose content this scene already contains, and which must therefore " +
-                 "never be streamed in alongside it. Overworld is built from the town layout, " +
-                 "so loading Town on top of it would draw the whole town twice.")]
-        [SerializeField] private string[] _alreadyContained = { "Town" };
+                 "never be streamed in alongside it. Empty now that Town and Overworld are not " +
+                 "two copies of one place; kept because the next duplicate will want it.")]
+        [SerializeField] private string[] _alreadyContained = new string[0];
 
         [Header("Distance")]
         [Tooltip("Metres before a band's edge at which it starts loading. Has to be more " +

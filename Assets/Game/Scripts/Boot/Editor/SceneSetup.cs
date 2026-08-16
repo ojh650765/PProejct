@@ -23,9 +23,13 @@ namespace PokeLab.Boot.Editor
     public static class SceneSetup
     {
         private const string SceneDir = "Assets/Game/Scenes/";
-        private const string Template = SceneDir + "Overworld.unity";
+        // Town is the template every other playable scene is copied from, and the scene the
+        // game starts in. Overworld used to be both, and was also built from the town layout —
+        // so the project carried two 2.6 MB copies of the same place, one of which had to be
+        // declared "already contains Town" to stop the streamer drawing the town twice.
+        private const string Template = SceneDir + "Town.unity";
 
-        private static readonly string[] Scenes = { "Town", "Field" };
+        private static readonly string[] Scenes = { "Field" };
 
         [MenuItem("Tools/Poké Lab/Rebuild/Create Town and Field Scenes", priority = 10)]
         public static void CreateScenes()
@@ -111,18 +115,18 @@ namespace PokeLab.Boot.Editor
                 built++;
             }
 
-            // Finish on the overworld: it is the scene that gets pressed Play on, and
-            // leaving whichever scene happened to be last in the list open is how a review
-            // ends up looking at the wrong one.
-            var overworld = SceneDir + "Overworld.unity";
-            if (File.Exists(overworld)) EditorSceneManager.OpenScene(overworld, OpenSceneMode.Single);
+            // Finish on the town: it is the scene that gets pressed Play on, and leaving
+            // whichever scene happened to be last in the list open is how a review ends up
+            // looking at the wrong one.
+            var start = SceneDir + "Town.unity";
+            if (File.Exists(start)) EditorSceneManager.OpenScene(start, OpenSceneMode.Single);
 
             Debug.Log($"[Scenes] Rebuilt {built} scene(s) end to end.");
         }
 
         private static string[] AllPlayableScenes()
         {
-            var all = new System.Collections.Generic.List<string> { "Overworld" };
+            var all = new System.Collections.Generic.List<string> { "Town" };
             all.AddRange(Scenes);
             return all.ToArray();
         }

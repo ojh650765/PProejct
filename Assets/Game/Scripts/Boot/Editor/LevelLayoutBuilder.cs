@@ -45,7 +45,6 @@ namespace PokeLab.Boot.Editor
         /// </summary>
         private static readonly (string Scene, string Layout)[] SceneLayouts =
         {
-            ("Overworld", "slice_town_unity.json"),
             ("Town", "slice_town_unity.json"),
             ("Field", "slice_field_unity.json"),
         };
