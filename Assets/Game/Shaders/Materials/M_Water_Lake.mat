@@ -22,8 +22,57 @@ Material:
   m_LockedProperties:
   m_SavedProperties:
     serializedVersion: 3
+    # No normal map is assigned, so the shader falls back to a flat "bump" and the
+    # surface detail comes entirely from the procedural layers below. That is why
+    # their scales matter so much here and why they were reading as a pattern
+    # rather than as water.
     m_TexEnvs: []
     m_Ints: []
-    m_Floats: []
-    m_Colors: []
+    m_Floats:
+    - _DepthRange: 3.5
+    - _Transparency: 0.86
+    - _NormalScaleA: 0.14
+    - _NormalScaleB: 0.37
+    - _NormalStrength: 0.85
+    - _WaveAmplitude: 0.055
+    - _WaveLength: 4.2
+    - _WaveSpeed: 0.65
+    - _WaveSteepness: 0.35
+    - _RefractionStrength: 0.035
+    # Foam pulled back to the shoreline. At the default 2.2 the noise cell is under
+    # half a metre, which across a 32 m lake is 70 repeats of the same shape -- the
+    # regular white lattice the surface was showing.
+    - _FoamDepth: 0.5
+    - _FoamSharpness: 2.2
+    - _FoamScale: 0.42
+    - _FoamSpeed: 0.22
+    - _FoamCrest: 0.3
+    - _ShoreBandSpeed: 0.9
+    # Same problem, same cause. 1.6 gives a 0.6 m caustic cell, which tiles ~50
+    # times across the lake and reads as a woven grid; 0.3 puts the cell at about
+    # 3 m, which is the scale caustics actually appear at.
+    - _CausticStrength: 0.65
+    - _CausticScale: 0.3
+    - _CausticSpeed: 0.28
+    - _CausticDepthRange: 2.2
+    - _SpecularSharpness: 420
+    - _SpecularStrength: 2
+    # 22 is a sub-texel frequency at this camera distance and produces crawling
+    # aliasing rather than glitter.
+    - _SparkleScale: 7
+    - _SparkleStrength: 0.9
+    - _SparkleThreshold: 0.96
+    - _FresnelPower: 4.2
+    - _ReflectionStrength: 1.1
+    m_Colors:
+    - _ShallowColor: {r: 0.32, g: 0.78, b: 0.76, a: 1}
+    - _DeepColor: {r: 0.03, g: 0.18, b: 0.32, a: 1}
+    - _HorizonColor: {r: 0.55, g: 0.86, b: 0.92, a: 1}
+    - _NormalSpeedA: {r: 0.021, g: 0.013, b: 0, a: 0}
+    - _NormalSpeedB: {r: -0.015, g: 0.024, b: 0, a: 0}
+    - _WaveDirection: {r: 1, g: 0.35, b: 0, a: 0}
+    - _RefractionTint: {r: 0.62, g: 0.92, b: 0.88, a: 1}
+    - _FoamColor: {r: 1, g: 1, b: 1, a: 1}
+    - _CausticColor: {r: 0.85, g: 1, b: 0.92, a: 1}
+    - _SpecularColor: {r: 1, g: 0.97, b: 0.88, a: 1}
   m_BuildTextureStacks: []

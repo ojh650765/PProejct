@@ -343,8 +343,12 @@ PATH_SPECS = [
 ]
 
 # Spans where road conform is suppressed because geometry, not terrain, carries the road.
-CONFORM_SKIPS = [((13.6, 18.2), 3.6, "Bridge_Stream"),
-                 ((33.2, 15.6), 2.6, "SteppingStones_Stream")]
+# Radii must stay inside the half-length of whatever spans them, or the road dives
+# into the channel *outside* the deck and the crossing has a step at each end. The
+# bridge is 5.0 m long, so 3.6 m un-conformed the road over 7.2 m of a 5 m span and
+# left its abutments 0.24-0.33 m in the air with a lip either side.
+CONFORM_SKIPS = [((13.6, 18.2), 2.1, "Bridge_Stream"),
+                 ((33.2, 15.6), 1.9, "SteppingStones_Stream")]
 
 # --- the stream ------------------------------------------------------------
 # The stream crosses the route at right angles on the one bridge, which is the whole
