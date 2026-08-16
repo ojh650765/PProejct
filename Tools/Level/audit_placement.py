@@ -261,11 +261,20 @@ def audit_buried(layout, bounds, threshold, grid):
     return found
 
 
+# Fixtures that are *meant* to be inside another object, because they are screwed to
+# it. A wall lantern that does not intersect its wall is a lantern floating beside a
+# house, and every --fix pass was pushing all nine of the town's door lamps a little
+# further off the walls they hang on.
+MOUNTED = ("Env_Lamp_Wall", "Env_Vine_")
+
+
 def audit_overlaps(layout, bounds, threshold):
     """Pairs of objects standing inside each other."""
     boxes = []
     for obj in layout.get("objects", []):
         if obj.get("parent", "").startswith("Cave/"):
+            continue
+        if any(k in obj.get("prefab", "") for k in MOUNTED):
             continue
         box = obb(obj, bounds, shrink=True)
         if box is None:

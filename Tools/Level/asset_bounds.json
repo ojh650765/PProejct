@@ -1931,6 +1931,27 @@
    10.04
   ]
  },
+ "Env_Building_PokeCentre": {
+  "family": "Town",
+  "subfamily": "Building",
+  "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeCentre.fbx",
+  "pivot": "ground level, footprint centred",
+  "min": [
+   -5.18,
+   0.0,
+   -4.79
+  ],
+  "max": [
+   5.18,
+   5.02,
+   4.79
+  ],
+  "size": [
+   10.36,
+   5.02,
+   9.58
+  ]
+ },
  "Env_Fence_Picket_2m": {
   "family": "Town",
   "subfamily": "Fence",
@@ -2378,19 +2399,19 @@
   "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall.fbx",
   "pivot": "volume centre (spins about its own axis)",
   "min": [
-   -0.0551,
+   -0.0545,
    -0.055,
    -0.0563
   ],
   "max": [
-   0.0551,
+   0.0545,
    0.055,
    0.0563
   ],
   "size": [
-   0.1102,
+   0.1091,
    0.11,
-   0.1127
+   0.1126
   ]
  },
  "Env_Prop_CaptureBall_Open": {
@@ -2399,19 +2420,313 @@
   "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Open.fbx",
   "pivot": "volume centre (spins about its own axis)",
   "min": [
-   -0.0551,
+   -0.0545,
+   -0.0915,
+   -0.0468
+  ],
+  "max": [
+   0.0545,
+   0.0915,
+   0.0468
+  ],
+  "size": [
+   0.1091,
+   0.1829,
+   0.0935
+  ]
+ },
+ "Env_Prop_CaptureBall_Great": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Great.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
    -0.055,
    -0.0563
   ],
   "max": [
-   0.0551,
+   0.0545,
    0.055,
    0.0563
   ],
   "size": [
-   0.1102,
+   0.1091,
    0.11,
-   0.1127
+   0.1126
+  ]
+ },
+ "Env_Prop_CaptureBall_Great_Open": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Great_Open.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.0915,
+   -0.0468
+  ],
+  "max": [
+   0.0545,
+   0.0915,
+   0.0468
+  ],
+  "size": [
+   0.1091,
+   0.1829,
+   0.0935
+  ]
+ },
+ "Env_Prop_CaptureBall_Ultra": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Ultra.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.055,
+   -0.0563
+  ],
+  "max": [
+   0.0545,
+   0.055,
+   0.0563
+  ],
+  "size": [
+   0.1091,
+   0.11,
+   0.1126
+  ]
+ },
+ "Env_Prop_CaptureBall_Ultra_Open": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Ultra_Open.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.0915,
+   -0.0468
+  ],
+  "max": [
+   0.0545,
+   0.0915,
+   0.0468
+  ],
+  "size": [
+   0.1091,
+   0.1829,
+   0.0935
+  ]
+ },
+ "Env_Prop_CaptureBall_Net": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Net.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.0555,
+   -0.0563
+  ],
+  "max": [
+   0.0545,
+   0.0555,
+   0.0563
+  ],
+  "size": [
+   0.1091,
+   0.1111,
+   0.1126
+  ]
+ },
+ "Env_Prop_CaptureBall_Net_Open": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Net_Open.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.0924,
+   -0.0477
+  ],
+  "max": [
+   0.0545,
+   0.0924,
+   0.0477
+  ],
+  "size": [
+   0.1091,
+   0.1848,
+   0.0954
+  ]
+ },
+ "Env_Prop_CaptureBall_Dusk": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Dusk.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.0561,
+   -0.0563
+  ],
+  "max": [
+   0.0545,
+   0.0561,
+   0.0563
+  ],
+  "size": [
+   0.1091,
+   0.1121,
+   0.1126
+  ]
+ },
+ "Env_Prop_CaptureBall_Dusk_Open": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Dusk_Open.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.0937,
+   -0.0479
+  ],
+  "max": [
+   0.0545,
+   0.0937,
+   0.0479
+  ],
+  "size": [
+   0.1091,
+   0.1874,
+   0.0957
+  ]
+ },
+ "Env_Prop_CaptureBall_Quick": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Quick.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.055,
+   -0.0563
+  ],
+  "max": [
+   0.0545,
+   0.055,
+   0.0563
+  ],
+  "size": [
+   0.1091,
+   0.11,
+   0.1126
+  ]
+ },
+ "Env_Prop_CaptureBall_Quick_Open": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Quick_Open.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.0923,
+   -0.0476
+  ],
+  "max": [
+   0.0545,
+   0.0923,
+   0.0476
+  ],
+  "size": [
+   0.1091,
+   0.1846,
+   0.0952
+  ]
+ },
+ "Env_Prop_CaptureBall_Timer": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Timer.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.055,
+   -0.0563
+  ],
+  "max": [
+   0.0545,
+   0.055,
+   0.0563
+  ],
+  "size": [
+   0.1091,
+   0.11,
+   0.1126
+  ]
+ },
+ "Env_Prop_CaptureBall_Timer_Open": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Timer_Open.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.0915,
+   -0.0468
+  ],
+  "max": [
+   0.0545,
+   0.0915,
+   0.0468
+  ],
+  "size": [
+   0.1091,
+   0.1829,
+   0.0935
+  ]
+ },
+ "Env_Prop_CaptureBall_Master": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Master.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.055,
+   -0.0563
+  ],
+  "max": [
+   0.0545,
+   0.055,
+   0.0563
+  ],
+  "size": [
+   0.1091,
+   0.11,
+   0.1126
+  ]
+ },
+ "Env_Prop_CaptureBall_Master_Open": {
+  "family": "Props",
+  "subfamily": "Prop",
+  "path": "Assets/Game/Art/Props/Env_Prop_CaptureBall_Master_Open.fbx",
+  "pivot": "volume centre (spins about its own axis)",
+  "min": [
+   -0.0545,
+   -0.0923,
+   -0.0476
+  ],
+  "max": [
+   0.0545,
+   0.0923,
+   0.0476
+  ],
+  "size": [
+   0.1091,
+   0.1846,
+   0.0951
   ]
  },
  "Env_Prop_HealingMachine": {

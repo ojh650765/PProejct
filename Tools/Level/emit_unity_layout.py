@@ -76,9 +76,17 @@ GRASS, DIRT, SAND, ROCK = 0, 1, 2, 3
 # the layout has to appear here; an unknown name is a hard error rather than a silent
 # fallback to grass, because a road that quietly renders as lawn is exactly the kind
 # of thing that survives review.
+# Town paving goes to DIRT, not ROCK, and that is a compromise rather than a fix.
+# ROCK is the right *idea* — paving is stone — but it is the one layer sampled
+# triplanar and it tiles at 6.67 m, a figure chosen so a 20 m cliff face shows three
+# repeats instead of five. At that size the plaza reads as a floor of natural boulder
+# plates, which is worse than a road. DIRT tiles at 2.0 m with a granular crust and
+# reads as a worn, compacted surface, which is nearer the truth. Paving that actually
+# looks like paving needs a fifth layer or a control map; this is the better of the
+# two answers available today.
 MATERIAL_LAYER = {
-    "road_flagstone": ROCK,
-    "road_cobble_town": ROCK,
+    "road_flagstone": DIRT,
+    "road_cobble_town": DIRT,
     "road_dirt_town": DIRT,
     "road_dirt_route": DIRT,
     "trail_worn": DIRT,
@@ -1189,6 +1197,12 @@ def main():
         # four trainers with positions, schedules and sight cones, and the scene came up
         # empty every time. Two separate workstreams reported it independently -- the
         # sprite pipeline finished sixteen characters that had nowhere to stand.
+        # Invisible collision for the boundary wood. The trees are drawn through
+        # Graphics.DrawMeshInstanced, which carries no colliders, so the wall that
+        # actually stops the player is these boxes: one per straight run, no renderer.
+        # They are not objects because the object collider policy is keyed on a prefab
+        # and these have no mesh.
+        "barrierVolumes": layout.get("barrierVolumes", []),
         "npcs": gameplay.get("npcs", []),
         "trainers": gameplay.get("trainers", []),
         "tallGrass": [g for g in gameplay.get("tallGrassPatches", [])
@@ -1234,6 +1248,8 @@ def main():
         doc["objects"] = scene_objects
         doc["ambientAnchors"] = [a for a in out["ambientAnchors"]
                                  if in_scene(float(a["position"][2]), lo, hi)]
+        doc["barrierVolumes"] = [v for v in out["barrierVolumes"]
+                                 if in_scene(float(v["centre"][2]), lo, hi)]
         doc["npcs"] = [n for n in out["npcs"]
                        if in_scene(float(n["position"][2]), lo, hi)]
         doc["trainers"] = [t for t in out["trainers"]
@@ -1277,11 +1293,12 @@ def main():
              len(out["caveEntrances"]), spawn_pos))
     print()
     for name, path, doc in written:
-        print("  scene %-6s %2d ground, %d water, %3d objects, %4d foliage, "
-              "%d links, %d doors, %d npc, %d trainer, spawn %s"
+        print("  scene %-6s %2d ground, %d water, %3d objects, %4d foliage, %d barriers, "
+              "%d links, %d doors, %d npc, %d trainer, %d ambient, spawn %s"
               % (name, len(doc["ground"]), len(doc["water"]), len(doc["objects"]),
-                 sum(f["placed"] for f in doc["foliage"]), len(doc["sceneLinks"]),
-                 len(doc["buildingDoors"]), len(doc["npcs"]), len(doc["trainers"]),
+                 sum(f["placed"] for f in doc["foliage"]), len(doc["barrierVolumes"]),
+                 len(doc["sceneLinks"]), len(doc["buildingDoors"]), len(doc["npcs"]),
+                 len(doc["trainers"]), len(doc["ambientAnchors"]),
                  "yes" if doc["playerSpawn"] else "-"))
 
 

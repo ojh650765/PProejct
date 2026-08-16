@@ -388,6 +388,59 @@ def p_grad(seed, a, b, vertical=True, glow=0.0, sheen=0.25):
     return np.clip(img, 0, 1), hgt
 
 
+def p_swatch(seed, colour, mottle=0.012, shade=0.0):
+    """Near-flat moulded plastic.
+
+    p_grad is the wrong painter for anything small.  It bakes a bright
+    diagonal sheen streak into the cell, and `uv_pack_into_cells` squeezes a
+    whole asset's island layout into one cell, so a capture ball's shell gets
+    roughly 90 texels per face: each face samples a different scrap of that
+    streak and the ball comes out as a patchwork of light and dark panels
+    rather than one colour.  A swatch that is genuinely flat survives being
+    read at one texel per face, which is the density these assets actually
+    get, so the colour boundary is carried by the material split instead of
+    by the texture.
+    """
+    n = fbm2(6, seed, 3)
+    fine = fbm2(48, seed + 7, 2)
+    t = 1.0 + (n - 0.5) * 2.0 * mottle + (fine - 0.5) * mottle
+    img = np.array(colour)[None, None, :] * t[..., None]
+    # a very shallow top-to-bottom shade so the normal map has something to
+    # do; nothing strong enough to read as a stripe at any texel density
+    if shade:
+        y = (np.arange(CELL)[:, None] / CELL) + np.zeros((CELL, CELL))
+        img *= (1.0 + (0.5 - y) * shade)[..., None]
+    # Deliberately FLAT height. At one texel per face a varying height map
+    # gives every face its own constant normal, and the shell renders as a
+    # staircase of subtly different whites -- the moulded-plastic detail these
+    # swatches were meant to carry turns into shading noise instead.
+    hgt = np.full((CELL, CELL), 0.5)
+    return np.clip(img, 0, 1), hgt
+
+
+def p_swatches(seed, colours, mottle=0.012):
+    """N horizontal flat-colour bands in one cell, for MatSet(sub=) users.
+
+    Same idea as p_petals, without the petal shading: several livery colours
+    share one atlas cell because the 4x4 grid is full and a capture ball
+    needs eight more colours than the grid has room for.
+    """
+    n = len(colours)
+    y = (np.arange(CELL)[:, None] / CELL) * n
+    band = np.clip(np.floor(y).astype(int), 0, n - 1) + \
+        np.zeros((CELL, CELL), dtype=int)
+    noise = fbm2(7, seed, 3)
+    fine = fbm2(52, seed + 11, 2)
+    t = 1.0 + (noise - 0.5) * 2.0 * mottle + (fine - 0.5) * mottle
+    img = np.zeros((CELL, CELL, 3))
+    for i, c in enumerate(colours):
+        m = (band == i)
+        layer = np.array(c)[None, None, :] * t[..., None]
+        img[m] = layer[m]
+    hgt = np.full((CELL, CELL), 0.5)
+    return np.clip(img, 0, 1), hgt
+
+
 def p_fabric(seed, base, dark, weave=110):
     x = (np.arange(CELL)[None, :] / CELL) * weave
     y = (np.arange(CELL)[:, None] / CELL) * weave
@@ -472,12 +525,22 @@ def height_to_normal(hgt, strength=2.6):
     return out
 
 
+# Cells that must stay perfectly flat.  edge_darken exists to keep one cell's
+# neighbours from reading as part of it, and on a textured surface its 10 %
+# corner falloff is invisible.  On a flat swatch it is not: the ball's islands
+# are scaled to fill their whole cell, so the vignette lands on the shell as a
+# staircase of slightly different whites across the lower hemisphere.
+FLAT_CELLS = {"ball_red", "ball_white", "ball_black", "ball_button",
+              "ball_livery"}
+
+
 def build_atlas(family, cells, out_dir, normal_strength=2.6):
     """cells: list of 16 (name, painter_callable) -- painter returns (rgb,hgt)."""
     base = np.zeros((ATLAS, ATLAS, 3))
     hgt = np.zeros((ATLAS, ATLAS))
     means = {}
     for i in range(GRID * GRID):
+        name = None
         if i < len(cells):
             name, fn = cells[i]
             rgb, hh = fn()
@@ -485,7 +548,8 @@ def build_atlas(family, cells, out_dir, normal_strength=2.6):
         else:
             rgb = np.zeros((CELL, CELL, 3)) + 0.5
             hh = np.full((CELL, CELL), 0.5)
-        rgb = edge_darken(rgb, 0.10, 3.0)
+        if name not in FLAT_CELLS:
+            rgb = edge_darken(rgb, 0.10, 3.0)
         col = i % GRID
         row = i // GRID
         # atlas rows: cell row 0 is the BOTTOM of UV space, image row 0 is top
@@ -575,17 +639,36 @@ TOWN_CELLS = [
     ("trim_white",    _c(p_plaster, 316, (0.86, 0.85, 0.81), (0.54, 0.52, 0.49))),
 ]
 
+BALL_LIVERY = [
+    (0.13, 0.34, 0.72),     # 0 blue        Great Ball shell
+    (0.97, 0.78, 0.05),     # 1 yellow      Ultra / Quick markings
+    (0.44, 0.20, 0.62),     # 2 purple      Master Ball shell
+    (0.94, 0.42, 0.72),     # 3 pink        Master Ball M and studs
+    (0.14, 0.34, 0.22),     # 4 deep green  Dusk Ball casing
+    (0.24, 0.74, 0.80),     # 5 cyan        Net Ball shell
+    (0.06, 0.16, 0.40),     # 6 navy        Net Ball netting
+    (0.55, 0.58, 0.62),     # 7 grey        Timer Ball banding
+]
+
 PROPS_CELLS = [
-    ("ball_red",      _c(p_grad, 401, (0.74, 0.10, 0.10), (0.96, 0.30, 0.22), True, 0.0, 0.22)),
-    ("ball_white",    _c(p_grad, 402, (0.80, 0.82, 0.86), (0.99, 0.99, 1.00), True, 0.0, 0.26)),
-    ("ball_black",    _c(p_grad, 403, (0.05, 0.05, 0.07), (0.20, 0.21, 0.24), True, 0.0, 0.18)),
-    ("ball_button",   _c(p_grad, 404, (0.86, 0.88, 0.92), (1.00, 1.00, 1.00), False, 0.0, 0.42)),
+    # The four ball surfaces are flat swatches, not gradients. See p_swatch:
+    # a ball's islands are packed into a single atlas cell at roughly one
+    # texel per face, and p_grad's baked sheen streak turned that into a
+    # patchwork of light and dark panels across the shell.
+    ("ball_red",      _c(p_swatch, 401, (0.90, 0.11, 0.10))),
+    ("ball_white",    _c(p_swatch, 402, (0.95, 0.96, 0.97))),
+    ("ball_black",    _c(p_swatch, 403, (0.10, 0.10, 0.12))),
+    ("ball_button",   _c(p_swatch, 404, (0.97, 0.98, 1.00), 0.008)),
     ("metal",         _c(p_metal, 405, (0.34, 0.36, 0.40), (0.72, 0.76, 0.82), 1.0, 0.3)),
     ("plastic_white", _c(p_plaster, 406, (0.90, 0.91, 0.93), (0.62, 0.64, 0.68))),
     ("screen",        _c(p_grad, 407, (0.02, 0.16, 0.24), (0.10, 0.62, 0.74), True, 0.6, 0.35)),
     ("rubber",        _c(p_fabric, 408, (0.16, 0.17, 0.20), (0.06, 0.07, 0.09), 150)),
     ("machine_teal",  _c(p_plaster, 409, (0.20, 0.62, 0.62), (0.10, 0.32, 0.34))),
-    ("machine_yellow", _c(p_plaster, 410, (0.94, 0.76, 0.22), (0.56, 0.42, 0.10))),
+    # cell 9 was machine_yellow, which nothing ever used. It now carries the
+    # eight extra livery colours the ball variants need, as sub-bands: the
+    # atlas grid is 4x4 and full, and eight more cells is not something one
+    # family may take from the others.
+    ("ball_livery",   _c(p_swatches, 410, BALL_LIVERY)),
     ("wood_desk",     _c(p_planks, 411, (0.44, 0.30, 0.19), (0.24, 0.15, 0.09), (0.60, 0.44, 0.28), 4, False, False)),
     ("glass_tube",    _c(p_grad, 412, (0.30, 0.62, 0.70), (0.80, 0.96, 0.98), True, 0.25, 0.45)),
     ("lab_panel",     _c(p_stripe, 413, (0.82, 0.84, 0.87), (0.66, 0.70, 0.75), 14, False)),
@@ -669,7 +752,8 @@ _ROUGH = {
     "glass": 0.12, "window_glass": 0.10, "metal": 0.34, "lamp_metal": 0.38,
     "metal_roof": 0.42, "screen": 0.15, "glass_tube": 0.12,
     "ball_red": 0.30, "ball_white": 0.30, "ball_black": 0.34,
-    "ball_button": 0.18, "plastic_white": 0.42, "emissive_cyan": 0.20,
+    "ball_button": 0.18, "ball_livery": 0.30,
+    "plastic_white": 0.42, "emissive_cyan": 0.20,
     "wet_rock": 0.36, "waterfall_stone": 0.38, "shoes": 0.55,
 }
 _EMISSIVE = {"screen": 1.4, "emissive_cyan": 2.4, "glass_tube": 0.9}
@@ -687,6 +771,10 @@ def full_matset(family, extra=None):
     for spec in (extra or []):
         name, cell, sub = spec[0], spec[1], spec[2]
         base = FAMILY_CELLS[family][cell][0]
-        rgb = cols.get(base, (0.5, 0.5, 0.5))
+        # The colours JSON holds one mean per CELL, so every sub-band of a
+        # shared cell would otherwise fall back to the average of all of them
+        # -- a muddy grey for a cell that carries eight liveries. A spec may
+        # therefore name its own rgb as a fourth element.
+        rgb = spec[3] if len(spec) > 3 else cols.get(base, (0.5, 0.5, 0.5))
         ms.add(name, cell, rgb, _ROUGH.get(base, 0.74), sub=sub)
     return ms

@@ -596,6 +596,185 @@ def poke_lab(bm, rng):
 
 
 
+def poke_ball_sign(bm, centre, r, depth, m_top, m_bot, m_band, rows=22,
+                   band=0.10, button=True):
+    """The Poke Ball roundel, facing -Y (the street).
+
+    Built as horizontal chord strips rather than a triangle fan: a fan puts
+    every triangle's apex at the disc centre, so the band across the middle
+    cannot have a straight edge.
+
+    The strips SHARE their chord vertices. Building each strip as its own
+    closed box instead is the obvious thing to write and is wrong -- every
+    internal chord then carries two coincident faces, one from the strip above
+    and one from the strip below, and the sign arrives with `rows - 1`
+    coplanar duplicates and z-fights along every band. That was measured at 13
+    on the first build of this.
+    """
+    cx, cy, cz = centre
+    zs = [cz - r + 2 * r * k / rows for k in range(rows + 1)]
+    xs = [math.sqrt(max(0.0, r * r - (z - cz) ** 2)) for z in zs]
+    F, B = [], []
+    for z, x in zip(zs, xs):
+        if x < 1e-6:
+            vf = bm.verts.new((cx, cy - depth, z))
+            vb = bm.verts.new((cx, cy, z))
+            F.append((vf, vf))
+            B.append((vb, vb))
+        else:
+            F.append((bm.verts.new((cx - x, cy - depth, z)),
+                      bm.verts.new((cx + x, cy - depth, z))))
+            B.append((bm.verts.new((cx - x, cy, z)),
+                      bm.verts.new((cx + x, cy, z))))
+    faces = []
+
+    def mk(vs, m):
+        u = []
+        for v in vs:
+            if v not in u:
+                u.append(v)
+        if len(u) < 3:
+            return
+        f = bm.faces.new(u)
+        f.material_index = m
+        f.smooth = False
+        faces.append(f)
+
+    for k in range(rows):
+        zm = (zs[k] + zs[k + 1]) * 0.5 - cz
+        m = m_band if abs(zm) < r * band else (m_top if zm > 0 else m_bot)
+        mk((F[k][0], F[k][1], F[k + 1][1], F[k + 1][0]), m)
+        mk((B[k + 1][0], B[k + 1][1], B[k][1], B[k][0]), m)
+        mk((F[k][0], F[k + 1][0], B[k + 1][0], B[k][0]), m)
+        mk((B[k][1], B[k + 1][1], F[k + 1][1], F[k][1]), m)
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+
+    if button:
+        # the button, proud of the face on a dark bezel
+        for (rr, dd, mm) in ((r * 0.30, depth + 0.045, m_band),
+                             (r * 0.20, depth + 0.085, m_bot)):
+            E.bm_polytube(bm, [Vector((cx, cy - dd, cz)),
+                               Vector((cx, cy - depth * 0.35, cz))],
+                          [rr, rr], 14, mm, cap_start=True, cap_end=True,
+                          smooth=False)
+    return faces
+
+
+def poke_centre(bm, rng):
+    """The Pokemon Centre: wide cream block under one broad red roof, a
+    covered entrance with a walk-in doorway, and the Poke Ball roundel over it.
+
+    Three things drive the design.  (1) The level puts an interior-load
+    trigger on the front face, so the doorway is a real 2.3 x 2.6 m hole cut
+    through the wall -- no leaf in it -- and a dark lobby wall stands 2.2 m
+    behind it so the opening reads as an interior and never shows daylight
+    from the far side.  (2) The front is Blender -Y, which the FBX export maps
+    to Unity +Z: the same face house_a and poke_lab put their doors on, and
+    the convention the manifest and the level's rotations assume.  (3) It has
+    to sit in a street with 4.5 m cottages, so it is wide and low rather than
+    tall -- 9.2 x 7.0 m on plan against the Poke Lab's 7.2 m drum.
+    """
+    W, D, EAVE, TH = 9.2, 7.0, 3.30, 0.30
+    poly = [(-W / 2, -D / 2), (W / 2, -D / 2), (W / 2, D / 2), (-W / 2, D / 2)]
+    front, right, back, left = 0, 1, 2, 3
+    fy = -D / 2                       # outer face of the front wall
+
+    sh = TL.Shell(bm, poly, 0.0, EAVE, TH, PLASTER_C, GLASS)
+    # GLASS inside on purpose. It is not glazing here, it is the darkest cell
+    # in the Town atlas (window_glass, 0.05-0.20 against lamp_metal's 0.16-0.48)
+    # and the inner skin is exactly what a player looks at through the doorway.
+    o_door = sh.add_opening(front, 2.30, 2.60, 0.0, 0.50, "door")
+    lights = [sh.add_opening(front, 0.60, 2.20, 0.35, cs, "window")
+              for cs in (0.326, 0.674)]
+    fronts = [sh.add_opening(front, 1.80, 1.50, 1.25, cs, "window")
+              for cs in (0.13, 0.87)]
+    sides = [sh.add_opening(seg, 1.30, 1.40, 1.25, cs, "window")
+             for seg in (right, left) for cs in (0.30, 0.70)]
+    backs = [sh.add_opening(back, 1.40, 1.40, 1.25, cs, "window")
+             for cs in (0.20, 0.50, 0.80)]
+    sh.build()
+    HOLE_CHECKS.extend(sh.assert_openings())
+
+    # stone plinth, swallowing the wall foot
+    TL.solid_prism(bm, [(x * 1.022, y * 1.028) for (x, y) in poly],
+                   -0.02, 0.40, STONE_WALL)
+
+    # Floor and ceiling. The Shell caps only the wall footprint, so without
+    # these the room is a lidless box with no floor: through the doorway you
+    # would see the ground plane the building is standing on, from below.
+    iw, idp = W - 2 * TH + 0.10, D - 2 * TH + 0.10
+    # Interior surfaces are the dark cell too, not paving and not trim. A
+    # 2.6 m doorway with the sun at 36 deg lets daylight 3.6 m into the room,
+    # so nothing inside can be shaded into darkness -- it has to BE dark. The
+    # first build had a paved floor and a white counter and both came out lit
+    # like a shopfront through the opening.
+    TL.solid_box(bm, (0, 0, 0.14), (iw, idp, 0.28), GLASS)
+    TL.solid_box(bm, (0, 0, EAVE - 0.14), (iw, idp, 0.28), GLASS)
+
+    # Lobby wall 1.25 m in on the doorway's sight line, a soffit over the
+    # opening, and a low counter -- enough depth to read as a room you could
+    # walk into, little enough that there is nothing bright to see in it. The
+    # counter was LAMP for one pass and read as a lit grey shelf across the
+    # bottom of the opening; everything a player can see through that hole is
+    # the dark cell now, without exception.
+    TL.solid_box(bm, (0, fy + 1.25, 1.45), (6.40, 0.30, 2.90), GLASS)
+    TL.solid_box(bm, (0, fy + 0.70, 2.74), (6.40, 1.20, 0.34), GLASS)
+    TL.solid_box(bm, (0, fy + 0.92, 0.50), (3.20, 0.44, 1.00), GLASS)
+
+    TL.gable_roof(bm, poly, EAVE, 1.55, 0.55, 0.22, ROOF_RED, TRIM,
+                  ridge_along_x=True, gable_mat=PLASTER_C)
+    TL.corner_posts(bm, poly, 0.0, EAVE, 0.16, TRIM)
+
+    # eaves fascia front and back, biting up into the roof slab
+    for sy in (-1, 1):
+        TL.solid_box(bm, (0, sy * (D / 2 + 0.52), EAVE + 0.06),
+                     (W + 1.10, 0.18, 0.32), TRIM)
+
+    # ----------------------------------------------------------------------
+    # Covered entrance.  Piers, a head beam and a canopy, all overlapping what
+    # they land on, and no shell of its own: a porch built as a second Shell
+    # would put a second wall across the doorway and the door would have to be
+    # cut twice, aligned by hand, forever.
+    # ----------------------------------------------------------------------
+    for sx in (-1, 1):
+        TL.solid_box(bm, (sx * 1.86, fy - 0.75, 1.35), (0.36, 0.36, 2.70),
+                     TRIM)
+        TL.solid_box(bm, (sx * 1.86, fy - 0.75, 0.22), (0.56, 0.56, 0.44),
+                     STONE_WALL)
+    TL.solid_box(bm, (0, fy - 0.75, 2.82), (4.34, 0.42, 0.36), TRIM)
+    # canopy: back edge at y = fy + 0.225, i.e. 225 mm into a 300 mm wall, so
+    # it is bedded in the wall along its whole width and 75 mm clear of the
+    # inner face rather than poking into the room
+    TL.solid_box(bm, (0, fy - 0.45, 3.06), (5.30, 1.35, 0.24), ROOF_RED)
+    TL.solid_box(bm, (0, fy - 1.06, 2.93), (5.24, 0.18, 0.40), TRIM)
+
+    # The roundel, on the canopy fascia and standing proud of the roof line --
+    # this is the one silhouette cue that says Centre rather than bungalow, so
+    # it is sized to be legible from the game camera 22 m out. PLASTER_R, not
+    # ROOF_RED: roof_red is a tile pattern and at the texel density a sign this
+    # size gets it reads as brown stripes rather than as red.
+    poke_ball_sign(bm, (0.0, fy - 1.14, 3.62), 0.82, 0.18,
+                   PLASTER_R, TRIM, LAMP)
+
+    # threshold steps under the doorway, as solids on the ground
+    TL.solid_box(bm, (0, fy - 0.72, 0.11), (4.90, 1.00, 0.30), PAVING)
+    TL.solid_box(bm, (0, fy - 1.42, 0.07), (5.50, 1.10, 0.22), PAVING)
+
+    # door architrave -- the reveal is real, this just frames it
+    aw = 0.14
+    TL.solid_box(bm, (0, fy + 0.045 - TL.EMBED, o_door.z1 + aw * 0.5),
+                 (o_door.width + aw * 2.6, 0.10, aw), TRIM)
+    for sx in (-1, 1):
+        TL.solid_box(bm, (sx * (o_door.width * 0.5 + aw * 0.5),
+                          fy + 0.045 - TL.EMBED, o_door.height * 0.5),
+                     (aw, 0.10, o_door.height + aw), TRIM)
+
+    for o in lights:
+        TL.window_furniture(bm, o, TRIM, GLASS, TH, mullion=False, sill=False)
+    for o in fronts + sides + backs:
+        TL.window_furniture(bm, o, TRIM, GLASS, TH)
+
+
 # --------------------------------------------------------------------------
 # More street kit.  Cheapest density per triangle a town has: a market square
 # with one stall reads as a set dressing, with two it reads as a market, and a
@@ -1254,6 +1433,7 @@ ASSETS = [
     ("Env_House_Townhouse_B", 4102, (900, 6000), house_b),
     ("Env_House_Farmhouse_C", 4103, (900, 6000), house_c),
     ("Env_Building_PokeLab", 4104, (900, 6000), poke_lab),
+    ("Env_Building_PokeCentre", 4105, (900, 7000), poke_centre),
     ("Env_Fence_Picket_2m", 4201, (200, 2000),
      lambda bm, rng: fence_section(bm, rng, 2.0, 1.05, 7)),
     ("Env_Fence_Picket_1m", 4202, (150, 2000),
@@ -1286,7 +1466,8 @@ ASSETS = [
 ]
 
 BUILDINGS = {"Env_House_Cottage_A", "Env_House_Townhouse_B",
-             "Env_House_Farmhouse_C", "Env_Building_PokeLab"}
+             "Env_House_Farmhouse_C", "Env_Building_PokeLab",
+             "Env_Building_PokeCentre"}
 
 
 def main():

@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: M_Env_Props
+  m_Shader: {fileID: 4800000, guid: 042b45093c550a2a25890c073e03a932, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties:
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 2800000, guid: 5c2aa9a81e51b2c42835e8e6189ed116, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 2800000, guid: acf01a9017644154ca4d604a9d17ddd6, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _BumpScale: 0.8
+    - _BlendHeight: 0
+    - _BlendPower: 2
+    - _BlendStrength: 0
+    - _BlendNoiseScale: 6
+    - _BlendNoiseAmount: 0
+    - _MossStrength: 0
+    - _MossHeight: 1.6
+    - _MossSharpness: 2.5
+    - _ShadeSteps: 3
+    - _ShadeSoftness: 0.02
+    - _ShadeWrap: 0.2
+    - _ShadowStrength: 0.85
+    - _OcclusionStrength: 0.45
+    - _SpecularStrength: 0.22
+    - _SpecularSharpness: 64
+    - _RimStrength: 0.4
+    - _RimPower: 3.5
+    - _Wetness: 0
+    - _AlphaClip: 0
+    - _Cutoff: 0.5
+    - _Cull: 2
+    m_Colors:
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _GroundColor: {r: 0.34, g: 0.42, b: 0.22, a: 1}
+    - _MossColor: {r: 0.3, g: 0.45, b: 0.2, a: 1}
+    - _ShadeColor: {r: 0.4, g: 0.48, b: 0.66, a: 1}
+    - _RimColor: {r: 1, g: 0.95, b: 0.85, a: 1}
+  m_BuildTextureStacks: []

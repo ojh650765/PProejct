@@ -38,6 +38,15 @@ BUDGETS = {
     # not under-built; the old 3,000 were mostly chamfer.
     "building": [900, 6000],
     "prop": [300, 2000],
+    # The capture balls, declared by gen_props. 2,000 is right for street
+    # furniture -- a bench is read at 40 px from a camera 22 m up -- and wrong
+    # for the one prop the game shows full screen: a ball fills the frame
+    # during every capture, so its silhouette needs enough columns to stay
+    # round, and the open variant is two HOLLOW half shells, which is
+    # inherently about twice the closed ball. The Net and Dusk liveries carry
+    # another ~700 for raised netting, which a 28-column shell cannot paint
+    # thinner than 12.9 degrees. Everything past 2,000 gets LODs generated.
+    "hero_prop": [300, 4000],
     "character": [3000, 8000],
     # Ground decks, water surfaces, ramps and ledges. One instance each, world
     # placed, and a route deck covering 68 x 38 m cannot be held to a prop's
@@ -66,7 +75,8 @@ EXEMPT = {
 }
 
 BUILDINGS = {"Env_House_Cottage_A", "Env_House_Townhouse_B",
-             "Env_House_Farmhouse_C", "Env_Building_PokeLab"}
+             "Env_House_Farmhouse_C", "Env_Building_PokeLab",
+             "Env_Building_PokeCentre"}
 ROCKY = ("Cliff", "Rock", "Cave", "Riverbank", "Waterfall", "Stepping",
          "Bridge")
 
@@ -293,8 +303,10 @@ def main():
             E.log("   %s" % m)
         return 1
 
-    for cls in ("foliage", "scatter", "rock", "building", "prop", "ground",
-                "character"):
+    # every class in BUDGETS, not a hand-kept list: a class that is missing
+    # here is silently unreported, which is how eight over-budget capture
+    # balls could have gone out looking like a clean run
+    for cls in BUDGETS:
         rows = [a for a in assets if a["budgetClass"] == cls]
         if not rows:
             continue

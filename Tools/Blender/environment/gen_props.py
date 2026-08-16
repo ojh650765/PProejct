@@ -1,12 +1,39 @@
 """
-Props family: the capture ball (hero), the healing machine, the research
-terminal, and the handheld scanner.
+Props family: the eight capture balls (hero props), the healing machine, the
+research terminal, and the handheld scanner.
 
 The capture ball gets close-up screen time during captures, so it is built
 properly rather than as a two-tone sphere: a true sphere of revolution, a
-recessed equatorial seam channel with a raised lip either side, a button in a
-bezel with a chamfered rim, a hinge boss on the back, and a clean spherical
-UV unwrap so the seam falls on the geometric seam.
+recessed equatorial seam channel, a button in a raised bezel with a chamfered
+rim, a hinge pin on the back, and a clean spherical UV unwrap so the seam
+falls on the geometric seam.
+
+There are eight of them because there are eight of them in the game.
+Assets/Game/Scripts/Battle/ItemCatalog.cs registers poke-ball, great-ball,
+ultra-ball, net-ball, dusk-ball, quick-ball, timer-ball and master-ball, each
+with its own catch behaviour, so the art has a fixed list to hit; BALLS below
+is that list in the same order.
+
+------------------------------------------------------------------------
+Why the balls repaint themselves instead of using the shared bevel pass
+------------------------------------------------------------------------
+`bmesh.ops.bevel` gives every face it creates material_index 0, and slot 0 in
+this family is ball_red.  Measured on the previous build: the shell left the
+builder with 156 red / 156 white / 301 black / 72 button faces and came out of
+`E.bevel_sharp` with 476 red -- 320 new faces, every one of them red, and all
+of them on colour boundaries.  That is why the shipped ball had a red pinstripe
+running along both lips of its black band and a red ring around its button.
+
+A ball's colour is a pure function of position on the sphere, so the fix is to
+bevel first and paint afterwards, from that function.  It also means a livery
+can be an arbitrary lon/lat predicate rather than something that has to line up
+with the revolve's topology, which is what makes the Ultra Ball's H and the
+Net Ball's netting cost no triangles at all.
+
+Orientation: the button faces Blender -Y.  Measured with fbx_probe, the export
+maps Blender (x, y, z) to Unity (x, z, -y), so Blender -Y is Unity +Z -- the
+kit's "models face +Z", and the same face the town buildings put their doors
+on.
 """
 
 import sys
@@ -28,8 +55,21 @@ OUT = E.FAMILY_DIR[FAM]
 
 BALL_RED, BALL_WHITE, BALL_BLACK, BALL_BUTTON = 0, 1, 2, 3
 METAL, PLASTIC, SCREEN, RUBBER = 4, 5, 6, 7
-TEAL, YELLOW, DESK, TUBE = 8, 9, 10, 11
+TEAL, LIVERY, DESK, TUBE = 8, 9, 10, 11
 PANEL, ORANGE, DARK, EMISSIVE = 12, 13, 14, 15
+
+# The livery colours share atlas cell 9 as eight horizontal sub-bands, so
+# their slot indices continue after the sixteen base cells. See PROPS_CELLS.
+LIVERY_NAMES = ["blue", "yellow", "purple", "pink", "green", "cyan",
+                "navy", "grey"]
+LIV_BLUE, LIV_YELLOW, LIV_PURPLE, LIV_PINK = 16, 17, 18, 19
+LIV_GREEN, LIV_CYAN, LIV_NAVY, LIV_GREY = 20, 21, 22, 23
+
+
+def matset():
+    extra = [("livery_%s" % n, LIVERY, (i, len(LIVERY_NAMES)),
+              T.BALL_LIVERY[i]) for i, n in enumerate(LIVERY_NAMES)]
+    return T.full_matset(FAM, extra)
 
 
 def box(bm, centre, size, mat, rot_z=0.0, smooth=False):
@@ -99,117 +139,626 @@ def revolve(bm, profile, sides, mat_fn, smooth=True, close_bottom=True,
 
 
 # --------------------------------------------------------------------------
-# hero prop: the capture ball
+# hero props: the capture balls
 # --------------------------------------------------------------------------
 
-def capture_ball(bm, rng, R=0.055, sides=26):
-    """R = 5.5 cm radius, i.e. a real object you could hold.  Profile is built
-    in latitude steps with three extra stations packed around the equator so
-    the seam channel and its lips are real geometry."""
-    prof = []
-    lat_steps = 13
-    for k in range(lat_steps + 1):
-        a = math.pi * k / lat_steps            # 0 = bottom pole
-        z = -math.cos(a) * R
-        r = math.sin(a) * R
-        prof.append((r, z))
+R_BALL = 0.055          # 5.5 cm radius, i.e. an object you could hold
+SIDES = 28              # 12.9 deg per column; the livery stripes are whole
+                        # numbers of columns wide so their edges stay crisp
+BAND_HALF = 0.085       # half-height of the black band, as a fraction of R
+LAT_STEPS = 10
 
-    # rebuild the equatorial band: lip / channel / lip
-    prof = [p for p in prof if abs(p[1]) > R * 0.115]
-    seam = [(R * 0.9985, -R * 0.112), (R * 1.0035, -R * 0.070),
-            (R * 0.958, -R * 0.030), (R * 0.952, 0.0),
-            (R * 0.958, R * 0.030), (R * 1.0035, R * 0.070),
-            (R * 0.9985, R * 0.112)]
+
+def revolve_arc(bm, prof, sides, mat_fn, arc_deg=360.0, phase_deg=0.0,
+                smooth=True, cap_ends=False):
+    """Revolve a profile about +Z, optionally through part of a turn.
+
+    `prof` is a list of (r, z) and may be a CLOSED loop -- outer surface out,
+    inner surface back -- which is how the open ball's half shells get a real
+    wall thickness and a rim instead of being a lid over nothing.  Zero-radius
+    stations collapse to a pole vertex.
+
+    `cap_ends` closes a partial revolve with the profile polygon at each end,
+    so a half-button is a solid and not a scoop.
+    """
+    full = abs(arc_deg - 360.0) < 1e-6
+    segs = sides if full else max(2, int(round(sides * arc_deg / 360.0)))
+    cols = segs if full else segs + 1
+    # A closed loop is written with its first station repeated at the end so
+    # the caller can read it as a circuit. Building that station twice leaves
+    # two coincident rings that only remove_doubles can join, and the end cap
+    # of a partial revolve then comes out with a zero-length edge in it and
+    # fails to close -- measured as 9 boundary edges per half button. Reuse
+    # the first ring instead.
+    closed = (len(prof) > 2 and
+              abs(prof[0][0] - prof[-1][0]) < 1e-9 and
+              abs(prof[0][1] - prof[-1][1]) < 1e-9)
+    rings = []
+    for idx, (r, z) in enumerate(prof):
+        if closed and idx == len(prof) - 1:
+            rings.append(rings[0])
+            continue
+        if r < 1e-6:
+            v = bm.verts.new((0.0, 0.0, z))
+            rings.append([v] * cols)
+        else:
+            ring = []
+            for i in range(cols):
+                a = math.radians(phase_deg + arc_deg * (i / float(segs)))
+                ring.append(bm.verts.new((math.cos(a) * r,
+                                          math.sin(a) * r, z)))
+            rings.append(ring)
+    faces = []
+    for k in range(len(prof) - 1):
+        r0, z0 = prof[k]
+        r1, z1 = prof[k + 1]
+        m = mat_fn(k, (r0 + r1) * .5, (z0 + z1) * .5)
+        for i in range(segs):
+            j = (i + 1) % cols
+            quad = [rings[k][i], rings[k][j], rings[k + 1][j], rings[k + 1][i]]
+            uniq = []
+            for v in quad:
+                if v not in uniq:
+                    uniq.append(v)
+            if len(uniq) < 3:
+                continue
+            f = bm.faces.new(uniq)
+            f.material_index = m
+            f.smooth = smooth
+            faces.append(f)
+    if cap_ends and not full:
+        for col in (0, cols - 1):
+            ring = []
+            for k in range(len(prof)):
+                v = rings[k][col]
+                if v not in ring:
+                    ring.append(v)
+            if len(ring) >= 3:
+                if col == 0:
+                    ring.reverse()
+                f = bm.faces.new(ring)
+                f.material_index = mat_fn(0, prof[0][0], prof[0][1])
+                f.smooth = False
+                faces.append(f)
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    return faces
+
+
+def sphere_profile(R=R_BALL, lat_steps=LAT_STEPS, band_half=BAND_HALF,
+                   z_lo=-1.0, z_hi=1.0):
+    """Sphere stations from z_lo*R to z_hi*R with the seam channel spliced in.
+
+    The channel is a shallow step, not the double lip the previous build had:
+    that read as three stacked bands rather than one, and it was the pair of
+    raised lips that the stray red bevel faces landed on.
+    """
+    prof = []
+    for k in range(lat_steps + 1):
+        a = math.pi * k / lat_steps
+        prof.append((math.sin(a), -math.cos(a)))
+    seam = [(0.9955, -band_half), (0.9640, -band_half * 0.72),
+            (0.9600, 0.0),
+            (0.9640, band_half * 0.72), (0.9955, band_half)]
+    prof = [p for p in prof if abs(p[1]) > band_half * 1.05]
     prof = ([p for p in prof if p[1] < 0] + seam +
             [p for p in prof if p[1] > 0])
     prof.sort(key=lambda p: p[1])
+    prof = [p for p in prof if z_lo - 1e-9 <= p[1] <= z_hi + 1e-9]
+    return [(r * R, z * R) for (r, z) in prof]
 
-    def mat_fn(i, r, z):
-        if abs(z) < R * 0.118:
-            return BALL_BLACK
-        return BALL_RED if z > 0 else BALL_WHITE
 
-    faces, rings = revolve(bm, prof, sides, mat_fn, smooth=True)
+# The button, given as a closed loop in (radius from the button axis, distance
+# from the ball centre), both as fractions of R.  Expressing the second number
+# radially rather than as a local height is what keeps the bezel proud of the
+# shell all the way round instead of proud at the centre and buried at the rim.
+BUTTON_LOOP = [
+    (0.235, 0.870),     # skirt, buried in the shell
+    (0.235, 0.988),     # bezel rim, proud
+    (0.185, 0.992),     # bezel top face
+    (0.185, 0.966),     # recess wall
+    (0.150, 0.966),     # recess floor
+    (0.150, 1.000),     # button barrel
+    (0.105, 1.014),     # chamfer
+    (0.000, 1.020),     # crown
+    (0.000, 0.870),     # back down the axis
+    (0.235, 0.870),     # underside, closing the loop
+]
 
-    # button assembly on the +Y face, sunk into a bezel
-    n = Vector((0, -1, 0))
-    up = Vector((0, 0, 1))
-    right = Vector((1, 0, 0))
-    bc = n * (R * 0.985)
 
-    def disc(centre, r0, r1, depth, mat, seg=18, smooth=True):
-        a = []
-        b = []
-        for i in range(seg):
-            ang = 2 * math.pi * i / seg
-            d = right * math.cos(ang) + up * math.sin(ang)
-            a.append(bm.verts.new(centre + d * r0))
-            b.append(bm.verts.new(centre + d * r1 + n * depth))
-        fs = []
-        for i in range(seg):
-            j = (i + 1) % seg
-            f = bm.faces.new((a[i], a[j], b[j], b[i]))
-            f.material_index = mat
-            f.smooth = smooth
-            fs.append(f)
-        bmesh.ops.recalc_face_normals(bm, faces=fs)
-        return a, b
-
-    # Button assembly: one solid of revolution, built about +Z in its own bmesh
-    # and then swung onto the -Y axis.  Its skirt is buried inside the shell so
-    # no rim floats over the sphere surface.
-    bprof = [
-        (R * 0.320, -R * 0.075),   # collar skirt, inside the shell
-        (R * 0.320, R * 0.012),    # collar outer, just proud
-        (R * 0.238, R * 0.012),    # collar top face
-        (R * 0.238, -R * 0.018),   # inner wall of the recess
-        (R * 0.202, -R * 0.018),   # recess floor
-        (R * 0.202, R * 0.030),    # button barrel
-        (R * 0.150, R * 0.054),    # chamfer
-        (R * 0.075, R * 0.062),
-        (0.0, R * 0.066),          # crown
-    ]
+def button_assembly(bm, R, mat_ring, mat_face, arc_deg=360.0, phase_deg=0.0):
+    """The button, built about +Z and swung onto -Y (the front)."""
+    prof = [(a * R, b * R) for (a, b) in BUTTON_LOOP]
 
     def bmat(i, r, z):
-        return BALL_BLACK if i < 4 else BALL_BUTTON
+        return mat_face if 4 <= i < 7 else mat_ring
 
     tmp = bmesh.new()
-    revolve(tmp, bprof, 18, bmat, smooth=True, close_bottom=True,
-            close_top=False)
-    me = bpy.data.meshes.new("t_btn")
+    revolve_arc(tmp, prof, 20, bmat, arc_deg=arc_deg, phase_deg=phase_deg,
+                smooth=True, cap_ends=True)
+    me = bpy.data.meshes.new("_btn")
     tmp.to_mesh(me)
     tmp.free()
-    me.transform(Matrix.Translation((0, -R * 0.958, 0)) @
-                 Matrix.Rotation(math.radians(90), 4, 'X'))
+    # local +Z -> world -Y, and local +Y -> world +Z, so the arc parameter
+    # maps straight onto latitude: 0..180 deg is the upper half of the button.
+    me.transform(Matrix.Rotation(math.radians(90), 4, 'X'))
     bm.from_mesh(me)
     bpy.data.meshes.remove(me)
 
-    # hinge boss on the back
-    hb = Vector((0, R * 0.965, 0))
-    hn = Vector((0, 1, 0))
-    for k in range(2):
-        off = Vector((0, 0, (k - 0.5) * R * 0.30))
-        E.bm_polytube(bm, [hb + off - hn * R * 0.05, hb + off + hn * R * 0.06],
-                      [R * 0.075, R * 0.062], 8, BALL_BLACK,
-                      cap_start=True, cap_end=True, smooth=True)
-    E.bm_polytube(bm, [hb - Vector((0, 0, R * 0.22)), hb + Vector((0, 0, R * 0.22))],
-                  [R * 0.038, R * 0.038], 8, METAL,
+
+def hinge_pin(bm, R, mat, half=False, sign=1):
+    """A short barrel across the back of the band. Half of the real ball's
+    hinge is buried; the previous build's pair of octagonal bosses and a bar
+    read as a bolt through the shell from every angle behind it."""
+    y = R * 0.955
+    E.bm_polytube(bm, [Vector((-R * 0.17, y, 0)), Vector((R * 0.17, y, 0))],
+                  [R * 0.072, R * 0.072], 8, mat,
                   cap_start=True, cap_end=True, smooth=True)
 
 
-def capture_ball_open(bm, rng, R=0.055):
-    """Open state for the capture cinematic: two hemispheres hinged apart."""
+def sph(R, lon_deg, lat_deg):
+    """Point on the ball. lon 0 is the front (-Y, the button), lon grows
+    towards +X; lat 0 is the band, +90 the top pole."""
+    lo, la = math.radians(lon_deg), math.radians(lat_deg)
+    return Vector((math.sin(lo) * math.cos(la),
+                   -math.cos(lo) * math.cos(la),
+                   math.sin(la))) * R
+
+
+def lon_lat(co):
+    v = Vector(co)
+    L = v.length or 1e-9
+    return (math.degrees(math.atan2(v.x, -v.y)),
+            math.degrees(math.asin(max(-1.0, min(1.0, v.z / L)))))
+
+
+def front_back_lon(lon):
+    """Angular distance to the nearest of front (0) and back (180), so a
+    marking authored once appears on both faces the way the real ones do."""
+    a = abs(lon)
+    return min(a, abs(180.0 - a))
+
+
+MAX_RIBBON_STEP = 16.0   # degrees of arc between ribbon samples
+
+
+def sphere_ribbon(bm, R, path, width_deg, mat, out=1.024, inn=0.950,
+                  per_seg=1):
+    """A raised marking that hugs the ball: a closed slab whose outer face
+    stands 2.4% of R proud and whose inner face is buried 5% in, so it is a
+    solid interpenetrating the shell rather than a decal floating over it.
+
+    Used only where the shape is not aligned to the shell's own lat/lon grid
+    -- the netting, the Master Ball's M and the Quick Ball's streaks.
+    Everything else is painted, which is both crisper and free.
+
+    Sampling is by arc length, not by a fixed count. A chord across `d`
+    degrees of a sphere sags 1-cos(d/2) below the surface, so a net ring drawn
+    with ten samples sags 4.9 % of R while standing only 2.4 % proud -- it
+    sinks into the shell between samples and renders as a dashed line, which
+    is exactly what the first build of the Net and Dusk balls did. At 16 deg
+    the sag is 0.97 %, comfortably inside the 2.4 % the ribbon stands proud,
+    and the ribbon stays out in the open all the way round. Halving the step
+    again only doubles the triangle count for no visible gain -- the netted
+    liveries were 400 triangles heavier for it.
+    """
+    pts = []
+    for i in range(len(path) - 1):
+        a, b = path[i], path[i + 1]
+        span = math.hypot(((b[0] - a[0] + 180.0) % 360.0) - 180.0,
+                          b[1] - a[1])
+        n = max(per_seg, int(math.ceil(span / MAX_RIBBON_STEP)))
+        for k in range(n):
+            t = k / float(n)
+            pts.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+    pts.append(path[-1])
+    P = [sph(1.0, lo, la) for (lo, la) in pts]
+    hw = math.radians(width_deg) * 0.5
+    rails = ([], [])
+    for i, p in enumerate(P):
+        prv = P[max(0, i - 1)]
+        nxt = P[min(len(P) - 1, i + 1)]
+        t = nxt - prv
+        if t.length < 1e-9:
+            t = Vector((0, 0, 1))
+        t.normalize()
+        s = p.cross(t)
+        if s.length < 1e-9:
+            s = Vector((1, 0, 0))
+        s.normalize()
+        rails[0].append((p * math.cos(hw) + s * math.sin(hw)).normalized())
+        rails[1].append((p * math.cos(hw) - s * math.sin(hw)).normalized())
+    LO = [bm.verts.new(v * (R * out)) for v in rails[0]]
+    RO = [bm.verts.new(v * (R * out)) for v in rails[1]]
+    LI = [bm.verts.new(v * (R * inn)) for v in rails[0]]
+    RI = [bm.verts.new(v * (R * inn)) for v in rails[1]]
+    faces = []
+
+    def face(vs):
+        try:
+            f = bm.faces.new(vs)
+        except ValueError:
+            return
+        f.material_index = mat
+        f.smooth = True
+        faces.append(f)
+
+    for i in range(len(LO) - 1):
+        face((LO[i], RO[i], RO[i + 1], LO[i + 1]))
+        face((LI[i + 1], RI[i + 1], RI[i], LI[i]))
+        face((LO[i], LO[i + 1], LI[i + 1], LI[i]))
+        face((RI[i], RI[i + 1], RO[i + 1], RO[i]))
+    face((LO[0], LI[0], RI[0], RO[0]))
+    face((RO[-1], RI[-1], LI[-1], LO[-1]))
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    return faces
+
+
+def sphere_stud(bm, R, lon_deg, lat_deg, size, mat):
+    """A domed rivet on the shell -- the Master Ball's two side studs."""
+    prof = [(0.0, 0.86), (size * 0.42, 0.88), (size * 0.78, 0.94),
+            (size * 0.97, 1.01), (size * 1.00, 1.045),
+            (size * 0.72, 1.075), (size * 0.40, 1.092), (0.0, 1.098)]
     tmp = bmesh.new()
-    capture_ball(tmp, rng, R)
-    me = bpy.data.meshes.new("t")
+    revolve_arc(tmp, [(a * R, b * R) for (a, b) in prof], 12,
+                lambda i, r, z: mat, smooth=True)
+    me = bpy.data.meshes.new("_stud")
     tmp.to_mesh(me)
     tmp.free()
+    d = sph(1.0, lon_deg, lat_deg)
+    rot = Vector((0, 0, 1)).rotation_difference(d).to_matrix().to_4x4()
+    me.transform(rot)
     bm.from_mesh(me)
     bpy.data.meshes.remove(me)
-    # a soft energy lens between the halves
-    E.bm_polytube(bm, [Vector((0, 0, -R * 0.02)), Vector((0, 0, R * 0.02))],
-                  [R * 0.94, R * 0.94], 14, EMISSIVE, cap_start=True,
-                  cap_end=True, smooth=True)
+
+
+# --------------------------------------------------------------------------
+# liveries
+#
+# `paint(lon, lat, default)` returns the slot for one face of the shell, given
+# the face centre's longitude (0 = front) and latitude (0 = band).  The shell
+# is 28 columns of 12.857 deg, so any stripe whose edges are placed on column
+# boundaries comes out with a perfectly clean edge and costs nothing.
+# --------------------------------------------------------------------------
+
+COL = 360.0 / SIDES
+
+
+def col_from_front(lon):
+    """Which column of the shell this longitude is in, counted outwards from
+    the front-back centre line: 0 for the pair of columns touching it, 1 for
+    the next pair out, and so on.
+
+    Liveries index columns rather than comparing angles because the front is a
+    column BOUNDARY, not a column centre, and a `lon < 19.28` style test lands
+    exactly on a column centre where floating point decides the answer. Indexing
+    is also what guarantees a stripe edge falls on a mesh edge, which is what
+    keeps it crisp with no geometry and no texture resolution behind it.
+    """
+    return int(round((front_back_lon(lon) - COL * 0.5) / COL))
+
+
+def any_lon_col(lon, centres):
+    """Same, but measured to the nearest of several meridians."""
+    d = min(abs(((lon - c) + 180.0) % 360.0 - 180.0) for c in centres)
+    return int(round((d - COL * 0.5) / COL))
+
+
+def net_lines(bm, R, mat, hemi=1, meridians=6, lats=(26.0, 56.0),
+              width=3.4, lat_lo=9.0, lat_hi=82.0, out=1.030, inn=0.970):
+    """A netting web laid over one hemisphere of the shell.
+
+    Painted netting was tried first and does not work: the shell is 28 columns
+    and 5 latitude rows above the band, so the thinnest paintable line is 12.9
+    deg wide, and the net came out covering more of the ball than the ball
+    did. Thin raised ribbons cost about 340 triangles and give a net that
+    reads as one at any distance.
+
+    Everything stays strictly on its own side of the equator so the open
+    variant can hand each half its own netting without cutting anything.
+    """
+    s = 1.0 if hemi >= 0 else -1.0
+    for i in range(meridians):
+        lon = -180.0 + 360.0 * i / meridians
+        sphere_ribbon(bm, R, [(lon, s * lat_lo), (lon, s * lat_hi)], width,
+                      mat, out=out, inn=inn)
+    for la in lats:
+        ring = [(-180.0 + 360.0 * k / 6.0, s * la) for k in range(7)]
+        sphere_ribbon(bm, R, ring, width, mat, out=out, inn=inn)
+
+
+class Livery:
+    def __init__(self, key, item_id, top, bottom, band, button,
+                 paint=None, marks=None, note=""):
+        self.key = key
+        self.item_id = item_id
+        self.top = top
+        self.bottom = bottom
+        self.band = band
+        self.button = button
+        self.paint = paint
+        # marks(bm, R, hemi): hemi 0 builds the lot, +1/-1 only the pieces
+        # that lie wholly on that side of the split, for the open variant
+        self.marks = marks or (lambda bm, R, hemi=0: None)
+        self.note = note
+
+    def shell_mat(self, lon, lat):
+        if abs(lat) < math.degrees(math.asin(BAND_HALF)) * 1.06:
+            base = self.band
+        else:
+            base = self.top if lat > 0 else self.bottom
+        if self.paint is not None:
+            m = self.paint(lon, lat, base)
+            if m is not None:
+                return m
+        return base
+
+
+def _great(lon, lat, base):
+    """Blue top carrying two red accents, each edged in white, front and back.
+
+    Columns 0 and 1 stay blue as a 52 deg centre line, 2 and 3 carry the red
+    and 4 is its outer white edge, so the ball still reads blue with two red
+    accents on it. Two earlier passes put white on both sides of the red as
+    well; at 12.9 deg per column the thinnest paintable line is as wide as the
+    red itself and the ball came out a red-white-blue beach ball. That is the
+    failure mode to watch here -- the accents are accents.
+    """
+    if lat <= 10.0:
+        return None
+    k = col_from_front(lon)
+    if k in (2, 3):
+        return BALL_RED
+    if k == 4:
+        return BALL_WHITE
+    return None
+
+
+def _ultra(lon, lat, base):
+    """The yellow H: two uprights over the crown, joined by a crossbar that
+    stops at them rather than running round the ball as a ring.
+
+    The crossbar's latitude limits are the shell's own ring latitudes (18 and
+    36 deg), so it occupies exactly one row of faces and its edges are mesh
+    edges. The uprights stop at the 72 deg ring rather than running to the
+    pole, where all of them converge and the H closes up into an arch.
+    """
+    if lat <= 10.0:
+        return None
+    k = col_from_front(lon)
+    if k in (2, 3) and lat < 72.0:
+        return LIV_YELLOW
+    if k <= 3 and 18.0 < lat < 36.0:
+        return LIV_YELLOW
+    return None
+
+
+def _timer(lon, lat, base):
+    """White shell, one grey ring (exactly the 18-36 deg row of faces) and
+    four red streaks at the quarter meridians, like marks on a clock face."""
+    if lat <= 10.0:
+        return None
+    if any_lon_col(lon, (0.0, 90.0, 180.0, -90.0)) == 0:
+        return BALL_RED
+    if 18.0 < lat < 36.0:
+        return LIV_GREY
+    return None
+
+
+def _net_marks(bm, R, hemi=0):
+    # the Net Ball's underside is plain white; only the top is netted
+    if hemi >= 0:
+        net_lines(bm, R, LIV_NAVY, hemi=1)
+
+
+def _dusk_marks(bm, R, hemi=0):
+    # the Dusk Ball is green all over and netted all over
+    for s in ((1, -1) if hemi == 0 else (hemi,)):
+        net_lines(bm, R, BALL_BLACK, hemi=s, meridians=6, lats=(40.0,),
+                  width=3.8)
+
+
+def _quick_marks(bm, R, hemi=0):
+    if hemi < 0:
+        return
+    for base_lon in (0.0, 180.0):
+        for sx in (-1, 1):
+            sphere_ribbon(bm, R, [
+                (base_lon + sx * 8.0, 14.0),
+                (base_lon + sx * 34.0, 34.0),
+                (base_lon + sx * 12.0, 52.0),
+                (base_lon + sx * 30.0, 74.0)], 11.0, LIV_YELLOW, per_seg=2)
+
+
+def _master_marks(bm, R, hemi=0):
+    if hemi < 0:
+        return
+    for base_lon in (0.0, 180.0):
+        sphere_ribbon(bm, R, [
+            (base_lon - 26.0, 16.0), (base_lon - 26.0, 52.0),
+            (base_lon + 0.0, 28.0),
+            (base_lon + 26.0, 52.0), (base_lon + 26.0, 16.0)],
+            10.0, LIV_PINK, per_seg=2)
+    for lon in (-74.0, 74.0):
+        sphere_stud(bm, R, lon, 26.0, 0.115, LIV_PINK)
+
+
+BALLS = [
+    Livery("", "poke-ball", BALL_RED, BALL_WHITE, BALL_BLACK, BALL_BUTTON,
+           note="red top, white bottom, black band, white button"),
+    Livery("Great", "great-ball", LIV_BLUE, BALL_WHITE, BALL_BLACK,
+           BALL_BUTTON, paint=_great,
+           note="blue top with two white-edged red accents"),
+    Livery("Ultra", "ultra-ball", BALL_BLACK, BALL_WHITE, BALL_BLACK,
+           BALL_BUTTON, paint=_ultra, note="black top with the yellow H"),
+    Livery("Net", "net-ball", LIV_CYAN, BALL_WHITE, BALL_BLACK, BALL_BUTTON,
+           marks=_net_marks, note="cyan top under dark blue netting"),
+    Livery("Dusk", "dusk-ball", LIV_GREEN, LIV_GREEN, ORANGE, ORANGE,
+           marks=_dusk_marks,
+           note="deep green casing, black netting, orange band and button"),
+    Livery("Quick", "quick-ball", LIV_BLUE, BALL_WHITE, BALL_BLACK,
+           BALL_BUTTON, marks=_quick_marks,
+           note="blue top with raised yellow streaks"),
+    Livery("Timer", "timer-ball", BALL_WHITE, BALL_WHITE, BALL_BLACK,
+           BALL_BUTTON, paint=_timer,
+           note="white shell, grey ring, four red clock streaks"),
+    Livery("Master", "master-ball", LIV_PURPLE, BALL_WHITE, BALL_BLACK,
+           BALL_BUTTON, marks=_master_marks,
+           note="purple top with the pink M and two studs"),
+]
+
+BALL_BY_KEY = {b.key: b for b in BALLS}
+
+
+def _paint_shell(bmp, liv):
+    for f in bmp.faces:
+        lon, lat = lon_lat(f.calc_center_median())
+        f.material_index = liv.shell_mat(lon, lat)
+
+
+def _merge(dst, src):
+    me = bpy.data.meshes.new("_part")
+    src.to_mesh(me)
+    src.free()
+    dst.from_mesh(me)
+    bpy.data.meshes.remove(me)
+
+
+def capture_ball(bm, rng, liv=None, R=R_BALL, sides=SIDES):
+    """A closed ball in one livery.
+
+    Each part is bevelled in its own bmesh and then painted from its position,
+    so no bevel face can end up in slot 0 by accident -- see the module header.
+    """
+    liv = liv or BALLS[0]
+
+    shell = bmesh.new()
+    revolve_arc(shell, sphere_profile(R), sides,
+                lambda i, r, z: BALL_RED, smooth=True)
+    E.bevel_sharp(shell, width=0.0022, segments=1, angle_deg=34.0,
+                  mat_break=False)
+    _paint_shell(shell, liv)
+    _merge(bm, shell)
+
+    btn = bmesh.new()
+    button_assembly(btn, R, liv.band, liv.button)
+    E.bevel_sharp(btn, width=0.0018, segments=1, angle_deg=40.0,
+                  mat_break=False)
+    for f in btn.faces:
+        # the bezel is everything outside the recess wall, in the button's own
+        # radial coordinate; the crown and barrel are inside it
+        c = f.calc_center_median()
+        rad = math.hypot(c.x, c.z)
+        depth = -c.y
+        f.material_index = (liv.button
+                            if rad < R * 0.170 and depth > R * 0.960
+                            else liv.band)
+    _merge(bm, btn)
+
+    hinge_pin(bm, R, liv.band)
+    liv.marks(bm, R, hemi=0)
+
+
+def capture_ball_open(bm, rng, liv=None, R=R_BALL, sides=SIDES,
+                      open_deg=45.0):
+    """The capture pose: the shell actually split.
+
+    The previous open variant was a whole closed ball with a glowing disc
+    hidden inside it -- nothing about it was open, which made it useless for
+    the one animation the prop exists for.  Each half here is a real hollow
+    half shell: outer surface, inner surface at 86% radius, and a rim
+    annulus joining them, revolved as a single closed profile loop.  That
+    matters more than it sounds, because Unity culls back faces: a bare
+    hemisphere would show the far side of the room through the opening.
+    """
+    liv = liv or BALLS[0]
+    inner = 0.860
+    # both halves swing about the hinge pin at the back of the band, which is
+    # the joint the closed ball already has, so nothing slides sideways
+    piv = Vector((0.0, R * 0.955, 0.0))
+
+    for sign in (1, -1):
+        half = bmesh.new()
+
+        outer = sphere_profile(R, z_lo=0.0 if sign > 0 else -1.0,
+                               z_hi=1.0 if sign > 0 else 0.0)
+        if sign < 0:
+            outer = list(reversed(outer))     # always rim first, pole last
+        rim_r = outer[0][0]
+        # The inner surface is only ever seen as an unlit cavity, so it is
+        # built on every other latitude station. Mirroring the outer profile
+        # station for station spent about 340 triangles a ball on a shape
+        # nobody can resolve; a coarser chord simply makes the shell wall
+        # slightly thicker between stations, which is invisible and harmless.
+        coarse = outer[::2]
+        if coarse[-1] is not outer[-1]:
+            coarse = coarse + [outer[-1]]
+        back = [(r * inner, z * inner) for (r, z) in reversed(coarse)]
+        loop = outer + back + [(rim_r, 0.0)]
+        revolve_arc(half, loop, sides, lambda i, r, z: BALL_RED, smooth=True)
+        E.bevel_sharp(half, width=0.0022, segments=1, angle_deg=34.0,
+                      mat_break=False)
+        for f in half.faces:
+            c = f.calc_center_median()
+            if c.length < R * (inner + 0.050):
+                f.material_index = DARK        # the inside of the shell
+            else:
+                lon, lat = lon_lat(c)
+                f.material_index = liv.shell_mat(lon, lat)
+
+        # half the button rides on each half, cut on the same plane. The
+        # button revolves about -Y with its arc parameter running through
+        # latitude, so 0-180 deg is exactly the half above the split.
+        btn = bmesh.new()
+        button_assembly(btn, R, liv.band, liv.button, arc_deg=180.0,
+                        phase_deg=0.0 if sign > 0 else 180.0)
+        E.bevel_sharp(btn, width=0.0018, segments=1, angle_deg=40.0,
+                      mat_break=False)
+        for f in btn.faces:
+            c = f.calc_center_median()
+            if math.hypot(c.x, c.z) < R * 0.170 and -c.y > R * 0.960:
+                f.material_index = liv.button
+            else:
+                f.material_index = liv.band
+        _merge(half, btn)
+
+        liv.marks(half, R, hemi=sign)
+        if sign > 0:
+            hinge_pin(half, R, liv.band)
+
+        me = bpy.data.meshes.new("_half")
+        half.to_mesh(me)
+        half.free()
+        # NEGATIVE for the upper half. Rotating +X by +theta carries +Z
+        # towards -Y, which swings the top half down over the front and the
+        # bottom half up behind it -- the halves come out swapped, and the
+        # first render of this showed a white dome sitting on a coloured one.
+        me.transform(Matrix.Translation(piv) @
+                     Matrix.Rotation(math.radians(-open_deg) * sign, 4, 'X') @
+                     Matrix.Translation(-piv))
+        bm.from_mesh(me)
+        bpy.data.meshes.remove(me)
+
+    # The capture energy, as a lens in the plane the halves opened from.
+    # Both halves swing about a hinge on their RIM, not about the ball centre,
+    # so the middle of the gap is not the origin: each half carries the origin
+    # to y = 0.955R(1-cos t), and the lens has to be put there or it ends up
+    # buried inside the lower half, which is where the first version of it was.
+    gap_y = R * 0.955 * (1.0 - math.cos(math.radians(open_deg)))
+    lens = [(0.0, -R * 0.15), (R * 0.30, -R * 0.09), (R * 0.50, 0.0),
+            (R * 0.30, R * 0.09), (0.0, R * 0.15)]
+    tmp = bmesh.new()
+    revolve_arc(tmp, lens, 14, lambda i, r, z: EMISSIVE, smooth=True)
+    me = bpy.data.meshes.new("_lens")
+    tmp.to_mesh(me)
+    tmp.free()
+    me.transform(Matrix.Translation((0.0, gap_y, 0.0)))
+    bm.from_mesh(me)
+    bpy.data.meshes.remove(me)
+
+
+def _ball_builder(liv, open_state):
+    fn = capture_ball_open if open_state else capture_ball
+    return lambda bm, rng: fn(bm, rng, liv)
 
 
 # --------------------------------------------------------------------------
@@ -480,22 +1029,60 @@ ASSETS = [
     ("Env_Prop_Scanner", 5401, (300, 2000), scanner, 'base', 2),
 ]
 
+# The eight liveries, closed and open, replace the two hand-written entries
+# above. bseg 0 means "this builder bevels its own parts" -- the balls have to,
+# because the shared pass would put every bevel face in slot 0. The plain
+# Poke Ball keeps the original two asset names so the level's existing item
+# ball placements keep resolving.
+_BALL_NAME = {"": "Env_Prop_CaptureBall"}
+ASSETS = [a for a in ASSETS if not a[0].startswith("Env_Prop_CaptureBall")]
+for _i, _liv in enumerate(BALLS):
+    _base = _BALL_NAME.get(_liv.key, "Env_Prop_CaptureBall_%s" % _liv.key)
+    # Budgets are per pair, not per livery, and the headroom is for the two
+    # netted balls: the Net and Dusk liveries carry about 700 triangles of
+    # raised netting each because a 28-column shell cannot paint a line
+    # thinner than 12.9 deg (see net_lines). Everything else lands near 1350
+    # closed and 2900 open.
+    ASSETS.insert(_i * 2, (_base, 5110 + _i * 2, (300, 2400),
+                           _ball_builder(_liv, False), 'center', 0))
+    ASSETS.insert(_i * 2 + 1, (_base + "_Open", 5111 + _i * 2, (400, 4000),
+                               _ball_builder(_liv, True), 'center', 0))
+
+
+def _ball_note(name, by_key):
+    """Manifest note tying each ball asset back to its ItemCatalog id."""
+    if not name.startswith("Env_Prop_CaptureBall"):
+        return ""
+    rest = name[len("Env_Prop_CaptureBall"):]
+    open_state = rest.endswith("_Open")
+    if open_state:
+        rest = rest[:-len("_Open")]
+    liv = by_key.get(rest.lstrip("_"))
+    if liv is None:
+        return ""
+    return "%s (ItemCatalog '%s'): %s.%s Button faces Blender -Y, i.e. Unity +Z." % (
+        liv.item_id.replace("-", " ").title(), liv.item_id, liv.note,
+        " Split open on the hinge for the capture animation." if open_state
+        else "")
+
 
 def main():
     E.ensure_dirs()
     T.ensure_atlas(FAM)
     E.reset_scene()
-    ms = T.full_matset(FAM)
+    ms = matset()
     ap = T.atlas_paths(FAM)
     part = []
     problems = []
+    ball_note = {b.key: b for b in BALLS}
 
     for (name, seed, budget, fn, pivot, bseg) in ASSETS:
         rng = random.Random(seed)
         bm = E.bm_new()
         fn(bm, rng)
-        E.bevel_sharp(bm, width=0.0035, segments=bseg, angle_deg=40.0,
-                      mat_break=False)
+        if bseg:
+            E.bevel_sharp(bm, width=0.0035, segments=bseg, angle_deg=40.0,
+                          mat_break=False)
         obj = E.bm_to_obj(bm, name, ms.materials())
         # props are handled objects: smooth where round, crisp where machined
         E.finalize(obj, smooth_angle=44.0, merge=1e-6)
@@ -511,6 +1098,11 @@ def main():
             E.pivot_to_base(obj)
         E.apply_transforms(obj)
         E.uv_all(obj, ms, angle=52.0, margin=0.010)
+        # The matset is now 24 slots wide (16 cells plus the eight livery
+        # sub-bands) and no single prop uses more than seven of them. Shipping
+        # the whole set would declare 24 materials on every mesh; this has to
+        # run after uv_all, which reads the original indices.
+        E.strip_unused_materials(obj)
         tris, probs = E.validate(obj, budget=budget, need_vcol=False,
                                  strict=False)
         path = os.path.join(OUT, name + ".fbx")
@@ -537,7 +1129,12 @@ def main():
             "textures": [os.path.relpath(ap["base"], E.REPO).replace("\\", "/"),
                          os.path.relpath(ap["normal"], E.REPO).replace("\\", "/")],
             "windVertexColors": False,
-            "notes": "",
+            "notes": _ball_note(name, ball_note),
+            # the balls are held to the manifest's hero_prop ceiling, not the
+            # street-furniture one -- see BUDGETS in build_manifest.py
+            "budgetClass": ("hero_prop"
+                            if name.startswith("Env_Prop_CaptureBall")
+                            else "prop"),
         })
         E.delete_obj(obj)
 

@@ -890,6 +890,16 @@ class MatSet:
             # atlas rows run bottom-up in UV space; band 0 is the top image band
             h = h / float(bn)
             y0 = y0 + (bn - 1 - bi) * h
+            # A band of an eight-way split is 62 px tall in a 2048 atlas, and
+            # uv_pack_into_cells fills the rect it is given exactly. Without a
+            # margin the outermost row of the island sits on the band boundary,
+            # and bilinear filtering plus mipmaps then fetch the NEXT livery:
+            # measured as a purple patch on the Ultra Ball's yellow H, purple
+            # being the band below yellow. The margin costs texels nothing that
+            # matters at this density and removes the bleed entirely.
+            pad = h * 0.14
+            y0 += pad
+            h -= pad * 2.0
         m["atlas_rect"] = [x0, y0, w, h]
         self.index[surface_name] = len(self.order)
         self.order.append(m)

@@ -40,6 +40,7 @@ namespace PokeLab.Boot.Editor
             (FoliageRoot, "Assets/Game/Art/Environment/Foliage/Materials/M_Env_Foliage.mat"),
             (TownRoot, "Assets/Game/Art/Environment/Town/Materials/M_Env_Town.mat"),
             (TerrainRoot, "Assets/Game/Art/Environment/Terrain/Materials/M_Env_Terrain.mat"),
+            (PropRoot, "Assets/Game/Art/Props/Materials/M_Env_Props.mat"),
         };
 
         private static string BindingFor(string path)

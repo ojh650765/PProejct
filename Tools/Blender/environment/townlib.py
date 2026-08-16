@@ -590,9 +590,18 @@ def window_furniture(bm, o, mat_frame, mat_glass, thickness,
     plate(c - back - n * 0.012, o.width - fw * 1.6, o.height - fw * 1.6, 0.02,
           mat_glass)
     if mullion:
+        # The mullion and the transom cross. At the same depth their front
+        # faces are coplanar over the 36 x 36 mm square where they meet, which
+        # is a real z-fight on every mullioned window in the kit -- and a hard
+        # failure the moment a window is SQUARE, because then the two front
+        # faces also have equal area and the coplanar-duplicate check matches
+        # them outright. The Pokemon Centre's 1.40 x 1.40 m rear windows were
+        # what surfaced it, six duplicates for three windows. Six millimetres
+        # of depth between the two bars removes both, and reads as the
+        # transom being set slightly proud, which is how a real one is made.
         plate(c - back - n * 0.004, 0.036, o.height - fw * 1.6, 0.05,
               mat_frame)
-        plate(c - back - n * 0.004, o.width - fw * 1.6, 0.036, 0.05, mat_frame)
+        plate(c - back + n * 0.002, o.width - fw * 1.6, 0.036, 0.05, mat_frame)
     if sill:
         # sits ON the wall, so it sinks into it by EMBED and projects outward
         plate(c - up * (o.height * 0.5 + 0.035) + n * (0.10 - EMBED),

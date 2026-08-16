@@ -307,7 +307,7 @@ MASSES = [
 # --- roads, as splines -----------------------------------------------------
 # (name, width, edgeBlend, material, control points [x, y, z], notes)
 PATH_SPECS = [
-    ("Path_TownMain", 5.0, 0.9, "road_cobble_town",
+    ("Path_TownMain", 4.2, 0.75, "road_cobble_town",
      [(-15.6, 2.44, -38.0), (-15.0, 2.40, -35.0), (-14.2, 2.36, -30.0),
       (-13.4, 2.34, -25.0), (-13.0, 2.38, -20.0),
       (-13.0, 2.46, -13.5), (-12.4, 2.44, -9.0), (-11.4, 2.42, -5.0),
@@ -318,7 +318,7 @@ PATH_SPECS = [
      "pictures rather than one; the old 29 m street was a screenful and a half and you "
      "could see the whole town from either end of it."),
 
-    ("Path_TownLane_West", 2.6, 0.7, "road_dirt_town",
+    ("Path_TownLane_West", 2.2, 0.6, "road_dirt_town",
      [(-13.2, 2.40, -19.6), (-18.5, 2.36, -20.6), (-25.0, 2.44, -21.0),
       (-31.0, 2.55, -21.4), (-35.8, 2.66, -24.0), (-36.8, 2.72, -28.0),
       (-34.4, 2.74, -31.8), (-29.5, 2.60, -33.6), (-22.0, 2.44, -34.0),
@@ -329,7 +329,7 @@ PATH_SPECS = [
      "ends is a lane you walk once: this one has the west row's four front doors on its "
      "north verges and the paddock and orchard on its outer ones, and it brings you back."),
 
-    ("Path_TownLane_Lab", 3.2, 0.7, "road_cobble_town",
+    ("Path_TownLane_Lab", 2.8, 0.6, "road_cobble_town",
      [(-9.6, 2.42, -12.2), (-8.0, 2.52, -11.5), (-6.8, 2.70, -10.9),
       (-5.9, 2.80, -10.5)],
      "Short spur from the plaza up the 0.4 m step to the lab door. Runs along the camera "
@@ -339,7 +339,7 @@ PATH_SPECS = [
      "a road and duly shoved the lab off the axis the whole town is composed on. It now "
      "stops 1.2 m short of the door the emitter derives at (-5.23, -10.14)."),
 
-    ("Path_GateRamp", 4.4, 1.0, "road_dirt_route",
+    ("Path_GateRamp", 4.0, 0.8, "road_dirt_route",
      [(-8.2, 2.40, 1.0), (-7.4, 2.10, 3.2), (-6.6, 1.30, 5.6), (-6.0, 0.45, 8.0),
       (-5.7, 0.10, 10.0)],
      "The cut through the town's retaining cliff. 2.3 m of fall over 9 m -- 14 deg, well "
@@ -433,8 +433,8 @@ HOUSES = [
     ("Env_House_Townhouse_B", -3.8, -27.4, 274.0),
     ("Env_House_Cottage_A", -4.6, -35.2, 262.0),
     # North side of the west lane's top arm: fronts south onto the lane.
-    ("Env_House_Farmhouse_C", -29.6, -14.5, 178.0),
-    ("Env_House_Cottage_A", -37.0, -14.5, 190.0),
+    ("Env_House_Farmhouse_C", -29.0, -14.8, 178.0),
+    ("Env_House_Cottage_A", -36.0, -14.6, 186.0),
     # The block enclosed by the west lane, fronting south onto its bottom arm. The
     # first of these is the player's house: it is the one building whose front the
     # player sees in the opening minute, so it gets a real approach and a real
@@ -982,8 +982,8 @@ def build_town(b, rng):
     # The plaza is a widening of the one street, with the lab forecourt closing its east
     # end -- 17 x 11 m against the old 13 x 11, and pulled clear of the house fronts on
     # both sides.
-    plaza = [(-25.4, -12.6), (-19.0, -15.0), (-9.6, -14.6), (-8.0, -10.5), (-8.8, -5.2),
-             (-14.0, -3.4), (-21.0, -4.0), (-25.6, -8.0)]
+    plaza = [(-24.6, -12.4), (-19.0, -14.2), (-10.4, -13.8), (-8.8, -10.4), (-9.4, -5.8),
+             (-14.2, -4.2), (-20.6, -4.8), (-24.8, -8.2)]
 
     # ---------------------------------------------------------------- buildings
     # The lab. Faces south-west down the camera axis, at the head of the plaza, one step
@@ -1009,6 +1009,31 @@ def build_town(b, rng):
         b.reserve(hx, hz, hyaw, w * 0.5 + 0.3, d * 0.5 + 0.3)
         b.place(asset, hx, hz, hyaw, TOWN + "/Buildings", "Town_House")
 
+    # A lantern beside every front door, hung on the wall. Env_Lamp_Wall has been in the
+    # kit since the town was first dressed and had never been placed once; a door with a
+    # light over it is the difference between a wall with a hole in it and somewhere
+    # somebody lives, and at night it is the only thing marking nine doors. Derived from
+    # each building's own front vector and depth rather than typed, so it cannot drift
+    # off the wall it is screwed to. record=False: it is 0.32 m across and two metres up,
+    # and nothing on the ground should be rejected because of it.
+    for o in list(b.objects):
+        asset = o["prefab"].split("/")[-1].replace(".fbx", "")
+        if not (asset.startswith("Env_House_") or asset.startswith("Env_Building_")):
+            continue
+        w, h, d = b.size(asset)
+        x, y, z = o["position"]
+        yaw = o["rotation"][1]
+        r = math.radians(yaw)
+        fx, fz = math.sin(r), math.cos(r)          # the building's front
+        sx, sz = math.cos(r), -math.sin(r)         # its own +X, along the front wall
+        depth = d * 0.5 + 0.40   # its own half-depth, so the lamp touches the wall
+                                 # rather than sinking into it and being shoved off it
+                                 # by every audit --fix pass
+        offset = min(1.45, w * 0.28)
+        b.place("Env_Lamp_Wall", x + fx * depth + sx * offset,
+                z + fz * depth + sz * offset, yaw, TOWN + "/Detail", "Town_DoorLamp",
+                y=y + min(2.35, h * 0.46), record=False)
+
     # ------------------------------------------------------------- frontages
     # One per front door. Each reaches from the road edge to the doorstep, about two
     # metres wide -- a garden path, not a yard.
@@ -1022,8 +1047,8 @@ def build_town(b, rng):
             [(-12.4, -36.2), (-6.4, -36.0), (-6.4, -34.0), (-12.4, -34.2)]]):
         town_patch("Patch_PlotEast%d" % (i + 1), poly)
     for i, poly in enumerate([
-            [(-30.8, -20.4), (-28.4, -20.3), (-28.4, -17.2), (-30.8, -17.3)],
-            [(-38.7, -20.6), (-36.3, -20.5), (-36.3, -17.2), (-38.7, -17.3)],
+            [(-30.2, -20.4), (-27.8, -20.3), (-27.8, -17.4), (-30.2, -17.5)],
+            [(-37.2, -20.6), (-34.8, -20.5), (-34.8, -17.4), (-37.2, -17.5)],
             [(-22.8, -30.8), (-20.4, -30.7), (-20.4, -27.8), (-22.8, -27.9)],
             [(-31.7, -30.8), (-29.3, -30.7), (-29.3, -27.6), (-31.7, -27.7)]]):
         town_patch("Patch_PlotWest%d" % (i + 1), poly)
@@ -1047,8 +1072,8 @@ def build_town(b, rng):
              [(-10.4, -38.6), (-9.8, -31.0), (-9.4, -23.0), (-9.2, -16.6)],
              [(-9.4, -19.5, 88.0), (-9.7, -27.3, 86.0), (-10.1, -35.1, 84.0)])
     frontage("Town_FenceWestRow",
-             [(-40.0, -18.4), (-33.0, -18.7), (-26.0, -18.8)],
-             [(-29.6, -18.75, 178.0), (-37.4, -18.6, 190.0)])
+             [(-38.8, -18.6), (-33.0, -18.9), (-25.6, -19.0)],
+             [(-29.0, -18.95, 178.0), (-36.0, -18.75, 186.0)])
     frontage("Town_FenceLoop",
              [(-32.6, -30.2), (-26.0, -30.5), (-18.6, -30.3)],
              [(-21.6, -30.4, 182.0), (-30.5, -30.45, 176.0)])
@@ -1059,7 +1084,7 @@ def build_town(b, rng):
                              [(-10.6, -38.8), (-6.0, -38.4), (-2.6, -38.0)]]):
         b.fence_run(run, "Env_Fence_Picket_2m", TOWN + "/Detail",
                     "Town_FencePlotE%d" % (i + 1))
-    for i, run in enumerate([[(-33.4, -18.6), (-33.6, -13.0), (-33.4, -9.0)],
+    for i, run in enumerate([[(-32.8, -18.8), (-33.0, -14.0), (-32.8, -10.6)],
                              [(-26.0, -30.4), (-26.2, -26.0), (-26.0, -22.4)]]):
         b.fence_run(run, "Env_Fence_Picket_2m", TOWN + "/Detail",
                     "Town_FencePlotW%d" % (i + 1))
@@ -1084,8 +1109,14 @@ def build_town(b, rng):
                                 (-17.3, -13.0, 358.0, "Env_Market_Stall"),
                                 (-23.8, -11.2, 6.0, "Env_Market_Stall_B")]:
         b.place(asset, mx, mz, myaw, TOWN + "/Props", "Town_Market", tag="Interactable")
-    b.place("Env_Notice_Board", -9.0, -13.6, 300.0, TOWN + "/Props", "Town_NoticeBoard",
+    b.place("Env_Notice_Board", -9.4, -9.4, 296.0, TOWN + "/Props", "Town_NoticeBoard",
             tag="Interactable")
+    # Somebody's morning rather than props on a grid: a delivery cart drawn up at the
+    # stalls, and stock stacked where it was carried to instead of in a tidy square.
+    b.place("Env_Cart", -17.4, -15.8, 66.0, TOWN + "/Props", "Town_MarketCart")
+    b.clump(-22.4, -14.4, 1.5, 4, ["Env_Crate", "Env_Barrel"], TOWN + "/Detail",
+            "Town_PlazaStock", scale=(0.92, 1.06), road_margin=0.3)
+    b.place("Env_Trough", -25.2, -10.6, 8.0, TOWN + "/Props", "Town_PlazaTrough")
     for bx, bz, byaw in [(-23.4, -7.6, 76.0), (-19.8, -6.0, 168.0),
                          (-16.6, -12.6, 350.0), (-24.2, -11.0, 40.0)]:
         b.try_place("Env_Bench", bx, bz, byaw, TOWN + "/Props", "Town_Bench", road_margin=0.1)
@@ -1107,11 +1138,11 @@ def build_town(b, rng):
     b.street_furniture([(-15.4, -36.6), (-14.2, -30.0), (-13.2, -22.0), (-12.4, -9.0),
                         (-8.2, 1.0)],
                        "Env_Lamp_Post", TOWN + "/Detail", "Town_Lamp",
-                       spacing=6.5, offsets=[(1, 3.6), (-1, 3.6)])
-    b.street_furniture([(-18.5, -20.6), (-27.0, -21.5), (-35.5, -23.6), (-34.6, -30.8),
-                        (-24.0, -33.1), (-16.2, -32.2)],
+                       spacing=5.5, offsets=[(1, 3.5), (-1, 3.5)])
+    b.street_furniture([(-18.5, -20.6), (-27.0, -21.2), (-35.0, -23.8), (-35.6, -31.4),
+                        (-24.0, -33.8), (-16.4, -33.0)],
                        "Env_Lamp_Post", TOWN + "/Detail", "Town_LaneLamp",
-                       spacing=9.0, offsets=[(-1, 2.4), (1, 2.4)])
+                       spacing=7.5, offsets=[(-1, 2.6), (1, 2.6)])
 
     # --------------------------------------------------- the working end
     # The south end of the street. A closed gate in a stone wall, a notice and a
@@ -1147,7 +1178,7 @@ def build_town(b, rng):
     # only trees in the town placed as objects for their silhouette rather than scattered
     # as part of a mass. They are what makes the gap read as a gap: a hole in an even
     # treeline is a mistake, a hole between two trees is a door.
-    for tx, tz, s in [(-10.6, 1.6, 1.45), (-4.6, 0.4, 1.35)]:
+    for tx, tz, s in [(-12.0, 2.2, 1.45), (-3.6, -1.6, 1.35)]:
         b.try_place("Env_Tree_Broadleaf_C", tx, tz, rng.uniform(0, 360), TOWN + "/Foliage",
                     "Town_GatePost", scale=s, road_margin=0.8, max_slope=44.0)
     # Orchard behind the west row, and a second one in the loop's back gardens.
@@ -1171,14 +1202,79 @@ def build_town(b, rng):
     field("Field_Town_Lawn", "meadow",
           [(-40, -10), (-33, -2), (-22, 2), (-10, 0), (-2, -6), (3, -16), (2, -30),
            (-4, -39), (-20, -42), (-34, -40), (-41, -30), (-42, -20)],
-          0.16, [("Env_Grass_Clump_A", 3), ("Env_Grass_Clump_B", 3), ("Env_Grass_Blade", 2),
+          0.30, [("Env_Grass_Clump_A", 3), ("Env_Grass_Clump_B", 3), ("Env_Grass_Blade", 2),
                  ("Env_Flower_White", 1), ("Env_Flower_Yellow", 1)],
           TOWN + "/Foliage", "Zone_Town",
           "Kept sparse on purpose. Wedgehurst's lawns are almost bare; the eye needs "
           "somewhere to rest between the buildings.")
 
     boundary_wood(TOWN)
+    town_barriers(b.baked)
     return plaza
+
+
+# The invisible wall behind the boundary wood.
+#
+# The wood is drawn by InstancedFoliage, through Graphics.DrawMeshInstanced, which has no
+# colliders at all -- so as far as the player is concerned an instanced tree wall is a
+# painting. Giving each tree a collider would mean giving up instancing and going back to
+# several hundred GameObjects, which is the cost the field exists to avoid, and it would
+# still be the wrong barrier: a trunk capsule is a post you slip between, which is why
+# the previous town's tree walls were passable in three places.
+#
+# So the trees are visual and the barrier is a box. A box face is vertical, so it is
+# absolute against PlayerLocomotion's 0.45 m step and 48 degree slope limits at any grid
+# resolution -- the same argument that put Env_Ledge_* and Env_Riverbank_* in the level.
+# Emitted as `barrierVolumes` rather than as objects, because the collider policy for
+# objects is keyed on the prefab and these have no mesh to key on.
+#
+# (metres) how tall, and how far the box is sunk so it cannot be stepped on to.
+BARRIER_HEIGHT = 4.0
+BARRIER_SINK = 1.0
+BARRIER_THICKNESS = 0.6
+
+BARRIER_VOLUMES = []
+
+# One continuous line per side, and the gap between the north line's east end and the
+# east line's north end IS the town's door -- 8.4 m centred on the gate ramp. Nothing
+# else on the perimeter is open: the south gate is a closed gate in a wall with the wood
+# right behind it, and the terrace's own 2.4 m retaining cliff at 65 degrees closes the
+# gap either side of the ramp cut.
+TOWN_BARRIER_LINES = [
+    ("Barrier_TownNorth",
+     [(-12.4, -1.6), (-16.0, -0.6), (-22.0, -0.6), (-28.0, -1.6), (-32.6, -3.0),
+      (-34.8, -7.4), (-36.6, -11.4), (-38.4, -12.6)]),
+    ("Barrier_TownWest",
+     [(-38.4, -12.6), (-39.0, -18.0), (-39.2, -26.0), (-39.0, -34.0), (-38.6, -38.6)]),
+    ("Barrier_TownSouth",
+     [(-38.6, -38.6), (-28.0, -38.9), (-19.0, -39.0), (-12.0, -38.7), (-6.8, -38.0)]),
+    ("Barrier_TownEast",
+     [(-6.8, -38.0), (-3.2, -38.0), (-0.4, -33.0), (1.6, -27.0), (2.0, -20.0),
+      (1.2, -12.0), (-0.8, -6.0), (-2.8, -1.0), (-4.0, -0.2)]),
+]
+
+
+def town_barriers(baked):
+    for name, line in TOWN_BARRIER_LINES:
+        pts = resample(chaikin(line, 2), 2.5)
+        for i in range(len(pts) - 1):
+            (ax, az), (bx, bz) = pts[i], pts[i + 1]
+            length = math.hypot(bx - ax, bz - az)
+            if length < 0.2:
+                continue
+            cx, cz = (ax + bx) * 0.5, (az + bz) * 0.5
+            # Overlap each box into the next by the thickness, so a turn in the line
+            # cannot leave a diagonal slot the player can walk through the corner of.
+            BARRIER_VOLUMES.append({
+                "name": "%s_%02d" % (name, i + 1),
+                "centre": [round(cx, 3),
+                           round(baked.at(cx, cz) - BARRIER_SINK + BARRIER_HEIGHT * 0.5, 3),
+                           round(cz, 3)],
+                "size": [round(length + BARRIER_THICKNESS, 3), BARRIER_HEIGHT,
+                         BARRIER_THICKNESS],
+                "yawDegrees": round(yaw_towards(bx - ax, bz - az) - 90.0, 2) % 360.0,
+                "layer": "Environment",
+            })
 
 
 # The boundary wood. See build_town's docstring for why it is a field and not objects.
@@ -1231,9 +1327,9 @@ def boundary_wood(TOWN):
     wood("Field_Town_WoodNorth",
          [(-11.4, 2.6), (-13.0, 3.4), (-20.0, 4.2), (-28.0, 3.2), (-34.0, 1.0),
           (-37.0, -3.0), (-39.0, -8.0), (-40.0, -12.0),
-          (-36.5, -12.5), (-35.0, -8.0), (-33.5, -3.0), (-32.0, -0.6), (-28.0, 0.2),
-          (-20.0, 0.4), (-12.0, -1.0)],
-         0.50,
+          (-38.6, -12.6), (-35.0, -8.0), (-33.0, -3.6), (-30.0, -2.6), (-26.0, -1.8),
+          (-22.0, -0.8), (-20.0, 0.4), (-15.0, -0.6), (-12.6, -2.4)],
+         0.95,
          "The north rim and the crook of the west hills. Stops 3 m short of the gate: "
          "this polygon's east end and Field_Town_WoodEast's north end are the two jambs "
          "of the town's only door.")
@@ -1242,27 +1338,27 @@ def boundary_wood(TOWN):
           (3.0, -34.0), (-0.6, -38.4),
           (-3.2, -38.0), (-0.4, -33.0), (1.6, -27.0), (2.0, -20.0), (1.2, -12.0),
           (-0.8, -6.0), (-2.8, -1.0)],
-         0.50,
+         0.95,
          "Behind the terrace's retaining wall, from the gate down to the south-east "
          "shoulder. The wall is the thing you see and this is what stands over it.")
     wood("Field_Town_WoodSouth",
-         [(-41.0, -42.8), (-34.0, -43.2), (-26.0, -42.2), (-18.0, -41.6), (-12.0, -40.8),
+         [(-40.6, -42.8), (-34.0, -43.2), (-26.0, -42.2), (-18.0, -41.6), (-12.0, -40.8),
           (-7.6, -39.6),
-          (-6.8, -38.0), (-12.0, -38.8), (-19.0, -39.0), (-28.0, -39.0), (-36.0, -38.8),
-          (-41.0, -38.6)],
-         0.50,
+          (-6.8, -38.0), (-12.0, -38.6), (-19.0, -38.8), (-28.0, -38.8), (-36.0, -38.6),
+          (-38.8, -38.5)],
+         0.95,
          "Behind the south gate and the working yard. The hillside behind it climbs from "
          "2.7 m to 12 m in six metres, so this is the screen and the hill is the wall.")
     wood("Field_Town_WoodWest",
-         [(-40.0, -12.0), (-41.4, -18.0), (-41.6, -26.0), (-41.2, -34.0), (-40.4, -38.4),
-          (-36.4, -38.6), (-37.2, -34.0), (-37.4, -26.0), (-37.2, -18.0), (-36.5, -12.5)],
-         0.50,
+         [(-39.2, -12.4), (-41.4, -18.0), (-41.8, -26.0), (-41.4, -34.0), (-40.4, -38.4),
+          (-38.6, -38.6), (-39.0, -34.0), (-39.2, -26.0), (-39.0, -18.0), (-38.4, -12.6)],
+         1.35,
          "The west edge, between the lane loop's outer verge and the foot of the west "
          "hills.")
     wood("Field_Town_WoodEastRidge",
          [(5.6, -10.0), (9.0, -12.0), (11.0, -18.0), (11.5, -26.0), (10.0, -32.0),
           (6.5, -36.0), (4.0, -34.0), (6.0, -28.0), (6.4, -20.0), (5.6, -14.0)],
-         0.32,
+         0.60,
          "Beyond the rim, in the gully at the foot of the town's east cliff and up the "
          "south-east hillside behind it. Pure backdrop -- unreachable, and there so the "
          "view over the retaining wall is canopy rather than the dead flat that was "
@@ -1620,21 +1716,17 @@ def build():
     lip = resample(chaikin([(4.0, 8.0), (9.0, 10.0), (12.5, 12.0), (14.0, 14.0)], 2), 1.0)
     hop = b.prop_run("Env_Ledge_4m", lip, ROUTE + "/Terrain", "Route_LedgeLip", offset=0.0)
 
-    # The town's own ledge. The layout has declared Ledge_TownRim as a one-way hop since
-    # the first pass -- "the classic double ledge shortcut out of town" -- and it has
-    # never been one: the terrace's north-east lip is a smooth height field, so the
-    # 0.45 m step limit never fires and the 2.4 m face is a walkable 40-something
-    # degrees in both directions. The upper half now has geometry. Walked in the order
-    # below so the module face lands north-east, which is the declared hopDirection;
-    # the lower half stays the rim step's own 1.15 m face, as the design says.
-    # 2 m modules rather than 4 m: the lip turns twice in nine metres and a 4 m module
-    # cuts the corner off both bends.
-    town_lip = resample(chaikin([(0.8, -2.6), (-2.0, 0.2), (-5.6, 1.6)], 2), 1.0)
-    town_hop = b.prop_run("Env_Ledge_2m", town_lip, "Town/Terrain", "Town_LedgeRim",
-                          offset=0.0)
+    # Ledge_TownRim -- the town's declared one-way hop out over the terrace lip -- has
+    # been dropped rather than made real. It was never real: the lip is a smooth height
+    # field, so the 0.45 m step limit never fires and the 2.4 m face was walkable both
+    # ways. Laying Env_Ledge_2m along it was the fix, and it was in this file for an
+    # afternoon. It came out again because the town is now closed by a boundary wood
+    # with exactly one opening, and a hoppable ledge four metres from that opening is a
+    # second exit -- and one that no barrier box can express, because a box cannot be
+    # one-way. Reinstating it is three lines here plus a gap in Barrier_TownEast.
 
-    print("  barriers           %d west bank, %d east bank, %d route + %d town ledge modules"
-          % (left, right, hop, town_hop))
+    print("  barriers           %d west bank, %d east bank, %d route ledge modules, "
+          "%d town barrier volumes" % (left, right, hop, len(BARRIER_VOLUMES)))
 
     # The town is built last and off its own generator -- see build_town's docstring.
     plaza = build_town(b, random.Random(TOWN_SEED))
@@ -1649,7 +1741,7 @@ def zones_block():
     return [
         {"name": "Zone_Town", "kind": "Town", "biomeId": "town_01",
          "displayName": "Aster Town", "encounterRateMultiplier": 0.0, "roamerBudget": 2,
-         "cameraRestDistance": 6.0,
+         "cameraRestDistance": 6.6,
          "ambience": {"isInterior": False, "ambienceKey": "Amb_TownMurmur",
                       "fogDensity": 0.006, "darkness": 0.0},
          "neighbours": ["Zone_Route"],
@@ -1704,11 +1796,17 @@ def gameplay_block(baked):
 
     return {
         "playerSpawn": {
-            "name": "Spawn_Player", "position": g(-7.0, -11.5), "rotation": [0, 45, 0],
-            "note": ("On the plaza's east side facing the lab, which stands 0.4 m up and "
-                     "8.8 m tall on the exact 45 deg camera axis. The first frame of the "
-                     "game is the dome filling the top of the screen with the plaza, the "
-                     "well and the market row falling away below it.")},
+            "name": "Spawn_Player", "position": g(-10.5, -15.0), "rotation": [0, 45, 0],
+            "note": ("Still on the exact 45 degree camera axis to the lab -- the lab sits "
+                     "at (-1.5, -6) and this is (-1.5 - 9, -6 - 9) -- but nine metres out "
+                     "instead of five and a half. The old spawn's claim was that 'the "
+                     "first frame of the game is the dome filling the top of the screen'. "
+                     "It was not: at 7.8 m the camera frames 5.6 m of a 9.3 m building, "
+                     "so the opening shot was the lab's doorstep with the dome off the "
+                     "top of the screen. From here the camera stands 17.7 m off it and "
+                     "frames 12.9 m, which is the building plus sky. The plaza, the "
+                     "market row and the well fall away to the left, the street runs out "
+                     "of frame behind.")},
         "spawnPoints": [
             {"name": "Spawn_TownGate", "position": g(-8.2, 1.0), "rotation": [0, 20, 0]},
             {"name": "Spawn_TownSouthGate", "position": g(-15.4, -37.4),
@@ -1841,7 +1939,7 @@ def gameplay_block(baked):
     }
 
 
-def ambient_block(baked, paths, stream):
+def ambient_block(baked, paths, stream, b, bounds):
     out = []
 
     def add(name, kind, x, y, z, radius, intensity=1.0, note=None):
@@ -1878,7 +1976,65 @@ def ambient_block(baked, paths, stream):
     add("Amb_Route_Birds", "audio.birdsong", -4.0, 2.0, 20.0, 24.0, 0.7)
     add("Amb_Crossroads_Rustle", "vfx.leaf_drift", 19.6, 2.0, 27.4, 7.0, 0.7)
 
-    # Lamp glows, one per placed lamp, so night lighting matches the street furniture.
+    # --- the town, up close ------------------------------------------------
+    #
+    # Everything below is anchored off objects that were actually placed rather than
+    # off hand-typed coordinates, so none of it can drift away from the thing it is
+    # meant to be coming out of. An ambient anchor costs a few bytes and no draw call,
+    # which makes this the cheapest thing in the project that turns a correct street
+    # into an inhabited one.
+
+    # Lamp glows, one per placed lamp. This has been a comment where the code should be
+    # since the street furniture went in: the town had five lamp posts and no light came
+    # out of any of them.
+    for o in b.objects:
+        if "Env_Lamp_Post" not in o["prefab"]:
+            continue
+        x, y, z = o["position"]
+        add("Amb_LampGlow_" + o["name"], "light.point_warm", x, y + 2.9, z, 7.0, 0.55,
+            "Night only. Sits at the lantern, not at the post's foot.")
+        add("Amb_LampMoths_" + o["name"], "vfx.moths", x, y + 2.8, z, 2.2, 0.4)
+
+    # Chimney smoke. Read off each building's own bounds so it leaves the roof rather
+    # than the doorstep, and only on the houses -- a lab does not have a hearth.
+    for o in b.objects:
+        asset = o["prefab"].split("/")[-1].replace(".fbx", "")
+        if not asset.startswith("Env_House_"):
+            continue
+        size = (bounds.get(asset) or {}).get("size")
+        if not size:
+            continue
+        x, y, z = o["position"]
+        add("Amb_Chimney_" + o["name"], "vfx.chimney_smoke", x, y + size[1] * 1.02, z,
+            3.5, 0.5)
+
+    # The wood, which is now most of what the town looks out at.
+    for i, (x, z, r) in enumerate([(-30.0, -1.4, 12.0), (-39.0, -26.0, 12.0),
+                                   (-24.0, -40.0, 12.0), (1.0, -22.0, 12.0)]):
+        add("Amb_TownWood_Birds_%02d" % (i + 1), "audio.birdsong", x,
+            baked.at(x, z) + 4.5, z, r, 0.55,
+            "In the canopy. The boundary wood is silent geometry otherwise.")
+    for i, (x, z) in enumerate([(-26.0, -1.0), (-2.0, -20.0), (-20.0, -39.4)]):
+        add("Amb_TownWood_Leaves_%02d" % (i + 1), "vfx.leaf_drift", x,
+            baked.at(x, z) + 3.2, z, 9.0, 0.6)
+    add("Amb_TownGate_Flush", "vfx.bird_flush", -7.4, baked.at(-7.4, 1.2) + 4.2, 1.2,
+        7.0, 0.8,
+        "Birds off the gateposts as you step into the gap. The one moment of movement "
+        "on the only threshold the town has.")
+
+    # The plaza, and the working end of the street.
+    add("Amb_Market_Chatter", "audio.market_chatter", -19.4, 3.4, -12.4, 9.0, 0.8)
+    add("Amb_Market_Awnings", "vfx.cloth_sway", -19.4, 4.6, -12.4, 7.0, 0.7,
+        "The stall canopies. Cloth that moves is the cheapest thing on the plaza that "
+        "says somebody is standing under it.")
+    add("Amb_Well_Drip", "audio.water_drip", -21.6, 3.6, -9.6, 4.0, 0.5)
+    add("Amb_Yard_Work", "audio.town_work", -22.0, 2.9, -37.2, 8.0, 0.5,
+        "Hammering from the yard behind the south row.")
+    add("Amb_LabHum", "audio.machine_hum", -3.6, 4.2, -8.4, 6.0, 0.45)
+    add("Amb_Centre_Sign", "vfx.cloth_sway", -18.2, 5.6, -4.4, 3.0, 0.6,
+        "The Centre's sign over its door.")
+    add("Amb_GateRamp_Dust", "vfx.dust_motes", -7.0, baked.at(-7.0, 3.0) + 1.4, 3.0,
+        5.0, 0.5)
     return out
 
 
@@ -1924,7 +2080,7 @@ def terrain_block(baked, paths, stream, lake_poly, stream_poly, plaza, cave_floo
 
     ramps = [
         {"name": "Ramp_TownGate", "path": "Path_GateRamp",
-         "from": [-8.2, 2.4, 1.0], "to": [-5.7, 0.1, 10.0], "width": 4.4,
+         "from": [-8.2, 2.4, 1.0], "to": [-5.7, 0.1, 10.0], "width": 4.0,
          "gradeDegrees": 14.3, "note": "The cut through the town's retaining cliff."},
         {"name": "Ramp_Gorge", "path": "Path_CaveBranch",
          "from": [2.0, 0.8, 33.0], "to": [1.8, 2.3, 41.0], "width": 3.0,
@@ -1933,7 +2089,7 @@ def terrain_block(baked, paths, stream, lake_poly, stream_poly, plaza, cave_floo
          "from": [30.0, -0.3, 29.6], "to": [39.5, -1.55, 31.6], "width": 3.4,
          "gradeDegrees": 7.4, "note": "Drops the road into the lake basin."},
         {"name": "Ramp_LabForecourt", "path": "Path_TownLane_Lab",
-         "from": [-8.0, 2.4, -11.5], "to": [-6.8, 2.8, -10.9], "width": 3.2,
+         "from": [-8.0, 2.4, -11.5], "to": [-6.8, 2.8, -10.9], "width": 2.8,
          "gradeDegrees": 14.0,
          "note": "0.4 m step up to the lab. Inside PlayerLocomotion's 0.45 m step limit, "
                  "so it needs no stair geometry."},
@@ -1945,11 +2101,6 @@ def terrain_block(baked, paths, stream, lake_poly, stream_poly, plaza, cave_floo
          "topY": 0.0, "dropMetres": 1.35, "oneWay": True, "hopDirection": [0.42, -0.91],
          "note": "Hop south-east only. PlayerLocomotion's max step is 0.45 m, so this is a "
                  "hard barrier coming back -- you walk around via the crossroads."},
-        {"name": "Ledge_TownRim", "fromMass": "Mass_TownRimStep",
-         "polyline": [[-3.0, 1.5], [2.0, -0.5], [5.0, 2.5]],
-         "topY": 2.4, "dropMetres": 1.25, "oneWay": True, "hopDirection": [0.71, 0.71],
-         "note": "Upper half of the double ledge out of town; the lower half is the step's "
-                 "own 1.15 m north face. Skips the gate ramp outbound only."},
     ]
 
     return {
@@ -1980,7 +2131,7 @@ def terrain_block(baked, paths, stream, lake_poly, stream_poly, plaza, cave_floo
                          "massifTop": 13.0, "spurTop": 9.5, "ridgeTop": 21.0},
         "surfacePatches": TOWN_PATCHES + [
             {"name": "Patch_Plaza", "material": "road_flagstone",
-             "polygon": [list(p) for p in plaza], "edgeBlend": 1.1,
+             "polygon": [list(p) for p in plaza], "edgeBlend": 0.8,
              "note": "The plaza is a widening of the main street, not a separate square. "
                      "Aster Town has one paved surface and it changes width."},
             {"name": "Patch_LabForecourt", "material": "road_flagstone",
@@ -2124,10 +2275,11 @@ def main():
         "foliageFields": FOLIAGE_FIELDS,
         "zones": zones_block(),
         "gameplay": gameplay,
-        "ambientAnchors": ambient_block(baked, paths, stream),
+        "ambientAnchors": ambient_block(baked, paths, stream, b, b.bounds),
         "requiredAssets": REQUIRED_ASSETS,
         "counts": {
             "objects": len(b.objects),
+            "barrierVolumes": len(BARRIER_VOLUMES),
             "foliageFields": len(FOLIAGE_FIELDS),
             "foliageInstanceBudget": sum(f["instanceBudget"] for f in FOLIAGE_FIELDS),
             "paths": len(path_json),
@@ -2137,6 +2289,7 @@ def main():
             "byParent": dict(sorted(by_parent.items())),
             "rejectedPlacements": b.rejected,
         },
+        "barrierVolumes": BARRIER_VOLUMES,
         "objects": b.objects,
     }
 

@@ -431,30 +431,30 @@ def dress(rng):
                       rng.choice(["Env_Cave_Stalagmite_A",
                                   "Env_Cave_Stalagmite_B"]),
                       (cave_x + rng.uniform(-1.7, 1.7),
-                       cave_y + rng.uniform(0.9, 2.2), cz - 0.05),
+                       cave_y - rng.uniform(0.9, 2.2), cz - 0.05),
                       rot_z=rng.uniform(0, 6.28),
                       scale=rng.uniform(0.7, 1.3))
     for k in range(5):
         made += place("Terrain", "Env_Cave_Stalactite_A",
                       (cave_x + rng.uniform(-0.9, 0.9),
-                       cave_y + rng.uniform(0.9, 1.9), cz + 3.05),
+                       cave_y - rng.uniform(0.9, 1.9), cz + 3.05),
                       rot_z=rng.uniform(0, 6.28), scale=rng.uniform(0.6, 1.1))
     for k in range(9):
         made += place("Terrain", "Env_Cave_Rubble",
                       (cave_x + rng.uniform(-3.2, 3.2),
-                       cave_y + rng.uniform(-2.4, 0.8), cz),
+                       cave_y + rng.uniform(-0.8, 2.4), cz),
                       rot_z=rng.uniform(0, 6.28), scale=rng.uniform(0.7, 1.3))
     for k in range(14):
         made += place("Foliage",
                       rng.choice(["Env_Moss_Cave_A", "Env_Moss_Cave_B"]),
                       (cave_x + rng.uniform(-3.6, 3.6),
-                       cave_y + rng.uniform(-2.6, 1.0), cz + 0.02),
+                       cave_y + rng.uniform(-1.0, 2.6), cz + 0.02),
                       rot_z=rng.uniform(0, 6.28), scale=rng.uniform(0.8, 1.5))
     for k in range(6):
         made += place("Foliage",
                       rng.choice(["Env_Vine_Hanging_A", "Env_Vine_Hanging_B"]),
                       (cave_x + rng.uniform(-1.1, 1.1),
-                       cave_y - 0.9 + rng.uniform(-0.2, 0.2), cz + 2.95),
+                       cave_y + 0.9 + rng.uniform(-0.2, 0.2), cz + 2.95),
                       rot_z=rng.uniform(0, 6.28), scale=rng.uniform(0.8, 1.2))
 
     # ---- town corner, north-east ---------------------------------------
