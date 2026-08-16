@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -43,8 +44,72 @@ namespace PokeLab.Boot.Editor
             (PropRoot, "Assets/Game/Art/Props/Materials/M_Env_Props.mat"),
         };
 
+        /// <summary>
+        /// Materials named by an asset's own manifest entry, keyed by the shader it says it
+        /// was authored for.
+        ///
+        /// A folder is not a material family. Assets/Game/Art/Environment/Terrain holds two
+        /// kinds of asset: rocks and cliffs UV-packed into a sixteen-cell atlas, and the
+        /// ground, ramp and ledge modules, which carry no atlas UV at all because their
+        /// vertex colours are TerrainBlend's layer weights. Binding the folder put the
+        /// second kind on the atlas material, and a mesh whose UVs span 0-1 against a 4x4
+        /// atlas draws all sixteen cells — which is exactly the checkerboard that appeared
+        /// on every ledge, ramp and ground module in the level.
+        /// </summary>
+        private static readonly (string Shader, string Material)[] ShaderBindings =
+        {
+            ("PokeLab/TerrainBlend",
+             "Assets/Game/Art/Environment/Terrain/Materials/M_Ground_TerrainBlend.mat"),
+            ("PokeLab/Water",
+             "Assets/Game/Shaders/Materials/M_Water_Lake.mat"),
+        };
+
+        private const string ManifestPath =
+            "Assets/Game/Art/Environment/environment_manifest.json";
+
+        private static Dictionary<string, string> s_manifestShaders;
+
+        /// <summary>
+        /// Asset path to the shader its manifest entry declares. Built once and cached,
+        /// because a full art reimport asks this question 134 times.
+        /// </summary>
+        private static Dictionary<string, string> ManifestShaders()
+        {
+            if (s_manifestShaders != null) return s_manifestShaders;
+
+            s_manifestShaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var text = AssetDatabase.LoadAssetAtPath<TextAsset>(ManifestPath);
+            if (text == null) return s_manifestShaders;
+
+            var manifest = JsonUtility.FromJson<EnvironmentManifest>(text.text);
+            foreach (var entry in manifest?.assets ?? Array.Empty<ManifestAsset>())
+            {
+                if (string.IsNullOrEmpty(entry?.path) || string.IsNullOrEmpty(entry.unityMaterial))
+                    continue;
+                s_manifestShaders[entry.path] = entry.unityMaterial;
+            }
+            return s_manifestShaders;
+        }
+
+        [Serializable] private sealed class EnvironmentManifest { public ManifestAsset[] assets; }
+
+        [Serializable]
+        private sealed class ManifestAsset
+        {
+            public string path;
+            public string unityMaterial;
+        }
+
         private static string BindingFor(string path)
         {
+            // What the asset says it is beats where it happens to live.
+            if (ManifestShaders().TryGetValue(path, out var declared) && declared != null)
+            {
+                foreach (var (shader, material) in ShaderBindings)
+                    if (declared.StartsWith(shader, StringComparison.Ordinal))
+                        return material;
+            }
+
             foreach (var (root, material) in MaterialBindings)
                 if (path.StartsWith(root, StringComparison.Ordinal))
                     return material;
