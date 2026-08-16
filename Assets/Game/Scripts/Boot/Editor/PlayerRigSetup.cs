@@ -144,6 +144,21 @@ namespace PokeLab.Boot.Editor
                 repairs++;
             }
 
+            // Billboards serialized with the lean-to-camera experiment still lie flat when
+            // the player tilts the view down. The scene's value wins over the code default,
+            // so it has to be written, not just changed.
+            foreach (var billboard in Object.FindObjectsByType<PersonBillboard>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                var bso = new SerializedObject(billboard);
+                var lean = bso.FindProperty("_leanToCamera");
+                var size = bso.FindProperty("_scale");
+                if (lean != null) lean.floatValue = 0f;
+                if (size != null) size.floatValue = 0.72f;
+                bso.ApplyModifiedPropertiesWithoutUndo();
+                repairs++;
+            }
+
             // A brain-less main camera renders the scene from wherever it was left and
             // ignores every virtual camera in it.
             var main = Camera.main;

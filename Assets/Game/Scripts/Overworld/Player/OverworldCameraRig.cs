@@ -67,6 +67,18 @@ namespace PokeLab.Overworld
         [Tooltip("Seconds to ease back out once clear. Slow, so brushing a tree does not yo-yo the camera.")]
         [SerializeField] private float _pushOutTime = 0.55f;
 
+        [Header("Ground clamp")]
+        [Tooltip("Stop the camera from tilting down through the hill behind the player. This " +
+                 "is not the spring arm coming back: the boom never changes length, so the " +
+                 "world is always read from the same distance. Only how far down you may " +
+                 "look is limited, and only where the ground is actually in the way.")]
+        [SerializeField] private bool _clampToGround = true;
+
+        [Tooltip("Metres of air kept under the camera.")]
+        [SerializeField] private float _groundClearance = 0.6f;
+
+        [SerializeField] private LayerMask _groundClampMask = ~0;
+
         [Header("Mouse look")]
         [Tooltip("Capture the cursor so the mouse turns the camera instead of sliding a " +
                  "pointer off the window. Escape releases it; the editor does that for you.")]
@@ -148,6 +160,7 @@ namespace PokeLab.Overworld
             if (dt <= 0f) return;
 
             ApplyLookInput(dt);
+            if (_clampToGround) ClampPitchToGround();
             if (_avoidObstacles) SolveOcclusion(dt);
         }
 
@@ -198,6 +211,55 @@ namespace PokeLab.Overworld
                 _idleLookTimer += dt;
                 AutoFollow(dt);
             }
+        }
+
+        /// <summary>
+        /// Raises the lowest pitch the player may look from until the camera clears the
+        /// ground beneath it.
+        ///
+        /// With the boom fixed and the yaw free, tilting down swings the camera in an arc
+        /// that goes underground the moment the player is standing above anything — which
+        /// on a map with a gorge and a plateau is most of it. The view then shows the
+        /// underside of the terrain, which is unlit black or, worse, backface-culled into
+        /// the skybox.
+        ///
+        /// Solved by moving the limit rather than the camera. Pushing the camera up after
+        /// Cinemachine has placed it fights the rig for the transform and stutters; raising
+        /// the axis floor means the player simply cannot look past the hill, and the input
+        /// they are giving keeps mapping onto the view they get.
+        /// </summary>
+        private void ClampPitchToGround()
+        {
+            if (_orbital == null || _followTarget == null) return;
+
+            var vertical = _orbital.VerticalAxis;
+            var boom = Mathf.Max(0.01f, _orbital.Radius * Mathf.Max(0.01f, _orbital.RadialAxis.Value));
+            var pivot = _followTarget.position;
+
+            // Where the boom would put the camera at the current yaw, projected onto the
+            // ground plane. Sampling under the pivot instead would clamp against the ground
+            // the player is standing on, which is never the ground in the way.
+            var yaw = _orbital.HorizontalAxis.Value * Mathf.Deg2Rad;
+            var back = new Vector3(-Mathf.Sin(yaw), 0f, -Mathf.Cos(yaw));
+            var probe = pivot + back * (boom * Mathf.Cos(vertical.Value * Mathf.Deg2Rad));
+
+            var from = probe + Vector3.up * (boom + 2f);
+            if (!Physics.Raycast(from, Vector3.down, out var hit, boom * 2f + 4f,
+                    _groundClampMask, QueryTriggerInteraction.Ignore))
+            {
+                vertical.Range = new Vector2(_minPitch, _maxPitch);
+                _orbital.VerticalAxis = vertical;
+                return;
+            }
+
+            // The pitch at which the boom's tip sits exactly the clearance above that ground.
+            var needed = (hit.point.y + _groundClearance) - pivot.y;
+            var floor = Mathf.Asin(Mathf.Clamp(needed / boom, -1f, 1f)) * Mathf.Rad2Deg;
+            floor = Mathf.Clamp(floor, _minPitch, _maxPitch);
+
+            vertical.Range = new Vector2(floor, _maxPitch);
+            vertical.Value = Mathf.Max(vertical.Value, floor);
+            _orbital.VerticalAxis = vertical;
         }
 
         /// <summary>

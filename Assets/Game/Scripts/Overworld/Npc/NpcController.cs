@@ -139,6 +139,41 @@ namespace PokeLab.Overworld
 
             if (_animator == null) _animator = GetComponentInChildren<Animator>();
             CacheAnimatorParams();
+            SnapToNavMesh();
+        }
+
+        /// <summary>
+        /// Puts the agent on the navmesh before anything asks it to walk.
+        ///
+        /// The layout places people from the height field, and the bake carves around
+        /// buildings, barrier volumes and props — so a position that is correct on the
+        /// ground can still be a metre off the walkable surface. Unity's response is
+        /// "Failed to create agent because it is not close enough to the NavMesh", after
+        /// which the agent exists but every call on it throws, and the character stands
+        /// still for the rest of the session looking like a placement bug.
+        ///
+        /// Warping to the nearest walkable point is better than either leaving them stuck
+        /// or moving the layout: the layout is generated and would drift back, and a metre
+        /// of correction is invisible where being frozen is not.
+        /// </summary>
+        private void SnapToNavMesh()
+        {
+            if (_agent == null || _agent.isOnNavMesh) return;
+
+            if (NavMesh.SamplePosition(transform.position, out var hit, 3f, NavMesh.AllAreas))
+            {
+                transform.position = hit.position;
+                if (_agent.isOnNavMesh) return;
+                _agent.Warp(hit.position);
+                return;
+            }
+
+            // Nothing within three metres is a level fault, not a rounding error, so name
+            // the character and where they are rather than letting them silently do nothing.
+            Debug.LogWarning($"[Npc] '{name}' is at {transform.position} with no navmesh " +
+                             "within 3 m. They are walled in — check the barrier volumes and " +
+                             "props around them.", this);
+            _agent.enabled = false;
         }
 
         private void CacheAnimatorParams()
