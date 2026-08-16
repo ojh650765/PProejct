@@ -60,11 +60,33 @@ namespace PokeLab.Boot
             _runner.SequenceEnded -= OnEnded;
         }
 
+        /// <summary>
+        /// Builds the canvas the view needs and the view inside it.
+        ///
+        /// DialogueView.BuildRuntime starts with <c>transform as RectTransform</c> and
+        /// returns the moment that is null — so a plain GameObject with the component on it
+        /// builds nothing at all, silently, and the box never appears. A capture caught it:
+        /// the opening faded to black and ran its whole prologue with control taken and no
+        /// text on screen.
+        ///
+        /// The sorting order is above the screen transition's, because the transition covers
+        /// the screen with a quad on the camera's near plane and the prologue is *meant* to
+        /// be read over that black. Underneath it, the dialogue would be hidden by exactly
+        /// the effect it is supposed to accompany.
+        /// </summary>
         private static DialogueView BuildView()
         {
-            var go = new GameObject("DialogueView");
-            return go.AddComponent<DialogueView>();
+            var canvasGo = new GameObject("DialogueCanvas", typeof(RectTransform));
+            var canvas = canvasGo.AddComponent<Canvas>();
+            UiBuilder.ConfigureCanvas(canvas, DialogueSortingOrder);
+
+            var viewGo = new GameObject("DialogueView", typeof(RectTransform));
+            viewGo.transform.SetParent(canvasGo.transform, false);
+            return viewGo.AddComponent<DialogueView>();
         }
+
+        /// <summary>Above the screen wipe, so text drawn over a fade is visible.</summary>
+        private const int DialogueSortingOrder = 400;
 
         private void OnLine(DialogueLine line)
         {
