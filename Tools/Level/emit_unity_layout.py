@@ -41,7 +41,25 @@ from worldgen import (chaikin, clamp, closest_on_polyline, contour, lerp,
                       point_in_poly, poly_area, poly_bounds, poly_sdf, resample)
 
 SOURCE = os.path.join(ROOT, "Assets", "Game", "Data", "Levels", "slice_layout.json")
-OUT = os.path.join(ROOT, "Assets", "Game", "Data", "Levels", "slice_layout_unity.json")
+OUT_DIR = os.path.join(ROOT, "Assets", "Game", "Data", "Levels")
+OUT = os.path.join(OUT_DIR, "slice_layout_unity.json")
+
+# The slice is emitted as separate scenes rather than one map.
+#
+# The zones already have different rules -- the town has an encounter rate of zero and
+# its own ambience, the route has trainers and grass -- and keeping them in one scene
+# means one height field where the town's building pads and the route's cliffs fight
+# over the same grid, one lighting rig for two moods, and every object in both loaded
+# at once. The cut is the gate ramp, which the design already treats as the town's
+# threshold: "the cut through the town's retaining cliff".
+#
+# The bands overlap by 4 m on purpose. The seam has to be crossed inside a transition
+# volume, and terrain that stops exactly at the boundary shows the edge of the world
+# from the other side.
+SCENES = [
+    ("Town",  -34.0,  8.0, "Zone_Town"),
+    ("Field",  -2.0, 70.0, "Zone_Route"),
+]
 
 # Ground is split into chunks so the camera can frustum-cull it and so no single mesh
 # carries the whole world. 32 m is a little over one screenful at the exploration
@@ -575,6 +593,17 @@ def build_water(layout, grid):
 
 # --- the cave, which is a different scene ------------------------------------------
 
+def in_scene(z, lo, hi):
+    return lo <= z <= hi
+
+
+def scene_of_parent(parent):
+    """Which scene a layout parent path belongs to. Town is its own; everything else
+    outdoors shares the field."""
+    root = (parent or "").split("/")[0]
+    return "Town" if root == "Town" else "Field"
+
+
 def cave_interiors(layout):
     """Footprints of anything that lives inside a cave rather than on this terrain.
 
@@ -872,6 +901,53 @@ def scatter_foliage(layout, grid, caves, painter, water):
 
 # --- main --------------------------------------------------------------------------
 
+# --- scene splitting ----------------------------------------------------------
+
+def chunk_overlaps(chunk, lo, hi):
+    zs = chunk["vertices"][2::3]
+    return min(zs) <= hi and max(zs) >= lo
+
+
+def surface_overlaps(surface, lo, hi):
+    zs = surface["vertices"][2::3]
+    return min(zs) <= hi and max(zs) >= lo
+
+
+def clip_group(group, lo, hi):
+    """Keep only the instances inside the band. Five floats an instance: x y z yaw scale."""
+    src = group["instances"]
+    kept = []
+    for i in range(0, len(src), 5):
+        if lo <= src[i + 2] <= hi:
+            kept.extend(src[i:i + 5])
+    return {"prefab": group["prefab"], "instances": kept}
+
+
+# Where one scene hands over to another. The gate ramp is the town's own threshold --
+# the design calls it "the cut through the town's retaining cliff" -- so the seam goes
+# where the level already puts its door.
+SCENE_LINKS = [
+    ("Town",  "Field", -6.6, 5.6, 20.0),
+    ("Field", "Town",  -7.4, 2.4, 200.0),
+]
+
+
+def scene_links(scene, grid):
+    out = []
+    for src, dst, x, z, yaw in SCENE_LINKS:
+        if src != scene:
+            continue
+        out.append({
+            "name": "To_%s" % dst,
+            "scene": dst,
+            "arrivalSpawn": "Spawn_From%s" % src,
+            "position": [x, round(grid.at(x, z), 3), z],
+            "facingYaw": yaw,
+            "size": [5.0, 3.0, 1.6],
+        })
+    return out
+
+
 def main():
     with open(SOURCE, encoding="utf-8") as fh:
         layout = json.load(fh)
@@ -952,6 +1028,48 @@ def main():
         },
     }
 
+    # --- split into scenes ----------------------------------------------------
+    #
+    # Each scene gets the ground, water, foliage and objects inside its own band,
+    # plus the transition volumes that lead out of it. The bands overlap, so a chunk
+    # or a tree near the seam is emitted into both: the alternative is the edge of
+    # the world visible from the other side of the gate.
+    written = []
+    for name, lo, hi, _zone in SCENES:
+        scene_ground = [c for c in ground if chunk_overlaps(c, lo, hi)]
+        scene_water = [w for w in water if surface_overlaps(w, lo, hi)]
+        scene_foliage = []
+        for f in foliage:
+            groups = [clip_group(g, lo, hi) for g in f["groups"]]
+            groups = [g for g in groups if g["instances"]]
+            if groups:
+                scene_foliage.append(dict(f, groups=groups,
+                                          placed=sum(len(g["instances"]) // 5 for g in groups)))
+        scene_objects = [o for o in objects
+                         if in_scene(float(o["position"][2]), lo, hi)
+                         and scene_of_parent(o.get("parent", "")) == name]
+
+        doc = dict(out)
+        doc["scene"] = name
+        doc["ground"] = scene_ground
+        doc["water"] = scene_water
+        doc["foliage"] = scene_foliage
+        doc["objects"] = scene_objects
+        doc["ambientAnchors"] = [a for a in out["ambientAnchors"]
+                                 if in_scene(float(a["position"][2]), lo, hi)]
+        doc["tallGrass"] = [g for g in out["tallGrass"]
+                            if in_scene(float(g["centre"][2]), lo, hi)]
+        doc["caveEntrances"] = [c for c in out["caveEntrances"]
+                                if in_scene(float(c["position"][2]), lo, hi)]
+        doc["sceneLinks"] = scene_links(name, grid)
+        # The player only starts where the story starts.
+        doc["playerSpawn"] = spawn_pos if in_scene(spawn_pos[2], lo, hi) else []
+
+        path = os.path.join(OUT_DIR, "slice_%s_unity.json" % name.lower())
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(doc, fh)
+        written.append((name, path, doc))
+
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(out, fh)
 
@@ -973,6 +1091,13 @@ def main():
     print("  anchors %d  grass triggers %d  cave entrances %d  spawn %s"
           % (len(out["ambientAnchors"]), len(out["tallGrass"]),
              len(out["caveEntrances"]), spawn_pos))
+    print()
+    for name, path, doc in written:
+        print("  scene %-6s %2d ground, %d water, %3d objects, %4d foliage, "
+              "%d links, spawn %s"
+              % (name, len(doc["ground"]), len(doc["water"]), len(doc["objects"]),
+                 sum(f["placed"] for f in doc["foliage"]), len(doc["sceneLinks"]),
+                 "yes" if doc["playerSpawn"] else "-"))
 
 
 if __name__ == "__main__":

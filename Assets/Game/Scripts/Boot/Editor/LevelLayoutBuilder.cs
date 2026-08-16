@@ -27,8 +27,32 @@ namespace PokeLab.Boot.Editor
     /// </summary>
     public static class LevelLayoutBuilder
     {
-        private const string LayoutPath = "Assets/Game/Data/Levels/slice_layout_unity.json";
+        private const string LayoutDir = "Assets/Game/Data/Levels/";
         private const string RootName = "Level";
+
+        /// <summary>
+        /// Which emitted layout belongs to which scene.
+        ///
+        /// The slice is emitted per scene rather than as one map: the zones already have
+        /// different rules -- the town's encounter rate is zero and it has its own
+        /// ambience -- and one scene means one height field where the town's building
+        /// pads and the route's cliffs fight over the same grid, one lighting rig for
+        /// two moods, and everything in both loaded at once.
+        /// </summary>
+        private static readonly (string Scene, string Layout)[] SceneLayouts =
+        {
+            ("Overworld", "slice_town_unity.json"),
+            ("Town", "slice_town_unity.json"),
+            ("Field", "slice_field_unity.json"),
+        };
+
+        private static string LayoutFor(string sceneName)
+        {
+            foreach (var (scene, layout) in SceneLayouts)
+                if (string.Equals(scene, sceneName, StringComparison.OrdinalIgnoreCase))
+                    return LayoutDir + layout;
+            return LayoutDir + "slice_layout_unity.json";
+        }
 
         private const string TerrainMaterial =
             "Assets/Game/Art/Environment/Terrain/Materials/M_Ground_TerrainBlend.mat";
@@ -38,15 +62,21 @@ namespace PokeLab.Boot.Editor
             "Assets/Game/Art/Environment/Foliage/Materials/M_Env_Foliage.mat";
 
         [MenuItem("Tools/Poké Lab/Level/Build Slice Layout")]
-        public static void Build()
+        public static void Build() => Build(null);
+
+        /// <summary>Builds a named scene's layout, or the one matching the open scene.</summary>
+        public static void Build(string sceneName)
         {
-            if (!File.Exists(LayoutPath))
+            var open = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene().name;
+            var layoutPath = LayoutFor(string.IsNullOrEmpty(sceneName) ? open : sceneName);
+
+            if (!File.Exists(layoutPath))
             {
-                Debug.LogError($"[Level] {LayoutPath} not found. Run Tools/Level/emit_unity_layout.py first.");
+                Debug.LogError($"[Level] {layoutPath} not found. Run Tools/Level/emit_unity_layout.py first.");
                 return;
             }
 
-            var layout = JsonUtility.FromJson<Layout>(File.ReadAllText(LayoutPath));
+            var layout = JsonUtility.FromJson<Layout>(File.ReadAllText(layoutPath));
             if (layout == null || layout.ground == null || layout.ground.Length == 0)
             {
                 Debug.LogError("[Level] Layout parsed but carried no ground. Expected " +
@@ -70,6 +100,7 @@ namespace PokeLab.Boot.Editor
                 BuildFoliage(layout, root.transform, parents, missing, stats);
                 BuildTallGrass(layout, root.transform, parents);
                 BuildCaveEntrances(layout, root.transform, parents);
+                BuildSceneLinks(layout, root.transform, parents);
                 BuildAnchors(layout, root.transform, parents);
                 BuildSpawn(layout, root.transform);
             }
@@ -91,6 +122,7 @@ namespace PokeLab.Boot.Editor
                 $"instances in {stats.FoliageGroups} instanced group(s), " +
                 $"{layout.tallGrass?.Length ?? 0} grass triggers, " +
                 $"{layout.caveEntrances?.Length ?? 0} cave entrance(s), " +
+                $"{layout.sceneLinks?.Length ?? 0} scene link(s), " +
                 $"{layout.ambientAnchors?.Length ?? 0} anchors.");
         }
 
@@ -308,6 +340,37 @@ namespace PokeLab.Boot.Editor
             }
         }
 
+        /// <summary>
+        /// The doors out of this scene. Same machinery as a cave mouth, because they are
+        /// the same thing: a volume you walk into that loads somewhere else.
+        /// </summary>
+        private static void BuildSceneLinks(Layout layout, Transform root,
+            Dictionary<string, Transform> parents)
+        {
+            foreach (var link in layout.sceneLinks ?? Array.Empty<SceneLink>())
+            {
+                var go = new GameObject($"To_{link.scene}");
+                go.transform.SetParent(ResolveParent(root, parents, "Gameplay/Transitions"), false);
+                go.transform.localPosition = ToVector(link.position);
+                go.transform.localEulerAngles = new Vector3(0f, link.facingYaw, 0f);
+
+                var box = go.AddComponent<BoxCollider>();
+                box.size = ToVector(link.size, Vector3.one);
+                box.center = new Vector3(0f, box.size.y * 0.5f, 0f);
+                box.isTrigger = true;
+
+                go.AddComponent<LevelTransition>().Configure(link.scene, link.arrivalSpawn);
+                SetLayer(go, "ZoneTrigger");
+
+                // Where the player is put down arriving from the other side. Resolved by
+                // name across the load, so neither scene holds a reference into the other.
+                var arrival = new GameObject(link.arrivalSpawn);
+                arrival.transform.SetParent(ResolveParent(root, parents, "Gameplay/Arrivals"), false);
+                arrival.transform.localPosition =
+                    ToVector(link.position) + Quaternion.Euler(0f, link.facingYaw, 0f) * Vector3.back * 2.5f;
+            }
+        }
+
         // --- props, anchors, spawn -------------------------------------------------------
 
         private static void BuildObjects(Layout layout, Transform root,
@@ -506,6 +569,7 @@ namespace PokeLab.Boot.Editor
             public Anchor[] ambientAnchors;
             public GrassTrigger[] tallGrass;
             public CaveEntrance[] caveEntrances;
+            public SceneLink[] sceneLinks;
             public float[] playerSpawn;
             public float cameraYaw;
             public float cameraPitch;
@@ -567,6 +631,17 @@ namespace PokeLab.Boot.Editor
         {
             public string name;
             public string scene;
+            public float[] position;
+            public float facingYaw;
+            public float[] size;
+        }
+
+        [Serializable]
+        private sealed class SceneLink
+        {
+            public string name;
+            public string scene;
+            public string arrivalSpawn;
             public float[] position;
             public float facingYaw;
             public float[] size;

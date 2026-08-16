@@ -25593,9 +25593,9 @@
    "name": "Town_Planter_04",
    "parent": "Town/Detail",
    "position": [
-    -21.412,
+    -21.81,
     2.364,
-    -11.062
+    -10.47
    ],
    "rotation": [
     0.0,
@@ -25731,9 +25731,9 @@
    "name": "Town_ResearchTerminal_01",
    "parent": "Town/Props",
    "position": [
-    -6.742,
+    -7.194,
     2.728,
-    -4.403
+    -3.996
    ],
    "rotation": [
     0.0,
