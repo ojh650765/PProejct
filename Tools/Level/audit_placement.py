@@ -145,6 +145,157 @@ def audit(grid, layout, bounds, threshold):
     return findings, checked, skipped
 
 
+def obb(obj, bounds, shrink=False):
+    """The object's world-space footprint as (corners, yLow, yHigh), or None.
+
+    With `shrink`, the box is reduced to the part that actually occupies space on the
+    ground. Bounding boxes make almost every tree in a wood overlap its neighbours,
+    which is not a fault -- interlocking canopies are what a wood is -- and reporting
+    640 of them buries the handful of solid props that really are inside each other.
+    """
+    asset = obj["prefab"].split("/")[-1].replace(".fbx", "")
+    b = bounds.get(asset)
+    if not b:
+        return None
+
+    scale = obj.get("scale") or [1.0, 1.0, 1.0]
+    sx, sy, sz = float(scale[0]), float(scale[1]), float(scale[2])
+    x0, y0, z0 = [float(v) for v in b["min"]]
+    w, h, d = [float(v) for v in b["size"]]
+    if shrink:
+        f = ground_fraction(asset)
+        if f <= 0.0:
+            return None
+        cx, cz = x0 + w * 0.5, z0 + d * 0.5
+        w, d = w * f, d * f
+        x0, z0 = cx - w * 0.5, cz - d * 0.5
+
+    yaw = math.radians(float((obj.get("rotation") or [0, 0, 0])[1]))
+    cos, sin = math.cos(yaw), math.sin(yaw)
+    px, py, pz = [float(v) for v in obj["position"]]
+
+    corners = []
+    for lx in (x0 * sx, (x0 + w) * sx):
+        for lz in (z0 * sz, (z0 + d) * sz):
+            corners.append((px + lx * cos + lz * sin, pz - lx * sin + lz * cos))
+    # Rectangle order, not the nested-loop order, so edges are real edges.
+    corners = [corners[0], corners[1], corners[3], corners[2]]
+    return corners, py + y0 * sy, py + (y0 + h) * sy
+
+
+def overlap_depth(a, b, want_axis=False):
+    """Penetration depth of two convex footprints by SAT, or 0 if they are apart.
+
+    With want_axis, also returns the axis of least penetration, which is the shortest
+    direction that pushes them apart.
+    """
+    best = 1e9
+    best_axis = (1.0, 0.0)
+    for poly in (a, b):
+        n = len(poly)
+        for i in range(n):
+            ex = poly[(i + 1) % n][0] - poly[i][0]
+            ez = poly[(i + 1) % n][1] - poly[i][1]
+            length = math.hypot(ex, ez)
+            if length < 1e-9:
+                continue
+            ax, az = -ez / length, ex / length
+            amin = min(ax * p[0] + az * p[1] for p in a)
+            amax = max(ax * p[0] + az * p[1] for p in a)
+            bmin = min(ax * p[0] + az * p[1] for p in b)
+            bmax = max(ax * p[0] + az * p[1] for p in b)
+            gap = min(amax, bmax) - max(amin, bmin)
+            if gap <= 0.0:
+                return (0.0, (0.0, 0.0)) if want_axis else 0.0
+            if gap < best:
+                best, best_axis = gap, (ax, az)
+    return (best, best_axis) if want_axis else best
+
+
+def audit_buried(layout, bounds, threshold, grid):
+    """Objects whose own geometry is under the ground.
+
+    The mirror of the floating check, and it needs its own pass because the two are
+    not one signed number: a prop can be seated correctly at its pivot and still be
+    half buried if its pivot is not where the manifest says it is.
+    Env_Prop_CaptureBall claims a base pivot and actually has its origin at the
+    centre of the sphere, so seating it on the terrain puts half the ball underground.
+    """
+    found = []
+    for obj in layout.get("objects", []):
+        # Cave interiors live in their own scene and are never emitted into the
+        # overworld; they read as buried here only because the height grid describes
+        # the outside of the mountain they are inside.
+        if obj.get("parent", "").startswith("Cave/"):
+            continue
+        box = obb(obj, bounds)
+        if box is None:
+            continue
+        corners, low, high = box
+        ground = min(grid.at(x, z) for x, z in corners)
+        buried = ground - low
+        height = high - low
+        # Absolute *or* proportional: a capture ball is 11 cm tall, so half of it is
+        # underground at 5.5 cm and no absolute threshold worth setting would catch it.
+        if height <= 1e-6:
+            continue
+        if buried <= threshold and buried / height <= 0.2:
+            continue
+        found.append({
+            "name": obj["name"],
+            "prefab": obj["prefab"].split("/")[-1],
+            "buried": round(buried, 3),
+            "height": round(height, 3),
+            "fraction": round(min(1.0, buried / height), 3),
+        })
+    found.sort(key=lambda f: -f["fraction"])
+    return found
+
+
+def audit_overlaps(layout, bounds, threshold):
+    """Pairs of objects standing inside each other."""
+    boxes = []
+    for obj in layout.get("objects", []):
+        if obj.get("parent", "").startswith("Cave/"):
+            continue
+        box = obb(obj, bounds, shrink=True)
+        if box is None:
+            continue
+        corners, low, high = box
+        cx = sum(p[0] for p in corners) / 4.0
+        cz = sum(p[1] for p in corners) / 4.0
+        radius = max(math.hypot(p[0] - cx, p[1] - cz) for p in corners)
+        boxes.append((obj, corners, low, high, cx, cz, radius))
+
+    found = []
+    for i in range(len(boxes)):
+        oi, ci, loi, hii, xi, zi, ri = boxes[i]
+        for j in range(i + 1, len(boxes)):
+            oj, cj, loj, hij, xj, zj, rj = boxes[j]
+            if math.hypot(xi - xj, zi - zj) > ri + rj:
+                continue
+            if min(hii, hij) - max(loi, loj) <= 0.0:
+                continue  # one is comfortably above the other
+            depth, axis = overlap_depth(ci, cj, want_axis=True)
+            if depth <= threshold:
+                continue
+            # Push the *second* one out along the axis of least penetration. Moving one
+            # of the pair keeps the authored composition: these are placed relative to
+            # a plaza and a street, and splitting the move between them drifts both off
+            # the line they were put on.
+            sign = 1.0 if ((xj - xi) * axis[0] + (zj - zi) * axis[1]) >= 0 else -1.0
+            found.append({
+                "a": oi["name"], "aPrefab": oi["prefab"].split("/")[-1],
+                "b": oj["name"], "bPrefab": oj["prefab"].split("/")[-1],
+                "depth": round(depth, 3),
+                "verticalOverlap": round(min(hii, hij) - max(loi, loj), 3),
+                "push": [round(axis[0] * sign * (depth + 0.12), 4),
+                         round(axis[1] * sign * (depth + 0.12), 4)],
+            })
+    found.sort(key=lambda f: -f["depth"])
+    return found
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--gap", type=float, default=0.15,
@@ -207,6 +358,58 @@ def main():
         print()
         print("seated %d objects into the slope (bite %.2f m); re-run the emitter."
               % (len(real), BITE))
+
+    buried = audit_buried(layout, bounds, 0.08, grid)
+    print()
+    print("=== buried: own geometry below the ground ===")
+    if not buried:
+        print("  none")
+    for f in buried[:25]:
+        print("  %-26s %-26s %5.0f%% of its height under (%.3f of %.3f m)"
+              % (f["name"], f["prefab"], f["fraction"] * 100, f["buried"], f["height"]))
+
+    clashes = audit_overlaps(layout, bounds, 0.10)
+    print()
+    print("=== overlapping pairs ===")
+    if not clashes:
+        print("  none")
+    for f in clashes[:30]:
+        print("  %-24s x %-24s  %.2f m into each other (%.2f m of shared height)"
+              % (f["a"], f["b"], f["depth"], f["verticalOverlap"]))
+    if len(clashes) > 30:
+        print("  ... and %d more" % (len(clashes) - 30))
+
+    if args.fix and (buried or clashes):
+        index = {o["name"]: o for o in layout["objects"]}
+
+        lifted = 0
+        for f in buried:
+            obj = index.get(f["name"])
+            # Lift by what is underground, less a small bite so it still beds in.
+            # Env_Prop_CaptureBall is the reason this exists: the manifest calls its
+            # pivot "base" and its geometry has the origin at the centre of the
+            # sphere, so seating the pivot on the terrain sinks half the ball.
+            if obj is not None and f["fraction"] > 0.2:
+                obj["position"][1] = round(obj["position"][1] + f["buried"] - 0.02, 3)
+                lifted += 1
+
+        moved = set()
+        for f in clashes:
+            if f["b"] in moved:
+                continue   # one push per object, then re-audit rather than stacking
+            obj = index.get(f["b"])
+            if obj is None:
+                continue
+            obj["position"][0] = round(obj["position"][0] + f["push"][0], 3)
+            obj["position"][2] = round(obj["position"][2] + f["push"][1], 3)
+            moved.add(f["b"])
+
+        with open(LAYOUT, "w", encoding="utf-8") as fh:
+            json.dump(layout, fh, indent=1)
+        print()
+        print("lifted %d buried object(s), separated %d overlapping object(s); "
+              "re-run this audit to confirm the moves did not create new clashes."
+              % (lifted, len(moved)))
 
 
 if __name__ == "__main__":

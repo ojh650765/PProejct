@@ -22047,9 +22047,9 @@
    "name": "Town_FenceRim_02",
    "parent": "Town/Detail",
    "position": [
-    -12.607,
+    -12.473,
     1.923,
-    1.846
+    2.452
    ],
    "rotation": [
     0.0,
@@ -22093,9 +22093,9 @@
    "name": "Town_FenceSouth_02",
    "parent": "Town/Detail",
    "position": [
-    -19.24,
+    -19.501,
     3.005,
-    -29.244
+    -29.23
    ],
    "rotation": [
     0.0,
@@ -22323,9 +22323,9 @@
    "name": "Town_Market_02",
    "parent": "Town/Props",
    "position": [
-    -18.4,
+    -19.223,
     2.362,
-    -12.5
+    -12.686
    ],
    "rotation": [
     0.0,
@@ -22622,9 +22622,9 @@
    "name": "Town_HealingMachine_01",
    "parent": "Town/Props",
    "position": [
-    -8.6,
+    -8.031,
     2.43,
-    -11.8
+    -11.068
    ],
    "rotation": [
     0.0,
@@ -22645,9 +22645,9 @@
    "name": "Town_ResearchTerminal_01",
    "parent": "Town/Props",
    "position": [
-    -5.2,
+    -6.637,
     2.353,
-    -3.2
+    -3.634
    ],
    "rotation": [
     0.0,
@@ -22921,9 +22921,9 @@
    "name": "Town_RimHedge_11",
    "parent": "Town/Foliage",
    "position": [
-    -21.796,
+    -22.033,
     2.431,
-    -0.765
+    -0.697
    ],
    "rotation": [
     0.0,
@@ -23243,9 +23243,9 @@
    "name": "Town_SouthWall_06",
    "parent": "Town/Foliage",
    "position": [
-    -22.254,
-    2.776,
-    -29.036
+    -22.234,
+    2.504,
+    -28.727
    ],
    "rotation": [
     0.0,
@@ -27959,7 +27959,7 @@
    "parent": "Route/Props",
    "position": [
     12.4,
-    -1.789,
+    -1.754,
     8.2
    ],
    "rotation": [
@@ -29983,7 +29983,7 @@
    "parent": "Lakeside/Terrain",
    "position": [
     21.821,
-    -1.767,
+    -1.727,
     13.345
    ],
    "rotation": [

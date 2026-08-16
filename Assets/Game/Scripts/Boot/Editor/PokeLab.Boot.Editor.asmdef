@@ -5,6 +5,7 @@
         "PokeLab.Core",
         "PokeLab.Boot",
         "PokeLab.Overworld",
+        "PokeLab.Vfx",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Universal.Runtime"
     ],

@@ -43,9 +43,31 @@ namespace PokeLab.Boot.Editor
             EditorApplication.update += Poll;
         }
 
+        /// <summary>
+        /// Marks which request we have already asked the asset pipeline to catch up for.
+        /// SessionState survives the domain reload a recompile causes, which a static
+        /// field would not.
+        /// </summary>
+        private const string RefreshedKey = "PokeLab.Capture.RefreshedFor";
+
         private static void Poll()
         {
             if (!File.Exists(RequestPath)) return;
+            if (EditorApplication.isCompiling || EditorApplication.isUpdating) return;
+
+            // Unity only imports and compiles when its window regains focus, so a request
+            // arriving while the editor sits in the background is served by whatever code
+            // was compiled last. That is worse than not running at all: it produces a
+            // plausible set of frames that silently predate the fix being reviewed. Ask
+            // the pipeline to catch up once per request, then let the reload bring us
+            // back here with current code.
+            var stamp = File.GetLastWriteTimeUtc(RequestPath).Ticks.ToString();
+            if (SessionState.GetString(RefreshedKey, "") != stamp)
+            {
+                SessionState.SetString(RefreshedKey, stamp);
+                AssetDatabase.Refresh(ImportAssetOptions.Default);
+                return;
+            }
 
             string json;
             try
@@ -95,6 +117,18 @@ namespace PokeLab.Boot.Editor
             }
 
             if (request.build) LevelLayoutBuilder.Build();
+
+            // The lighting is published as shader globals by the LightingDirector from
+            // its Update loop, which does not run outside play mode. Without this the
+            // custom shaders read a zero ambient and everything they draw comes out
+            // nearly black next to whatever is still on a stock URP material — which
+            // is a property of the capture, not of the game, and would send us hunting
+            // a lighting bug that is not there.
+            foreach (var director in UnityEngine.Object.FindObjectsByType<PokeLab.Vfx.LightingDirector>(
+                         FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            {
+                director.ApplyImmediate();
+            }
 
             var stations = request.stations;
             if (stations == null || stations.Length == 0)
@@ -210,6 +244,18 @@ namespace PokeLab.Boot.Editor
                         + Vector3.up * Defaulted(request.eyeHeight, 1.15f);
             var rotation = Quaternion.Euler(pitch, yaw, 0f);
             camera.transform.rotation = rotation;
+
+            // Pull in when something blocks the boom, the way OverworldCameraRig does.
+            // Without it the camera sits a fixed 5.5 m back and ends up inside the very
+            // building it was asked to look at, so the review frame is a picture of the
+            // inside of a wall rather than of anything the player would ever see.
+            var back = -(rotation * Vector3.forward);
+            if (Physics.SphereCast(focus, 0.32f, back, out var hit, distance,
+                                   ~0, QueryTriggerInteraction.Ignore))
+            {
+                distance = Mathf.Max(1.2f, hit.distance - 0.16f);
+            }
+
             camera.transform.position = focus - rotation * Vector3.forward * distance;
         }
 
