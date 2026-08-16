@@ -13,7 +13,10 @@
         "Unity.AI.Navigation",
         "Unity.AI.Navigation.Editor",
         "Unity.Cinemachine",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "PokeLab.Battle",
+        "PokeLab.Cinematics",
+        "PokeLab.UI"
     ],
     "includePlatforms": [
         "Editor"

@@ -257,19 +257,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_A.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -0.2572,
+   -0.2487,
    0.0,
-   -0.3138
+   -0.2358
   ],
   "max": [
-   0.2572,
-   0.4938,
-   0.3138
+   0.2487,
+   0.4101,
+   0.2358
   ],
   "size": [
-   0.5145,
-   0.4938,
-   0.6276
+   0.4974,
+   0.4101,
+   0.4717
   ]
  },
  "Env_Grass_Clump_B": {
@@ -278,19 +278,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_B.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -0.2419,
+   -0.2659,
    0.0,
-   -0.2936
+   -0.2531
   ],
   "max": [
-   0.2419,
-   0.33,
-   0.2936
+   0.2659,
+   0.2978,
+   0.2531
   ],
   "size": [
-   0.4838,
-   0.33,
-   0.5872
+   0.5319,
+   0.2978,
+   0.5063
   ]
  },
  "Env_Grass_Clump_C": {
@@ -299,19 +299,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_C.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -0.333,
+   -0.2646,
    0.0,
-   -0.4677
+   -0.2368
   ],
   "max": [
-   0.333,
-   0.7001,
-   0.4677
+   0.2646,
+   0.4392,
+   0.2368
   ],
   "size": [
-   0.6661,
-   0.7001,
-   0.9354
+   0.5292,
+   0.4392,
+   0.4735
   ]
  },
  "Env_Grass_Clump_D": {
@@ -320,19 +320,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Clump_D.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -0.3498,
+   -0.2744,
    0.0,
-   -0.282
+   -0.2701
   ],
   "max": [
-   0.3498,
-   0.2726,
-   0.282
+   0.2744,
+   0.2526,
+   0.2701
   ],
   "size": [
-   0.6997,
-   0.2726,
-   0.564
+   0.5488,
+   0.2526,
+   0.5402
   ]
  },
  "Env_TallGrass_Cluster_A": {
@@ -341,19 +341,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_A.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -0.4083,
+   -0.2896,
    0.0,
-   -0.4248
+   -0.3148
   ],
   "max": [
-   0.4083,
-   1.2787,
-   0.4248
+   0.2896,
+   0.6684,
+   0.3148
   ],
   "size": [
-   0.8166,
-   1.2787,
-   0.8496
+   0.5792,
+   0.6684,
+   0.6296
   ]
  },
  "Env_TallGrass_Cluster_B": {
@@ -362,19 +362,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_B.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -0.3525,
+   -0.2758,
    0.0,
-   -0.453
+   -0.3249
   ],
   "max": [
-   0.3525,
-   1.115,
-   0.453
+   0.2758,
+   0.6308,
+   0.3249
   ],
   "size": [
-   0.705,
-   1.115,
-   0.9061
+   0.5516,
+   0.6308,
+   0.6498
   ]
  },
  "Env_TallGrass_Cluster_C": {
@@ -383,19 +383,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_C.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -0.32,
+   -0.2765,
    0.0,
-   -0.3277
+   -0.2242
   ],
   "max": [
-   0.32,
-   1.4094,
-   0.3277
+   0.2765,
+   0.6938,
+   0.2242
   ],
   "size": [
-   0.6399,
-   1.4094,
-   0.6554
+   0.5531,
+   0.6938,
+   0.4485
   ]
  },
  "Env_TallGrass_Cluster_D": {
@@ -404,19 +404,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_TallGrass_Cluster_D.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -0.386,
+   -0.3495,
    0.0,
-   -0.402
+   -0.3488
   ],
   "max": [
-   0.386,
-   1.1952,
-   0.402
+   0.3495,
+   0.5982,
+   0.3488
   ],
   "size": [
-   0.772,
-   1.1952,
-   0.8041
+   0.6989,
+   0.5982,
+   0.6975
   ]
  },
  "Env_Grass_Blade": {
@@ -425,19 +425,19 @@
   "path": "Assets/Game/Art/Environment/Foliage/Env_Grass_Blade.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -0.0731,
+   -0.0866,
    0.0,
-   -0.0237
+   -0.0194
   ],
   "max": [
-   0.0731,
-   0.4627,
-   0.0237
+   0.0866,
+   0.4363,
+   0.0194
   ],
   "size": [
-   0.1462,
-   0.4627,
-   0.0474
+   0.1731,
+   0.4363,
+   0.0388
   ]
  },
  "Env_Bush_A": {
@@ -1097,19 +1097,19 @@
   "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch.fbx",
   "pivot": "base, XY centred",
   "min": [
-   -4.6741,
+   -4.6739,
    0.0,
-   -4.4678
+   -4.4677
   ],
   "max": [
-   4.6741,
+   4.6739,
    6.5916,
-   4.4678
+   4.4677
   ],
   "size": [
-   9.3481,
+   9.3478,
    6.5916,
-   8.9356
+   8.9354
   ]
  },
  "Env_Cave_Stalactite_A": {
@@ -2391,6 +2391,27 @@
    1.0048,
    1.1123,
    0.4549
+  ]
+ },
+ "Env_Gate_TownArch": {
+  "family": "Town",
+  "subfamily": "Gate",
+  "path": "Assets/Game/Art/Environment/Town/Env_Gate_TownArch.fbx",
+  "pivot": "ground level, footprint centred",
+  "min": [
+   -2.86,
+   0.0,
+   -0.875
+  ],
+  "max": [
+   2.86,
+   4.5,
+   0.875
+  ],
+  "size": [
+   5.72,
+   4.5,
+   1.75
   ]
  },
  "Env_Prop_CaptureBall": {
