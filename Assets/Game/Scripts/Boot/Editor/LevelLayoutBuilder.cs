@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using PokeLab.Overworld;
+using Unity.AI.Navigation;
+using UnityEngine.AI;
 using UnityEditor;
 using UnityEngine;
 
@@ -104,6 +106,7 @@ namespace PokeLab.Boot.Editor
                 BuildPeople(layout, root.transform, parents);
                 BuildAnchors(layout, root.transform, parents);
                 BuildSpawn(layout, root.transform);
+                BuildNavigation(root);
             }
             finally
             {
@@ -134,6 +137,44 @@ namespace PokeLab.Boot.Editor
             public int FoliageInstances;
             public int FoliageGroups;
         }
+
+        /// <summary>
+        /// Bakes navigation over the level that was just built.
+        ///
+        /// This has to happen here rather than being a one-off in the scene. The terrain
+        /// is generated: every regeneration moves the ground, and a bake from before it
+        /// covers geometry that no longer exists. The symptom is not subtle but it is
+        /// misleading — NavMeshAgent throws "can only be called on an active agent that
+        /// has been placed on a NavMesh" once per frame per NPC, which reads as a bug in
+        /// the NPC rather than as stale navigation.
+        ///
+        /// The surface collects by layer so it follows the same Ground/Environment split
+        /// the builder already applies, and it is rebuilt rather than added to, so
+        /// removing an object removes what it carved.
+        /// </summary>
+        private static void BuildNavigation(GameObject root)
+        {
+            var surface = root.GetComponent<NavMeshSurface>();
+            if (surface == null) surface = root.AddComponent<NavMeshSurface>();
+
+            surface.collectObjects = CollectObjects.Children;
+            surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
+            var ground = LayerMask.NameToLayer("Ground");
+            var environment = LayerMask.NameToLayer("Environment");
+            var interactable = LayerMask.NameToLayer("Interactable");
+            surface.layerMask = MaskOf(ground) | MaskOf(environment) | MaskOf(interactable);
+
+            // Matched to PlayerLocomotion so what the agents can walk is what the player
+            // can walk. A navmesh built to different limits sends NPCs up slopes the
+            // player cannot follow them onto.
+            surface.overrideVoxelSize = true;
+            surface.voxelSize = 0.12f;
+
+            surface.BuildNavMesh();
+            Debug.Log("[Level] Navigation baked over the generated terrain.");
+        }
+
+        private static int MaskOf(int layer) => layer >= 0 ? 1 << layer : 0;
 
         // --- terrain ------------------------------------------------------------------
 

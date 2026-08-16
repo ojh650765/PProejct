@@ -224,19 +224,47 @@ namespace PokeLab.Overworld
             }
         }
 
+        private bool _warnedOffMesh;
+
+        /// <summary>Turns to the player when they are close. True when it did.</summary>
+        private bool FacePlayerIfNear()
+        {
+            if (_player == null) return false;
+            if (Vector3.Distance(_player.position, transform.position) > _noticePlayerDistance) return false;
+            FacePlayer();
+            return true;
+        }
+
         private void TickIdle()
         {
             if (_activeEntry < 0 || _activeEntry >= _schedule.Count) return;
-            var entry = _schedule[_activeEntry];
 
+            // An agent that is not on the mesh has no remaining distance to ask about,
+            // and asking throws once a frame forever. ApplyEntry already guarded this and
+            // this did not, so an NPC standing anywhere the mesh does not reach filled
+            // the console. It happens for a real reason -- the terrain is regenerated and
+            // the mesh has to be rebuilt with it -- so say so once and stand still rather
+            // than pretending to walk.
+            if (!_agent.isOnNavMesh)
+            {
+                if (!_warnedOffMesh)
+                {
+                    _warnedOffMesh = true;
+                    Debug.LogWarning($"[Npc] '{name}' is not on a NavMesh, so it will stand " +
+                                     "still. Rebuild the level's navigation — the terrain is " +
+                                     "generated, so a bake from before the last rebuild does " +
+                                     "not cover it.", this);
+                }
+                FacePlayerIfNear();
+                return;
+            }
+            _warnedOffMesh = false;
+
+            var entry = _schedule[_activeEntry];
             var arrived = !_agent.pathPending && _agent.remainingDistance <= _arrivalTolerance;
             if (!arrived) return;
 
-            if (_player != null && Vector3.Distance(_player.position, transform.position) <= _noticePlayerDistance)
-            {
-                FacePlayer();
-                return;
-            }
+            if (FacePlayerIfNear()) return;
 
             _idleTimer -= Time.deltaTime;
             if (_idleTimer > 0f) return;

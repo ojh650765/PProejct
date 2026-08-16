@@ -12,6 +12,7 @@ TagManager:
   - BattleAnchorPlayer
   - BattleAnchorOpponent
   - PokeLabScanner
+  - Interactable
   layers:
   - Default
   - TransparentFX
