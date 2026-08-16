@@ -109,6 +109,7 @@ namespace PokeLab.Boot.Editor
                 BuildPeople(layout, root.transform, parents);
                 BuildAnchors(layout, root.transform, parents);
                 BuildSpawn(layout, root.transform);
+                BuildCast(root.transform, parents);
                 BuildNavigation(root);
             }
             finally
@@ -1097,6 +1098,111 @@ namespace PokeLab.Boot.Editor
             }
 
             spawn.transform.localPosition = SeatOnGround(layout, authored);
+        }
+
+        private const string CastPath = "Assets/Game/Data/Story/cast.json";
+
+        /// <summary>
+        /// Stands up the markers and people the story names but the level layout does not
+        /// author.
+        ///
+        /// The two files are written by different hands: the layout is generated from a
+        /// seeded design script, while cast.json is written by whoever writes the episodes.
+        /// The episodes name ten camera and actor marks and one professor; the layout knows
+        /// about none of them, so every CameraTo and MoveActor beat in the opening degraded
+        /// to a warning and the shot the whole town was composed around was never taken.
+        ///
+        /// Read here rather than folded into the emitter because these are narrative
+        /// positions, not level design: they move when the script moves, and a level rebuild
+        /// should not be the thing that carries a rewrite.
+        /// </summary>
+        private static void BuildCast(Transform root, Dictionary<string, Transform> parents)
+        {
+            var path = Path.Combine(Directory.GetCurrentDirectory(), CastPath);
+            if (!File.Exists(path))
+            {
+                Debug.LogWarning($"[Level] {CastPath} not found, so the episodes' camera " +
+                                 "marks and the professor will not exist and every beat that " +
+                                 "names one will degrade to a warning.");
+                return;
+            }
+
+            Cast cast;
+            try { cast = JsonUtility.FromJson<Cast>(File.ReadAllText(path)); }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[Level] cast.json would not parse: {e.Message}");
+                return;
+            }
+
+            var marks = 0;
+            foreach (var marker in cast?.markers ?? Array.Empty<CastMarker>())
+            {
+                if (marker == null || string.IsNullOrEmpty(marker.name)) continue;
+                if (GameObject.Find(marker.name) != null) continue;
+
+                var go = new GameObject(marker.name);
+                go.transform.SetParent(ResolveParent(root, parents, "Story/Marks"), false);
+                // Authored heights are eye or head height for a camera to look at, so these
+                // are taken as written rather than seated on the ground like a prop.
+                go.transform.localPosition = ToVector(marker.position);
+                marks++;
+            }
+
+            var people = 0;
+            foreach (var speaker in cast?.speakers ?? Array.Empty<CastSpeaker>())
+            {
+                var required = speaker?.requiredNpc;
+                if (required == null || string.IsNullOrEmpty(required.name)) continue;
+                if (GameObject.Find(required.name) != null) continue;
+
+                var go = new GameObject(required.name);
+                go.transform.SetParent(ResolveParent(root, parents, "Gameplay/Npcs"), false);
+                go.transform.localPosition = ToVector(required.position);
+                go.transform.localEulerAngles = ToVector(required.rotation);
+
+                var body = go.AddComponent<CapsuleCollider>();
+                body.height = 1.7f;
+                body.radius = 0.28f;
+                body.center = new Vector3(0f, 0.85f, 0f);
+
+                go.AddComponent<NpcController>()
+                  .Configure(required.npcId, required.displayName, null);
+                AttachSprite(go, speaker.spriteKey, required.name);
+                SetLayer(go, "Interactable");
+                TrySetTag(go, "Interactable");
+                people++;
+            }
+
+            if (marks + people > 0)
+                Debug.Log($"[Level] Cast: {marks} marker(s) and {people} authored person/people.");
+        }
+
+        [Serializable] private sealed class Cast
+        {
+            public CastSpeaker[] speakers;
+            public CastMarker[] markers;
+        }
+
+        [Serializable] private sealed class CastMarker
+        {
+            public string name;
+            public float[] position;
+        }
+
+        [Serializable] private sealed class CastSpeaker
+        {
+            public string spriteKey;
+            public RequiredNpc requiredNpc;
+        }
+
+        [Serializable] private sealed class RequiredNpc
+        {
+            public string name;
+            public string npcId;
+            public string displayName;
+            public float[] position;
+            public float[] rotation;
         }
 
         // --- helpers ---------------------------------------------------------------------
