@@ -547,9 +547,16 @@ namespace PokeLab.Boot.Editor
 
             var go = new GameObject("Blackout");
             go.transform.SetParent(mouth, false);
-            // Set back into the opening so the arch's own stone frames it. Flush with the
-            // mouth it reads as a painted disc on the cliff.
-            go.transform.localPosition = new Vector3(0f, size.y * 0.5f, 0.9f);
+
+            // Measured in the editor against the built scene, not derived. The offset is
+            // large and negative because Env_Cave_Arch's pivot sits about 1.95 m in front
+            // of its own mouth plane -- build_layout.py's cave-shelf comment says so, and it
+            // is why cutting the shelf only forward left the arch buried. A blackout placed
+            // a polite 0.9 m "into" the opening therefore lands well outside it, in front of
+            // the stone, reading as a black disc stuck on the cliff.
+            go.transform.localPosition = new Vector3(BlackoutOffset.x,
+                                                     size.y * 0.5f,
+                                                     BlackoutOffset.z);
             go.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
 
             var mesh = new Mesh { name = "CaveBlackout" };
@@ -574,6 +581,13 @@ namespace PokeLab.Boot.Editor
             renderer.receiveShadows = false;
         }
 
+        /// <summary>
+        /// Where the blackout sits relative to the cave entrance marker, in that marker's
+        /// local space. Y is taken from the entrance's own height instead, so a taller mouth
+        /// still fills.
+        /// </summary>
+        private static readonly Vector3 BlackoutOffset = new Vector3(-0.25f, 0f, -2.77f);
+
         private static Material s_blackout;
 
         private static Material BlackoutMaterial()
@@ -591,6 +605,50 @@ namespace PokeLab.Boot.Editor
         /// The doors out of this scene. Same machinery as a cave mouth, because they are
         /// the same thing: a volume you walk into that loads somewhere else.
         /// </summary>
+        /// <summary>
+        /// Ground height at a world position, read from the same baked grid the emitter
+        /// placed every object with.
+        ///
+        /// Sampled rather than raycast because the answer has to be the one the emitter
+        /// used. A raycast would hit whatever collider happens to be there — a rock, a
+        /// building's plinth, the water surface — and put a marker on top of it.
+        /// </summary>
+        private static bool TrySampleGround(Layout layout, float x, float z, out float y)
+        {
+            y = 0f;
+            var grid = layout.heightGrid;
+            if (grid?.heights == null || grid.countX < 2 || grid.countZ < 2 || grid.step <= 0f)
+                return false;
+
+            var fx = Mathf.Clamp((x - grid.originX) / grid.step, 0f, grid.countX - 1.001f);
+            var fz = Mathf.Clamp((z - grid.originZ) / grid.step, 0f, grid.countZ - 1.001f);
+            var ix = Mathf.FloorToInt(fx);
+            var iz = Mathf.FloorToInt(fz);
+            var tx = fx - ix;
+            var tz = fz - iz;
+
+            float At(int cx, int cz)
+            {
+                var index = cz * grid.countX + cx;
+                return index >= 0 && index < grid.heights.Length ? grid.heights[index] : 0f;
+            }
+
+            // Bilinear, matching worldgen.BakedField.at -- every object's Y came from this
+            // exact interpolation, so a marker placed any other way sits at a different
+            // height from the props beside it.
+            var h0 = Mathf.Lerp(At(ix, iz), At(ix + 1, iz), tx);
+            var h1 = Mathf.Lerp(At(ix, iz + 1), At(ix + 1, iz + 1), tx);
+            y = Mathf.Lerp(h0, h1, tz);
+            return true;
+        }
+
+        private static Vector3 SeatOnGround(Layout layout, Vector3 position)
+        {
+            if (TrySampleGround(layout, position.x, position.z, out var y))
+                position.y = y;
+            return position;
+        }
+
         private static void BuildSceneLinks(Layout layout, Transform root,
             Dictionary<string, Transform> parents)
         {
@@ -619,8 +677,13 @@ namespace PokeLab.Boot.Editor
                 // transition landed the player at the origin.
                 var arrival = new GameObject($"Spawn_From{link.scene}");
                 arrival.transform.SetParent(ResolveParent(root, parents, "Gameplay/Arrivals"), false);
-                arrival.transform.localPosition =
-                    ToVector(link.position) + Quaternion.Euler(0f, link.facingYaw, 0f) * Vector3.back * 2.5f;
+                // Seated on the ground, not left at the door's height. The link volume sits
+                // at the doorway, and 2.5 m back from a doorway on sloped ground is a
+                // different height -- so arriving put the player in the air above the far
+                // side and they fell in, which is exactly what a level transition must never
+                // look like.
+                arrival.transform.localPosition = SeatOnGround(layout,
+                    ToVector(link.position) + Quaternion.Euler(0f, link.facingYaw, 0f) * Vector3.back * 2.5f);
             }
         }
 
@@ -1022,7 +1085,7 @@ namespace PokeLab.Boot.Editor
                 }
             }
 
-            spawn.transform.localPosition = authored;
+            spawn.transform.localPosition = SeatOnGround(layout, authored);
         }
 
         // --- helpers ---------------------------------------------------------------------
@@ -1097,6 +1160,7 @@ namespace PokeLab.Boot.Editor
         {
             public string schema;
             public string scene;
+            public HeightGrid heightGrid;
             public GroundChunk[] ground;
             public WaterSurface[] water;
             public FoliageField[] foliage;
@@ -1113,6 +1177,17 @@ namespace PokeLab.Boot.Editor
             public float cameraPitch;
             public float cameraDistance;
             public float cameraFov;
+        }
+
+        [Serializable]
+        private sealed class HeightGrid
+        {
+            public float originX;
+            public float originZ;
+            public float step = 1f;
+            public int countX;
+            public int countZ;
+            public float[] heights;
         }
 
         [Serializable]
