@@ -1376,26 +1376,32 @@ def gameplay_block(baked):
              "note": "Too shallow and too fast to surf; the trigger exists so the splash "
                      "and footstep sets switch."},
         ],
+        # Game ids, not national dex. The two spaces are not the same map -- only 2 of
+        # the 53 species with sprites have game id == dex -- and seven of these eight
+        # regions were written in dex. Read that way Roam_Cave_Chamber stocked a cave
+        # with Dewgong, a seal; Roam_Route_Shelf named id 63, which is not in the
+        # registry at all; and two regions named species that have no sprite and would
+        # have rendered as nothing.
         "roamerSpawnRegions": [
             {"name": "Roam_Route_Meadow", "zone": "Zone_Route", "centre": [4.0, 0.2, 18.0],
              "size": [28.0, 4.0, 14.0], "species": [21, 25, 31, 49],
              "note": "Pidgey, Rattata, Pikachu, Oddish -- skittish, keep to the tree line."},
             {"name": "Roam_Route_Shelf", "zone": "Zone_Route", "centre": [9.5, -1.2, 8.5],
-             "size": [11.0, 4.0, 8.0], "species": [21, 31, 63]},
+             "size": [11.0, 4.0, 8.0], "species": [21, 25, 49]},
             {"name": "Roam_StreamValley", "zone": "Zone_Route",
-             "centre": [27.0, -1.4, 12.0], "size": [26.0, 4.0, 10.0], "species": [54, 60],
+             "centre": [27.0, -1.4, 12.0], "size": [26.0, 4.0, 10.0], "species": [60, 66],
              "note": "Water types down the stream. Reachable only across the stepping "
                      "stones at (33.2, 15.6), which is the slice's one optional detour."},
             {"name": "Roam_Lake_Shore", "zone": "Zone_Lakeside", "centre": [38.0, -1.2, 42.0],
-             "size": [10.0, 4.0, 22.0], "species": [54, 60, 118]},
+             "size": [10.0, 4.0, 22.0], "species": [60, 66, 128]},
             {"name": "Roam_Lake_Water", "zone": "Zone_Lakeside", "centre": [54.0, -2.2, 44.0],
-             "size": [30.0, 2.0, 26.0], "species": [54, 60, 118, 129]},
+             "size": [30.0, 2.0, 26.0], "species": [60, 66, 128, 140]},
             {"name": "Roam_Cave_Chamber", "zone": "Zone_Cave", "centre": [-9.0, 3.3, 58.5],
-             "size": [22.0, 4.0, 12.0], "species": [41, 74, 95]},
+             "size": [22.0, 4.0, 12.0], "species": [47, 81, 100]},
             {"name": "Roam_Gorge", "zone": "Zone_Cave", "centre": [2.5, 1.6, 38.0],
-             "size": [9.0, 6.0, 20.0], "species": [41, 74]},
+             "size": [9.0, 6.0, 20.0], "species": [47, 81]},
             {"name": "Roam_Town_Yard", "zone": "Zone_Town", "centre": [-26.0, 2.4, -20.0],
-             "size": [14.0, 4.0, 14.0], "species": [16, 19],
+             "size": [14.0, 4.0, 14.0], "species": [21, 25],
              "note": "Two only. A town with wildlife in it stops feeling safe."},
         ],
     }

@@ -24208,8 +24208,8 @@
     ],
     "species": [
      21,
-     31,
-     63
+     25,
+     49
     ]
    },
    {
@@ -24226,8 +24226,8 @@
      10.0
     ],
     "species": [
-     54,
-     60
+     60,
+     66
     ],
     "note": "Water types down the stream. Reachable only across the stepping stones at (33.2, 15.6), which is the slice's one optional detour."
    },
@@ -24245,9 +24245,9 @@
      22.0
     ],
     "species": [
-     54,
      60,
-     118
+     66,
+     128
     ]
    },
    {
@@ -24264,10 +24264,10 @@
      26.0
     ],
     "species": [
-     54,
      60,
-     118,
-     129
+     66,
+     128,
+     140
     ]
    },
    {
@@ -24284,9 +24284,9 @@
      12.0
     ],
     "species": [
-     41,
-     74,
-     95
+     47,
+     81,
+     100
     ]
    },
    {
@@ -24303,8 +24303,8 @@
      20.0
     ],
     "species": [
-     41,
-     74
+     47,
+     81
     ]
    },
    {
@@ -24321,8 +24321,8 @@
      14.0
     ],
     "species": [
-     16,
-     19
+     21,
+     25
     ],
     "note": "Two only. A town with wildlife in it stops feeling safe."
    }
@@ -25593,9 +25593,9 @@
    "name": "Town_Planter_04",
    "parent": "Town/Detail",
    "position": [
-    -21.81,
+    -21.412,
     2.364,
-    -10.47
+    -11.062
    ],
    "rotation": [
     0.0,
@@ -25731,9 +25731,9 @@
    "name": "Town_ResearchTerminal_01",
    "parent": "Town/Props",
    "position": [
-    -7.194,
+    -6.742,
     2.728,
-    -3.996
+    -4.403
    ],
    "rotation": [
     0.0,

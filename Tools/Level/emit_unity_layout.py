@@ -641,6 +641,17 @@ def inside_any(x, z, polys, margin=0.0):
 # toward.
 ENTRANCE_ASSETS = ("Env_Cave_Arch", "Env_Ramp_CaveFromRoute")
 
+# Fixtures that belong indoors. They were placed on the plaza because there were no
+# interiors to put them in -- the layout's own note on the healing machine says "on
+# the plaza's east edge, in the same shot as the lab door" -- and a healing machine
+# standing in the open street is a Pokemon Centre with no Centre around it. They are
+# held back for the interior scenes the same way cave props are.
+INTERIOR_PROPS = ("Env_Prop_HealingMachine", "Env_Prop_ResearchTerminal")
+
+
+def is_interior_prop(prefab):
+    return any(k in prefab for k in INTERIOR_PROPS)
+
 
 def is_entrance(prefab):
     return any(k in prefab for k in ENTRANCE_ASSETS)
@@ -932,6 +943,52 @@ SCENE_LINKS = [
 ]
 
 
+ENTERABLE = {
+    "Env_Building_PokeLab": ("Lab", "Prof's lab"),
+    "Env_House_Cottage_A": ("House", "a house"),
+    "Env_House_Townhouse_B": ("House", "a house"),
+    "Env_House_Farmhouse_C": ("House", "a house"),
+}
+
+
+def building_doors(objects, bounds, grid):
+    """A door volume at the front of every building you can go into.
+
+    Same mechanism as the cave mouth and the scene seam: a trigger you walk into that
+    loads an interior. The door sits on the building's front face, which for this kit
+    is local +Z -- the openings are cut in wall 0 and the manifest's convention is that
+    models face +Z.
+    """
+    out = []
+    for o in objects:
+        asset = o["prefab"].split("/")[-1].replace(".fbx", "")
+        entry = ENTERABLE.get(asset)
+        if entry is None:
+            continue
+        size = (bounds.get(asset) or {}).get("size")
+        if not size:
+            continue
+        kind, label = entry
+        x, _, z = [float(v) for v in o["position"]]
+        yaw = float((o.get("rotation") or [0, 0, 0])[1])
+        r = math.radians(yaw)
+        fx, fz = math.sin(r), math.cos(r)
+        # Just outside the front wall, so the player triggers it standing at the step
+        # rather than inside the mesh.
+        depth = size[2] * 0.5 + 0.55
+        dx, dz = x + fx * depth, z + fz * depth
+        out.append({
+            "name": "Door_%s" % o["name"],
+            "scene": "Interior_%s" % kind,
+            "arrivalSpawn": "Spawn_FromDoor",
+            "label": label,
+            "position": [round(dx, 3), round(grid.at(dx, dz), 3), round(dz, 3)],
+            "facingYaw": yaw,
+            "size": [1.6, 2.4, 1.0],
+        })
+    return out
+
+
 def scene_links(scene, grid):
     out = []
     for src, dst, x, z, yaw in SCENE_LINKS:
@@ -952,6 +1009,9 @@ def main():
     with open(SOURCE, encoding="utf-8") as fh:
         layout = json.load(fh)
 
+    with open(os.path.join(HERE, "asset_bounds.json"), encoding="utf-8") as fh:
+        bounds = json.load(fh)
+
     grid = Grid(layout["terrain"]["heightField"]["grid"])
     painter = SurfacePainter(layout)
     caves = cave_interiors(layout)
@@ -967,7 +1027,7 @@ def main():
     PLANTED = ("Env_Tree_", "Env_Bush_", "Env_Fern_", "Env_Flower_",
                "Env_Grass_", "Env_TallGrass_", "Env_Reed_")
 
-    objects, interior, cliffside, drowned = [], 0, 0, 0
+    objects, interior, cliffside, drowned, indoors = [], 0, 0, 0, 0
     for o in layout.get("objects", []):
         pos = o.get("position") or [0.0, 0.0, 0.0]
         x, y, z = float(pos[0]), float(pos[1]), float(pos[2])
@@ -979,6 +1039,9 @@ def main():
         if not is_entrance(o.get("prefab", "")) and (
                 inside_any(x, z, caves) or (y - grid.at(x, z)) < -2.0):
             interior += 1
+            continue
+        if is_interior_prop(o.get("prefab", "")):
+            indoors += 1
             continue
         asset = o.get("prefab", "").split("/")[-1]
         slope = grid.slope_degrees(x, z)
@@ -1062,6 +1125,7 @@ def main():
         doc["caveEntrances"] = [c for c in out["caveEntrances"]
                                 if in_scene(float(c["position"][2]), lo, hi)]
         doc["sceneLinks"] = scene_links(name, grid)
+        doc["buildingDoors"] = building_doors(scene_objects, bounds, grid)
         # The player only starts where the story starts.
         doc["playerSpawn"] = spawn_pos if in_scene(spawn_pos[2], lo, hi) else []
 
@@ -1086,18 +1150,19 @@ def main():
         print("  foliage    %-24s %5d instances, %d group(s), rejected: %d paved / %d water / %d slope"
               % (f["name"], f["placed"], len(f["groups"]), f["rejectedOnPaving"], f["rejectedInWater"], f["rejectedOnSlope"]))
     print("  foliage total %d instances" % total_inst)
-    print("  objects %d  (%d held for cave scenes, %d off rock faces, %d out of the water)"
-          % (len(objects), interior, cliffside, drowned))
+    print("  objects %d  (%d for cave scenes, %d for interiors, %d off rock faces, "
+          "%d out of the water)"
+          % (len(objects), interior, indoors, cliffside, drowned))
     print("  anchors %d  grass triggers %d  cave entrances %d  spawn %s"
           % (len(out["ambientAnchors"]), len(out["tallGrass"]),
              len(out["caveEntrances"]), spawn_pos))
     print()
     for name, path, doc in written:
         print("  scene %-6s %2d ground, %d water, %3d objects, %4d foliage, "
-              "%d links, spawn %s"
+              "%d links, %d doors, spawn %s"
               % (name, len(doc["ground"]), len(doc["water"]), len(doc["objects"]),
                  sum(f["placed"] for f in doc["foliage"]), len(doc["sceneLinks"]),
-                 "yes" if doc["playerSpawn"] else "-"))
+                 len(doc["buildingDoors"]), "yes" if doc["playerSpawn"] else "-"))
 
 
 if __name__ == "__main__":
