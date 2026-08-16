@@ -214,17 +214,17 @@
     "family": "Terrain",
     "subfamily": "Cave",
     "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch.fbx",
-    "triangles": 5421,
+    "triangles": 5134,
     "lods": [
       {
         "level": 1,
         "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch_LOD1.fbx",
-        "triangles": 2167
+        "triangles": 2052
       },
       {
         "level": 2,
         "path": "Assets/Game/Art/Environment/Terrain/Env_Cave_Arch_LOD2.fbx",
-        "triangles": 812
+        "triangles": 770
       }
     ],
     "pivot": "base, XY centred",
@@ -233,7 +233,7 @@
       "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
     ],
     "windVertexColors": false,
-    "notes": ""
+    "notes": "Directional: the mouth faces the model's +Z in Unity, so the level's facingYaw points it at the player. Pivot is base / XY-centred as usual, which puts the mouth plane 1.95 m in FRONT of the pivot along +Z -- set the pivot 1.95 m behind the declared mouth position or the stone sits that far out into the gorge. Carries a Col vertex-colour attribute: blue is the vertex-occlusion mask PokeLabPropGroundBlend multiplies ambient by, near zero down the throat. Import vertex colours on this mesh; discarding them puts the light back into the cave."
   },
   {
     "name": "Env_Cave_Stalactite_A",
@@ -375,17 +375,17 @@
     "family": "Terrain",
     "subfamily": "Bridge",
     "path": "Assets/Game/Art/Environment/Terrain/Env_Bridge_Wood.fbx",
-    "triangles": 3034,
+    "triangles": 4624,
     "lods": [
       {
         "level": 1,
         "path": "Assets/Game/Art/Environment/Terrain/Env_Bridge_Wood_LOD1.fbx",
-        "triangles": 1212
+        "triangles": 1848
       },
       {
         "level": 2,
         "path": "Assets/Game/Art/Environment/Terrain/Env_Bridge_Wood_LOD2.fbx",
-        "triangles": 454
+        "triangles": 692
       }
     ],
     "pivot": "base, XY centred",
@@ -394,6 +394,7 @@
       "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
     ],
     "windVertexColors": false,
+    "budgetClass": "building",
     "notes": ""
   }
 ]

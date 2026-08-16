@@ -373,12 +373,12 @@ HOUSES = [
 CAVE_MOUTH_X, CAVE_MOUTH_Z, CAVE_MOUTH_YAW = 5.0, 51.0, 190.0
 # The shelf sits in front of the opening, not under the whole mouth: the cliff
 # immediately behind the arch is what makes it a cave.
-# The bridge. Its abutments need ground at a known height, and the natural bank
-# rises too fast on the +X side to give it any: at the authored height one end was
-# buried 0.52 m while the other floated 0.15 m. A shallow bed is cut under the whole
-# span instead of arguing with the bank. It sits below the waterline, so the stream
-# still runs under the bridge -- it just runs over a flat bed there.
-BRIDGE_X, BRIDGE_Z, BRIDGE_Y = 13.0, 18.2, -1.218
+# The bridge. Its pivot is at the base of the trestle and its walking surface is
+# 1.250 m above that (measured on the shipped FBX: 1.250 at both ends, 1.300 at the
+# crown from a 50 mm camber), so seating the pivot at road level -- which is what
+# "put it on the road" means for every other prop -- floats the deck by that much.
+# -1.190 puts the deck at 0.060, which is the road.
+BRIDGE_X, BRIDGE_Z, BRIDGE_Y = 13.0, 18.2, -1.190
 BRIDGE_BED = BRIDGE_Y - 0.05
 
 CAVE_SHELF_OFFSET = 2.6

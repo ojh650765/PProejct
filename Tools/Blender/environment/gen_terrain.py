@@ -405,10 +405,13 @@ def a_rock_scatter(bm, rng, n, spread, rlo, rhi, seed, mats):
 # stands at -Y.
 # --------------------------------------------------------------------------
 
-CAVE_HW = 8.1        # headwall width -- the gorge pinches to 9 m at the mouth,
+CAVE_HW = 8.6        # headwall width -- the gorge pinches to 9 m at the mouth,
                      # and the talus fan has to fit inside that too
 CAVE_HH = 6.3        # headwall height at the crown of its broken skyline
-CAVE_OPEN_W = 5.4    # clear opening at its widest
+CAVE_OPEN_W = 5.9    # profile width; the *measured* clear span comes out
+                     # ~0.5 m under this once the jamb relief and the bore's
+                     # roughness have eaten into it, and the level declares a
+                     # 5.4 m trigger, so the profile is cut wide to land on it
 CAVE_OPEN_H = 4.35   # clear opening at the crown
 CAVE_THROAT = 5.8    # how far the bore runs back into the rock.  Measured, not
                      # guessed: the sight line that grazes the brow at the
@@ -509,10 +512,19 @@ def _wall_relief(x, z, seed):
 def _wall_mat(x, z, u, seed):
     """Material for a point on the headwall face.  u is the radial parameter,
     0 at the lip of the opening and 1 at the outer edge of the wall."""
+    # Deliberately NOT wet_rock at the lip, tempting though it is: keeping
+    # WET_ROCK exclusive to the bore is what lets cave_fix_bore_normals and
+    # cave_occlusion_vcol identify the throat by material alone, with no plane to
+    # keep in sync.  Moss on the damp lip says the same thing anyway.
+    # Moss is kept low and near the lip on purpose.  The wall's faces get bigger
+    # the further out they are, and a big face box-mapped into the moss cell
+    # samples a large flat patch of it -- which reads as a bright green rectangle
+    # painted on the rock, not as moss.  Down at the foot the faces are small
+    # enough for the blotching in the swatch to do its job.
     if u < 0.12:
-        return WET_ROCK          # the lip is permanently damp
-    if u < 0.46 and z < 2.5 and _hash2(int(x * 2.6), int(z * 2.6),
-                                       int(seed)) < 0.42:
+        return MOSS_ROCK if z < 1.4 else ROCK_GREY
+    if u < 0.28 and z < 1.5 and _hash2(int(x * 3.8), int(z * 3.8),
+                                       int(seed)) < 0.34:
         return MOSS_ROCK         # blotchy moss where water tracks out
     if z < 0.55:
         return RUBBLE            # the face disappearing into its own talus
@@ -532,10 +544,10 @@ def _bore_ring(d, seed):
     the back of the hole: the section shrinks, it drifts sideways so the end wall
     swings off the sight line, and the floor lifts slightly."""
     f = d / CAVE_THROAT
-    sx = 1.0 - 0.13 * f
-    sz = 1.0 - 0.17 * f
-    bend = 1.75 * (f ** 1.7)
-    floor = 0.34 * (f ** 1.5)
+    sx = 1.0 - 0.22 * f
+    sz = 1.0 - 0.34 * f
+    bend = 2.60 * (f ** 1.6)
+    floor = 0.62 * (f ** 1.4)
     arch_n = 22
     floor_n = 8
     pts = []
@@ -570,11 +582,13 @@ def _scree(bm, rng, seed):
     never a clean line where it meets the ground."""
     blocks = [
         # (x, y, radius, subd, material, squash)
-        (-3.00, -0.45, 0.86, 2, STRATA, 0.72),
-        (3.15, -0.30, 0.74, 2, ROCK_WARM, 0.66),
-        (-2.25, -1.55, 0.62, 2, ROCK_GREY, 0.58),
+        # same reasoning as Env_Rock_Boulder_D: a block on the ground has no
+        # bedding to be banded against, so it takes plain rock, not cliff_strata
+        (-3.45, -0.45, 0.86, 2, ROCK_WARM, 0.72),
+        (3.60, -0.30, 0.74, 2, ROCK_WARM, 0.66),
+        (-2.95, -1.75, 0.62, 2, ROCK_GREY, 0.58),
         (1.55, -1.90, 0.55, 2, ROCK_WARM, 0.62),
-        (3.45, -1.35, 0.56, 2, MOSS_ROCK, 0.60),
+        (3.85, -1.35, 0.56, 2, MOSS_ROCK, 0.60),
     ]
     for (x, y, r, subd, mat, squash) in blocks:
         tmp = bmesh.new()
@@ -596,7 +610,7 @@ def _scree(bm, rng, seed):
         spread = 1.1 + 2.7 * u
         x = rng.uniform(-1.0, 1.0) * spread
         y = -0.25 - u * 2.4 + rng.uniform(-0.35, 0.35)
-        if abs(x) < 0.9 and y > -1.5:
+        if abs(x) < 1.7 and y > -1.6:
             continue                      # keep the threshold itself walkable
         r = rng.uniform(0.10, 0.30) * (1.0 - 0.45 * u)
         tmp = bmesh.new()
@@ -659,6 +673,14 @@ def a_cave_arch(bm, rng, seed):
             # leave the lip crisp, then settle into the wall's own relief
             w = u ** 0.72
             y = iy * (1.0 - w) + _wall_relief(x, z, seed) * w
+            # ...but the brow curve is analytic and the blend to it is smooth, so
+            # without this the two or three rows nearest the opening come out as
+            # one wide unbroken ribbon sweeping over the arch -- which rendered
+            # as a poured concrete band laid over the rock.  Roughen the whole
+            # annulus, hardest at the lip where the blend is doing the most work.
+            y -= ((_plate(x * 1.4 + 5.0, z * 1.25, int(seed) + 11) - 0.5) * 0.26 +
+                  0.10 * math.sin(x * 3.1 + z * 2.3 + seed) +
+                  0.06 * math.sin(x * 5.7 - z * 4.1)) * (1.0 - 0.45 * w)
             col.append((bm.verts.new((x, y, z)), u))
         grid.append(col)
 
@@ -702,24 +724,45 @@ def a_cave_arch(bm, rng, seed):
     cap.material_index = CAVE_ROCK
     cap.smooth = False
 
-    # ---- the buried block behind the face ------------------------------
-    back = []
-    for i in range(segs + 1):
-        t = i / float(segs)
-        ox, oz = _wall_point(t, seed)
-        back.append(bm.verts.new((ox * 0.92, CAVE_BACK, oz * 0.78)))
-    for i in range(segs):
-        f = bm.faces.new((grid[i][rows][0], grid[i + 1][rows][0],
-                          back[i + 1], back[i]))
-        f.material_index = ROCK_GREY
-        f.smooth = False
-    plate = bm.faces.new(tuple(reversed(back)))
+    # ---- the mass behind the face --------------------------------------
+    # Not a plain loft from the front skyline to a scaled copy of it: two arched
+    # rings lofted together give a smooth half-cylinder, and the first build of
+    # this read as a Nissen hut sitting in the gorge.  The site the mouth has
+    # been moved to only rises +0.6 m at 3.5 m in, so this mass is *not* going to
+    # be politely buried -- it is the cliff, and it has to be faceted like one.
+    # Two intermediate rings, each with its own crest noise and its own plate
+    # relief, break the silhouette into shoulders.
+    depth_rings = [(0.34, 0.97, 0.93), (0.68, 0.95, 0.85), (1.00, 0.92, 0.74)]
+    prev = [grid[i][rows][0] for i in range(segs + 1)]
+    for (k, (fy, fx, fz)) in enumerate(depth_rings):
+        y = CAVE_BACK * fy    # still authored throat-into-+Y; mirrored at the end
+        ring = []
+        for i in range(segs + 1):
+            t = i / float(segs)
+            ox, oz = _wall_point(t, seed + 3.1 * (k + 1))
+            ox *= fx
+            oz *= fz
+            # shoulders: the mass steps in and out as it goes back, so the
+            # skyline never reads as one swept curve
+            oz += (0.34 * math.sin(t * 11.0 + k * 2.1 + seed) +
+                   0.19 * math.sin(t * 19.0 + k * 4.7)) * min(1.0, oz / 2.0)
+            ox += 0.22 * math.sin(t * 13.0 + k * 3.3 + seed)
+            ring.append(bm.verts.new((ox, y, max(oz, 0.0))))
+        for i in range(segs):
+            f = bm.faces.new((prev[i], prev[i + 1], ring[i + 1], ring[i]))
+            f.material_index = ROCK_GREY if k else STRATA
+            f.smooth = False
+        prev = ring
+    plate = bm.faces.new(tuple(reversed(prev)))
     plate.material_index = ROCK_GREY
     plate.smooth = False
 
     # ---- broken lintel blocks sitting on the brow ----------------------
-    for (x, y, z, r, sq) in ((-1.25, -0.62, 4.28, 0.54, 0.42),
-                             (1.05, -0.76, 4.48, 0.62, 0.38)):
+    # z is set so the underside of each block clears CAVE_OPEN_H: they sit ON the
+    # brow, they do not hang across the top of the opening.  The level wires a
+    # LevelTransition trigger at the declared 5.4 x 4.3, and nothing may cross it.
+    for (x, y, z, r, sq) in ((-1.25, -0.62, 4.86, 0.54, 0.42),
+                             (1.05, -0.76, 5.02, 0.62, 0.38)):
         tmp = bmesh.new()
         boulder(tmp, rng, r, 2, seed + int(x * 41), STRATA, squash=sq,
                 amount=0.30, sharpness=0.85, bury=0.0)
@@ -760,101 +803,202 @@ def a_cave_arch(bm, rng, seed):
         v.co.y = -v.co.y
 
 
+def cave_fix_bore_normals(obj):
+    """Point the throat's faces back into the throat.
+
+    E.finalize -> cleanup ends with recalc_face_normals, which orients each
+    *connected shell* outward by its own volume.  The bore is a tube, and once
+    the ground clamp has dissolved the degenerate band that joined it to the
+    face it is a shell of its own -- so "outward" comes out meaning *away from
+    the tube axis*, i.e. into the surrounding rock.  Backface culling then makes
+    the whole throat invisible and the player sees straight through the mountain
+    to the skybox.  This was not theoretical: it is what the first build did.
+
+    Fixed from the geometry rather than from connectivity.  The bore's own cross
+    section at each depth gives the axis, and a face is right way round when its
+    normal points at that axis.
+    """
+    bm = E.obj_bm(obj)
+    inner = {CAVE_ROCK, WET_ROCK}      # bore-only materials, see _wall_mat
+    faces = [f for f in bm.faces if f.material_index in inner]
+    if not faces:
+        E.bm_write(bm, obj)
+        return 0
+    # axis point per half-metre slice of depth
+    bins = {}
+    for f in faces:
+        c = f.calc_center_median()
+        b = bins.setdefault(round(c.y * 2.0), [Vector((0, 0, 0)), 0])
+        b[0] += c
+        b[1] += 1
+    wrong = []
+    for f in faces:
+        c = f.calc_center_median()
+        s, n = bins[round(c.y * 2.0)]
+        if f.normal.dot((s / n) - c) < 0.0:
+            wrong.append(f)
+    # all or nothing: a handful disagreeing is the end cap and the lip, which sit
+    # across the axis rather than around it, and flipping those would tear it
+    if len(wrong) > len(faces) * 0.5:
+        bmesh.ops.reverse_faces(bm, faces=faces)
+        E.bm_write(bm, obj)
+        return len(faces)
+    E.bm_write(bm, obj)
+    return 0
+
+
+def cave_occlusion_vcol(obj):
+    """Paint the shader's vertex-occlusion channel so the throat kills its own
+    ambient light.
+
+    PokeLabPropGroundBlend reads vertex colour BLUE and nothing else:
+
+        occlusion = lerp(1.0, input.colour.b, _OcclusionStrength)
+        colour   += PL_Ambient(normalWS) * albedo * occlusion
+
+    Geometry and shadow maps get the throat most of the way to dark; ambient was
+    what was still lighting it, and this is the only lever that removes ambient
+    without a second material or an atlas cell that does not exist.  The ask was
+    for "a black plane inside the opening" -- this is that, except the plane is
+    the real end wall 5.8 m back, so it reads as depth rather than as a lid.
+
+    Keyed off material rather than a hard-coded plane: CAVE_ROCK and WET_ROCK
+    exist nowhere on this asset except the bore and its lip.
+    """
+    me = obj.data
+    inner = {CAVE_ROCK, WET_ROCK}
+    ys = []
+    for p in me.polygons:
+        if p.material_index in inner:
+            for li in p.loop_indices:
+                ys.append(me.vertices[me.loops[li].vertex_index].co.y)
+    if not ys:
+        return None
+    # the mouth faces +Y by the time this runs, so the throat runs toward -Y
+    y_lip, y_end = max(ys), min(ys)
+    span = max(y_lip - y_end, 1e-3)
+
+    def paint(co, li, pi):
+        if me.polygons[pi].material_index not in inner:
+            return (1.0, 1.0, 1.0, 1.0)
+        t = min(max((y_lip - co.y) / span, 0.0), 1.0)
+        return (1.0, 1.0, 0.55 * (1.0 - t) ** 2 + 0.03, 1.0)
+
+    return E.add_vcol(obj, paint, name="Col")
+
+
 # --------------------------------------------------------------------------
-# Env_Bridge_Wood
+# Env_Bridge_Wood -- a 9 m timber trestle
 #
-# The route crosses the stream on this at (13.6, 18.2) yaw 142.25 with the
-# object seated at Y = 0.06, and the terrain pass was tuned against the deck
-# surface the OLD asset happened to have.  Measured off the shipped FBX, that
-# surface is
+# WHY A TRESTLE AND NOT A LONGER PLANK
 #
-#     z_top(x) = 0.2310 + 0.3350 * sin(pi * (x + 2) / 4)      rms 4.9 mm
+# The crossing at (13.6, 18.2) is not a 3.4 m stream in a shallow dip.  The
+# conform cuts a channel of half width 1.7 m with a 2.6 m shoulder, so the
+# ground sits below road level across about 8.6 m, and it is roughly 1.2 m
+# down for the whole middle of that.  The 5 m asset this replaces stood
+# +1.17 m clear of the ground at one end and +1.32 m at the other: BOTH its
+# abutments were over open channel, which is the floating plank rectangle the
+# user photographed.  Length, not detail, was the defect.
 #
-# with min z = 0 (pivot at base) and max z = 1.1216.  Everything below is
-# authored to reproduce that curve and that bounding box exactly, because
-# changing any of it un-seats the abutments the placement pass just fixed.
+# At 9 m the two ends reach |x| = 4.5, past the 4.3 m point where the ground
+# comes back to road level, so both abutments land in real bank with a little
+# to spare.
 #
-# The ground the object sits in, back-computed from the placement report
-# (deck -0.023 / +0.051 above the bank at the ends, +1.228 over the streambed
-# at the centre, water 0.97 below the deck), is roughly
+# 9 m then has to be carried, and there are only two honest ways to do it:
 #
-#     bank crest  z = +0.18 .. +0.25     water surface  z = -0.404
+#   arch    a 9 m arch needs roughly a metre of rise to read as an arch, and
+#           the road cannot climb a metre and come back down inside the
+#           crossing.  Flatten it to fit and it stops reading as an arch and
+#           starts reading as a sagging plank -- the exact failure we are
+#           replacing.
+#   trestle four braced timber bents standing on footings, two of them in the
+#           water.  The channel is shallow, so the bents are buildable in
+#           fiction; the deck stays level so the road agrees at both ends; and
+#           the structure is all in the low three quarter view the player gets
+#           walking the bank, which is where the old one read as empty.
 #
-# in this model's own coordinates -- i.e. the model's z = 0 plane is BELOW the
-# bank crest at the ends and well above the water in the middle.  So an
-# abutment founded at z = 0 is buried in the bank, which is exactly what the
-# old one was not: it was a loose boulder hung in the air under the deck.
+# So: trestle.  Bents at |x| = 0.85 (in the stream) and |x| = 2.55 (on the
+# channel floor), cut stone abutments from |x| = 3.85 out to the ends, five
+# spans of about 1.7 m, and a level deck.
+#
+# THE NUMBER THE PLACEMENT NEEDS
+#
+# BR_DECK_Z is the height of the walking surface above the pivot.  The pivot
+# is at the base (min z == 0, XY centred) exactly as before, so the object is
+# seated at  Y = road surface level - BR_DECK_Z.
 # --------------------------------------------------------------------------
 
-BR_SPRING = 2.0000       # arch springing
-BR_DECK_END = 2.4400     # end of the timber deck
-BR_HALF = 2.4996         # abutment outer face == asset bbox half length
-BR_Y = 0.7995            # kerb / post outer face == asset bbox half width
-BR_DECK_Y = 0.7095       # deck slab half width; posts and kerb sit outboard
-BR_Z0 = 0.2310           # deck top at the springing   (measured)
-BR_RISE = 0.3350         # arch rise                   (measured)
-BR_TH = 0.0550           # deck slab thickness
-BR_TOP = 1.1216          # asset bbox height == handrail post top
+BR_HALF = 4.5000         # half length -> 9.000 m overall
+BR_Y = 0.8000            # outer face of the kerb -> 1.600 m overall
+BR_DECK_Y = 0.7000       # deck slab half width; kerb and posts sit outboard
+BR_DECK_Z = 1.2500       # >>> walking surface above the pivot <<<
+BR_CAMBER = 0.0500       # crown rise, so the deck is not a dead flat plane
+BR_TH = 0.0600           # deck slab thickness
+BR_STR_D = 0.2000        # stringer depth
+BR_CAP_D = 0.1700        # bent cap depth
+BR_FOOT_Z = 0.1200       # top of the footing pads; their base is z = 0
+BR_RAIL_H = 0.8800       # handrail height above the deck
+BR_BENTS = (0.85, 2.55)  # bent centrelines (mirrored)
+BR_ABUT_X = 3.8500       # inner face of the stone abutments
 
 
 def br_deck_top(x):
-    """The walking surface.  Flat on the approaches, arched over the water,
-    with a 100 mm fillet at the springing so the deck does not kink."""
-    ax = abs(x)
-    if ax >= BR_SPRING:
-        return BR_Z0
-    z = BR_Z0 + BR_RISE * math.sin(math.pi * (x + 2.0) / 4.0)
-    if ax > 1.90:
-        s = (ax - 1.90) / 0.10
-        s = s * s * (3.0 - 2.0 * s)
-        z = z * (1.0 - s) + BR_Z0 * s
-    return z
+    """The walking surface: level at BR_DECK_Z at both ends so the road agrees
+    there, with a 50 mm parabolic crown in between."""
+    t = min(1.0, abs(x) / BR_HALF)
+    return BR_DECK_Z + BR_CAMBER * (1.0 - t * t)
 
 
-BR_BEAR_Z = 0.1180       # top of the abutment bearing shelf == rib soffit
-BR_CROWN_Z = 0.2110      # rib soffit at the crown (0.300 m deep there)
-BR_RIB_Y = 0.5200        # rib centreline
-BR_RIB_HW = 0.0650
+def _member(bm, a, b, w, h, mat, cap=True):
+    """A square-sectioned timber between two points, in any orientation.
+    w is measured across the member horizontally, h across it the other way."""
+    a = Vector(a)
+    b = Vector(b)
+    t = b - a
+    if t.length < 1e-9:
+        return []
+    t = t.normalized()
+    ref = Vector((0.0, 0.0, 1.0))
+    if abs(t.dot(ref)) > 0.94:
+        ref = Vector((1.0, 0.0, 0.0))
+    u = t.cross(ref).normalized()
+    v = u.cross(t).normalized()
+    faces = []
+    rings = []
+    for p in (a, b):
+        rings.append([bm.verts.new(p - u * w * .5 - v * h * .5),
+                      bm.verts.new(p + u * w * .5 - v * h * .5),
+                      bm.verts.new(p + u * w * .5 + v * h * .5),
+                      bm.verts.new(p - u * w * .5 + v * h * .5)])
+    for j in range(4):
+        k = (j + 1) % 4
+        faces.append(bm.faces.new((rings[0][j], rings[0][k],
+                                   rings[1][k], rings[1][j])))
+    if cap:
+        faces.append(bm.faces.new(list(reversed(rings[0]))))
+        faces.append(bm.faces.new(rings[1]))
+    for f in faces:
+        f.material_index = mat
+        f.smooth = False
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    return faces
 
 
-def br_rib_soffit(x):
-    """Underside of the arch ribs.  A smoothstep, so the soffit arrives at the
-    abutment bearing FLAT -- the rib and the shelf are coplanar over the whole
-    bearing length instead of touching along one line."""
-    s = max(0.0, min(1.0, (1.98 - abs(x)) / 1.98))
-    return BR_BEAR_Z + (BR_CROWN_Z - BR_BEAR_Z) * s * s * (3.0 - 2.0 * s)
-
-
-def _beam(bm, path, hw, ht, mat, cap=True, vertical=False):
-    """Rectangular member swept along a polyline.  hw is the half width in Y;
-    ht is the half thickness, taken across the path in the XZ plane, or
-    straight up if `vertical` -- which is what makes a rib's top face exactly
-    coincide with the deck soffit it carries instead of falling a millimetre
-    away from it on the slopes.  hw and ht may be per-station lists."""
+def _run(bm, path, hw, ht, mat, cap=True):
+    """A member swept along a polyline in the XZ plane, section offset
+    vertically so that a sloped run's top face still lies on the surface it
+    is carrying.  hw / ht may be per-station lists."""
     n = len(path)
     hw = hw if isinstance(hw, (list, tuple)) else [hw] * n
     ht = ht if isinstance(ht, (list, tuple)) else [ht] * n
     rings = []
     for i, p in enumerate(path):
-        if vertical:
-            nn = Vector((0.0, 0.0, 1.0))
-        else:
-            if i == 0:
-                t = path[1] - path[0]
-            elif i == n - 1:
-                t = path[-1] - path[-2]
-            else:
-                t = path[i + 1] - path[i - 1]
-            t = Vector((t.x, 0.0, t.z))
-            if t.length < 1e-9:
-                t = Vector((1.0, 0.0, 0.0))
-            t.normalize()
-            nn = Vector((-t.z, 0.0, t.x))
         c = Vector(p)
-        rings.append([bm.verts.new(c - nn * ht[i] + Vector((0, -hw[i], 0))),
-                      bm.verts.new(c - nn * ht[i] + Vector((0, hw[i], 0))),
-                      bm.verts.new(c + nn * ht[i] + Vector((0, hw[i], 0))),
-                      bm.verts.new(c + nn * ht[i] + Vector((0, -hw[i], 0)))])
+        z = Vector((0.0, 0.0, ht[i]))
+        rings.append([bm.verts.new(c - z + Vector((0, -hw[i], 0))),
+                      bm.verts.new(c - z + Vector((0, hw[i], 0))),
+                      bm.verts.new(c + z + Vector((0, hw[i], 0))),
+                      bm.verts.new(c + z + Vector((0, -hw[i], 0)))])
     faces = []
     for i in range(n - 1):
         a, b = rings[i], rings[i + 1]
@@ -871,52 +1015,48 @@ def _beam(bm, path, hw, ht, mat, cap=True, vertical=False):
     return faces
 
 
-def _obox(bm, a, b, hw, ht, mat, trim=False):
-    """A single straight member between two points -- braces and struts.
-
-    `trim` pulls both ends back along the member's own axis by ht*|dz/dx|, so
-    that a SLOPED member's square end still finishes exactly at the given x
-    rather than poking ht*sin(theta) past it.  Without it a handrail chord
-    running post to post buries 8 mm of itself inside each post.
-    """
-    a = Vector(a)
-    b = Vector(b)
-    if trim:
-        dx, dz = b.x - a.x, b.z - a.z
-        L = math.hypot(dx, dz)
-        if abs(dx) > 1e-6 and L > 1e-9:
-            f = (ht * abs(dz) / abs(dx)) / L
-            if f < 0.45:
-                a, b = a + (b - a) * f, b - (b - a) * f
-    return _beam(bm, [a, b], hw, ht, mat)
+def _rail(bm, xa, za, xb, zb, y, hw, ht, mat):
+    """A handrail chord between two post faces.  The ends are pulled back
+    along the chord by ht*|dz/dx| so a SLOPED rail's square end finishes at
+    the given x instead of burying ht*sin(theta) of itself in the post."""
+    dx, dz = xb - xa, zb - za
+    L = math.hypot(dx, dz)
+    if abs(dx) > 1e-6 and L > 1e-9:
+        f = (ht * abs(dz) / abs(dx)) / L
+        if f < 0.45:
+            xa, za = xa + dx * f, za + dz * f
+            xb, zb = xb - dx * f, zb - dz * f
+    return _run(bm, [Vector((xa, y, za)), Vector((xb, y, zb))], hw, ht, mat)
 
 
 def a_bridge(bm, rng, seed):
-    """A footbridge that is actually built: a continuous planked deck with no
-    daylight through it, tapered arch ribs and cross bracing underneath where
-    the player sees them from the water, kerbs and posts framed into the deck
-    edge rather than floating beside it, and cut-stone abutments founded below
-    the bank crest at both ends."""
+    """A trestle footbridge that is actually built: a continuous planked deck
+    with no daylight through it, four braced bents standing on stone footings
+    (two of them in the water), stringers and sway bracing under the deck
+    where the player sees them from the bank, and cut stone abutments at both
+    ends that reach real ground."""
 
-    # ---- deck: ONE watertight lofted slab, planks read as 5 mm risers ----
-    # The old deck was 9 loose plank boxes at 82-92 % of the bay length; the
-    # 40-80 mm gaps between them were holes you could see the stream through
-    # (measured: 6 of 83 sample rays down the centreline hit nothing at all).
-    # Here the planks share their edges, so the surface is continuous, and the
-    # plank line comes from a 5 mm step instead of a void.
-    # A 5 mm step between boards turned out to be invisible at the game
-    # camera -- the first rebuild's deck read as a brick mosaic.  So each
-    # joint gets a real 32 mm x 10 mm groove as well as the step: a genuine
-    # shadow line about 3 px wide on screen, and the slab stays continuous
-    # because the groove is a dish in the top surface, not a gap.
-    nplank = 22
+    cap_top = br_deck_top(0.0) - BR_TH - BR_STR_D       # top of the bent caps
+    # The bents' batter.  leg_base_y is set so the spread footing pad's outer
+    # face lands exactly on BR_Y -- otherwise the pads, not the kerb, decide
+    # the asset's width and it comes out at an accidental 1.72 m.
+    leg_top_y, leg_base_y = 0.500, 0.650
+
+    # ---- deck: ONE watertight lofted slab -------------------------------
+    # The 5 m asset this replaces was 9 loose plank boxes at 82-92 % of their
+    # bay length, and the 40-80 mm gaps between them were holes: 6 of 83
+    # sample rays straight down the centreline hit nothing at all.  Here the
+    # planks share their edges, and the plank line comes from a 32 mm x 10 mm
+    # groove plus a 6 mm step rather than from a void.  A 5 mm step on its own
+    # was tried first and was invisible at the game camera.
+    nplank = 34
     GW, GD = 0.016, 0.010
     lifts = [(0.0030 if (k % 2) else -0.0030) + rng.uniform(-0.0012, 0.0012)
              for k in range(nplank)]
-    stations = []          # (x, top offset from the deck curve)
+    stations = []
     for k in range(nplank):
-        x0 = -BR_DECK_END + 2.0 * BR_DECK_END * k / nplank
-        x1 = -BR_DECK_END + 2.0 * BR_DECK_END * (k + 1) / nplank
+        x0 = -BR_HALF + 2.0 * BR_HALF * k / nplank
+        x1 = -BR_HALF + 2.0 * BR_HALF * (k + 1) / nplank
         stations.append((x0 if k == 0 else x0 + GW, lifts[k]))
         stations.append((x1 if k == nplank - 1 else x1 - GW, lifts[k]))
         if k < nplank - 1:
@@ -944,121 +1084,87 @@ def a_bridge(bm, rng, seed):
         f.smooth = False
     bmesh.ops.recalc_face_normals(bm, faces=dfaces)
 
-    # ---- arch ribs: top face coincident with the deck soffit ------------
-    # Vertical section offsets, so the rib's top plane IS the deck's underside
-    # everywhere rather than drifting a millimetre off it on the slopes.
-    RIB_END = 2.16
-    xs = [-RIB_END + 2.0 * RIB_END * i / 24.0 for i in range(25)]
-    for sy in (-1, 1):
-        path, ht = [], []
-        for x in xs:
-            zt = br_deck_top(x) - BR_TH
-            zb = br_rib_soffit(x)
-            path.append(Vector((x, sy * BR_RIB_Y, (zt + zb) * 0.5)))
-            ht.append((zt - zb) * 0.5)
-        _beam(bm, path, BR_RIB_HW, ht, WOOD, vertical=True)
+    # ---- stringers: three runs from abutment to abutment ----------------
+    # They stop at the abutment's bearing shelf (4.40) rather than running on
+    # to 4.50: past the shelf the abutment steps up to carry the deck itself,
+    # and a stringer that continued would be buried inside the masonry.
+    str_end = BR_ABUT_X + 0.55
+    xs = [-str_end + 2.0 * str_end * i / 24.0 for i in range(25)]
+    for sy in (0.0, -0.50, 0.50):
+        path = [Vector((x, sy, br_deck_top(x) - BR_TH - BR_STR_D * 0.5))
+                for x in xs]
+        _run(bm, path, 0.055, BR_STR_D * 0.5, WOOD)
 
-    # ---- transverse bearers and plan bracing, seen from the water -------
-    BRACE_Y = BR_RIB_Y - BR_RIB_HW          # inner face of the ribs
-    for x in (-1.52, -0.76, 0.0, 0.76, 1.52):
-        zb = br_rib_soffit(x)
-        E.bm_box(bm, (x, 0.0, zb - 0.046),
-                 (0.100, 2.0 * (BR_RIB_Y + BR_RIB_HW), 0.092), WOOD)
-    bays = ((-1.52, -0.76), (-0.76, 0.0), (0.0, 0.76), (0.76, 1.52))
-    for (xa, xb) in bays:
-        za = br_rib_soffit(xa) + 0.055
-        zb = br_rib_soffit(xb) + 0.055
-        _obox(bm, (xa, -BRACE_Y + 0.030, za), (xb, BRACE_Y - 0.030, zb),
-              0.030, 0.026, WOOD)
-        _obox(bm, (xa, BRACE_Y - 0.030, za), (xb, -BRACE_Y + 0.030, zb),
-              0.030, 0.026, WOOD)
-
-    # ---- raking struts off the abutment faces ---------------------------
-    # They stop at x = 1.62, short of the 1.55 post's knee brace: at the 1.30
-    # they started life at, strut and brace shared 260 mm of the same volume.
+    # ---- the bents ------------------------------------------------------
     for sx in (-1, 1):
-        for sy in (-1, 1):
-            xr = sx * 1.62
-            _obox(bm, (sx * 1.93, sy * (BR_RIB_Y + BR_RIB_HW + 0.042),
-                       BR_BEAR_Z + 0.030),
-                  (xr, sy * (BR_RIB_Y + BR_RIB_HW + 0.042),
-                   br_rib_soffit(xr) + 0.075), 0.042, 0.040, WOOD, trim=True)
+        for bx in BR_BENTS:
+            x = sx * bx
+            zc = br_deck_top(x) - BR_TH - BR_STR_D          # cap top
+            zcb = zc - BR_CAP_D                              # cap underside
+            _member(bm, (x, -0.720, zc - BR_CAP_D * .5),
+                    (x, 0.720, zc - BR_CAP_D * .5), BR_CAP_D, BR_CAP_D, WOOD)
+            for sy in (-1, 1):
+                top = Vector((x, sy * leg_top_y, zcb))
+                base = Vector((x, sy * leg_base_y, BR_FOOT_Z))
+                _member(bm, base, top, 0.150, 0.150, WOOD)
+                # stone footing pad, base at z = 0 -- the lowest thing here
+                # ROCK_GREY, not the pale cut stone: at 160 mm of
+                # STEPPING these read as bright concrete slabs dropped on the
+                # grass, and they are the first thing the eye finds
+                E.bm_box(bm, (x, sy * leg_base_y, BR_FOOT_Z * .5),
+                         (0.360, 2.0 * (BR_Y - leg_base_y), BR_FOOT_Z),
+                         ROCK_GREY)
 
-    # ---- edge beam, posts and handrail ----------------------------------
-    # All of it lives in the 90 mm band OUTBOARD of the deck slab, between
-    # |y| = BR_DECK_Y and |y| = BR_Y.  The deck's edge plane and this band's
-    # inner plane are the same plane, so the rail frame butts the deck rather
-    # than hovering next to it, and nothing interpenetrates.
-    post_xs = [-2.30, -1.55, -0.63, 0.63, 1.55, 2.30]
-    hpost = BR_TOP - br_deck_top(0.63)      # so the tallest post == BR_TOP
-    pw = 0.045                               # post half size along X
-    yc = (BR_DECK_Y + BR_Y) * 0.5
-    yh = (BR_Y - BR_DECK_Y) * 0.5
+            def leg_y(z, sy):
+                t = (z - BR_FOOT_Z) / max(1e-6, zcb - BR_FOOT_Z)
+                return sy * (leg_base_y + (leg_top_y - leg_base_y) * t)
+
+            # X brace and ledger between the legs, landing on their inner faces
+            zlo = BR_FOOT_Z + (zcb - BR_FOOT_Z) * 0.22
+            zhi = BR_FOOT_Z + (zcb - BR_FOOT_Z) * 0.86
+            for sy in (-1, 1):
+                _member(bm, (x, leg_y(zlo, sy) - sy * 0.105, zlo),
+                        (x, leg_y(zhi, -sy) + sy * 0.105, zhi),
+                        0.070, 0.062, WOOD)
+            zm = BR_FOOT_Z + (zcb - BR_FOOT_Z) * 0.52
+            _member(bm, (x, leg_y(zm, -1) + 0.105, zm),
+                    (x, leg_y(zm, 1) - 0.105, zm), 0.090, 0.080, WOOD)
+
+    # ---- longitudinal sway bracing between the two stream bents ---------
+    zc0 = br_deck_top(0.85) - BR_TH - BR_STR_D - BR_CAP_D
+    zlo = BR_FOOT_Z + (zc0 - BR_FOOT_Z) * 0.30
+    zhi = zc0 - 0.16
     for sy in (-1, 1):
-        tops = []
-        for px in post_xs:
-            zt = br_deck_top(px)
-            # posts over the abutment are founded in the bank; the others hang
-            # on the edge beam and are trussed back to the rib by a knee brace
-            over_abut = abs(px) > 2.0
-            zbase = 0.020 if over_abut else br_rib_soffit(px) + 0.015
-            E.bm_box(bm, (px, sy * yc, (zt + hpost + zbase) * 0.5),
-                     (pw * 2.0, yh * 2.0, zt + hpost - zbase), WOOD)
-            tops.append((px, zt + hpost))
-            if not over_abut:
-                # the brace lands ON the post's inner face and ON the rib's
-                # outer face -- both ends butt, neither end is buried
-                xk = px - math.copysign(0.34, px)
-                _obox(bm, (px, sy * (BR_DECK_Y - 0.032), zbase + 0.045),
-                      (xk, sy * (BR_RIB_Y + BR_RIB_HW + 0.032),
-                       br_rib_soffit(xk) + 0.115), 0.032, 0.030, WOOD)
-        # edge beam between the posts: flush with the deck soffit below and
-        # standing 55 mm proud above it as a rub rail
-        for k in range(len(post_xs) - 1):
-            xa, xb = post_xs[k] + pw, post_xs[k + 1] - pw
-            steps = max(2, int((xb - xa) / 0.24) + 1)
-            path, ht = [], []
-            for i in range(steps + 1):
-                x = xa + (xb - xa) * i / steps
-                path.append(Vector((x, sy * yc, br_deck_top(x))))
-                ht.append(0.055)
-            _beam(bm, path, yh, ht, WOOD, vertical=True)
-        # top and mid rail: straight chords post face to post face, so BR_TOP
-        # is reached at the posts and never exceeded between them
-        for k in range(len(tops) - 1):
-            (xa, za), (xb, zb) = tops[k], tops[k + 1]
-            _obox(bm, (xa + pw, sy * yc, za - 0.038),
-                  (xb - pw, sy * yc, zb - 0.038), yh, 0.038, WOOD, trim=True)
-            _obox(bm, (xa + pw, sy * yc, za - 0.038 - hpost * 0.44),
-                  (xb - pw, sy * yc, zb - 0.038 - hpost * 0.44),
-                  yh * 0.70, 0.026, WOOD, trim=True)
+        # ride just inboard of the legs at those heights, so both ends land on
+        # timber rather than in it
+        ylo = sy * (leg_base_y - (leg_base_y - leg_top_y) * 0.30 - 0.105)
+        yhi = sy * (leg_base_y - (leg_base_y - leg_top_y) *
+                    ((zhi - BR_FOOT_Z) / (zc0 - BR_FOOT_Z)) - 0.105)
+        _member(bm, (-0.85, ylo, zlo), (0.85, yhi, zhi), 0.070, 0.062, WOOD)
+        _member(bm, (-0.85, yhi, zhi), (0.85, ylo, zlo), 0.070, 0.062, WOOD)
 
-    # ---- abutments: cut stone, founded at z = 0 (below the bank crest) ---
-    zback = BR_Z0 - BR_TH
+    # ---- abutments: cut stone, founded at z = 0 and buried in the bank ---
     for sx in (-1, 1):
-        # One solid, not two: a bearing shelf whose top is coplanar with the
-        # rib soffit for its whole length, stepping up at x = 2.22 to a back
-        # wall whose top is coplanar with the deck soffit, out to the bbox
-        # face.  Built as a single sweep so the two do not share a duplicated
-        # face at the step.
-        xs_ab = [(1.930, BR_BEAR_Z), (2.215, BR_BEAR_Z),
-                 (2.225, zback), (BR_HALF, zback)]
-        _beam(bm, [Vector((sx * x, 0, z * 0.5)) for (x, z) in xs_ab],
-              BR_DECK_Y, [z * 0.5 for (_x, z) in xs_ab], STEPPING,
-              vertical=True)
-        # rough stones bedded at the toe, where the masonry meets the bank.
-        # Their own base is measured and zeroed first: boulder() can leave a
-        # vertex a centimetre or two below its nominal ground plane, and one
-        # of those becoming the model's lowest point lifts the whole bridge
-        # off the deck curve the terrain pass was seated against.
-        # Fixed y slots 420 mm apart, so no two of them share volume -- the
-        # first pass scattered them at random and two pairs overlapped by more
-        # than a centimetre.  They DO bed into the abutment face on purpose:
-        # a stone half buried in the masonry toe is what stops the join
-        # between cut stone and bank reading as a cut line.
-        for (k, ys) in enumerate((-0.44, -0.02, 0.42)):
+        # The shelf's top follows the stringer soffit and the back wall's top
+        # follows the deck soffit, station by station -- a flat top taken from
+        # one x buries 11 mm of timber in the masonry at the other end of it,
+        # because the deck is cambered.
+        def zs(x):
+            return br_deck_top(x) - BR_TH - BR_STR_D
+        def zb(x):
+            return br_deck_top(x) - BR_TH
+        prof = [(BR_ABUT_X, zs(BR_ABUT_X)), (BR_ABUT_X + 0.55, zs(str_end)),
+                (BR_ABUT_X + 0.57, zb(BR_ABUT_X + 0.57)), (BR_HALF, zb(BR_HALF))]
+        _run(bm, [Vector((sx * x, 0, z * .5)) for (x, z) in prof],
+             BR_DECK_Y, [z * .5 for (_x, z) in prof], STEPPING)
+        # a coping course standing a little proud, so the masonry reads as
+        # courses rather than one slab, and rough stones bedded at the toe
+        cop = [BR_ABUT_X - 0.05, BR_ABUT_X + 0.18]
+        _run(bm, [Vector((sx * x, 0, zs(x) * .5)) for x in cop],
+             BR_DECK_Y + 0.035, [zs(x) * .5 for x in cop], STEPPING)
+        for (k, ys) in enumerate((-0.46, 0.0, 0.46)):
             tmp = bmesh.new()
-            boulder(tmp, rng, rng.uniform(0.095, 0.125), 1,
+            boulder(tmp, rng, rng.uniform(0.13, 0.17), 1,
                     seed + k * 7 + (0 if sx > 0 else 40), ROCK_GREY,
                     squash=0.58)
             me = bpy.data.meshes.new("t")
@@ -1066,10 +1172,50 @@ def a_bridge(bm, rng, seed):
             tmp.free()
             zlo = min(v.co.z for v in me.vertices)
             me.transform(Matrix.Translation(
-                (sx * rng.uniform(1.88, 1.97), ys + rng.uniform(-0.03, 0.03),
-                 rng.uniform(0.012, 0.040) - zlo)))
+                (sx * rng.uniform(3.70, 3.86), ys + rng.uniform(-0.03, 0.03),
+                 rng.uniform(0.30, 0.46) - zlo)))
             bm.from_mesh(me)
             bpy.data.meshes.remove(me)
+
+    # ---- kerb, posts and handrail ---------------------------------------
+    # All of it lives in the 100 mm band OUTBOARD of the deck slab, between
+    # |y| = BR_DECK_Y and |y| = BR_Y.  The deck's edge plane and this band's
+    # inner plane are the same plane, so the frame butts the deck instead of
+    # hovering beside it, and nothing shares volume with it.
+    post_xs = [0.0]
+    for v in (0.85, 1.70, 2.55, 3.40, 4.30):
+        post_xs = [-v] + post_xs + [v]
+    pw = 0.048
+    yc = (BR_DECK_Y + BR_Y) * 0.5
+    yh = (BR_Y - BR_DECK_Y) * 0.5
+    for sy in (-1, 1):
+        tops = []
+        for px in post_xs:
+            zt = br_deck_top(px)
+            zbase = zt - BR_TH - BR_STR_D - 0.02
+            E.bm_box(bm, (px, sy * yc, (zt + BR_RAIL_H + zbase) * 0.5),
+                     (pw * 2.0, yh * 2.0, zt + BR_RAIL_H - zbase), WOOD)
+            tops.append((px, zt + BR_RAIL_H))
+            # knee brace: post inner face to the outer stringer's outer face
+            xk = px - math.copysign(0.36, px) if px else 0.36
+            _member(bm, (px, sy * (BR_DECK_Y - 0.030), zbase + 0.030),
+                    (xk, sy * 0.585,
+                     br_deck_top(xk) - BR_TH - BR_STR_D + 0.055),
+                    0.058, 0.050, WOOD)
+        for k in range(len(post_xs) - 1):
+            xa, xb = post_xs[k] + pw, post_xs[k + 1] - pw
+            steps = max(2, int((xb - xa) / 0.30) + 1)
+            path = [Vector((xa + (xb - xa) * i / steps, sy * yc,
+                            br_deck_top(xa + (xb - xa) * i / steps)))
+                    for i in range(steps + 1)]
+            _run(bm, path, yh, 0.058, WOOD)
+        for k in range(len(tops) - 1):
+            (xa, za), (xb, zbb) = tops[k], tops[k + 1]
+            _rail(bm, xa + pw, za - 0.040, xb - pw, zbb - 0.040,
+                  sy * yc, yh, 0.040, WOOD)
+            _rail(bm, xa + pw, za - 0.040 - BR_RAIL_H * 0.44,
+                  xb - pw, zbb - 0.040 - BR_RAIL_H * 0.44,
+                  sy * yc, yh * 0.70, 0.028, WOOD)
 
 
 def a_riverbank(bm, rng, seed, length=4.0, drop=0.55):
@@ -1196,9 +1342,19 @@ ASSETS = [
     ("Env_Rock_Boulder_C", 3203, (250, 2000), "base",
      lambda bm, rng: a_rock_scatter(bm, rng, 1, 0.0, 0.60, 0.60, 303,
                                     (ROCK_GREY,))),
+    # ROCK_WARM, not STRATA.  cliff_strata is a *banded* swatch -- it earns its
+    # keep as one stripe up a cliff face, where the bedding planes have something
+    # to be layered relative to; wrapped around a free-standing boulder the bands
+    # are just noise.  It is also the darkest brown in the atlas (0.349, 0.307,
+    # 0.253) against rock_grey's cool (0.368, 0.377, 0.409), so D -- the largest
+    # boulder at 1.60 -- was the one dark object in every grey clump.  Warm rather
+    # than grey because A and C are already grey and B is already warm: warm keeps
+    # the 2/2 split that reads as variety, where a third grey would leave B as the
+    # new odd one out, and warm still sits in the same hue family as the strata
+    # cliffs D is usually found beneath.
     ("Env_Rock_Boulder_D", 3204, (300, 2000), "base",
      lambda bm, rng: a_rock_scatter(bm, rng, 1, 0.0, 1.60, 1.60, 404,
-                                    (STRATA,))),
+                                    (ROCK_WARM,))),
     ("Env_Rock_Boulder_Mossy_E", 3205, (300, 2000), "base",
      lambda bm, rng: a_rock_scatter(bm, rng, 1, 0.0, 1.00, 1.00, 505,
                                     (MOSS_ROCK,))),
@@ -1275,6 +1431,24 @@ SMOOTH_OVERRIDE = {
     "Env_Stepping_Stones": SPLIT_ANGLE_BUILT,
 }
 
+# Assets big enough that a per-face unique unwrap starves them of texels.
+# See the comment in finish().
+UV_MODE = {
+    "Env_Cave_Arch": "box",
+}
+
+ASSET_NOTES = {
+    "Env_Cave_Arch":
+        "Directional: the mouth faces the model's +Z in Unity, so the level's "
+        "facingYaw points it at the player. Pivot is base / XY-centred as usual, "
+        "which puts the mouth plane 1.95 m in FRONT of the pivot along +Z -- set "
+        "the pivot 1.95 m behind the declared mouth position or the stone sits "
+        "that far out into the gorge. Carries a Col vertex-colour attribute: "
+        "blue is the vertex-occlusion mask PokeLabPropGroundBlend multiplies "
+        "ambient by, near zero down the throat. Import vertex colours on this "
+        "mesh; discarding them puts the light back into the cave.",
+}
+
 
 def split_normals(obj, angle=SPLIT_ANGLE, material_breaks=True):
     """Harden the shading normals in place. No vertices move."""
@@ -1308,7 +1482,20 @@ def finish(bm, name, ms, budget, pivot, smooth=SPLIT_ANGLE):
     else:
         E.pivot_to_base(obj)
     E.apply_transforms(obj)
-    E.uv_all(obj, ms, angle=62.0, margin=0.012)
+    if UV_MODE.get(name) == "box":
+        # Smart-project gives every face its own island, and uv_pack_into_cells
+        # then squeezes a material's whole island layout into one 1/4 x 1/4 atlas
+        # cell.  Those two together set texel density by *face count*: measured on
+        # the cave mouth, 512 ROCK_WARM faces came out at a median UV footprint of
+        # 1.6 px of a 512 px cell -- one texel per face, i.e. a flat colour per
+        # face, which is the second half of the mosaic.  A box map instead keeps
+        # neighbouring faces neighbours in UV, so the rock texture runs across the
+        # wall continuously.  Only worth it on the big, mostly-slab pieces; the
+        # 250-tri boulders have enough room per face already.
+        E.uv_box_walls(obj, margin=0.006)
+        E.uv_pack_into_cells(obj, ms)
+    else:
+        E.uv_all(obj, ms, angle=62.0, margin=0.012)
     # Last, deliberately. UV unwrapping goes through bmesh and operators that
     # rewrite the mesh datablock, and edge sharpness set before that point is not
     # guaranteed to survive the round trip.
@@ -1332,6 +1519,13 @@ def main():
         fn(bm, rng)
         obj, tris, probs = finish(bm, name, ms, budget, pivot,
                                   smooth=SMOOTH_OVERRIDE.get(name, SPLIT_ANGLE))
+        if name == "Env_Cave_Arch":
+            # order matters: the normal fix round-trips through bmesh, which
+            # would drop a colour attribute added before it
+            cave_fix_bore_normals(obj)
+            obj.data.use_auto_smooth = True
+            obj.data.auto_smooth_angle = math.radians(SPLIT_ANGLE)
+            cave_occlusion_vcol(obj)
         path = os.path.join(OUT, name + ".fbx")
         lods = []
         if tris > 2000:
@@ -1358,7 +1552,15 @@ def main():
             "textures": [os.path.relpath(ap["base"], E.REPO).replace("\\", "/"),
                          os.path.relpath(ap["normal"], E.REPO).replace("\\", "/")],
             "windVertexColors": False,
-            "notes": "",
+            # build_manifest classifies every Terrain subfamily in ROCKY --
+            # "Bridge" included -- as a rock, and holds it to 300-2000 tris.
+            # The 9 m trestle is a built structure, not a boulder, and its own
+            # entry in ASSETS above budgets it at 900-6000 like the buildings.
+            # Declaring the class here is the documented way to say so; it
+            # does not move any budget, it puts the asset in the right one.
+            **({"budgetClass": "building"}
+               if name == "Env_Bridge_Wood" else {}),
+            "notes": ASSET_NOTES.get(name, ""),
         })
         E.delete_obj(obj)
 
