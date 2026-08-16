@@ -233,6 +233,12 @@ namespace PokeLab.Boot.Editor
 
             go.AddComponent<PlayerInteractor>();
 
+            // A CharacterController reports its hits to itself, never to what it hit, so the
+            // shoreline wall cannot notice the player walking into it. This is the half that
+            // can, and without it the player stops at an invisible wall with no explanation
+            // — worse than letting them in.
+            go.AddComponent<WaterEdgeResponder>();
+
             // Grass parts around whatever walks through it; the player is the first thing
             // that does.
             go.AddComponent<FoliageInteractor>();

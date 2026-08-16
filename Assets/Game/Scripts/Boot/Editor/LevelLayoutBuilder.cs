@@ -321,7 +321,99 @@ namespace PokeLab.Boot.Editor
 
                 go.isStatic = true;
                 SetLayer(go, "Water");
+
+                BuildShoreline(body, mesh, go.transform);
             }
+        }
+
+        /// <summary>
+        /// Raises a wall along the waterline that the player cannot walk through.
+        ///
+        /// The lake used to be open, and a player with no way across simply waded to the
+        /// middle of it and fell out of the world. Turning them back after the fact was the
+        /// first repair and is the wrong shape: they have already stepped into the lake and
+        /// been moved by something they did not do. The series never lets the step happen,
+        /// so neither does this.
+        ///
+        /// The wall is derived from the water mesh's own boundary — the edges belonging to
+        /// exactly one triangle — rather than from the shore polygon, because the two are
+        /// authored separately and would drift apart. One combined curtain mesh is used
+        /// instead of a collider per edge: a lake this size has hundreds of boundary edges,
+        /// and hundreds of colliders to stop the player entering water they should not be
+        /// in is a poor trade.
+        /// </summary>
+        private static void BuildShoreline(WaterSurface body, Mesh surface, Transform parent)
+        {
+            const float WallHeight = 3f;
+            const float Skirt = 1.5f;
+
+            var triangles = surface.triangles;
+            var vertices = surface.vertices;
+
+            // An edge shared by two triangles is interior; one used once is the outline.
+            var seen = new Dictionary<long, int>(triangles.Length);
+            for (var i = 0; i < triangles.Length; i += 3)
+            {
+                AddEdge(seen, triangles[i], triangles[i + 1]);
+                AddEdge(seen, triangles[i + 1], triangles[i + 2]);
+                AddEdge(seen, triangles[i + 2], triangles[i]);
+            }
+
+            var wallVerts = new List<Vector3>();
+            var wallTris = new List<int>();
+            foreach (var pair in seen)
+            {
+                if (pair.Value != 1) continue;
+                var a = vertices[(int)(pair.Key >> 32)];
+                var b = vertices[(int)(pair.Key & 0xFFFFFFFF)];
+
+                var baseIndex = wallVerts.Count;
+                wallVerts.Add(a + Vector3.down * Skirt);
+                wallVerts.Add(b + Vector3.down * Skirt);
+                wallVerts.Add(a + Vector3.up * WallHeight);
+                wallVerts.Add(b + Vector3.up * WallHeight);
+
+                // Both windings, so the curtain stops the player from either side. A
+                // one-sided collider lets anything that starts on the wrong side walk out
+                // through it, and a cutscene or a warp can put the player on either.
+                wallTris.AddRange(new[] { baseIndex, baseIndex + 2, baseIndex + 1,
+                                          baseIndex + 2, baseIndex + 3, baseIndex + 1,
+                                          baseIndex + 1, baseIndex + 2, baseIndex,
+                                          baseIndex + 1, baseIndex + 3, baseIndex + 2 });
+            }
+
+            if (wallVerts.Count == 0)
+            {
+                Debug.LogWarning($"[Level] {body.name} has no boundary edges, so no shoreline " +
+                                 "was built and the player can walk straight into it.");
+                return;
+            }
+
+            var wallMesh = new Mesh { name = body.name + "_Shoreline" };
+            wallMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            wallMesh.SetVertices(wallVerts);
+            wallMesh.SetTriangles(wallTris, 0);
+            wallMesh.RecalculateBounds();
+
+            var wall = new GameObject(body.name + "_Shoreline");
+            wall.transform.SetParent(parent, false);
+            // No renderer at all. A wall the player can see is a wall they will test.
+            var collider = wall.AddComponent<MeshCollider>();
+            collider.sharedMesh = wallMesh;
+            collider.convex = false;
+            wall.AddComponent<PokeLab.Overworld.WaterEdge>();
+            wall.isStatic = true;
+            SetLayer(wall, "Environment");
+        }
+
+        private static void AddEdge(Dictionary<long, int> seen, int a, int b)
+        {
+            // Keyed on the ordered pair so the two triangles sharing an edge land on the
+            // same key whichever way round each of them wound it.
+            var lo = Mathf.Min(a, b);
+            var hi = Mathf.Max(a, b);
+            var key = ((long)lo << 32) | (uint)hi;
+            seen[key] = seen.TryGetValue(key, out var count) ? count + 1 : 1;
         }
 
         // --- scattered detail ------------------------------------------------------------
