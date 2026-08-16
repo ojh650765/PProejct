@@ -4,6 +4,7 @@
 TagManager:
   serializedVersion: 3
   tags:
+  - Player
   - WildCreature
   - Trainer
   - Npc
@@ -22,7 +23,7 @@ TagManager:
   - UI
   - 
   - 
-  - Terrain
+  - Ground
   - Creature
   - Foliage
   - Prop
@@ -31,8 +32,8 @@ TagManager:
   - EncounterZone
   - BattleStage
   - Vfx
-  - 
-  - 
+  - Environment
+  - ZoneTrigger
   - 
   - 
   - 

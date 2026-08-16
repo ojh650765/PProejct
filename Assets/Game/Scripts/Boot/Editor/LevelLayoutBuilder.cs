@@ -102,6 +102,7 @@ namespace PokeLab.Boot.Editor
                 BuildFoliage(layout, root.transform, parents, missing, stats);
                 BuildTallGrass(layout, root.transform, parents);
                 BuildCaveEntrances(layout, root.transform, parents);
+                BuildBarriers(layout, root.transform, parents);
                 BuildSceneLinks(layout, root.transform, parents);
                 BuildPeople(layout, root.transform, parents);
                 BuildAnchors(layout, root.transform, parents);
@@ -135,6 +136,7 @@ namespace PokeLab.Boot.Editor
                 $"instances in {stats.FoliageGroups} instanced group(s), " +
                 $"{layout.tallGrass?.Length ?? 0} grass triggers, " +
                 $"{layout.caveEntrances?.Length ?? 0} cave entrance(s), " +
+                $"{layout.barrierVolumes?.Length ?? 0} barrier(s), " +
                 $"{layout.sceneLinks?.Length ?? 0} scene link(s), " +
                 $"{layout.npcs?.Length ?? 0} npc(s), {layout.trainers?.Length ?? 0} trainer(s), " +
                 $"{layout.ambientAnchors?.Length ?? 0} anchors.");
@@ -172,6 +174,16 @@ namespace PokeLab.Boot.Editor
             var environment = LayerMask.NameToLayer("Environment");
             var interactable = LayerMask.NameToLayer("Interactable");
             surface.layerMask = MaskOf(ground) | MaskOf(environment) | MaskOf(interactable);
+
+            // A bake over no layers succeeds and produces nothing, so say so here. Every
+            // agent then fails to spawn, and the error it raises names the agent rather
+            // than the mask that excluded the entire world.
+            if (surface.layerMask == 0)
+            {
+                Debug.LogError("[Level] None of the navmesh layers (Ground, Environment, " +
+                               "Interactable) exist, so the bake has nothing to walk on. " +
+                               "Every NPC will report 'not close enough to the NavMesh'.");
+            }
 
             // Matched to PlayerLocomotion so what the agents can walk is what the player
             // can walk. A navmesh built to different limits sends NPCs up slopes the
@@ -659,6 +671,39 @@ namespace PokeLab.Boot.Editor
             yield return new Vector3(max.x, max.y, max.z);
         }
 
+        /// <summary>
+        /// Builds the invisible walls that close the town.
+        ///
+        /// The boundary wood is drawn as instanced foliage, which means it has no colliders
+        /// at all — <c>Graphics.DrawMeshInstanced</c> submits geometry to the renderer and
+        /// nothing else. Five hundred tree colliders would be the obvious answer and is the
+        /// wrong one: it is five hundred physics bodies to stop the player walking into a
+        /// wall they should never be able to reach, and the gaps between round trunks would
+        /// still let them wedge through. So the wood is scenery and these boxes are the
+        /// boundary, overlapped at every turn so the run has no seams.
+        ///
+        /// They carry no renderer deliberately. A barrier the player can see is a barrier
+        /// they will test.
+        /// </summary>
+        private static void BuildBarriers(Layout layout, Transform root,
+            Dictionary<string, Transform> parents)
+        {
+            foreach (var volume in layout.barrierVolumes ?? Array.Empty<BarrierVolume>())
+            {
+                var go = new GameObject(volume.name);
+                go.transform.SetParent(ResolveParent(root, parents, "Barriers"), false);
+                go.transform.localPosition = ToVector(volume.centre);
+                go.transform.localRotation = Quaternion.Euler(0f, volume.yawDegrees, 0f);
+
+                var box = go.AddComponent<BoxCollider>();
+                // The emitter gives full extents and sinks the box a metre into the ground,
+                // so the centre is already where it belongs — no half-height offset here.
+                box.size = ToVector(volume.size, Vector3.one);
+
+                SetLayer(go, string.IsNullOrEmpty(volume.layer) ? "Environment" : volume.layer);
+            }
+        }
+
         private static void BuildAnchors(Layout layout, Transform root,
             Dictionary<string, Transform> parents)
         {
@@ -704,10 +749,34 @@ namespace PokeLab.Boot.Editor
             return current;
         }
 
+        /// <summary>
+        /// Layers that were asked for but do not exist, reported once per build rather
+        /// than once per object.
+        ///
+        /// This used to return silently, and that silence cost a great deal. `Ground`,
+        /// `Environment` and `ZoneTrigger` are all named in <c>OverworldNames</c> and were
+        /// never added to TagManager, so every ground chunk and every prop in the level
+        /// landed on Default. The navmesh bake masks on exactly those layers, so it was
+        /// baking over an empty set — which surfaced as "Failed to create agent because it
+        /// is not close enough to the NavMesh" and read like an NPC placement fault, when
+        /// in fact there was no walkable surface anywhere in the scene.
+        /// </summary>
+        private static readonly HashSet<string> MissingLayers = new HashSet<string>();
+
         private static void SetLayer(GameObject go, string layerName)
         {
             var layer = LayerMask.NameToLayer(layerName);
-            if (layer < 0) return;
+            if (layer < 0)
+            {
+                if (MissingLayers.Add(layerName))
+                {
+                    Debug.LogWarning(
+                        $"[Level] Layer '{layerName}' is not declared, so everything the " +
+                        "layout assigns to it stays on Default. Physics queries and the " +
+                        "navmesh bake filter on these names — add it under Tags and Layers.");
+                }
+                return;
+            }
             foreach (var t in go.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = layer;
         }
 
@@ -733,6 +802,7 @@ namespace PokeLab.Boot.Editor
             public Anchor[] ambientAnchors;
             public GrassTrigger[] tallGrass;
             public CaveEntrance[] caveEntrances;
+            public BarrierVolume[] barrierVolumes;
             public SceneLink[] sceneLinks;
             public NpcRecord[] npcs;
             public TrainerRecord[] trainers;
@@ -800,6 +870,16 @@ namespace PokeLab.Boot.Editor
             public float[] position;
             public float facingYaw;
             public float[] size;
+        }
+
+        [Serializable]
+        private sealed class BarrierVolume
+        {
+            public string name;
+            public float[] centre;
+            public float[] size;
+            public float yawDegrees;
+            public string layer;
         }
 
         [Serializable]
