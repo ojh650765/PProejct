@@ -388,6 +388,26 @@ def subdivide(tri, max_edge):
     return out
 
 
+def mask_stream_channel(rows, x0, z0, step, line, half_width, lake_y):
+    """Copy of the height grid with the stream's own channel raised out of reach.
+
+    The lake outline is traced from wherever the terrain crosses the waterline, which
+    is right — except that the stream's bed is cut 0.5 m below the stream's *own*
+    surface, so upstream of the lake it is still below the lake's level. The trace
+    followed it up the channel and claimed 20 of the stream's 77 points, leaving two
+    water surfaces stacked over the same ground with the stream floating up to 0.49 m
+    above the lake. Masking the channel where the stream still runs above lake level
+    stops that without touching the honest shoreline anywhere else.
+    """
+    out = [list(r) for r in rows]
+    for iz in range(len(out)):
+        for ix in range(len(out[0])):
+            x, z = x0 + ix * step, z0 + iz * step
+            d, pt, _ = closest_on_polyline(x, z, line)
+            if d <= half_width + 1.2 and pt[1] > lake_y + 0.05:
+                out[iz][ix] = 99.0
+    return out
+
 def build_stream(body, grid):
     """A flowing ribbon whose surface falls along its length.
 
@@ -485,7 +505,14 @@ def build_water(layout, grid):
         # surface ended in mid-slope with a dry pit beside it and its own edge standing
         # proud of the ground. The waterline is not a design choice — it is wherever the
         # terrain crosses this height — so it is derived here.
-        traced = contour(grid.rows, grid.x0, grid.z0, grid.step, y)
+        rows = grid.rows
+        for other in layout["terrain"].get("water", []):
+            if "centreline" not in other:
+                continue
+            line = [tuple(float(v) for v in p) for p in other["centreline"]]
+            rows = mask_stream_channel(rows, grid.x0, grid.z0, grid.step, line,
+                                       float(other.get("halfWidth", 1.5)), y)
+        traced = contour(rows, grid.x0, grid.z0, grid.step, y)
         poly = traced if len(traced) >= 3 else [
             (float(p[0]), float(p[1])) for p in body.get("polygon", [])]
         if len(poly) < 3:

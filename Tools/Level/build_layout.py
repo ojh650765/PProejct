@@ -994,7 +994,13 @@ def build():
     # =====================================================================
     LAKE = "Lakeside"
     b.place("Env_Bridge_Wood", 13.6, 18.2, yaw_towards(3.1, 2.4) + 90.0, ROUTE + "/Terrain",
-            "Route_Bridge", y=0.06)
+            # -1.194, not the road's 0.06. The asset's pivot is at the base of its
+            # structure while the walking surface is the top of its 1.12 m bounding
+            # box, so seating the pivot at road level floats the deck a metre above
+            # the road it is supposed to continue. This is the figure the deck
+            # actually lands at; it is a property of the asset, and it moves when the
+            # bridge is rebuilt longer.
+            "Route_Bridge", y=-1.194)
     b.place("Env_Stepping_Stones", 33.2, 15.6, yaw_towards(4.0, 4.0) + 90.0,
             LAKE + "/Terrain", "Lake_SteppingStones", y=-1.55)
     # No waterfall lip. Env_Waterfall_Shelf is the overhanging lip only -- the falling
