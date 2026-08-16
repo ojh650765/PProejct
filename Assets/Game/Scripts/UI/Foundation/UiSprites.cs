@@ -167,6 +167,121 @@ namespace PokeLab.UI
             return Store(key, texture, Vector4.zero);
         }
 
+        // ------------------------------------------------------------- overlay art
+
+        /// <summary>
+        /// A vertical alpha ramp: solid along the bottom edge, gone at the top. Draw it with
+        /// <see cref="UnityEngine.UI.Image.Type.Simple"/> so it stretches to any height.
+        ///
+        /// The conversation overlay needs a top edge nobody can point at. A hard-edged
+        /// translucent bar over a lit scene reads as a rectangle laid on the picture; the
+        /// same value arrived at over eighty pixels reads as the picture darkening, which is
+        /// the whole reason the reference composition keeps the art as the subject.
+        /// </summary>
+        public static Sprite VerticalFade(int height = 64, float gamma = 1.7f)
+        {
+            height = Mathf.Clamp(height, 4, 256);
+            var key = $"vfade:{height}:{gamma:0.00}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(4, height);
+            var span = Mathf.Max(1f, height - 1f);
+            ForEachPixel(texture, p =>
+            {
+                // Row 0 is the bottom in texture space, which is the solid end.
+                var t = Mathf.Clamp01((p.y - 0.5f) / span);
+                return new Color(1f, 1f, 1f, Mathf.Pow(1f - t, gamma));
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// A hairline that starts hard at its left end and dissolves before its right one.
+        ///
+        /// A rule that runs edge to edge draws a box; a rule that fades out draws an
+        /// underline that happens to be long. The reference does the latter, and it is what
+        /// keeps the composition from re-acquiring the panel it just got rid of.
+        /// </summary>
+        public static Sprite FadeRule(int length = 256, float solidFraction = 0.72f)
+        {
+            length = Mathf.Clamp(length, 8, 1024);
+            solidFraction = Mathf.Clamp01(solidFraction);
+            var key = $"faderule:{length}:{solidFraction:0.00}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(length, 4);
+            var span = Mathf.Max(1f, length - 1f);
+            ForEachPixel(texture, p =>
+            {
+                var x = Mathf.Clamp01((p.x - 0.5f) / span);
+                var a = x <= solidFraction ? 1f : 1f - Mathf.InverseLerp(solidFraction, 1f, x);
+                return new Color(1f, 1f, 1f, a * a);
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// A horizontally sheared slab: horizontal top and bottom, leaning left and right
+        /// edges. Because only the ends lean, the shape nine-slices cleanly across its width
+        /// and one sprite serves a 90px button and a 700px choice row at the same lean.
+        /// </summary>
+        public static Sprite Slant(int height = 40, int slant = 8)
+        {
+            height = Mathf.Clamp(height, 6, 160);
+            slant = Mathf.Clamp(slant, 0, height);
+            var key = $"slant:{height}:{slant}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var width = slant * 2 + 12;
+            var texture = NewTexture(width, height);
+            ForEachPixel(texture, p => new Color(1f, 1f, 1f,
+                UiShapes.Coverage(SlantDistance(p, width, height, slant, 0f))));
+
+            var inset = slant + 5;
+            return Store(key, texture, new Vector4(inset, 0f, inset, 0f));
+        }
+
+        /// <summary>Hollow counterpart to <see cref="Slant"/> — the leaning rim on its own.</summary>
+        public static Sprite SlantFrame(int height = 40, int slant = 8, int border = 2)
+        {
+            height = Mathf.Clamp(height, 6, 160);
+            slant = Mathf.Clamp(slant, 0, height);
+            border = Mathf.Clamp(border, 1, 8);
+            var key = $"slantFrame:{height}:{slant}:{border}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var width = slant * 2 + 12;
+            var texture = NewTexture(width, height);
+            ForEachPixel(texture, p =>
+            {
+                var outer = SlantDistance(p, width, height, slant, 0f);
+                var inner = SlantDistance(p, width, height, slant, border);
+                return new Color(1f, 1f, 1f, UiShapes.Coverage(UiShapes.Subtract(outer, inner)));
+            });
+
+            var inset = slant + 5;
+            return Store(key, texture, new Vector4(inset, 0f, inset, 0f));
+        }
+
+        /// <summary>
+        /// Signed distance to the sheared slab. The shear is applied to the sample point
+        /// rather than to the box, which keeps the top and bottom edges exactly horizontal —
+        /// rotating the box instead would lean those too and the slab would read as a
+        /// crooked rectangle rather than a deliberate one.
+        /// </summary>
+        private static float SlantDistance(Vector2 p, int width, int height, int slant, float inset)
+        {
+            var centre = new Vector2(width * 0.5f, height * 0.5f);
+            var shear = slant / Mathf.Max(1f, height - 1f);
+            var q = new Vector2(p.x - shear * (p.y - centre.y), p.y);
+            var half = new Vector2(
+                width * 0.5f - slant * 0.5f - 1f - inset,
+                height * 0.5f - 1f - inset);
+            return UiShapes.RoundedBox(q, centre, half, 1f);
+        }
+
         // -------------------------------------------------------------- device art
 
         /// <summary>

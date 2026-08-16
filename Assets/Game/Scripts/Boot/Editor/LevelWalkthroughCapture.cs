@@ -127,7 +127,22 @@ namespace PokeLab.Boot.Editor
             foreach (var director in UnityEngine.Object.FindObjectsByType<PokeLab.Vfx.LightingDirector>(
                          FindObjectsInactive.Exclude, FindObjectsSortMode.None))
             {
-                director.ApplyImmediate();
+                // Caught rather than allowed to propagate: a lighting failure should
+                // cost the frames their lighting, not cost us the frames. Losing the
+                // whole capture to it is how a review pass turns into a debugging
+                // session about the review tool.
+                try
+                {
+                    director.EnsureInitialised();
+                    director.ApplyImmediate();
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[Capture] LightingDirector on '{director.name}' " +
+                                     $"could not publish its globals ({e.GetType().Name}); " +
+                                     "frames will render with whatever ambient is already " +
+                                     "set, which is usually none. " + e.Message);
+                }
             }
 
             var stations = request.stations;

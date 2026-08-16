@@ -109,6 +109,113 @@ namespace PokeLab.UI
             return text;
         }
 
+        /// <summary>
+        /// Families tried, in order, when <see cref="EnsureFont"/> has to find one itself.
+        /// Every entry must carry Hangul as well as Latin — the dialogue writes both, often
+        /// in the same line.
+        /// </summary>
+        private static readonly string[] FallbackFamilies =
+        {
+            "Malgun Gothic",     // ships with every Korean-capable Windows install
+            "Noto Sans KR",
+            "NanumGothic",
+            "Nanum Gothic",
+            "Source Han Sans K",
+            "Arial Unicode MS",
+        };
+
+        private static bool _fontSearched;
+
+        /// <summary>
+        /// Makes sure <see cref="Font"/> points at something that can actually draw the
+        /// script the game is written in.
+        ///
+        /// TextMesh Pro's built-in default is Liberation Sans: Latin only. Every Korean
+        /// character in a dialogue line renders as a missing-glyph box against it, and the
+        /// failure is silent — the layout is correct, the text is simply not there. Until the
+        /// integrator assigns a real font asset, this borrows an installed OS font as a
+        /// dynamic atlas, which costs no committed asset and no package dependency.
+        ///
+        /// Returns whatever <see cref="Font"/> ends up as, including null when nothing
+        /// suitable is installed; callers should treat null as "Latin only" and say so
+        /// rather than assume it worked.
+        /// </summary>
+        public static TMP_FontAsset EnsureFont()
+        {
+            if (Font != null || _fontSearched) return Font;
+            _fontSearched = true;
+
+            try
+            {
+                for (var i = 0; i < FallbackFamilies.Length; i++)
+                {
+                    // CreateFontAsset resolves the family through the font engine and returns
+                    // null (with a log line) when the machine does not have it. That is the
+                    // whole probe — asking UnityEngine.Font for the installed list would drag
+                    // in the legacy text module for no extra certainty.
+                    var asset = TMP_FontAsset.CreateFontAsset(FallbackFamilies[i], "Regular");
+                    if (asset == null) continue;
+
+                    asset.name = "UiRuntimeFont(" + FallbackFamilies[i] + ")";
+                    asset.hideFlags = HideFlags.HideAndDontSave;
+                    Font = asset;
+                    return Font;
+                }
+
+                Debug.LogWarning("[UiType] No Hangul-capable system font found among ["
+                                 + string.Join(", ", FallbackFamilies)
+                                 + "]. Korean text will render as missing-glyph boxes until a "
+                                 + "font asset is assigned to UiType.Font.");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[UiType] Runtime font resolution failed; falling back to the "
+                                 + "TMP default, which has no Hangul coverage. " + e.Message);
+            }
+
+            return Font;
+        }
+
+        /// <summary>
+        /// Turns on TMP's material underlay so a label reads over a lit scene rather than
+        /// only over a panel.
+        ///
+        /// This is the single thing that makes an overlay caption legible: the scrim buys
+        /// average contrast, but a white glyph landing on a highlight in the art still
+        /// disappears, and only a shadow tied to the glyph itself fixes that. Touching
+        /// <c>fontMaterial</c> instantiates a material for this label, which is the cost of
+        /// per-label underlay and is why this is opt-in rather than part of a role.
+        /// </summary>
+        public static void ApplyShadow(TMP_Text text, Color? color = null,
+            float offsetX = 0.4f, float offsetY = -0.4f, float softness = 0.28f, float dilate = 0.12f)
+        {
+            if (text == null) return;
+            try
+            {
+                var material = text.fontMaterial;
+                if (material == null || !material.HasProperty(UnderlayColorId)) return;
+
+                material.EnableKeyword("UNDERLAY_ON");
+                material.SetColor(UnderlayColorId, color ?? UiPalette.TextShadow);
+                material.SetFloat(UnderlayOffsetXId, offsetX);
+                material.SetFloat(UnderlayOffsetYId, offsetY);
+                material.SetFloat(UnderlayDilateId, dilate);
+                material.SetFloat(UnderlaySoftnessId, softness);
+            }
+            catch (System.Exception e)
+            {
+                // A font asset on a shader without the underlay pass is a legitimate setup;
+                // losing the shadow is a cosmetic downgrade, not a reason to fail a line.
+                Debug.LogWarning("[UiType] Text shadow unavailable on this material: " + e.Message);
+            }
+        }
+
+        private static readonly int UnderlayColorId = Shader.PropertyToID("_UnderlayColor");
+        private static readonly int UnderlayOffsetXId = Shader.PropertyToID("_UnderlayOffsetX");
+        private static readonly int UnderlayOffsetYId = Shader.PropertyToID("_UnderlayOffsetY");
+        private static readonly int UnderlayDilateId = Shader.PropertyToID("_UnderlayDilate");
+        private static readonly int UnderlaySoftnessId = Shader.PropertyToID("_UnderlaySoftness");
+
         private static Color DefaultColor(UiTextRole role) => role switch
         {
             UiTextRole.Overline => UiPalette.TextMuted,

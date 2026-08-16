@@ -49,6 +49,40 @@ namespace PokeLab.UI
         /// <summary>Screen glass, before the glow layer.</summary>
         public static readonly Color ScannerGlass = Hex("#071417");
 
+        // ------------------------------------------------- conversation overlay
+
+        /// <summary>
+        /// The wash the conversation overlay lays over the world.
+        ///
+        /// Cool and very dark, but never opaque. A conversation in this game happens in the
+        /// middle of a scene the player is looking at, and an opaque box would cover the NPC
+        /// they are talking to. The scrim exists to buy contrast for white text, nothing more.
+        /// </summary>
+        public static readonly Color Scrim = Hex("#080D16");
+
+        /// <summary>Scrim strength behind the speaker's name row.</summary>
+        public const float ScrimNameAlpha = 0.50f;
+
+        /// <summary>Scrim strength behind the body copy. Heavier — it carries far more text.</summary>
+        public const float ScrimBodyAlpha = 0.62f;
+
+        /// <summary>
+        /// The hairline that separates the name row from the body copy. Much brighter than
+        /// <see cref="Divider"/>: this one has to survive on top of a lit 3D scene rather
+        /// than on a flat panel.
+        /// </summary>
+        public static readonly Color RuleBright = new Color(1f, 1f, 1f, 0.66f);
+
+        /// <summary>
+        /// Fill of the small overlay controls (AUTO / MENU). Near-white on purpose: they are
+        /// the one deliberately high-contrast element, which is what stops the player having
+        /// to hunt for them against a bright scene.
+        /// </summary>
+        public static readonly Color ControlSlab = new Color(0.929f, 0.949f, 0.969f, 0.90f);
+
+        /// <summary>Shadow cast under overlay text so it holds up over light pixel art.</summary>
+        public static readonly Color TextShadow = new Color(0f, 0.02f, 0.06f, 0.85f);
+
         // --------------------------------------------------------------- semantic
 
         public static readonly Color Positive = Hex("#4ADE80");

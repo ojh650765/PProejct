@@ -49,6 +49,10 @@ namespace PokeLab.Overworld
         [Tooltip("Name as shown in the name plate.")]
         public string SpeakerName;
 
+        [Tooltip("Small label beside the name — affiliation, role, or the place the line is spoken "
+                 + "from ('Pewter Gym', '연구소'). Optional; the name plate collapses without it.")]
+        public string SpeakerSubtitle;
+
         [TextArea(2, 6)]
         public string Text;
 

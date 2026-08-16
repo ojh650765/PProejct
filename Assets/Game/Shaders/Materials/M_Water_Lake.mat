@@ -39,20 +39,24 @@ Material:
     - _WaveSpeed: 0.65
     - _WaveSteepness: 0.35
     - _RefractionStrength: 0.035
-    # Foam pulled back to the shoreline. At the default 2.2 the noise cell is under
-    # half a metre, which across a 32 m lake is 70 repeats of the same shape -- the
-    # regular white lattice the surface was showing.
-    - _FoamDepth: 0.5
+    # Foam sized between the two failures. The shader default of 2.2 is a cell under
+    # half a metre, which repeats ~70 times across a 32 m lake and reads as a white
+    # lattice; dropping it to 0.42 overshot the other way into 2.4 m cotton-wool
+    # blobs floating in open water. 1.1 puts the cell near 0.9 m. Crest foam is
+    # nearly off because foam belongs at the shore, and the crest term was what put
+    # it out in the middle.
+    - _FoamDepth: 0.35
     - _FoamSharpness: 2.2
-    - _FoamScale: 0.42
+    - _FoamScale: 1.1
     - _FoamSpeed: 0.22
-    - _FoamCrest: 0.3
+    - _FoamCrest: 0.1
     - _ShoreBandSpeed: 0.9
-    # Same problem, same cause. 1.6 gives a 0.6 m caustic cell, which tiles ~50
-    # times across the lake and reads as a woven grid; 0.3 puts the cell at about
-    # 3 m, which is the scale caustics actually appear at.
-    - _CausticStrength: 0.65
-    - _CausticScale: 0.3
+    # Same correction. 1.6 gives a 0.6 m cell that tiles ~50 times across the lake
+    # and weaves into a grid; 0.3 gave 3.3 m and turned the pattern into large soft
+    # islands. 0.85 lands near 1.2 m, and the strength is down as well because these
+    # only belong in water shallow enough to see the bed through.
+    - _CausticStrength: 0.45
+    - _CausticScale: 0.85
     - _CausticSpeed: 0.28
     - _CausticDepthRange: 2.2
     - _SpecularSharpness: 420
@@ -60,8 +64,8 @@ Material:
     # 22 is a sub-texel frequency at this camera distance and produces crawling
     # aliasing rather than glitter.
     - _SparkleScale: 7
-    - _SparkleStrength: 0.9
-    - _SparkleThreshold: 0.96
+    - _SparkleStrength: 0.55
+    - _SparkleThreshold: 0.975
     - _FresnelPower: 4.2
     - _ReflectionStrength: 1.1
     m_Colors:

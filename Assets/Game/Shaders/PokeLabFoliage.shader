@@ -66,6 +66,12 @@ Shader "PokeLab/Foliage"
         _GustStrength("Gust Strength", Range(0,3)) = 0.9
         _WindDistanceFade("Wind Fade Distance (m)", Float) = 45
 
+        [Header(Interaction)][Space(4)]
+        // How far a plant is pushed aside by the player walking through it. Driven
+        // by the interactor globals, so it costs nothing when nothing is moving.
+        _InteractionStrength("Push Distance (m)", Range(0,1.5)) = 0.42
+        _InteractionFlutter("Passing Flick", Range(0,0.5)) = 0.06
+
         [Header(Normals)][Space(4)]
         _NormalSpherify("Spherify Normals", Range(0,1)) = 0.45
 
@@ -117,6 +123,8 @@ Shader "PokeLab/Foliage"
             half   _FlutterSpeed;
             half   _GustStrength;
             float  _WindDistanceFade;
+            half   _InteractionStrength;
+            half   _InteractionFlutter;
             half   _NormalSpherify;
             half   _AlphaToMask;
         CBUFFER_END
@@ -134,7 +142,9 @@ Shader "PokeLab/Foliage"
             return PL_FoliageWind(positionWS, vertexColour,
                                   _SwayAmplitude, _SwaySpeed,
                                   _FlutterAmplitude, _FlutterSpeed,
-                                  _GustStrength, _WindDistanceFade);
+                                  _GustStrength, _WindDistanceFade)
+                 + PL_FoliageInteraction(positionWS, vertexColour,
+                                         _InteractionStrength, _InteractionFlutter);
         }
         ENDHLSL
 

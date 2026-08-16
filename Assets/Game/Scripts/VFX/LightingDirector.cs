@@ -125,6 +125,19 @@ namespace PokeLab.Vfx
         // ---------------------------------------------------------------------
         // Lifecycle
         // ---------------------------------------------------------------------
+        /// <summary>
+        /// Performs the one-time setup that <see cref="Awake"/> normally does.
+        ///
+        /// Editor tooling needs this. The level review pass renders outside play mode,
+        /// where Awake never fires, so <c>grades</c> is null and <see cref="Apply"/>
+        /// throws on its first index before publishing a single global — leaving every
+        /// custom-shaded surface at zero ambient and the frames black.
+        /// </summary>
+        public void EnsureInitialised()
+        {
+            if (grades == null) Awake();
+        }
+
         private void Awake()
         {
             grades = GradeLibrary.CreateDefaults();

@@ -7,9 +7,16 @@ using TMPro;
 namespace PokeLab.UI
 {
     /// <summary>
-    /// The dialogue box: speaker name, portrait slot, typewriter body, and choice prompts.
+    /// The conversation overlay: speaker name, affiliation, typewriter body, and choices.
     ///
-    /// Two rules make a typewriter feel good rather than tedious. First, a press while text
+    /// There is no box. The dialogue is a pair of translucent bands laid across the bottom of
+    /// the screen with a bright hairline between them, because a conversation in this game
+    /// happens in front of the NPC the player is talking to and an opaque panel covers the
+    /// one thing they are looking at. Contrast comes from the scrim plus a shadow tied to the
+    /// glyphs themselves, which is what keeps white text readable when a line lands on a
+    /// bright patch of the scene.
+    ///
+    /// Two rules make the typewriter feel good rather than tedious. First, a press while text
     /// is still revealing completes the line instead of advancing — players learn this in one
     /// press and it removes all frustration with the pace. Second, punctuation gets extra
     /// dwell, so the reveal has the rhythm of speech instead of the rhythm of a printer.
@@ -21,32 +28,98 @@ namespace PokeLab.UI
         [SerializeField] private CanvasGroup _group;
         [SerializeField] private RectTransform _box;
         [SerializeField] private TextMeshProUGUI _speaker;
+        [SerializeField] private TextMeshProUGUI _speakerSubtitle;
         [SerializeField] private RectTransform _speakerPlate;
+        [SerializeField] private Image _speakerTab;
+        [SerializeField] private Image _rule;
         [SerializeField] private Image _portrait;
         [SerializeField] private RectTransform _portraitFrame;
         [SerializeField] private TextMeshProUGUI _body;
         [SerializeField] private Image _advanceCaret;
         [SerializeField] private RectTransform _choiceParent;
+        [SerializeField] private RectTransform _autoButton;
+        [SerializeField] private Image _autoFill;
+        [SerializeField] private RectTransform _menuButton;
 
         [Header("Tuning")]
         [SerializeField] private float _secondsPerCharacter = 0.022f;
         [Tooltip("Extra dwell after sentence-ending punctuation, in character-times.")]
         [SerializeField] private float _punctuationDwell = 7f;
+        [Tooltip("Base wait before AUTO moves on, once the line has finished revealing.")]
+        [SerializeField] private float _autoDwellSeconds = 1.3f;
+        [Tooltip("Added to the AUTO wait per revealed character, so long lines get read.")]
+        [SerializeField] private float _autoDwellPerCharacter = 0.028f;
         [SerializeField] private bool _buildOnAwake = true;
+
+        // ------------------------------------------------------------------- layout
+        // Authored against the 1920x1080 reference canvas the scaler matches by height.
+        // These are deliberately constants rather than serialized fields: the composition is
+        // a fixed set of proportions copied from the reference, and half of them only work
+        // relative to each other — a designer nudging one in the inspector would break the
+        // alignment between the name, the rule and the body copy, which is the whole idea.
+
+        private const float Indent = 168f;
+        private const float ScrimHeight = 336f;
+        private const float TopFadeHeight = 110f;
+        private const float RuleY = 246f;
+        private const float RuleThickness = 2f;
+        private const float RuleRightMargin = 132f;
+        private const float NameRowY = 262f;
+        private const float NameRowHeight = 74f;
+        private const float BodyTopY = 218f;
+        private const float BodyBottomY = 46f;
+        private const float BodyRightMargin = 268f;
+        private const float TabWidth = 18f;
+        private const float TabHeight = 36f;
+        private const int TabSlant = 3;
+        private const float TabGap = 38f;
+        private const float CaretSize = 36f;
+        private const float CaretRightMargin = 150f;
+        private const float CaretY = 84f;
+        private const float PortraitLeft = 26f;
+        private const float PortraitWidth = 116f;
+        private const float PortraitBottom = 54f;
+        private const float PortraitHeight = 172f;
+        private const float ChoiceWidth = 820f;
+        private const float ChoiceHeight = 62f;
+        private const int ChoiceSlant = 12;
 
         private readonly List<Button> _choiceButtons = new List<Button>(4);
         private TweenHandle _typing;
         private TweenHandle _caret;
         private Action _onAdvance;
         private Action<int> _onChoice;
+        private Action _onMenu;
+        private IReadOnlyList<string> _pendingChoices;
         private bool _revealing;
         private bool _built;
+        private bool _autoAdvance;
+        private float _autoCountdown = -1f;
+        private float _caretHomeY = CaretY;
 
-        /// <summary>True while the box is on screen.</summary>
+        /// <summary>True while the overlay is on screen.</summary>
         public bool IsOpen { get; private set; }
 
         /// <summary>True while text is still being revealed.</summary>
         public bool IsRevealing => _revealing;
+
+        /// <summary>
+        /// AUTO mode: once a line has finished revealing, move on by itself after a dwell
+        /// scaled to the line's length. Persists across lines, the way a visual novel's
+        /// does — it is a reading mode, not a per-line property.
+        /// </summary>
+        public bool AutoAdvance
+        {
+            get => _autoAdvance;
+            set
+            {
+                if (_autoAdvance == value) return;
+                _autoAdvance = value;
+                RefreshAutoVisual();
+                if (!_autoAdvance) _autoCountdown = -1f;
+                else if (IsOpen && !_revealing && _pendingChoices == null) ArmAutoAdvance();
+            }
+        }
 
         private void Awake()
         {
@@ -55,14 +128,37 @@ namespace PokeLab.UI
         }
 
         /// <summary>
+        /// Wires the MENU control. The overlay has no idea what a menu is, so the button is
+        /// hidden until someone owns it — an affordance that does nothing is worse than an
+        /// absent one.
+        /// </summary>
+        public void SetMenuHandler(Action onMenu)
+        {
+            _onMenu = onMenu;
+            if (_menuButton != null) _menuButton.gameObject.SetActive(onMenu != null);
+        }
+
+        /// <summary>
         /// Shows a line. <paramref name="onAdvance"/> fires when the player presses past a
         /// fully revealed line.
         /// </summary>
         public void Show(string speaker, string body, Sprite portrait = null, Action onAdvance = null)
         {
+            Show(speaker, null, body, portrait, onAdvance);
+        }
+
+        /// <summary>
+        /// Shows a line with a subtitle beside the name — an affiliation, a role, or the place
+        /// the line is spoken from. It sits on the name's baseline at two thirds the size and
+        /// in the accent colour, so it reads as an annotation on the name rather than as a
+        /// second name.
+        /// </summary>
+        public void Show(string speaker, string subtitle, string body, Sprite portrait = null,
+            Action onAdvance = null)
+        {
             _onAdvance = onAdvance;
             _onChoice = null;
-            ShowInternal(speaker, body, portrait, null);
+            ShowInternal(speaker, subtitle, body, portrait, null);
         }
 
         /// <summary>
@@ -73,9 +169,16 @@ namespace PokeLab.UI
         public void ShowChoices(string speaker, string body, IReadOnlyList<string> choices,
             Action<int> onChoice, Sprite portrait = null)
         {
+            ShowChoices(speaker, null, body, choices, onChoice, portrait);
+        }
+
+        /// <summary>Choices, with a subtitle beside the speaker's name.</summary>
+        public void ShowChoices(string speaker, string subtitle, string body, IReadOnlyList<string> choices,
+            Action<int> onChoice, Sprite portrait = null)
+        {
             _onAdvance = null;
             _onChoice = onChoice;
-            ShowInternal(speaker, body, portrait, choices);
+            ShowInternal(speaker, subtitle, body, portrait, choices);
         }
 
         /// <summary>
@@ -83,12 +186,25 @@ namespace PokeLab.UI
         /// because with reduced motion the reveal completes synchronously and a completion
         /// handler that ran before the choices were assigned would drop them silently.
         /// </summary>
-        private void ShowInternal(string speaker, string body, Sprite portrait, IReadOnlyList<string> choices)
+        private void ShowInternal(string speaker, string subtitle, string body, Sprite portrait,
+            IReadOnlyList<string> choices)
         {
             ClearChoices();
+            _autoCountdown = -1f;
 
-            if (_speakerPlate != null) _speakerPlate.gameObject.SetActive(!string.IsNullOrWhiteSpace(speaker));
+            var named = !string.IsNullOrWhiteSpace(speaker);
+            if (_speakerPlate != null) _speakerPlate.gameObject.SetActive(named);
+            if (_speakerTab != null) _speakerTab.enabled = named;
             if (_speaker != null) _speaker.SetText(speaker ?? string.Empty);
+
+            // An empty subtitle must collapse rather than sit as a zero-width gap, or the
+            // name's trailing space changes depending on data the player cannot see.
+            var hasSubtitle = !string.IsNullOrWhiteSpace(subtitle);
+            if (_speakerSubtitle != null)
+            {
+                _speakerSubtitle.gameObject.SetActive(hasSubtitle);
+                _speakerSubtitle.SetText(subtitle ?? string.Empty);
+            }
 
             if (_portraitFrame != null) _portraitFrame.gameObject.SetActive(portrait != null);
             if (_portrait != null)
@@ -102,14 +218,13 @@ namespace PokeLab.UI
             Reveal(body ?? string.Empty);
         }
 
-        private IReadOnlyList<string> _pendingChoices;
-
         /// <summary>
         /// Player input. Completes the reveal if it is running, otherwise advances.
         /// Route the confirm button here; the view decides what the press means.
         /// </summary>
         public void Advance()
         {
+            _autoCountdown = -1f;
             if (_revealing)
             {
                 CompleteReveal();
@@ -119,11 +234,33 @@ namespace PokeLab.UI
             _onAdvance?.Invoke();
         }
 
-        /// <summary>Hides the box.</summary>
+        /// <summary>Hides the overlay.</summary>
         public void Close()
         {
             ClearChoices();
+            _autoCountdown = -1f;
             SetOpen(false);
+        }
+
+        /// <summary>
+        /// Drives AUTO. Deliberately a plain timer rather than a tween: <see cref="UiTween"/>
+        /// completes instantly when motion is reduced, and an auto-advance built on it would
+        /// flick through an entire conversation in one frame for anyone with that setting on.
+        /// </summary>
+        private void Update()
+        {
+            if (_autoCountdown < 0f) return;
+            _autoCountdown -= Time.unscaledDeltaTime;
+            if (_autoCountdown > 0f) return;
+            _autoCountdown = -1f;
+            _onAdvance?.Invoke();
+        }
+
+        private void ArmAutoAdvance()
+        {
+            if (!_autoAdvance || _onAdvance == null) { _autoCountdown = -1f; return; }
+            var length = _body != null ? _body.GetParsedText().Length : 0;
+            _autoCountdown = _autoDwellSeconds + length * _autoDwellPerCharacter;
         }
 
         private void Reveal(string text)
@@ -143,7 +280,7 @@ namespace PokeLab.UI
             var pauses = 0;
             for (var i = 0; i < parsed.Length; i++)
             {
-                if (parsed[i] == '.' || parsed[i] == '!' || parsed[i] == '?' || parsed[i] == ',') pauses++;
+                if (IsPause(parsed[i])) pauses++;
             }
             var duration = (visible + pauses * _punctuationDwell) * _secondsPerCharacter;
 
@@ -153,6 +290,17 @@ namespace PokeLab.UI
                 if (_body == null) return;
                 _body.maxVisibleCharacters = CharactersAt(parsed, t, pauses);
             }, Ease.Linear, 0f, true, CompleteReveal);
+        }
+
+        /// <summary>
+        /// Characters that earn extra dwell. The ideographic full stop and comma are in here
+        /// because the game is written in Korean as well as English, and a Korean line
+        /// punctuated with "…" and "!" would otherwise type at a flat machine pace.
+        /// </summary>
+        private static bool IsPause(char c)
+        {
+            return c == '.' || c == '!' || c == '?' || c == ',' ||
+                   c == '。' || c == '、' || c == '…' || c == '！' || c == '？';
         }
 
         /// <summary>
@@ -167,8 +315,7 @@ namespace PokeLab.UI
             for (var i = 0; i < parsed.Length; i++)
             {
                 units += 1f;
-                var c = parsed[i];
-                if (c == '.' || c == '!' || c == '?' || c == ',') units += _punctuationDwell;
+                if (IsPause(parsed[i])) units += _punctuationDwell;
                 if (units >= consumed) return i + 1;
             }
             return parsed.Length;
@@ -184,10 +331,12 @@ namespace PokeLab.UI
             {
                 BuildChoices(_pendingChoices);
                 SetCaretVisible(false);
+                _autoCountdown = -1f;
             }
             else
             {
                 SetCaretVisible(true);
+                ArmAutoAdvance();
             }
         }
 
@@ -204,10 +353,11 @@ namespace PokeLab.UI
             _caret = UiTween.Run(0.9f, t =>
             {
                 if (_advanceCaret == null) return;
-                var bob = Mathf.Sin(t * Mathf.PI * 2f) * 3f;
+                var bob = Mathf.Sin(t * Mathf.PI * 2f) * 4f;
                 _advanceCaret.rectTransform.anchoredPosition = new Vector2(
-                    _advanceCaret.rectTransform.anchoredPosition.x, -14f + bob);
-                _advanceCaret.color = UiPalette.ScannerCyan.WithAlpha(Mathf.Lerp(0.5f, 1f, Mathf.Abs(Mathf.Sin(t * Mathf.PI))));
+                    _advanceCaret.rectTransform.anchoredPosition.x, _caretHomeY + bob);
+                _advanceCaret.color = UiPalette.ScannerCyan.WithAlpha(
+                    Mathf.Lerp(0.55f, 1f, Mathf.Abs(Mathf.Sin(t * Mathf.PI))));
             }, Ease.Linear, 0f, true, () =>
             {
                 if (_advanceCaret != null && _advanceCaret.enabled && UiTween.MotionEnabled) SetCaretVisible(true);
@@ -223,18 +373,24 @@ namespace PokeLab.UI
             {
                 var index = i;
                 var root = UiBuilder.Rect("Choice_" + i, _choiceParent);
-                UiBuilder.Size(root, preferredHeight: 42f, minHeight: 42f, flexibleWidth: 1f);
+                UiBuilder.Size(root, preferredHeight: ChoiceHeight, minHeight: ChoiceHeight, flexibleWidth: 1f);
 
-                var background = UiBuilder.Image("Bg", root, UiSprites.Panel(10), UiPalette.SurfaceRaised,
-                    Image.Type.Sliced, true);
+                var background = UiBuilder.Image("Bg", root, UiSprites.Slant((int)ChoiceHeight, ChoiceSlant),
+                    UiPalette.Surface.WithAlpha(0.86f), Image.Type.Sliced, true);
                 UiBuilder.Stretch(background.rectTransform);
 
-                var label = UiBuilder.Text("Label", root, choices[i], UiTextRole.Body, UiPalette.TextPrimary);
-                UiBuilder.Stretch(label.rectTransform);
-                label.rectTransform.offsetMin = new Vector2(16f, 0f);
-                label.rectTransform.offsetMax = new Vector2(-16f, 0f);
+                var rim = UiBuilder.Image("Rim", root, UiSprites.SlantFrame((int)ChoiceHeight, ChoiceSlant, 2),
+                    UiPalette.ScannerCyan.WithAlpha(0.30f));
+                UiBuilder.Stretch(rim.rectTransform);
 
-                UiButtonMotion.Attach(root, 10);
+                var label = UiBuilder.Text("Label", root, choices[i], UiTextRole.Body, UiPalette.TextPrimary);
+                label.fontSize = 24f;
+                UiBuilder.Stretch(label.rectTransform);
+                label.rectTransform.offsetMin = new Vector2(34f, 0f);
+                label.rectTransform.offsetMax = new Vector2(-28f, 0f);
+                UiType.ApplyShadow(label);
+
+                UiButtonMotion.Attach(root, 4);
                 _choiceButtons.Add(UiBuilder.Button("Click", root, background, () => Choose(index)));
 
                 // Stagger the entrance so the option list reads top to bottom.
@@ -286,85 +442,213 @@ namespace PokeLab.UI
                 () => { if (!open && this != null) gameObject.SetActive(false); });
         }
 
-        /// <summary>Builds the dialogue box, anchored across the bottom of the screen.</summary>
+        private void RefreshAutoVisual()
+        {
+            if (_autoFill == null) return;
+            _autoFill.color = _autoAdvance ? UiPalette.ScannerCyan : UiPalette.ControlSlab;
+        }
+
+        // ------------------------------------------------------------------- build
+
+        /// <summary>
+        /// Builds the overlay: two translucent bands across the bottom of the screen, a
+        /// hairline between them, and the small controls that sit outside the reading area.
+        /// </summary>
         public void BuildRuntime()
         {
             _built = true;
             var root = transform as RectTransform;
             if (root == null) return;
 
+            // Korean and English land in the same line, so the font has to carry both before
+            // anything else here is worth looking at.
+            UiType.EnsureFont();
+
             UiBuilder.Stretch(root);
             _group = UiBuilder.Group(this, 0f, false, false);
 
-            var safe = UiBuilder.SafeArea(root, 96f, 44f);
-
-            var box = UiBuilder.Rect("Box", safe, false);
+            // The overlay is anchored to the screen edges, not inside a safe area: the scrim
+            // is full-bleed by design and a margin would turn it back into a panel. Only the
+            // text inside it is inset.
+            var box = UiBuilder.Rect("Overlay", root, false);
             UiBuilder.Anchor(box, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
-                Vector2.zero, new Vector2(0f, 190f));
+                Vector2.zero, new Vector2(0f, ScrimHeight));
             _box = box;
 
-            UiBuilder.Panel("Shell", box, UiPalette.Surface.WithAlpha(0.97f), 18, true, 26, 0.6f);
-            var rim = UiBuilder.Image("Rim", box, UiSprites.Frame(18, 1), Color.white.WithAlpha(0.07f));
-            UiBuilder.Stretch(rim.rectTransform);
+            BuildScrim(box);
 
-            // Speaker plate overhangs the top edge — the standard treatment, and it keeps the
-            // name out of the body's measure.
-            // The plate is anchored, not in a layout group, so a fitter is legitimate here —
-            // and it needs a layout group of its own for the fitter to have a size to read.
-            var plate = UiBuilder.Rect("SpeakerPlate", box, false);
-            UiBuilder.Anchor(plate, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 0f),
-                new Vector2(26f, -6f), new Vector2(240f, 34f));
-            UiBuilder.Horizontal(plate, 0f, new RectOffset(14, 14, 0, 0), TextAnchor.MiddleLeft);
-            UiBuilder.Fit(plate, ContentSizeFitter.FitMode.PreferredSize, ContentSizeFitter.FitMode.Unconstrained);
-            _speakerPlate = plate;
+            _rule = UiBuilder.Image("Rule", box, UiSprites.FadeRule(256, 0.70f), UiPalette.RuleBright,
+                Image.Type.Simple);
+            Band(_rule.rectTransform, RuleY, RuleThickness, Indent, RuleRightMargin);
 
-            UiBuilder.Backdrop("Bg", plate, UiSprites.Panel(10), UiPalette.ScannerCyan.WithAlpha(0.18f));
+            BuildSpeakerRow(box);
+            BuildBody(box);
 
-            _speaker = UiBuilder.Text("Name", plate, string.Empty, UiTextRole.Heading, UiPalette.ScannerCyan);
-            _speaker.fontSize = 17f;
-            _speaker.textWrappingMode = TextWrappingModes.NoWrap;
-
-            var content = UiBuilder.Rect("Content", box);
-            UiBuilder.Stretch(content, 22f);
-            UiBuilder.Horizontal(content, 16f, null, TextAnchor.UpperLeft, false, true);
-
-            var portraitFrame = UiBuilder.Rect("PortraitFrame", content, false);
-            UiBuilder.Size(portraitFrame, preferredWidth: 118f, minWidth: 118f, flexibleHeight: 1f);
-            _portraitFrame = portraitFrame;
-            var portraitBg = UiBuilder.Image("Bg", portraitFrame, UiSprites.Panel(12), UiPalette.SurfaceSunken);
-            UiBuilder.Stretch(portraitBg.rectTransform);
-            _portrait = UiBuilder.Image("Image", portraitFrame, null, Color.white, Image.Type.Simple);
-            _portrait.preserveAspect = true;
-            UiBuilder.Stretch(_portrait.rectTransform, 6f);
-            portraitFrame.gameObject.SetActive(false);
-
-            var textColumn = UiBuilder.Rect("TextColumn", content);
-            UiBuilder.Size(textColumn, flexibleWidth: 1f, flexibleHeight: 1f);
-
-            _body = UiBuilder.Text("Body", textColumn, string.Empty, UiTextRole.Body, UiPalette.TextPrimary,
-                TextAlignmentOptions.TopLeft);
-            _body.fontSize = 19f;
-            _body.lineSpacing = 12f;
-            UiBuilder.Stretch(_body.rectTransform);
-
-            _advanceCaret = UiBuilder.Image("Caret", box, UiSprites.Chevron(20), UiPalette.ScannerCyan,
+            _advanceCaret = UiBuilder.Image("Caret", box, UiSprites.Chevron(40), UiPalette.ScannerCyan,
                 Image.Type.Simple);
             _advanceCaret.preserveAspect = true;
             UiBuilder.Anchor(_advanceCaret.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f),
-                new Vector2(1f, 0f), new Vector2(-22f, -14f), new Vector2(14f, 14f));
+                new Vector2(1f, 0f), new Vector2(-CaretRightMargin, CaretY),
+                new Vector2(CaretSize, CaretSize));
             // The chevron points up by default; rotate it to point down as an advance cue.
             _advanceCaret.rectTransform.localEulerAngles = new Vector3(0f, 0f, 180f);
             _advanceCaret.enabled = false;
+            _caretHomeY = CaretY;
 
-            var choices = UiBuilder.Rect("Choices", safe, false);
-            UiBuilder.Anchor(choices, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
-                new Vector2(0f, 202f), new Vector2(380f, 0f));
-            UiBuilder.Vertical(choices, 8f, null, TextAnchor.LowerRight);
+            BuildControls(root);
+            BuildChoiceParent(root);
+
+            RefreshAutoVisual();
+            UiBuilder.EnsureEventSystem();
+        }
+
+        /// <summary>
+        /// The two bands and the ramp above them.
+        ///
+        /// The body band is dragged below the screen edge on purpose: <see cref="SetOpen"/>
+        /// slides the whole overlay up from -24, and a band that stopped exactly at y=0 would
+        /// flash a strip of undimmed scene under the text for the length of that slide.
+        /// </summary>
+        private static void BuildScrim(RectTransform box)
+        {
+            var body = UiBuilder.Image("BodyWash", box, UiSprites.Solid(),
+                UiPalette.Scrim.WithAlpha(UiPalette.ScrimBodyAlpha), Image.Type.Simple);
+            Band(body.rectTransform, -48f, RuleY + 48f, 0f, 0f);
+
+            var name = UiBuilder.Image("NameWash", box, UiSprites.Solid(),
+                UiPalette.Scrim.WithAlpha(UiPalette.ScrimNameAlpha), Image.Type.Simple);
+            Band(name.rectTransform, RuleY, ScrimHeight - RuleY, 0f, 0f);
+
+            // A ramp, not an edge. See UiSprites.VerticalFade for why the top of the overlay
+            // must not be a line anyone can point at.
+            var fade = UiBuilder.Image("TopFade", box, UiSprites.VerticalFade(96, 1.9f),
+                UiPalette.Scrim.WithAlpha(UiPalette.ScrimNameAlpha), Image.Type.Simple);
+            Band(fade.rectTransform, ScrimHeight, TopFadeHeight, 0f, 0f);
+        }
+
+        private void BuildSpeakerRow(RectTransform box)
+        {
+            // The tab leads the eye into the name from the margin and is the only piece of
+            // chrome outside the text indent. It shares the lean of the AUTO/MENU slabs, so
+            // the overlay has one geometric idea rather than three.
+            _speakerTab = UiBuilder.Image("SpeakerTab", box, UiSprites.Slant((int)TabHeight, TabSlant),
+                UiPalette.ScannerCyan.WithAlpha(0.85f), Image.Type.Sliced);
+            UiBuilder.Anchor(_speakerTab.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(0f, 0f), new Vector2(Indent - TabGap, NameRowY + 10f),
+                new Vector2(TabWidth, TabHeight));
+
+            var plate = UiBuilder.Rect("SpeakerRow", box, false);
+            Band(plate, NameRowY, NameRowHeight, Indent, RuleRightMargin);
+            // Bottom-aligned rather than centred: the subtitle is smaller, and aligning the
+            // two boxes at their bottoms is what puts their baselines on the same line.
+            UiBuilder.Horizontal(plate, 16f, new RectOffset(0, 0, 0, 10), TextAnchor.LowerLeft);
+            _speakerPlate = plate;
+
+            _speaker = UiBuilder.Text("Name", plate, string.Empty, UiTextRole.Title, UiPalette.TextPrimary);
+            _speaker.fontSize = 36f;
+            _speaker.characterSpacing = -0.5f;
+            _speaker.textWrappingMode = TextWrappingModes.NoWrap;
+            UiType.ApplyShadow(_speaker, offsetX: 0.35f, offsetY: -0.45f, softness: 0.3f, dilate: 0.14f);
+
+            _speakerSubtitle = UiBuilder.Text("Subtitle", plate, string.Empty, UiTextRole.Body,
+                UiPalette.ScannerCyan);
+            _speakerSubtitle.fontSize = 22f;
+            _speakerSubtitle.fontStyle = FontStyles.Bold;
+            _speakerSubtitle.textWrappingMode = TextWrappingModes.NoWrap;
+            UiType.ApplyShadow(_speakerSubtitle, offsetX: 0.3f, offsetY: -0.4f, softness: 0.3f, dilate: 0.1f);
+            _speakerSubtitle.gameObject.SetActive(false);
+        }
+
+        private void BuildBody(RectTransform box)
+        {
+            // The portrait lives in the left margin, outside the text indent, so a line reads
+            // at exactly the same measure whether or not one was supplied. Framing it would
+            // reintroduce the panel this composition exists to avoid, and a pixel-art bust
+            // does not need a frame to be legible against a dark scrim.
+            var portraitFrame = UiBuilder.Rect("Portrait", box, false);
+            UiBuilder.Anchor(portraitFrame, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(PortraitLeft, PortraitBottom), new Vector2(PortraitWidth, PortraitHeight));
+            _portraitFrame = portraitFrame;
+
+            _portrait = UiBuilder.Image("Image", portraitFrame, null, Color.white, Image.Type.Simple);
+            _portrait.preserveAspect = true;
+            UiBuilder.Stretch(_portrait.rectTransform);
+            portraitFrame.gameObject.SetActive(false);
+
+            _body = UiBuilder.Text("Body", box, string.Empty, UiTextRole.Body, UiPalette.TextPrimary,
+                TextAlignmentOptions.TopLeft);
+            _body.fontSize = 30f;
+            _body.lineSpacing = 14f;
+            _body.overflowMode = TextOverflowModes.Overflow;
+            Band(_body.rectTransform, BodyBottomY, BodyTopY - BodyBottomY, Indent, BodyRightMargin);
+            UiType.ApplyShadow(_body);
+        }
+
+        private void BuildControls(RectTransform root)
+        {
+            var bar = UiBuilder.Rect("Controls", root, false);
+            UiBuilder.Anchor(bar, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(-96f, -40f), new Vector2(0f, 46f));
+            UiBuilder.Horizontal(bar, 12f, null, TextAnchor.MiddleRight);
+            UiBuilder.Fit(bar, ContentSizeFitter.FitMode.PreferredSize, ContentSizeFitter.FitMode.Unconstrained);
+
+            _autoButton = ControlSlab(bar, "Auto", "AUTO", 118f, out _autoFill,
+                () => AutoAdvance = !AutoAdvance);
+            _menuButton = ControlSlab(bar, "Menu", "MENU", 128f, out _, () => _onMenu?.Invoke());
+            _menuButton.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// One of the small leaning slabs in the top corner. Near-white with dark italic
+        /// type, which is the reference's one deliberately loud element — everything else in
+        /// the composition is trying to disappear, so these have to not.
+        /// </summary>
+        private static RectTransform ControlSlab(RectTransform parent, string name, string label,
+            float width, out Image fill, Action onClick)
+        {
+            var slab = UiBuilder.Rect(name, parent, false);
+            UiBuilder.Size(slab, preferredWidth: width, minWidth: width, preferredHeight: 46f, minHeight: 46f);
+
+            fill = UiBuilder.Image("Fill", slab, UiSprites.Slant(46, 9), UiPalette.ControlSlab,
+                Image.Type.Sliced, true);
+            UiBuilder.Stretch(fill.rectTransform);
+
+            var text = UiBuilder.Text("Label", slab, label, UiTextRole.Body, UiPalette.TextOnAccent,
+                TextAlignmentOptions.Center);
+            text.fontSize = 21f;
+            text.fontStyle = FontStyles.Bold | FontStyles.Italic;
+            text.characterSpacing = 2f;
+            UiBuilder.Stretch(text.rectTransform);
+
+            UiButtonMotion.Attach(slab, 4);
+            UiBuilder.Button("Click", slab, fill, onClick);
+            return slab;
+        }
+
+        private void BuildChoiceParent(RectTransform root)
+        {
+            var choices = UiBuilder.Rect("Choices", root, false);
+            UiBuilder.Anchor(choices, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(Indent, ScrimHeight + 24f), new Vector2(ChoiceWidth, 0f));
+            UiBuilder.Vertical(choices, 12f, null, TextAnchor.LowerLeft);
             UiBuilder.Fit(choices);
             _choiceParent = choices;
             choices.gameObject.SetActive(false);
+        }
 
-            UiBuilder.EnsureEventSystem();
+        /// <summary>
+        /// Places a rect as a horizontal band inside the bottom-anchored overlay: measured up
+        /// from the screen's bottom edge, inset from both sides. Every element in this
+        /// composition is one of these, which is what keeps the name, the rule and the body
+        /// copy on the same left edge at any aspect ratio.
+        /// </summary>
+        private static void Band(RectTransform rect, float bottom, float height, float left, float right)
+        {
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.offsetMin = new Vector2(left, bottom);
+            rect.offsetMax = new Vector2(-right, bottom + height);
         }
     }
 }

@@ -38,6 +38,15 @@ float  _PL_Wetness;          // 0..1 global surface wetness (rain)
 float4 _PL_SunColor;         // rgb: stylised sun tint used by sky and water sparkle
 float  _PL_NightFactor;      // 0 by day, 1 at deep night. Drives dither strength.
 
+// Things that push foliage aside. xyz: world position, w: radius in metres.
+// Velocity is carried separately so grass can lean the way the walker is going
+// rather than only radially outward, which is what makes it read as being pushed
+// through rather than repelled by a force field.
+#define PL_MAX_INTERACTORS 8
+float4 _PL_Interactors[PL_MAX_INTERACTORS];
+float4 _PL_InteractorVel[PL_MAX_INTERACTORS];   // xyz: velocity m/s, w: unused
+float  _PL_InteractorCount;
+
 // -----------------------------------------------------------------------------
 // Dither. The QA brief calls out banding, so every gradient in this project runs
 // through PL_Dither before it reaches an 8-bit buffer. Interleaved gradient noise
@@ -298,6 +307,76 @@ float3 PL_FoliageWind(float3 positionWS, float4 vertexColour,
     offset.y -= abs(amp) * 0.25;
 
     return offset * fade;
+}
+
+
+// -----------------------------------------------------------------------------
+// Foliage pushed aside by something moving through it.
+//
+// Uses the same sway mask as the wind (vertex colour R), so a plant bends from
+// its anchored base rather than sliding bodily sideways, and so anything the
+// generator marked rigid — bark — is untouched by a walker as well as by wind.
+//
+// Two components, because either alone reads wrong. Radial-only looks like a
+// force field pushing the player away; along-velocity only makes the grass lean
+// before the player arrives and snap back oddly behind them. Together the blades
+// splay outward *and* trail in the direction of travel, which is what walking
+// through long grass actually looks like.
+//
+// The falloff is squared so the disturbance stays local: a wide soft gradient
+// reads as the whole field breathing whenever the player moves.
+// -----------------------------------------------------------------------------
+float3 PL_FoliageInteraction(float3 positionWS, float4 vertexColour,
+                             float strength, float flutter)
+{
+    float mask = vertexColour.r;
+    if (mask <= 0.001) return float3(0.0, 0.0, 0.0);
+
+    float3 total = float3(0.0, 0.0, 0.0);
+    int count = min((int)_PL_InteractorCount, PL_MAX_INTERACTORS);
+
+    for (int i = 0; i < count; i++)
+    {
+        float4 it = _PL_Interactors[i];
+        float radius = max(it.w, 0.01);
+
+        // Measured in the ground plane. Including height would make grass ignore a
+        // walker on a slope above or below it, and the walker's feet are what
+        // matters anyway.
+        float2 away = positionWS.xz - it.xyz.xz;
+        float dist = length(away);
+        if (dist >= radius) continue;
+
+        float falloff = 1.0 - dist / radius;
+        falloff *= falloff;
+
+        float2 radial = (dist > 1e-4) ? away / dist : float2(1.0, 0.0);
+        float3 vel = _PL_InteractorVel[i].xyz;
+        float speed = length(vel.xz);
+        float2 travel = (speed > 1e-3) ? vel.xz / speed : float2(0.0, 0.0);
+
+        // Leaning with the walker scales with how fast they are going; the radial
+        // splay does not, so grass still parts around someone standing still in it.
+        float2 dir = radial + travel * saturate(speed / 3.0) * 1.15;
+        float len = length(dir);
+        dir = (len > 1e-4) ? dir / len : radial;
+
+        float bend = falloff * strength * mask;
+
+        // Tips only, and only while something is actually moving: the flick of
+        // blades springing past each other as you pass. Cubed mask keeps it off
+        // the base, matching the wind's flutter layer.
+        float tip = mask * mask * mask;
+        float rattle = sin(_Time.y * 26.0 + positionWS.x * 5.3 + positionWS.z * 4.1)
+                     * flutter * tip * falloff * saturate(speed / 2.0);
+
+        total.xz += dir * bend + radial * rattle;
+        // Trodden down as well as aside, or fast movement looks like the grass is
+        // being blown rather than walked through.
+        total.y -= bend * 0.35;
+    }
+
+    return total;
 }
 
 // -----------------------------------------------------------------------------

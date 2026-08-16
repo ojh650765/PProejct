@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace PokeLab.Vfx
@@ -31,6 +32,19 @@ namespace PokeLab.Vfx
         public static readonly int WetnessId = Shader.PropertyToID("_PL_Wetness");
         public static readonly int SunColorId = Shader.PropertyToID("_PL_SunColor");
         public static readonly int NightFactorId = Shader.PropertyToID("_PL_NightFactor");
+        public static readonly int InteractorsId = Shader.PropertyToID("_PL_Interactors");
+        public static readonly int InteractorVelId = Shader.PropertyToID("_PL_InteractorVel");
+        public static readonly int InteractorCountId = Shader.PropertyToID("_PL_InteractorCount");
+
+        /// <summary>Must match PL_MAX_INTERACTORS in PokeLabCommon.hlsl.</summary>
+        public const int MaxInteractors = 8;
+
+        // Reused every frame. Unity requires a global array to keep the same length
+        // for the lifetime of the shader — uploading a shorter one leaves the tail
+        // holding last frame's values, which shows as grass permanently flattened
+        // where somebody once walked.
+        private static readonly Vector4[] InteractorBuffer = new Vector4[MaxInteractors];
+        private static readonly Vector4[] InteractorVelBuffer = new Vector4[MaxInteractors];
 
         public static void SetAmbient(Color sky, Color equator, Color ground, float blend, float boost)
         {
@@ -57,6 +71,29 @@ namespace PokeLab.Vfx
             Vector2 dir = directionXZ.sqrMagnitude > 1e-6f ? directionXZ.normalized : Vector2.zero;
             Shader.SetGlobalVector(WindParamsId, new Vector4(dir.x, dir.y, strength, gustPhaseSpeed));
             Shader.SetGlobalFloat(WindGustId, gust);
+        }
+
+        /// <summary>
+        /// Publishes what is currently pushing through the foliage.
+        ///
+        /// Positions are world space and radii are metres; velocity is what lets the
+        /// grass trail behind a walker instead of only splaying away from them.
+        /// Entries beyond <paramref name="count"/> are zeroed rather than left alone,
+        /// because a stale interactor holds its patch of grass flattened forever.
+        /// </summary>
+        public static void SetFoliageInteractors(
+            IReadOnlyList<Vector4> positionsAndRadii, IReadOnlyList<Vector4> velocities, int count)
+        {
+            count = Mathf.Clamp(count, 0, MaxInteractors);
+            for (var i = 0; i < MaxInteractors; i++)
+            {
+                InteractorBuffer[i] = i < count ? positionsAndRadii[i] : Vector4.zero;
+                InteractorVelBuffer[i] = i < count ? velocities[i] : Vector4.zero;
+            }
+
+            Shader.SetGlobalVectorArray(InteractorsId, InteractorBuffer);
+            Shader.SetGlobalVectorArray(InteractorVelId, InteractorVelBuffer);
+            Shader.SetGlobalFloat(InteractorCountId, count);
         }
 
         public static void SetWetness(float wetness) =>
