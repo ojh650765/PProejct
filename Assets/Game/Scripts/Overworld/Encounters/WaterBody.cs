@@ -30,6 +30,11 @@ namespace PokeLab.Overworld
         [Tooltip("Gate entering the water on an item or badge the player must own. Empty = always allowed.")]
         [SerializeField] private string _requiredItemId = "";
 
+        [Tooltip("Require a Pokémon that can carry the player. Without one they are stopped " +
+                 "at the waterline — which is what makes the lake a boundary the player can " +
+                 "see past and come back to, rather than a hole they fall in.")]
+        [SerializeField] private bool _requiresSurf = true;
+
         [Header("Ripple")]
         [SerializeField] private ParticleSystem _rippleEffect;
         [SerializeField] private float _rippleDuration = 0.65f;
@@ -38,6 +43,10 @@ namespace PokeLab.Overworld
         private Collider _collider;
         private PlayerLocomotion _player;
         private bool _playerInside;
+
+        /// <summary>Last position the blocked player held on dry land, to put them back on.</summary>
+        private Vector3 _lastDryPosition;
+        private bool _hasDryPosition;
 
         public EncounterSourceKind SourceKind => EncounterSourceKind.Water;
 
@@ -61,11 +70,11 @@ namespace PokeLab.Overworld
         private void OnTriggerEnter(Collider other)
         {
             if (!other.CompareTag(OverworldNames.PlayerTag)) return;
-            if (!IsAllowed()) return;
 
-            _player = other.GetComponentInParent<PlayerLocomotion>();
+            var locomotion = other.GetComponentInParent<PlayerLocomotion>();
+            if (locomotion == null) return;
+            _player = locomotion;
             _playerInside = true;
-            if (_player != null) _player.SetTraversal(TraversalState.Water, SurfaceY);
         }
 
         private void OnTriggerExit(Collider other)
@@ -74,12 +83,54 @@ namespace PokeLab.Overworld
             if (_player != null && _player.Traversal == TraversalState.Water)
                 _player.SetTraversal(TraversalState.Ground);
             _playerInside = false;
-            _player = null;
+        }
+
+        /// <summary>Raised when the player is turned back, so a bump or a line can play.</summary>
+        public event System.Action<Vector3> Refused;
+
+        /// <summary>
+        /// Puts the player back where they last stood on land.
+        ///
+        /// A push-out along the surface normal is the usual answer and is wrong on a lake:
+        /// the surface is horizontal, so its normal points up and pushing along it launches
+        /// the player. Restoring the last dry position is exact, needs no shoreline geometry,
+        /// and reads as the step simply not being taken — which is what the series does.
+        /// </summary>
+        private void Refuse()
+        {
+            if (_player == null || !_hasDryPosition) return;
+            _player.Warp(_lastDryPosition, _player.transform.rotation);
+            Refused?.Invoke(_lastDryPosition);
         }
 
         private void Update()
         {
-            if (!_playerInside || _player == null) return;
+            // The player has to be tracked before they reach the water, not from the trigger:
+            // by the time OnTriggerEnter fires they are already standing in it, and the last
+            // position on dry land — the only one worth putting them back on — is gone.
+            if (_player == null)
+            {
+                var found = GameObject.FindGameObjectWithTag(OverworldNames.PlayerTag);
+                if (found == null) return;
+                _player = found.GetComponentInParent<PlayerLocomotion>();
+                if (_player == null) return;
+            }
+
+            if (!_playerInside)
+            {
+                if (_player.Traversal != TraversalState.Water && _player.IsGrounded)
+                {
+                    _lastDryPosition = _player.transform.position;
+                    _hasDryPosition = true;
+                }
+                return;
+            }
+
+            if (!IsAllowed())
+            {
+                Refuse();
+                return;
+            }
 
             // Re-assert the surface each frame: a lake with a sloped bed or a moving platform
             // would otherwise drift the ride height after the entry frame.
@@ -97,6 +148,8 @@ namespace PokeLab.Overworld
         /// </summary>
         private bool IsAllowed()
         {
+            if (_requiresSurf && !SurfCapability.CanSurf()) return false;
+
             if (string.IsNullOrEmpty(_requiredItemId)) return true;
             if (!PokeLab.Core.ServiceHub.TryGet<PokeLab.Core.IPlayerProfile>(out var profile)) return true;
             return profile.Inventory != null

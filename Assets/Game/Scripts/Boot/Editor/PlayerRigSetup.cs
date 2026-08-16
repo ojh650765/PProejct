@@ -378,6 +378,12 @@ namespace PokeLab.Boot.Editor
             // grass.
             if (go.GetComponent<EncounterDirector>() == null)
                 go.AddComponent<EncounterDirector>();
+
+            // The creature that carries the player over water, and its wake. Watches the
+            // traversal event, so every lake and river in every scene gets it without any
+            // of them knowing it exists.
+            if (go.GetComponent<PokeLab.Boot.SurfMount>() == null)
+                go.AddComponent<PokeLab.Boot.SurfMount>();
         }
 
         /// <summary>

@@ -6,7 +6,8 @@
         "PokeLab.Intelligence",
         "PokeLab.Battle",
         "PokeLab.Overworld",
-        "PokeLab.UI"
+        "PokeLab.UI",
+        "PokeLab.Cinematics"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
