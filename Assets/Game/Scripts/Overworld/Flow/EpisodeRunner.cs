@@ -318,7 +318,7 @@ namespace PokeLab.Overworld
                     break;
 
                 case EpisodeBeatKind.AskName:
-                    RunAskName(beat);
+                    yield return RunAskName(beat);
                     break;
 
                 case EpisodeBeatKind.Battle:
@@ -573,13 +573,14 @@ namespace PokeLab.Overworld
         // --- Name entry ----------------------------------------------------------------------
 
         /// <summary>
-        /// Writes the player's name to the profile.
+        /// Asks the player their name and writes it to the profile.
         ///
-        /// There is no text entry anywhere in the project, so this takes the beat's authored
-        /// default and says so. It does not wait for a UI that does not exist: a modal prompt
-        /// nothing can dismiss is a game over on the first screen.
+        /// Bounded, and it falls back to the beat's authored default on a timeout or an empty
+        /// confirmation. A modal prompt nothing can dismiss is a game over on the first
+        /// screen, which is what this method used to guard against by never opening one at
+        /// all — the note it carried is now satisfied rather than deferred.
         /// </summary>
-        private void RunAskName(EpisodeBeat beat)
+        private IEnumerator RunAskName(EpisodeBeat beat)
         {
             var chosen = string.IsNullOrWhiteSpace(beat.Id) ? "Ren" : beat.Id.Trim();
 
@@ -594,18 +595,47 @@ namespace PokeLab.Overworld
                 Debug.LogWarning("[Episode] AskName with no PlayerProfile registered. The name was " +
                                  "not recorded, and every {PLAYER} in the script will read as the " +
                                  "fallback.", this);
-                return;
+                yield break;
             }
 
-            // SEAM: real name entry goes here. Replace this method's body with a coroutine that
-            // opens the UI worker's entry widget, waits for it under a ceiling of its own, and
-            // falls back to `chosen` on timeout or on an empty confirmation — the rest of the
-            // scene already reads the name back out of the profile, so nothing else changes.
-            profile.SetTrainerName(chosen);
-            Debug.LogWarning($"[Episode] AskName fell through to its authored default '{chosen}': " +
-                             "nothing in the project offers text entry yet. The scene continues " +
-                             "with that name rather than waiting for a prompt that cannot appear.", this);
+            DefaultName = chosen;
+            SubmittedName = null;
+            IsAwaitingName = true;
+
+            var elapsed = 0f;
+            while (SubmittedName == null && elapsed < _nameEntryTimeoutSeconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            IsAwaitingName = false;
+
+            if (SubmittedName == null)
+            {
+                Debug.LogWarning($"[Episode] Nothing answered the name prompt within " +
+                                 $"{_nameEntryTimeoutSeconds:F0}s, so '{chosen}' was used. Check " +
+                                 "that a name entry presenter is in the scene.", this);
+            }
+
+            var final = string.IsNullOrWhiteSpace(SubmittedName) ? chosen : SubmittedName.Trim();
+            profile.SetTrainerName(final);
         }
+
+        [Tooltip("Ceiling on the name prompt. Long, because the player is typing — but not " +
+                 "unbounded, because a missing presenter must not end the game on its first " +
+                 "screen.")]
+        [SerializeField] private float _nameEntryTimeoutSeconds = 180f;
+
+        /// <summary>True while the runner is waiting for a name. The presenter's cue to open.</summary>
+        public bool IsAwaitingName { get; private set; }
+
+        /// <summary>What to prefill the field with, and what is used if the player confirms it empty.</summary>
+        public string DefaultName { get; private set; } = "Ren";
+
+        private string SubmittedName { get; set; }
+
+        /// <summary>Called by the name entry UI. An empty string means "keep the default".</summary>
+        public void SubmitName(string name) => SubmittedName = name ?? string.Empty;
 
         // --- Actors --------------------------------------------------------------------------
 

@@ -498,6 +498,9 @@ namespace PokeLab.Boot.Editor
 
             if (go.GetComponent<PokeLab.Boot.StarterPresenter>() == null)
                 go.AddComponent<PokeLab.Boot.StarterPresenter>();
+
+            if (go.GetComponent<PokeLab.Boot.NameEntryPresenter>() == null)
+                go.AddComponent<PokeLab.Boot.NameEntryPresenter>();
         }
 
         /// <summary>

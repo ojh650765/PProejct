@@ -7,7 +7,9 @@
         "PokeLab.Battle",
         "PokeLab.Overworld",
         "PokeLab.UI",
-        "PokeLab.Cinematics"
+        "PokeLab.Cinematics",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
