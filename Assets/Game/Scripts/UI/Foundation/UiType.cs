@@ -41,17 +41,28 @@ namespace PokeLab.UI
         public static TMP_FontAsset Font;
 
         /// <summary>Point size for a role at the reference 1080p canvas height.</summary>
+        /// <remarks>
+        /// Raised by half again from the scale this started with, which was an application's
+        /// scale rather than a game's: body copy at 18pt is 1.7% of a 1080p screen, fine in a
+        /// window you lean into and much too small on a screen you sit back from. The ratios
+        /// between the roles are unchanged, so the hierarchy reads exactly as before — only
+        /// the whole ramp moved.
+        ///
+        /// Korean is the reason the floor moved most. Hangul syllables are dense — three
+        /// letters stacked into one glyph — so a size that is merely small in Latin becomes
+        /// genuinely unreadable in Korean, and this game is Korean first.
+        /// </remarks>
         public static float Size(UiTextRole role) => role switch
         {
-            UiTextRole.Metric => 72f,
-            UiTextRole.Title => 34f,
-            UiTextRole.Heading => 22f,
-            UiTextRole.Body => 18f,
-            UiTextRole.Secondary => 15f,
-            UiTextRole.Numeric => 18f,
-            UiTextRole.Overline => 12f,
-            UiTextRole.Caption => 12f,
-            _ => 18f,
+            UiTextRole.Metric => 96f,
+            UiTextRole.Title => 50f,
+            UiTextRole.Heading => 34f,
+            UiTextRole.Body => 28f,
+            UiTextRole.Secondary => 23f,
+            UiTextRole.Numeric => 28f,
+            UiTextRole.Overline => 19f,
+            UiTextRole.Caption => 19f,
+            _ => 28f,
         };
 
         /// <summary>

@@ -46,6 +46,9 @@ namespace PokeLab.Boot.Editor
 
         private const string WaterMaterial = "Assets/Game/Shaders/Materials/M_Water_Lake.mat";
 
+        /// <summary>The ball thrown on a send-out and a capture.</summary>
+        private const string BallModel = "Assets/Game/Art/Props/Env_Prop_CaptureBall.fbx";
+
         /// <summary>
         /// Where the whole set stands, in the world both scenes share.
         ///
@@ -121,6 +124,7 @@ namespace PokeLab.Boot.Editor
             var stage = EnsureStage(root.transform);
             var rig = EnsureCameraRig(root.transform, stage);
             var presenter = EnsurePresenter(root.transform, stage, rig);
+            var stand = EnsurePlayerStand(root.transform);
             var dressings = BuildDressings(root.transform);
 
             var arena = root.GetComponent<BattleArena>();
@@ -128,6 +132,7 @@ namespace PokeLab.Boot.Editor
             Assign(arena, "stage", stage);
             Assign(arena, "rig", rig);
             Assign(arena, "presenter", presenter);
+            Assign(arena, "playerStand", stand);
             AssignArray(arena, "dressings", dressings);
 
             Debug.Log($"[Arena] Built the battle arena in '{scene.name}' at {ArenaOrigin}, with " +
@@ -241,6 +246,9 @@ namespace PokeLab.Boot.Editor
 
             created += EnsureDisc(stage, "playerDisc", "playerCreatureMark", "FieldDisc_Player");
             created += EnsureDisc(stage, "opponentDisc", "opponentCreatureMark", "FieldDisc_Opponent");
+
+            created += EnsureTrainerView(stage, "playerTrainerView", "playerTrainerMark", "TrainerView_Player");
+            created += EnsureTrainerView(stage, "opponentTrainerView", "opponentTrainerMark", "TrainerView_Opponent");
             return created;
         }
 
@@ -298,6 +306,43 @@ namespace PokeLab.Boot.Editor
             SetLayer(go, "Creature");
 
             property.objectReferenceValue = go.AddComponent<CreatureView>();
+            so.ApplyModifiedPropertiesWithoutUndo();
+            return 1;
+        }
+
+        /// <summary>
+        /// Creates the person who throws the ball on a side.
+        ///
+        /// Authored rather than left to the stage's runtime fallback for the same reason the
+        /// creature views are: a view created at runtime works and leaves nothing to inspect,
+        /// position or override. Everything else it needs — the quad, the material, the sprite
+        /// sheets — <see cref="TrainerView"/> builds for itself the first time it is asked to
+        /// draw, and which person it draws is decided per battle, not here.
+        /// </summary>
+        private static int EnsureTrainerView(CinematicStage stage, string field, string markField, string viewName)
+        {
+            var so = new SerializedObject(stage);
+            var property = so.FindProperty(field);
+            if (property == null)
+            {
+                Debug.LogWarning($"[Arena] BattleStage has no field '{field}'; the trainer was not created.");
+                return 0;
+            }
+            if (property.objectReferenceValue != null) return 0;
+
+            var mark = TransformOf(so, markField);
+            if (mark == null) return 0;
+
+            var go = new GameObject(viewName);
+            go.transform.SetParent(mark, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            // The Creature layer, with the combatants: the rig exempts its subjects' layer from
+            // occlusion, and a person standing between the lens and the field is otherwise an
+            // obstacle that shoves the camera off its authored angle on every send-out.
+            SetLayer(go, "Creature");
+
+            property.objectReferenceValue = go.AddComponent<TrainerView>();
             so.ApplyModifiedPropertiesWithoutUndo();
             return 1;
         }
@@ -438,20 +483,111 @@ namespace PokeLab.Boot.Editor
             // level scene loaded beside this one and could find anything.
             Assign(presenter, "stage", stage);
             Assign(presenter, "rig", rig);
+
+            // The real ball, not the grey sphere.
+            //
+            // BallActor builds a primitive when it is handed no prefab, so the choreography
+            // could be reviewed before the art existed. The art has existed for a while and
+            // nothing ever assigned it, so every send-out and every capture in the game threw
+            // an untextured ball.
+            var ball = AssetDatabase.LoadAssetAtPath<GameObject>(BallModel);
+            if (ball != null) Assign(presenter, "ballPrefab", ball);
+            else Debug.LogWarning($"[Arena] {BallModel} is missing, so throws will use the " +
+                                  "grey stand-in sphere.");
             return presenter;
+        }
+
+        /// <summary>
+        /// Where the player's body is parked while the battle runs.
+        ///
+        /// Behind the camera, and a long way behind it. The trainer mark is where the player
+        /// <i>appears</i> to be, but that is a <see cref="TrainerView"/> drawn only around the
+        /// throw; putting the real rig there too would be the same sprite twice, one of them
+        /// standing in shot for the whole fight. Thirty-four metres back is past the furthest the
+        /// framing solve can ever push the camera — the standoff is bounded by the stage extent,
+        /// which is bounded by the separation clamp — so nothing in the shot can reach it.
+        ///
+        /// A child of the arena root rather than of the stage, because the stage rescales itself
+        /// to whatever pair of creatures is standing in it and this must not move with them.
+        /// </summary>
+        private static Transform EnsurePlayerStand(Transform parent)
+        {
+            Transform stand = parent.Find("Stand_Player");
+            if (stand == null)
+            {
+                var go = new GameObject("Stand_Player");
+                go.transform.SetParent(parent, false);
+                SetLayer(go, "BattleStage");
+                stand = go.transform;
+            }
+
+            stand.localPosition = new Vector3(0f, 0f, -34f);
+            stand.localRotation = Quaternion.identity;
+            return stand;
         }
 
         // --- Dressings ---------------------------------------------------------------------------
 
+        // --- The enclosure ------------------------------------------------------------------------
+        //
+        // Every dressing is a clearing with a wall around it, and the wall is sized from what the
+        // battle camera can actually see rather than from taste. The rig solves one placement for
+        // every shot (BattleCameraRig.SolveBasis), so the numbers below are derived, not chosen:
+        //
+        //   standoff        = 0.9 + 2.0 * extent            (ApplyRigFraming)
+        //   extent          = max(tallest * 1.6, separation * 0.55)   (SolveStageExtent)
+        //   separation      <= 16 m, tallest <= 6.5 m       (SolveSeparation, DexDisplayHeights)
+        //   => extent       <= 9.6 m, standoff <= 20.1 m
+        //   => with the widest shot's -25% dolly cap, the lens can stand 25.1 m out.
+        //
+        // Two consequences, and the old ring satisfied neither:
+        //
+        // * Nothing may be planted inside 26 m along the camera's own bearing, or a fight between
+        //   two large creatures pushes the lens into a tree. The bearing is fixed — the camera is
+        //   always at centre - viewDirection * standoff, and viewDirection is the stage axis turned
+        //   by -18°, which for every separation the stage can solve lands within 163°-169° of the
+        //   dressing's local +Z. So the corridor is a known wedge and is simply left empty.
+        //
+        // * Everywhere else the wall has to start outside the trainer marks — the furthest of which
+        //   is 13.4 m out — and be continuous, which the old two rings of 22 and 26 trees spread
+        //   over the full circle were not: one trunk every fifteen degrees with a 13 m spread in
+        //   radius is a colonnade, and the sky and the floor's own edge showed between them.
+        //
+        // Three bands, because one cannot do it. The near band is what the eye reads as the edge of
+        // the clearing; the mid band fills the gaps between its trunks; the far band is what covers
+        // the top of the frame when the lens has pushed back for a large pair, at which point the
+        // near band is beside the camera rather than in front of it. Sizes rise with distance, both
+        // because a distant treeline reads bigger and because the far band is the one that has to
+        // reach the top of a frame 45 m away.
+
+        /// <summary>Bearing from the stage centre to the camera, in the dressing's local space.</summary>
+        private const float CameraBearing = 166f;
+
+        /// <summary>
+        /// Half-width of the wedge kept clear for the camera and the near trainer mark.
+        ///
+        /// 36° covers the 163°-169° the solved bearing can take, the 190.7° the player's trainer
+        /// mark sits at, and the three metres that mark slides sideways when the trainer walks off.
+        /// </summary>
+        private const float CameraCorridor = 36f;
+
+        /// <summary>Where the near band starts. Outside the furthest trainer mark, which is 13.4 m.</summary>
+        private const float WallNear = 15f;
+
+        // Nothing solid goes inside 14 m either, which is why the boulders, the fences, the street
+        // props, the stalagmites and the rubble all moved out. The four marks sweep from 2.5 m to
+        // 13.4 m as AdaptToCreatureSizes rescales the field, and a field disc reaches 4.5 m past
+        // the mark it is under, so there is no radius inside that a lamp post can occupy without
+        // sometimes being a lamp post a trainer is standing in. Flowers, grass and cave moss stay:
+        // they are ankle height, and a person standing in them is a person standing in them.
+
         /// <summary>
         /// The four backdrops, one per <see cref="BattleZone"/>, in enum order.
         ///
-        /// Each is a floor the arena stands on plus scenery arranged in a ring around it, and the
-        /// ring is the whole trick: the camera sits about five and a half metres from the stage
-        /// centre, so nothing is placed inside eleven and there is no way for the shot to end up
-        /// inside a tree. The reference frames read as a place with depth — sky above a treeline,
-        /// water behind — so the scenery is biased toward the far half of the field, which is
-        /// where the frame has room for it above the far combatant.
+        /// Each is a floor the arena stands on plus an enclosure around it — trees for a route,
+        /// houses and then trees for a town, rock for a cave, water on one side and a far bank for
+        /// a lake. The reference frames read as a place with depth, so the bands are stacked rather
+        /// than flat and the modules vary in kind, yaw and scale within each one.
         ///
         /// Rebuilt from scratch every time. These are output, not authoring.
         /// </summary>
@@ -486,19 +622,58 @@ namespace PokeLab.Boot.Editor
             return built;
         }
 
+        /// <summary>
+        /// Plants one band of the enclosure, over the whole circle except the camera corridor.
+        ///
+        /// The corridor is expressed as a single arc that runs the long way round — from the far
+        /// edge of the wedge, forward past 360°, to its near edge — because <see cref="Scatter"/>
+        /// strews stratified along one arc and two arcs would stratify each half separately and
+        /// leave a seam where they meet.
+        /// </summary>
+        private static void EncloseBand(Transform root, string name, string[] models, int count,
+            float radiusMin, float radiusMax, float scaleMin, float scaleMax, int seed,
+            bool faceCentre = false, bool clearCorridor = true, float height = 0f)
+        {
+            float from = clearCorridor ? CameraBearing + CameraCorridor : 0f;
+            float to = clearCorridor ? CameraBearing - CameraCorridor + 360f : 360f;
+            Scatter(root, name, models, count, radiusMin, radiusMax, scaleMin, scaleMax, seed,
+                faceCentre: faceCentre, arcFrom: from, arcTo: to, height: height);
+        }
+
+        /// <summary>
+        /// Plants one band of the lakeside enclosure on the two stretches of shore that are
+        /// neither under the lake nor in the camera's corridor. <paramref name="count"/> is per
+        /// stretch, not per band.
+        /// </summary>
+        private static void Shore(Transform root, string name, string[] models, int count,
+            float radiusMin, float radiusMax, float scaleMin, float scaleMax, int seed)
+        {
+            Scatter(root, name + "_East", models, count, radiusMin, radiusMax, scaleMin, scaleMax,
+                seed, arcFrom: 52f, arcTo: CameraBearing - CameraCorridor);
+            Scatter(root, name + "_West", models, count, radiusMin, radiusMax, scaleMin, scaleMax,
+                seed + 1, arcFrom: CameraBearing + CameraCorridor, arcTo: 308f);
+        }
+
         private static void BuildRoute(Transform root)
         {
             BuildFloor(root, "Floor_Route", 70f, -70f, 70f,
                 BattleFieldSurface.Grass, BattleFieldSurface.Dirt, 30f, 60f);
 
-            // Two rings at different radii and scales. One ring reads as a fence of trees; two
-            // gives the treeline a near edge and a far one, which is what makes it depth rather
-            // than a wall of cutouts.
-            Scatter(root, "Treeline_Near", BroadleafTrees, 22, 13f, 20f, 0.85f, 1.25f, 91);
-            Scatter(root, "Treeline_Far", ConiferTrees, 26, 21f, 34f, 1.0f, 1.6f, 92);
-            Scatter(root, "Rocks", Boulders, 9, 12f, 19f, 0.6f, 1.1f, 93);
-            Scatter(root, "Undergrowth", Bushes, 30, 8.5f, 17f, 0.7f, 1.3f, 94);
-            Scatter(root, "Flowers", Flowers, 44, 6.5f, 15f, 0.8f, 1.2f, 95);
+            // The wall. Broadleaf close, where the eye can read individual canopies, conifer
+            // behind it and furthest out, where a pointed silhouette is what makes a treeline
+            // read as a treeline at forty metres.
+            EncloseBand(root, "Wall_Near", BroadleafTrees, 44, WallNear, 19f, 0.9f, 1.45f, 91);
+            EncloseBand(root, "Wall_Mid", ConiferTrees, 36, 20f, 26f, 1.2f, 1.9f, 92);
+            EncloseBand(root, "Wall_Far", ConiferTrees, 26, 30f, 42f, 1.8f, 2.6f, 93,
+                clearCorridor: false);
+
+            // The understorey. Trunks alone leave a band of daylight at ground level between the
+            // wall and whatever is behind it, which is the gap that reads as "a lawn with trees on
+            // it" rather than as a clearing.
+            EncloseBand(root, "Understorey", Bushes, 40, 14f, 18f, 0.9f, 1.7f, 94);
+
+            EncloseBand(root, "Rocks", Boulders, 11, 14f, 17f, 0.6f, 1.1f, 95);
+            Scatter(root, "Flowers", Flowers, 44, 9f, 13.5f, 0.8f, 1.2f, 96);
         }
 
         private static void BuildTown(Transform root)
@@ -506,30 +681,57 @@ namespace PokeLab.Boot.Editor
             BuildFloor(root, "Floor_Town", 70f, -70f, 70f,
                 BattleFieldSurface.Dirt, BattleFieldSurface.Grass, 12f, 30f);
 
-            // Buildings face the field. A ring of houses all pointing at world +Z would show the
-            // player three gable ends and one front door.
-            Scatter(root, "Buildings", Buildings, 9, 17f, 26f, 1f, 1f, 71, faceCentre: true);
-            Scatter(root, "Fences", Fences, 16, 11f, 12.5f, 1f, 1f, 72, faceCentre: true);
-            Scatter(root, "StreetProps", TownProps, 14, 12f, 18f, 0.9f, 1.15f, 73);
-            Scatter(root, "Trees", BroadleafTrees, 12, 22f, 33f, 0.9f, 1.4f, 74);
-            Scatter(root, "Planting", Flowers, 26, 9f, 16f, 0.8f, 1.2f, 75);
+            // A square, not a clearing: the enclosure is the buildings, and the trees are what
+            // closes the sky above their roofs and the gaps between them. Buildings face the
+            // field — a ring of houses all pointing at local +Z would show the player three gable
+            // ends and one front door.
+            EncloseBand(root, "Wall_Buildings", Buildings, 11, WallNear, 23f, 1f, 1f, 71,
+                faceCentre: true);
+            EncloseBand(root, "Wall_Trees", BroadleafTrees, 34, 22f, 29f, 1.2f, 1.8f, 72);
+            EncloseBand(root, "Wall_Far", ConiferTrees, 28, 32f, 44f, 1.8f, 2.6f, 73,
+                clearCorridor: false);
+
+            EncloseBand(root, "Fences", Fences, 18, 14.5f, 16f, 1f, 1f, 74, faceCentre: true);
+            EncloseBand(root, "StreetProps", TownProps, 14, 14f, 17f, 0.9f, 1.15f, 75);
+            Scatter(root, "Planting", Flowers, 26, 9f, 13.5f, 0.8f, 1.2f, 76);
         }
 
         private static void BuildCave(Transform root)
         {
-            BuildFloor(root, "Floor_Cave", 40f, -40f, 40f,
-                BattleFieldSurface.Rock, BattleFieldSurface.Dirt, 14f, 34f);
+            // Wide enough to stand the wall on and to carry the camera at full standoff. It was
+            // 40, which put the lens over the floor's own edge in a fight between two large
+            // creatures and showed the void under it.
+            BuildFloor(root, "Floor_Cave", 60f, -60f, 60f,
+                BattleFieldSurface.Rock, BattleFieldSurface.Dirt, 14f, 40f);
 
             // A ceiling, and it is what makes the room a cave rather than a quarry at night. It
             // hangs above the camera's own height, so it frames the top of the shot without ever
             // being something the camera can be pushed into.
-            BuildCeiling(root, "Ceiling_Cave", 40f, 7.5f);
+            //
+            // Raised from 7.5 and widened from 40: at full standoff the top of the widest frame is
+            // about ten metres up by the time it reaches the far wall, and a 7.5 m lid ended above
+            // the frame line — which is a cave you can see out of.
+            BuildCeiling(root, "Ceiling_Cave", 50f, 10.5f);
 
-            Scatter(root, "Walls", CliffWalls, 26, 13f, 15f, 1.1f, 1.6f, 51, faceCentre: true);
-            Scatter(root, "Stalagmites", Stalagmites, 20, 9f, 16f, 0.8f, 1.7f, 52);
-            Scatter(root, "Stalactites", Stalactites, 16, 8f, 16f, 0.9f, 1.6f, 53, height: 7.2f, upsideDown: true);
-            Scatter(root, "Rubble", CaveRubble, 18, 8f, 17f, 0.7f, 1.3f, 54);
-            Scatter(root, "Moss", CaveMoss, 22, 7.5f, 15f, 0.8f, 1.3f, 55);
+            // Rock, not trees. Two courses of cliff so the wall has a top edge above the frame
+            // line rather than a skyline of separate slabs.
+            EncloseBand(root, "Wall_Near", CliffWalls, 34, WallNear, 18f, 1.3f, 2.0f, 51,
+                faceCentre: true);
+            EncloseBand(root, "Wall_Mid", CliffWalls, 28, 19f, 25f, 1.8f, 2.6f, 52,
+                faceCentre: true);
+            EncloseBand(root, "Wall_Far", CliffWalls, 22, 29f, 40f, 2.4f, 3.4f, 53,
+                faceCentre: true, clearCorridor: false);
+
+            EncloseBand(root, "Stalagmites", Stalagmites, 20, 14f, 17.5f, 0.8f, 1.7f, 54);
+            // Hung from the ceiling's own sagged height over this band, not from its rim: the lid
+            // dips 1.6 m toward the middle, so a fixed 6.2 left every tip floating under it.
+            //
+            // And no longer flipped. Env_Cave_Stalactite_A and _B are generated with down=True and
+            // a top anchor — the mesh already hangs from the origin — so the 180° roll turned them
+            // into spikes standing on the ceiling pointing at it.
+            EncloseBand(root, "Stalactites", Stalactites, 16, 9f, 16f, 0.9f, 1.6f, 55, height: 9.15f);
+            EncloseBand(root, "Rubble", CaveRubble, 18, 14f, 17f, 0.7f, 1.3f, 56);
+            Scatter(root, "Moss", CaveMoss, 22, 9.5f, 14.5f, 0.8f, 1.3f, 57);
         }
 
         private static void BuildLakeside(Transform root)
@@ -541,12 +743,38 @@ namespace PokeLab.Boot.Editor
                 BattleFieldSurface.Sand, BattleFieldSurface.Grass, 8f, 24f);
             BuildWater(root, "Water_Lake", 150f, 11.5f, 150f, -0.35f);
 
-            Scatter(root, "Reeds", Reeds, 34, 8f, 12.5f, 0.8f, 1.4f, 31, arcFrom: -70f, arcTo: 70f);
-            Scatter(root, "Lilypads", Lilypads, 22, 16f, 40f, 1.2f, 2.2f, 32, arcFrom: -55f, arcTo: 55f, height: -0.3f);
-            Scatter(root, "Willows", WillowTrees, 14, 13f, 22f, 0.9f, 1.4f, 33, arcFrom: 60f, arcTo: 300f);
-            Scatter(root, "FarShore", BroadleafTrees, 20, 55f, 78f, 1.2f, 1.8f, 34, arcFrom: -60f, arcTo: 60f);
-            Scatter(root, "WetRocks", Boulders, 10, 10f, 18f, 0.7f, 1.2f, 35, arcFrom: 70f, arcTo: 290f);
-            Scatter(root, "Bank", Bushes, 20, 9f, 16f, 0.7f, 1.2f, 36, arcFrom: 80f, arcTo: 280f);
+            // The far bank, so the treeline across the water has something to stand on. Without
+            // it the distant trees are rooted in open water, which is the one thing in this
+            // dressing the eye reads instantly as wrong.
+            BuildFloor(root, "Floor_FarBank", 150f, 62f, 150f,
+                BattleFieldSurface.Grass, BattleFieldSurface.Grass, 400f, 500f);
+
+            // The enclosure is asymmetric here and has to be: the shore ends at z = 13, so
+            // roughly -50°..50° is open water and cannot carry a tree. What closes the frame on
+            // that side is the far bank across the lake; everything else is planted on land.
+            //
+            // Which leaves the land as 52°..308°, minus the camera corridor in the middle of it —
+            // two arcs, so each band is laid twice. That is why this zone does not use
+            // EncloseBand: the water has already broken the circle, and stratifying one arc that
+            // runs through the lake would put a third of every band in it.
+            Shore(root, "Wall_Near", WillowTrees, 9, WallNear, 20f, 1.0f, 1.6f, 31);
+            Shore(root, "Wall_Mid", BroadleafTrees, 15, 21f, 30f, 1.4f, 2.2f, 33);
+            Shore(root, "Bank", Bushes, 12, 14f, 18f, 0.9f, 1.6f, 35);
+
+            // Beyond anything the lens can reach, so this one crosses the corridor unbroken.
+            Scatter(root, "Wall_Far", ConiferTrees, 18, 34f, 48f, 2.0f, 2.8f, 40,
+                arcFrom: 58f, arcTo: 302f);
+
+            Scatter(root, "Reeds", Reeds, 34, 9.5f, 12.5f, 0.8f, 1.4f, 41, arcFrom: -70f, arcTo: 70f);
+            Scatter(root, "Lilypads", Lilypads, 22, 16f, 40f, 1.2f, 2.2f, 42, arcFrom: -55f, arcTo: 55f, height: -0.3f);
+
+            // Across the water. The arc is narrower and the radius larger than it was: at -48° a
+            // tree 66 m out lands at z = 44, twenty metres short of the far bank's own edge at 62,
+            // so a fifth of this treeline was standing in the lake.
+            Scatter(root, "FarShore", BroadleafTrees, 26, 72f, 96f, 2.0f, 3.0f, 43,
+                arcFrom: -30f, arcTo: 30f);
+            Scatter(root, "WetRocks", Boulders, 10, 14f, 17f, 0.7f, 1.2f, 44,
+                arcFrom: 70f, arcTo: CameraBearing - CameraCorridor);
         }
 
         // --- Dressing pieces ------------------------------------------------------------------------
@@ -714,8 +942,13 @@ namespace PokeLab.Boot.Editor
                 if (instance == null) continue;
 
                 instance.transform.localPosition = position;
+                // A face-centre piece still gets a few degrees of yaw. A ring of cliff slabs or
+                // house fronts all pointing exactly at the middle is a repeating fence, and the
+                // repeat is the thing the eye picks out first — it is what stopped the old cave
+                // wall reading as rock.
                 instance.transform.localRotation = faceCentre
                     ? Quaternion.LookRotation(-direction, Vector3.up)
+                      * Quaternion.Euler(0f, ((float)random.NextDouble() - 0.5f) * 18f, 0f)
                     : Quaternion.Euler(0f, (float)random.NextDouble() * 360f, 0f);
                 if (upsideDown)
                     instance.transform.localRotation *= Quaternion.Euler(180f, 0f, 0f);

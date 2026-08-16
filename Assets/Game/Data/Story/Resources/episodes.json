@@ -1,6 +1,6 @@
 {
   "schema": {
-    "version": 1,
+    "version": 2,
     "authoredBy": "narrative-design",
     "consumedBy": "Assets/Game/Scripts/Overworld/Flow/EpisodeRunner.cs",
     "note": "An episode is an ordered list of beats. Beats block: each one finishes before the next starts, because a scripted scene whose steps overlap is a race, not a scene. This file is shaped for UnityEngine.JsonUtility, which is why 'Kind' is an integer and not a string -- JsonUtility deserialises enums from numbers only. 'KindName' and 'Note' sit beside them for humans and are ignored by the parser. Do not delete the integers.",
@@ -12,25 +12,29 @@
       "5": "TakeControl -- freeze the player, flow to Cutscene.",
       "6": "GiveControl -- unfreeze, flow to Exploring.",
       "7": "MoveActor -- walk the actor named by Id to the marker named by Target, block until it arrives. The actor faces the player on arrival. Seconds is a timeout, not a duration: if the walk has not finished by then, snap and continue, so blocked geometry can never strand the scene.",
-      "8": "CameraTo  -- frame the camera on the marker named by Id (OverworldCameraRig.LookToward). Markers are listed in cast.json.",
+      "8": "CameraTo  -- frame the camera on the object named by Id (OverworldCameraRig.LookToward). Usually a marker from cast.json; 'Actor_StagedCreature' is the one exception, and it is the object a StageCreature beat built, which is why it needs no marker.",
       "9": "ChooseStarter -- open the starter choice, block until the player commits. StarterSelection.Commit runs InitialiseNewGame, so this beat is the point of no return.",
       "10": "GiveItem -- Id is a FieldItems id, Amount is the count.",
       "11": "SetFlag  -- Id is the flag, Value is on/off. Flags gate episodes, NPC dialogue variants and the gate ramp.",
-      "12": "Battle   -- Id is a trainer id. The runner hands off to that trainer's TrainerController and blocks until NotifyBattleResolved. Target='starter_counter' means the party is built from StarterOption.RivalCounterSpeciesId rather than from the TrainerDefinition's fixed list.",
-      "13": "AskName  -- NEW. Opens name entry, blocks, writes PlayerProfile.SetTrainerName. Id is the default used if the player confirms an empty field or the UI does not exist yet. Target names the profile field."
+      "12": "Battle   -- Target='starter_counter' fights the trainer named by Id with a party built from StarterOption.RivalCounterSpeciesId. Target='staged' fights the creature a StageCreature beat put on the ground -- a wild battle, at that creature's own species and level, routed through EncounterDirector so the creature is removed from the world afterwards. Id is ignored in the staged case.",
+      "13": "AskName  -- opens name entry, blocks, writes PlayerProfile.SetTrainerName. Id is the default used if the player confirms an empty field or the UI does not exist yet. Target names the profile field.",
+      "14": "StageCreature -- NEW. Stand a wild creature on the marker named by Id. Target is its GAME species id as a string (SliceRoster, not national dex -- game 25 is Rattata), Amount is its level. It is placed visible, facing the player, and held still: it does not wander, does not react and cannot start a battle on its own. At most one at a time. Destroyed when the episode ends, on every path.",
+      "15": "CreatureApproach -- NEW. Walk the staged creature up to the player and block until it is 1.6 m away. Seconds is a timeout, as with MoveActor: an approach that does not land is snapped, because the beat after it is a battle that needs the creature on screen."
     },
     "episodeFields": {
       "Id": "stable id; EpisodeRunner._openingEpisodeId points at 'opening'.",
-      "CompletionFlag": "set when the episode ends; an episode with its flag set never replays.",
-      "NextEpisodeId": "NEW. Played immediately when this one finishes. Used only where two scenes are really one scene split for authoring.",
-      "Trigger": "NEW, advisory. How this episode starts when it is not chained and not the auto-played opening. Nothing reads it yet; it is here so the wiring is written down next to the scene it belongs to rather than only in a scene file."
+      "CompletionFlag": "set when the episode ends -- in the runner's finally, so it is set on failure too. An episode with its flag set never replays. This is also how a flag the game depends on is guaranteed: 'field_professor_returns' completes on 'story.pokedex', so a player whose dex scene broke halfway still ends the prologue holding one.",
+      "NextEpisodeId": "Played immediately when this one finishes, in the same frame the previous one releases. Used only where two scenes are really one scene split for authoring. Read by Episode.NextEpisodeId in EpisodeRunner.cs -- the field was absent for a while, and JsonUtility drops what it has no field for without a word, so the chain authored here was silently discarded.",
+      "Trigger": "Advisory, and still not read by the runner. The live wiring is LevelLayoutBuilder.StoryTriggers, which hangs a StoryEncounter on the named actor at build time; this stays as the authored intent so the two can be compared. Keep them in step by hand -- nothing checks. NOTE: one StoryEncounter per actor. BuildStoryTriggers reuses the component it finds, so two triggers naming the same actor is not two beats, it is the second overwriting the first. Bram and Kes are each wanted twice, so each spends its one slot on the beat that has to be on the character -- Bram's refusal, and Kes' battle -- and the other beat hangs off a marker object nearby ('Trigger_GateOpen', 'Trigger_Square')."
     },
+    "actNote": "The opening act, restructured. The shape is now: the player tries to leave, is turned back and told to find Kes; Kes sets a forfeit and bolts; the gate opens; the player finds Linden muttering on the lake bank; he leaves his bag; a creature that is already standing in the grass walks up to them; they take a ball out of the bag under pressure and fight it; Linden comes back and gives them the dex. Everything that used to happen at the town gate -- the case on the ground, the flock, the choice, the rival battle -- has moved or gone. The single biggest change is that the first battle is against a creature the player watched approach, not a cut to a battle screen.",
     "gaps": [
-      "FadeIn/FadeOut, Dialogue, MoveActor and Battle are logged-and-skipped in EpisodeRunner today. Everything below assumes they land.",
-      "AskName (13) has no UI anywhere in the project. Until it does, the beat must fall through to its Id ('Ren') rather than block forever.",
-      "CameraTo resolves markers with GameObject.Find. None of the markers named here exist in the scenes yet; their world positions are in cast.json.",
-      "NPC_Professor does not exist in slice_layout.json. Every beat that names it needs that NPC placed first; position in cast.json.",
-      "Dialogue text uses a {PLAYER} token. Nothing substitutes it yet -- DialogueRunner is the natural place."
+      "AskName (13) falls through to its Id ('Ren') when nothing presents it. NameEntryPresenter exists now, so this is only a fallback.",
+      "Dialogue text uses a {PLAYER} token; EpisodeRunner.Substitute replaces it.",
+      "'vfx.kes_runs' (kes_summons line 3) and 'vfx.professor_leaves' (field_professor_mutters line 4) have no listener. Both are the cue for the actor to move, and until something listens the MoveActor beat has to come after the whole dialogue -- so Kes walks away one line after the script has already said he is gone. When a listener exists, drive the run from the event and turn these MoveActor beats into snaps.",
+      "There is no authored line between the starter being taken and the battle starting. op_choice_result_* were Linden's read on the one you took plus Kes announcing the counter, and neither of them is on the bank. The choice is currently silent.",
+      "Bram has no repeatable 'go and find Kes' line. gate_wait_for_kes is PlaysOnlyOnce, and dialogue.json's NpcBindings still default npc_gate_01 to gate_block_no_starter -- so a player who walks into the closed ramp a second time is told they have no Pokemon rather than that Kes is waiting.",
+      "RETIRED, and their dialogue with them: 'opening_departure' (op_rival_start, op_gate_block, op_flock, op_professor_arrives, op_choice_prompt, op_choice_result_1/_5/_10, op_handover) and 'leaving_town' (dex_handover, dex_close, and the two repels it granted). 'riv_after' went with the rival battle's Linden beats. None of that copy is reachable now."
     ]
   },
 
@@ -39,83 +43,144 @@
       "Id": "opening",
       "DisplayName": "Aster Town, morning",
       "CompletionFlag": "story.opening_seen",
-      "Note": "Cold open. Black screen, the professor's voice, the name, then the game's signature first frame: the lab dome filling the top of the screen from the plaza spawn. Structural model is Diamond/Pearl's title-screen Rowan monologue plus the red-Gyarados TV report, compressed into one because this game has no bedroom interior to watch a television in. Ends with control, and the rival four metres up the lab lane. Target length ~75s.",
+      "Note": "Unchanged. Cold open: black screen, the professor's voice, the name, then the lab dome filling the top of the screen from the plaza spawn. Ends with control, and nothing to walk towards but the gate -- which is the point. The restructured act begins by letting the player try to leave and stopping them. Target length ~75s.",
       "Beats": [
         { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0, "Note": "Before anything. The player never has control during the prologue." },
         { "Kind": 1,  "KindName": "FadeOut", "Seconds": 0.0, "Note": "Guarantee black on the first frame rather than trusting the boot state." },
         { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_LabDome", "Seconds": 0.0, "Note": "Framed behind the black, so the fade-in reveals the dome already composed." },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_prologue", "Seconds": 0.0, "Note": "8 lines over black. Auto-advancing except the last two. ~32s. Line 0 is Linden naming himself, which the Korean script needs and the English gained with it." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_prologue", "Seconds": 0.0, "Note": "8 lines over black. Auto-advancing except the last two. ~32s." },
         { "Kind": 13, "KindName": "AskName", "Id": "Ren", "Target": "profile.trainer_name", "Seconds": 0.0 },
         { "Kind": 4,  "KindName": "Dialogue", "Id": "op_prologue_confirm", "Seconds": 0.0, "Note": "2 lines. Uses {PLAYER}." },
         { "Kind": 2,  "KindName": "FadeIn", "Seconds": 2.4, "Note": "Slow. This is the shot the whole town was built around." },
         { "Kind": 3,  "KindName": "Wait", "Seconds": 1.8, "Note": "No text. Let the dome sit there." },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_broadcast", "Seconds": 0.0, "Note": "The morning bulletin off the plaza research terminal. This is the Diamond/Pearl television report: it names the mystery and points at the lake. 3 lines, all auto-advancing, ~11s." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_broadcast", "Seconds": 0.0, "Note": "The morning bulletin off the plaza research terminal. It names the mystery and points at the lake, which is where the act is going. 3 lines, ~11s." },
         { "Kind": 11, "KindName": "SetFlag", "Id": "story.opening_seen", "Value": true, "Seconds": 0.0 },
-        { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0, "Note": "Free on the plaza. Kes is up the lab lane; Sela in the market row points at him if the player wanders." }
+        { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0, "Note": "Free on the plaza. Sela in the market row points at Kes if the player wanders; the gate is the other thing they can try, and trying it is now the next beat." }
       ]
     },
 
     {
-      "Id": "opening_departure",
-      "DisplayName": "The case at the gate",
-      "CompletionFlag": "story.starter_chosen",
-      "NextEpisodeId": "rival_first_battle",
-      "Trigger": { "kind": "interact", "actorId": "npc_rival_01", "requiresFlag": "story.opening_seen", "forbidsFlag": "story.starter_chosen", "fallback": "proximity 3.0m, so a player who walks past Kes without pressing anything still starts the game" },
-      "Note": "The heart of it. Diamond/Pearl's structure with one documented deviation. DP: rival drags you out of town -> an adult stops you from entering the grass -> wild birds attack -> the briefcase is opened out of necessity -> you choose. All four of those survive here; only the stage moves, from Lake Verity to the head of the gate ramp, because that is where this map puts the boundary between safe and not. Target length ~3min.",
+      "Id": "gate_wait_for_kes",
+      "DisplayName": "Bram, at the ramp",
+      "CompletionFlag": "story.gate_refused",
+      "Trigger": { "kind": "proximity", "actorId": "npc_gate_01", "sceneObject": "NPC_GateKeeper", "requiresFlag": "story.opening_seen", "forbidsFlag": "story.gate_refused", "radius": 4.0, "approachSeconds": 0.0 },
+      "Note": "The first block, and it replaces the old 'you have no Pokemon' refusal outright. The difference matters: the old one was a rule, and a rule the player has not broken yet reads as the game distrusting them. This one is a message being passed on -- Bram is not stopping you, Kes is. Nothing is set here except that the refusal happened, and the ramp stays closed because StoryGate is still reading story.gate_open. Target length ~20s.",
       "Beats": [
         { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_rival_start", "Seconds": 0.0, "Note": "4 lines, one cosmetic choice. Both options land on the same line -- DP does not let you refuse, and pretending otherwise is worse than not asking." },
-        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_GateRamp", "Seconds": 0.0 },
-        { "Kind": 7,  "KindName": "MoveActor", "Id": "NPC_Rival", "Target": "Mark_Rival_GateStand", "Seconds": 4.0, "Note": "Kes runs. He should arrive well before the player." },
-        { "Kind": 7,  "KindName": "MoveActor", "Id": "Player", "Target": "Mark_Player_GateStand", "Seconds": 5.0, "Note": "Walk, not run. 9m up the main street. The camera is already looking past them both at the ramp." },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_gate_block", "Seconds": 0.0, "Note": "Bram. This is DP's mother warning you out of the tall grass, given to the NPC the layout already stood at the gate. 5 lines." },
-        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_RouteHead", "Seconds": 0.0, "Note": "Swing down the ramp to the route floor -- the shot the flock comes up through." },
-        { "Kind": 3,  "KindName": "Wait", "Seconds": 0.7 },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_flock", "Seconds": 0.0, "Note": "DP's two wild Starly, restaged as a scare rather than a battle. Line 0 carries EventId 'vfx.flock_startle'; the flock itself is VFX/prop work that does not exist. 5 lines." },
-        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_GateStand", "Seconds": 0.0 },
-        { "Kind": 7,  "KindName": "MoveActor", "Id": "NPC_Professor", "Target": "Mark_Prof_Case", "Seconds": 6.0, "Note": "Linden comes up the main street from the lab lane, ~11m. He is slow on purpose; the line he speaks on arrival is about being old." },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_professor_arrives", "Seconds": 0.0, "Note": "9 lines. Line 7 carries EventId 'story.case_open' for the case-opening VFX and sting." },
-        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_Case", "Seconds": 0.0, "Note": "Push in. Three balls fill the frame; this is the only close shot in the episode." },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_choice_prompt", "Seconds": 0.0, "Note": "1 line, then the choice opens. Deliberately short -- the player should be reading ball labels, not dialogue." },
-        { "Kind": 9,  "KindName": "ChooseStarter", "Seconds": 0.0, "Note": "Option copy is in cast.json under starterOptions. StarterSelection.Commit fires here: party, bag and save all begin at this instant." },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_choice_result", "Target": "starter", "Seconds": 0.0, "Note": "Resolves to op_choice_result_1 / _5 / _10 by the chosen game species id. Each is Linden's read on the one you took plus Kes announcing the one that beats it." },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "op_handover", "Seconds": 0.0, "Note": "5 lines. Linden explicitly calls it a loan until you come to the lab -- that is DP, where the starter is only formally yours when Rowan registers it at Sandgem, and it is what gives 'leaving_town' a reason to exist." },
-        { "Kind": 11, "KindName": "SetFlag", "Id": "story.starter_chosen", "Value": true, "Seconds": 0.0, "Note": "Switches Bram from gate_block_no_starter to gate_block_no_dex." },
-        { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0, "Note": "Handed back for a beat before Kes turns round. Chained, not merged, so the opening can be played and judged on its own." }
-      ]
-    },
-
-    {
-      "Id": "rival_first_battle",
-      "DisplayName": "Kes, at the gate",
-      "CompletionFlag": "story.rival_battle_done",
-      "Trigger": { "kind": "chained", "from": "opening_departure" },
-      "Note": "Platinum's structure, not Diamond/Pearl's. In DP the first battle is two wild Starly and Kes has no Pokemon until Route 203, several hours later; Platinum moved the starter choice to Route 201 and made the rival battle immediate. Immediate is the right call here: this slice is one town, one route, one lake, and a rival who challenges you two towns from now has nowhere to do it. The battle runs through TrainerController -- exclamation, approach, dialogue, battle -- not through a second path. Target length ~2min including the battle.",
-      "Beats": [
-        { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
-        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_GateStand", "Seconds": 0.0 },
-        { "Kind": 12, "KindName": "Battle", "Id": "trainer_rival_01", "Target": "starter_counter", "Seconds": 0.0, "Note": "TrainerController plays riv_pre before and riv_lost/riv_won after; both are on the definition in trainers.json. The party is one creature at level 5, the counter to whatever the player took." },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "riv_after", "Seconds": 0.0, "Note": "Linden, and written to play identically whether the player won or lost -- he is commenting on the fact of the battle, not its result. 3 lines." },
-        { "Kind": 7,  "KindName": "MoveActor", "Id": "NPC_Rival", "Target": "Mark_Rival_GateWait", "Seconds": 4.0, "Note": "CONFLICT: TrainerController.ReturnToPost walks him back to the lab lane the moment the battle resolves. Either give the controller a new rest post or suppress the return for this one fight." },
-        { "Kind": 11, "KindName": "SetFlag", "Id": "story.rival_battle_done", "Value": true, "Seconds": 0.0 },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_GateRamp", "Seconds": 0.0, "Note": "Down the ramp, past Bram -- the way the player was trying to go. Framed on what is being refused rather than on the man refusing it." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "gate_wait_for_kes", "Seconds": 0.0, "Note": "3 lines. Bram names the square, which is the only direction the player is given." },
         { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0 }
       ]
     },
 
     {
-      "Id": "leaving_town",
-      "DisplayName": "The register, and the ramp",
-      "CompletionFlag": "story.pokedex",
-      "Trigger": { "kind": "interact", "actorId": "npc_professor_01", "requiresFlag": "story.rival_battle_done", "forbidsFlag": "story.pokedex" },
-      "Note": "What gates the ramp. Three states, in this order: no Pokemon -> Bram refuses outright; Pokemon but no dex -> Bram sends you back up the hill because Linden asked him to; dex -> open. That is DP's shape (starter at the lake, but the real freedom -- the dex, the balls, permission -- comes from the lab afterwards) folded into one town. The dex handover is also where the bag gets explained: InitialiseNewGame already granted 10 balls, 5 potions and 2 antidotes at the moment of choosing, so Linden names that exact kit instead of the data and the fiction disagreeing. Target length ~60s.",
+      "Id": "kes_summons",
+      "DisplayName": "Kes, in the square",
+      "CompletionFlag": "story.kes_summons_done",
+      "Trigger": { "kind": "proximity", "actorId": "npc_rival_01", "sceneObject": "Trigger_Square", "requiresFlag": "story.gate_refused", "forbidsFlag": "story.kes_summons_done", "radius": 5.0, "approachSeconds": 0.0 },
+      "Note": "The send-off. He walks over rather than speaking from his post, because being approached is the whole characterisation. He explains nothing, sets a forfeit and leaves -- and the forfeit is what carries the scene, because it is the only reason the player has to follow somebody who has not said where he is going. This is also where the ramp opens: the flag is set here, in the beat that earns it, rather than in a later scene that could be missed.\n\nTriggered off a marker object in the square rather than off Kes himself, and the walk-over is a MoveActor beat instead of StoryEncounter's own approach. That looks like a downgrade and is not: NPC_Rival has exactly one StoryEncounter slot, and it is needed for the rival battle -- which is the one beat that has to sit on the same object as his TrainerController, or the sight cone and the story beat race each other for who gets to start the fight. See TrainerController.StandsDown. Target length ~40s.",
       "Beats": [
         { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
-        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_LabDoor", "Seconds": 0.0 },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "dex_handover", "Seconds": 0.0, "Note": "8 lines. Line 1 carries EventId 'story.starter_registered', line 2 carries 'story.dex_given' for the item-get jingle and card." },
-        { "Kind": 11, "KindName": "SetFlag", "Id": "story.pokedex", "Value": true, "Seconds": 0.0 },
-        { "Kind": 10, "KindName": "GiveItem", "Id": "repel", "Amount": 2, "Seconds": 0.0, "Note": "The one thing actually handed over here, because the rest of the kit came with the starter. A Town Map / journal key item would be the DP-faithful gift and FieldItems has no key items at all." },
-        { "Kind": 4,  "KindName": "Dialogue", "Id": "dex_close", "Seconds": 0.0, "Note": "2 lines. Sends the player at the ramp." },
-        { "Kind": 11, "KindName": "SetFlag", "Id": "story.gate_open", "Value": true, "Seconds": 0.0, "Note": "The LevelTransition at the gate ramp must test this. Nothing tests it today -- the ramp is walkable from frame one." },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_Square", "Seconds": 0.0 },
+        { "Kind": 7,  "KindName": "MoveActor", "Id": "NPC_Rival", "Target": "Mark_Kes_Approach", "Seconds": 4.0, "Note": "He crosses the square at a run and stops in front of the player, facing them -- MoveActor turns an actor to the player on arrival. This is the approach the trigger used to do for free." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "kes_summons", "Seconds": 0.0, "Note": "5 lines. Line 3 is the forfeit and carries EventId 'vfx.kes_runs'; line 4 is the player watching him go. Nothing listens for the event yet, which is why the walk below happens after the whole conversation instead of during it." },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_GateRamp", "Seconds": 0.0, "Note": "Turned away from him before he moves. The script has already said he is gone, so the camera must not be watching him leave -- it is looking at where he went." },
+        { "Kind": 7,  "KindName": "MoveActor", "Id": "NPC_Rival", "Target": "Mark_Rival_FieldPost", "Seconds": 8.0, "Note": "Out of the square, through the gate and into the field, where he stays until the player has a dex and can fight him. Long timeout because it is a long walk and it is off-camera; a snap at the end of it is invisible and is exactly what should happen." },
+        { "Kind": 11, "KindName": "SetFlag", "Id": "story.gate_open", "Value": true, "Seconds": 0.0, "Note": "Read by StoryGate, which drops the wall across the ramp. Set here and not in 'gate_opens': that episode hangs off a trigger object at the ramp, and if the object is missing the player must still be able to leave." },
+        { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0 }
+      ]
+    },
+
+    {
+      "Id": "gate_opens",
+      "DisplayName": "Bram steps aside",
+      "CompletionFlag": "story.gate_acknowledged",
+      "Trigger": { "kind": "proximity", "actorId": "npc_gate_01", "sceneObject": "Trigger_GateOpen", "requiresFlag": "story.kes_summons_done", "forbidsFlag": "story.gate_acknowledged", "radius": 3.5, "approachSeconds": 0.0 },
+      "Note": "Two lines at the top of the ramp on the way out. Deliberately load-bearing for nothing: the gate is already open by the time this plays, so a player who never triggers it loses a beat and not the act. It hangs off its own trigger object because Bram's one StoryEncounter slot is spent on gate_wait_for_kes -- see the Trigger note in the schema. Target length ~10s.",
+      "Beats": [
+        { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_GateRamp", "Seconds": 0.0 },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "gate_open_after_kes", "Seconds": 0.0, "Note": "2 lines. The second is the only warning the player gets about the grass, and the thing in the grass is the next battle they fight." },
+        { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0 }
+      ]
+    },
+
+    {
+      "Id": "field_professor_mutters",
+      "DisplayName": "Linden, on the bank",
+      "CompletionFlag": "story.prof_mutter_done",
+      "Trigger": { "kind": "proximity", "actorId": "npc_professor_01", "sceneObject": "NPC_Professor", "requiresFlag": "story.gate_open", "forbidsFlag": "story.prof_mutter_done", "radius": 4.0, "approachSeconds": 0.0 },
+      "Note": "The player's first sight of the professor is his back, mid-count. He does not stop being mid-thought because somebody arrived, and he does not explain the plot -- the whole scene is a man with forty-one records and a number that does not work. Approach is zero: he is seventy-one and standing still, and a professor who jogs at the player undoes the character. Target length ~45s.",
+      "Beats": [
+        { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_LakeBank", "Seconds": 0.0, "Note": "The bank and the water behind it. The shallows he is counting have to be in frame or the lines are about nothing." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "field_professor_mutters", "Seconds": 0.0, "Note": "5 lines. Line 4 carries EventId 'vfx.professor_leaves'. Nothing listens, so the walk is the beat below." },
+        { "Kind": 7,  "KindName": "MoveActor", "Id": "NPC_Professor", "Target": "Mark_Prof_Offstage", "Seconds": 7.0, "Note": "Back toward town, at his own pace, and the player watches him go. He must end up far enough away that coming back later is a walk and not a step -- 'field_professor_returns' brings him in from this mark." },
+        { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0, "Note": "Handed back with the bag now the only thing on the bank. Nothing points at it; noticing it is the player's move." }
+      ]
+    },
+
+    {
+      "Id": "field_bag_left",
+      "DisplayName": "The bag on the bank",
+      "CompletionFlag": "story.bag_seen",
+      "NextEpisodeId": "field_ambush",
+      "Trigger": { "kind": "proximity", "actorId": "prop_professor_bag", "sceneObject": "Prop_ProfessorBag", "requiresFlag": "story.prof_mutter_done", "forbidsFlag": "story.bag_seen", "radius": 3.0, "approachSeconds": 0.0 },
+      "Note": "One line, and then the creature is standing there. Split from 'field_ambush' rather than merged so the ambush can be judged -- and jumped to -- on its own, and chained so there is no frame between them in which the player could walk away. The creature is staged HERE, before the ambush's first line, because the scene is only worth anything if the thing was already in the grass: a creature that appears at the moment it is mentioned is a cut, and a cut is what this act exists to avoid. Target length ~15s.",
+      "Beats": [
+        { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Prop_ProfessorBag", "Seconds": 0.0, "Note": "Down on the bag. The only close shot in the field." },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "field_bag_left", "Seconds": 0.0, "Note": "1 line. An observation, not a decision -- the player is not offered the bag here, and the offer never comes; the ambush takes the decision away." },
+        { "Kind": 14, "KindName": "StageCreature", "Id": "Mark_Ambush_Grass", "Target": "25", "Amount": 4, "Seconds": 0.0, "Note": "Rattata, level 4. GAME species id 25, from SliceRoster -- not the national dex number, which is the one mistake in this project that produces a plausible wrong creature rather than an error. It is in the route's own tall-grass table at levels 3-6, so this is a creature the grass could genuinely have produced, which is the whole reason it is a RoamingCreature and not a prop. Level 4 against a level 5 starter: winnable, and not a formality." },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Actor_StagedCreature", "Seconds": 0.0, "Note": "Swing off the bag and onto the grass. The object exists because the beat above built it, which is why this needs no marker in cast.json." },
+        { "Kind": 3,  "KindName": "Wait", "Seconds": 1.4, "Note": "No text. The player looks at it before anything says it is there. Control is not handed back here: the episode chains straight into field_ambush, and the runner's finally is what guarantees control comes back if that chain ever fails." }
+      ]
+    },
+
+    {
+      "Id": "field_ambush",
+      "DisplayName": "The thing in the grass",
+      "CompletionFlag": "story.ambush_done",
+      "NextEpisodeId": "field_professor_returns",
+      "Trigger": { "kind": "chained", "from": "field_bag_left" },
+      "Note": "The moment the act is built to deliver, and the one rule it has is that nothing here is a cut. The creature was placed a beat ago and the player has already looked at it; now it walks the distance itself, on the same NavMesh everything else walks on, and only then does the battle open. The starter choice stays a menu and is deliberately not replaced by a 'take a ball' interaction -- see the note on the ChooseStarter beat. Target length ~50s plus the battle.",
+      "Beats": [
+        { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Actor_StagedCreature", "Seconds": 0.0 },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "field_ambush", "Seconds": 0.0, "Note": "3 lines. Line 0 says the grass is moving and line 1 says it has seen you -- both are describing something already on screen, which is the point. Line 2 puts the bag at the player's feet and is the only setup the choice below gets." },
+        { "Kind": 15, "KindName": "CreatureApproach", "Seconds": 6.0, "Note": "It closes the distance. 6s is a timeout and not a duration: an approach that snags on the reeds is snapped to 1.6 m rather than holding the player frozen watching it fail." },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Prop_ProfessorBag", "Seconds": 0.0, "Note": "Back down to the bag with the creature a metre and a half away. The frame is the choice: three balls, and something standing over them." },
+        { "Kind": 9,  "KindName": "ChooseStarter", "Seconds": 0.0, "Note": "Still the menu, and that is a decision rather than an omission. StarterSelection.Commit is InitialiseNewGame -- the party, the bag and the save all begin at this instant -- so replacing the choice with a GiveItem would leave the player holding a ball, with no party, in front of a battle they cannot fight. What changed is the fiction around it, and the fiction is carried entirely by the authored line above: nobody is offering, the bag is not theirs, and the creature is already there. The desk copy is in StarterSelection.DefaultOptions / cast.json starterOptions and reads as labels on balls, which is what it now is." },
+        { "Kind": 11, "KindName": "SetFlag", "Id": "story.starter_chosen", "Value": true, "Seconds": 0.0, "Note": "Set after the commit, because InitialiseNewGame clears every flag that is not story.* and this one has to survive it. Read by dialogue.json's NpcBindings for Bram." },
+        { "Kind": 12, "KindName": "Battle", "Target": "staged", "Seconds": 0.0, "Note": "Against the creature standing in front of the player -- its species, its level, the one it has been the whole scene. Routed through EncounterDirector rather than straight at the flow, so it is removed from the world when the player wins or catches it, and runs off if they do not. The prologue's suppression of wild encounters does not apply here; that is what EncounterDirector.TriggerStagedEncounter is for." }
+      ]
+    },
+
+    {
+      "Id": "field_professor_returns",
+      "DisplayName": "Linden comes back",
+      "CompletionFlag": "story.pokedex",
+      "Trigger": { "kind": "chained", "from": "field_ambush" },
+      "Note": "Where the dex is granted, and where the prologue ends. The grant is the CompletionFlag rather than a SetFlag beat on purpose: the runner sets it in its finally, so a player whose dialogue timed out or whose battle never resolved still comes out of this holding a Pokedex. The alternative is a save that can never leave the opening act, with the field's own encounters and trainers switched off behind the same flag -- see StoryPhase. He asks for the dex work rather than being given a reason to hand one over; the thread is his own count from the bank, which is why that scene had to come first. Target length ~40s.",
+      "Beats": [
+        { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
+        { "Kind": 7,  "KindName": "MoveActor", "Id": "NPC_Professor", "Target": "Mark_Prof_Return", "Seconds": 8.0, "Note": "In from the town side, where 'field_professor_mutters' sent him. He arrives to a bag that has been opened and a Pokemon that is not his any more." },
+        { "Kind": 8,  "KindName": "CameraTo", "Id": "Look_LakeBank", "Seconds": 0.0 },
+        { "Kind": 4,  "KindName": "Dialogue", "Id": "field_professor_returns", "Seconds": 0.0, "Note": "5 lines. Alarmed for exactly one of them. The last sends the player to the lab, which is the next act's problem and not this file's." },
+        { "Kind": 7,  "KindName": "MoveActor", "Id": "NPC_Professor", "Target": "Mark_Prof_Offstage", "Seconds": 8.0, "Note": "He goes back up the hill, because he just said he would. Leaving him standing on the bank makes 'come to the lab' a lie the player can walk around." },
+        { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0, "Note": "The flag that ends the prologue is set immediately after this by the runner's finally. From here the field behaves like a field: grass produces encounters, roamers repopulate, and Kes can be fought." }
+      ]
+    },
+
+    {
+      "Id": "rival_first_battle",
+      "DisplayName": "Kes, in the field",
+      "CompletionFlag": "story.rival_battle_done",
+      "Trigger": { "kind": "proximity", "actorId": "npc_rival_01", "sceneObject": "NPC_Rival", "requiresFlag": "story.pokedex", "forbidsFlag": "story.rival_battle_done", "radius": 5.0, "approachSeconds": 0.0 },
+      "Note": "RETARGETED, not new. It used to fire at the town gate the instant the starter was chosen, chained off 'opening_departure'; the starter is now taken on the lake bank with nobody present and there is no such instant. So it moves to where Kes actually went, and waits for the dex -- which is the same flag that makes him challengeable at all (StoryPhase), so the fight becomes available exactly once and by one route.\n\nIt has to stay an episode rather than becoming a plain TrainerController challenge, and the reason is Target='starter_counter': TrainerDefinition has no notion of a party derived from the player's choice and carries a placeholder species id in its place, so a fight started any other way is a fight against nothing. This is why the beat sits on NPC_Rival himself and not on a marker beside him -- TrainerController.StandsDown reads the StoryEncounter on its own GameObject and refuses to notice the player while it is pending, and it can only read one that is there.\n\nDropped with the move: the two MoveActor beats (both aimed at town markers) and 'riv_after', which was Linden commenting on the battle -- he is at the lab by now and cannot. Target length ~2min including the battle.",
+      "Beats": [
+        { "Kind": 5,  "KindName": "TakeControl", "Seconds": 0.0 },
+        { "Kind": 12, "KindName": "Battle", "Id": "trainer_rival_01", "Target": "starter_counter", "Seconds": 0.0, "Note": "TrainerController plays riv_pre before and riv_lost/riv_won after; all three are on the definition in trainers.json. One creature at level 5, the counter to whatever the player took out of the bag." },
         { "Kind": 6,  "KindName": "GiveControl", "Seconds": 0.0 }
       ]
     }

@@ -220,6 +220,21 @@ namespace PokeLab.Boot.Editor
                 }
             }
 
+            // The story books moved under Resources/ so they would exist in a build, and the
+            // scenes kept pointing at where they used to be. EpisodeRunner reads its book from
+            // disk at that stale path, finds nothing, and Start() then asks an empty dictionary
+            // to play "opening" — so a new game began with the player standing in the plaza,
+            // free to walk, with no professor, no name prompt and no starter. Nothing logged an
+            // error, because "no episodes" is indistinguishable from "no episode is due".
+            foreach (var runner in Object.FindObjectsByType<PokeLab.Overworld.EpisodeRunner>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                var eso = new SerializedObject(runner);
+                repairs += RepointPath(eso, "_bookPath", "Assets/Game/Data/Story/Resources/episodes.json");
+                repairs += RepointPath(eso, "_dialoguePath", "Assets/Game/Data/Story/Resources/dialogue.json");
+                eso.ApplyModifiedPropertiesWithoutUndo();
+            }
+
             // A brain-less main camera renders the scene from wherever it was left and
             // ignores every virtual camera in it.
             var main = Camera.main;
@@ -495,8 +510,37 @@ namespace PokeLab.Boot.Editor
 
             // Wild encounters. Without one, walking through tall grass is walking through
             // grass.
-            if (go.GetComponent<EncounterDirector>() == null)
-                go.AddComponent<EncounterDirector>();
+            var encounters = go.GetComponent<EncounterDirector>();
+            if (encounters == null) encounters = go.AddComponent<EncounterDirector>();
+            // Re-assigned on every rebuild rather than only on creation, because every scene
+            // already contains an EncounterDirector from an earlier pass and a fix applied only
+            // to freshly added components would never reach any of them.
+            //
+            // The player reference was never assigned here at all. Everything still fired, which
+            // is why it went unnoticed: with it null the director cannot freeze the player for
+            // the approach beat, so they walk through their own surprise, and every
+            // EncounterRequest carries GameHosts' position instead of theirs — which is the
+            // position the battle stage is then placed and oriented from.
+            Assign(encounters, "_player", player);
+            Assign(encounters, "_playerAnimation", player.GetComponentInChildren<PlayerAnimationDriver>());
+
+            // Visible wild creatures. The spawner keeps a small population alive around the
+            // player and each one walks, reacts and can be bumped into. Built here because
+            // anything hand-placed in the .unity file is destroyed by the next Rebuild
+            // Everything, and because it needs no per-scene authoring to work.
+            var roamers = go.GetComponent<RoamingCreatureSpawner>();
+            if (roamers == null) roamers = go.AddComponent<RoamingCreatureSpawner>();
+            // Pooled creatures live under their own child so they do not bury GameHosts in the
+            // hierarchy while the scene is being worked on.
+            var roamerRoot = go.transform.Find("Roamers");
+            if (roamerRoot == null)
+            {
+                var created = new GameObject("Roamers");
+                created.transform.SetParent(go.transform, false);
+                roamerRoot = created.transform;
+            }
+            Assign(roamers, "_player", player.transform);
+            Assign(roamers, "_spawnParent", roamerRoot);
 
             // The creature that carries the player over water, and its wake. Watches the
             // traversal event, so every lake and river in every scene gets it without any
@@ -523,11 +567,39 @@ namespace PokeLab.Boot.Editor
             if (go.GetComponent<PokeLab.Boot.ScreenCoverHost>() == null)
                 go.AddComponent<PokeLab.Boot.ScreenCoverHost>();
 
+            // The far half of a door. Every scene link and every building door names the marker
+            // it wants the player put down on, and until this existed nothing read that name —
+            // so the arrival markers in every scene were decoration and a door into a building
+            // dropped the player at the town's coordinates, outside the room they had just
+            // walked into.
+            if (go.GetComponent<PokeLab.Overworld.World.ArrivalPlacer>() == null)
+                go.AddComponent<PokeLab.Overworld.World.ArrivalPlacer>();
+
             if (go.GetComponent<PokeLab.Boot.StarterPresenter>() == null)
                 go.AddComponent<PokeLab.Boot.StarterPresenter>();
 
             if (go.GetComponent<PokeLab.Boot.NameEntryPresenter>() == null)
                 go.AddComponent<PokeLab.Boot.NameEntryPresenter>();
+
+            // Without this the battle UI is built by nothing and the auto-play policy chooses
+            // the player's moves for them.
+            if (go.GetComponent<PokeLab.Boot.BattleHudPresenter>() == null)
+                go.AddComponent<PokeLab.Boot.BattleHudPresenter>();
+
+            // Escape opens the party, the bag, the dex and the save. Without it the player owns
+            // all of those and can open none of them.
+            if (go.GetComponent<PokeLab.Boot.StartMenuPresenter>() == null)
+                go.AddComponent<PokeLab.Boot.StartMenuPresenter>();
+
+            // Sound. Both directors are complete and neither was ever in a scene, so the whole
+            // game ran silent: no music, no ambience, no step or menu sound. AudioDirector
+            // registers itself on the hub and owns the mixer and the clip catalogue;
+            // MusicDirector finds it through AudioDirector.TryResolve, so the order they are
+            // added in does not matter.
+            if (go.GetComponent<PokeLab.Audio.AudioDirector>() == null)
+                go.AddComponent<PokeLab.Audio.AudioDirector>();
+            if (go.GetComponent<PokeLab.Audio.MusicDirector>() == null)
+                go.AddComponent<PokeLab.Audio.MusicDirector>();
         }
 
         /// <summary>
@@ -548,6 +620,30 @@ namespace PokeLab.Boot.Editor
             }
             property.objectReferenceValue = value as Object;
             so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// Points a serialized asset path at where the file now is, if it is not already.
+        ///
+        /// Only rewrites when the saved path does not resolve and the wanted one does, so a
+        /// deliberate override survives and this cannot quietly undo someone's edit — it only
+        /// repairs a path that is broken.
+        /// </summary>
+        private static int RepointPath(SerializedObject so, string field, string wanted)
+        {
+            var property = so.FindProperty(field);
+            if (property == null) return 0;
+            if (property.stringValue == wanted) return 0;
+
+            var root = System.IO.Directory.GetCurrentDirectory();
+            if (System.IO.File.Exists(System.IO.Path.Combine(root, property.stringValue ?? string.Empty)))
+                return 0;
+            if (!System.IO.File.Exists(System.IO.Path.Combine(root, wanted))) return 0;
+
+            Debug.Log($"[Rig] {field} pointed at '{property.stringValue}', which does not exist; " +
+                      $"repointed to '{wanted}'.");
+            property.stringValue = wanted;
+            return 1;
         }
 
         private static void SetFloat(SerializedObject so, string field, float value)

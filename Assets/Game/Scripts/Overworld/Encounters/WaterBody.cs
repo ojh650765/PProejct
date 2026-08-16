@@ -57,6 +57,19 @@ namespace PokeLab.Overworld
         public float SurfaceY =>
             (_overrideSurfaceHeight ? _surfaceHeight : (_collider != null ? _collider.bounds.max.y : transform.position.y)) - _rideDepth;
 
+        private static readonly System.Collections.Generic.List<WaterBody> Live =
+            new System.Collections.Generic.List<WaterBody>();
+
+        /// <summary>Every water surface currently loaded. Used to place and contain swimmers.</summary>
+        public static System.Collections.Generic.IReadOnlyList<WaterBody> AllLive => Live;
+
+        /// <summary>Clears the live registry on play mode start; see OverworldLifecycle.</summary>
+        internal static void ResetRegistry() => Live.Clear();
+
+        /// <summary>World-space bounds of the surface, for picking candidate points over it.</summary>
+        public Bounds SurfaceBounds =>
+            _collider != null ? _collider.bounds : new Bounds(transform.position, Vector3.one);
+
         private void Awake()
         {
             _collider = GetComponent<Collider>();
@@ -65,6 +78,76 @@ namespace PokeLab.Overworld
                 _collider.isTrigger = true;
                 Debug.LogWarning($"[WaterBody] Collider on '{name}' was not a trigger; forced isTrigger.", this);
             }
+        }
+
+        private void OnEnable() => Live.Add(this);
+
+        private void OnDisable() => Live.Remove(this);
+
+        /// <summary>
+        /// True when the column through <paramref name="worldPoint"/> passes through this surface,
+        /// and reports where the waterline is there.
+        ///
+        /// A downward raycast rather than a bounds test, because the lake mesh is an irregular
+        /// polygon inside a rectangular bounding box — a bounds test puts swimmers on the bank at
+        /// every concave corner, which is exactly where the player is standing to look at them.
+        /// The cast asks for triggers explicitly: the surface is a trigger so that the player is
+        /// stopped by the bank rather than by the water, and the default query mode would miss it
+        /// entirely and report every lake as dry land.
+        /// </summary>
+        public bool TryGetSurfaceAt(Vector3 worldPoint, out Vector3 surfacePoint)
+        {
+            surfacePoint = worldPoint;
+            if (_collider == null) return false;
+
+            var bounds = _collider.bounds;
+            var origin = new Vector3(worldPoint.x, bounds.max.y + 1f, worldPoint.z);
+            var distance = bounds.size.y + 2f;
+
+            if (!_collider.Raycast(new Ray(origin, Vector3.down), out var hit, distance)) return false;
+            surfacePoint = new Vector3(worldPoint.x, hit.point.y - _rideDepth, worldPoint.z);
+            return true;
+        }
+
+        /// <summary>
+        /// Finds the surface under a point across every loaded body. Returns false on dry land,
+        /// which is what keeps a swimmer from wandering out of its lake.
+        /// </summary>
+        public static bool TrySampleAnySurface(Vector3 worldPoint, out Vector3 surfacePoint)
+        {
+            for (var i = 0; i < Live.Count; i++)
+            {
+                var body = Live[i];
+                if (body == null) continue;
+                if (body.TryGetSurfaceAt(worldPoint, out surfacePoint)) return true;
+            }
+            surfacePoint = worldPoint;
+            return false;
+        }
+
+        /// <summary>
+        /// A point actually on this body's surface, for spawning a water creature.
+        ///
+        /// Rejection sampling over the bounding box, because the alternative — picking a random
+        /// triangle by area — needs the mesh, and the mesh belongs to a MeshCollider that may be
+        /// marked non-readable in a build. Four attempts is enough for the lake shapes in this
+        /// project and costs nothing when it fails, since the caller retries next tick.
+        /// </summary>
+        public bool TryGetRandomSurfacePoint(ref DeterministicRandom rng, out Vector3 point)
+        {
+            point = transform.position;
+            if (_collider == null) return false;
+
+            var bounds = _collider.bounds;
+            for (var attempt = 0; attempt < 4; attempt++)
+            {
+                var candidate = new Vector3(
+                    rng.Range(bounds.min.x, bounds.max.x),
+                    bounds.max.y,
+                    rng.Range(bounds.min.z, bounds.max.z));
+                if (TryGetSurfaceAt(candidate, out point)) return true;
+            }
+            return false;
         }
 
         private void OnTriggerEnter(Collider other)

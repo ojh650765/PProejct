@@ -74,6 +74,11 @@ namespace PokeLab.Boot
                 return;
             }
 
+            // Registered here rather than by the spawner, because a roamer that resolves the
+            // factory in its own Awake would find nothing on the first frame of a scene load and
+            // spend its whole life invisible.
+            RoamerBillboardArtFactory.RegisterIfNothingElseHas();
+
             if (_logTimings)
             {
                 var species = ServiceHub.Get<ISpeciesRegistry>();

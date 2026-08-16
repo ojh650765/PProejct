@@ -16,7 +16,8 @@
         "Unity.InputSystem",
         "PokeLab.Battle",
         "PokeLab.Cinematics",
-        "PokeLab.UI"
+        "PokeLab.UI",
+        "PokeLab.Audio"
     ],
     "includePlatforms": [
         "Editor"

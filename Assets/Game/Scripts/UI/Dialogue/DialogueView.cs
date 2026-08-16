@@ -34,12 +34,18 @@ namespace PokeLab.UI
         [SerializeField] private Image _rule;
         [SerializeField] private Image _portrait;
         [SerializeField] private RectTransform _portraitFrame;
+        [SerializeField] private Image _backdrop;
+        [SerializeField] private CanvasGroup _portraitGroup;
+
+        [Tooltip("Seconds for a speaker to fade in or out of the frame.")]
+        [SerializeField] private float _portraitFadeSeconds = 0.22f;
+
+        private float _portraitTargetAlpha;
         [SerializeField] private TextMeshProUGUI _body;
         [SerializeField] private Image _advanceCaret;
         [SerializeField] private RectTransform _choiceParent;
         [SerializeField] private RectTransform _autoButton;
         [SerializeField] private Image _autoFill;
-        [SerializeField] private RectTransform _menuButton;
 
         [Header("Tuning")]
         [SerializeField] private float _secondsPerCharacter = 0.022f;
@@ -82,10 +88,27 @@ namespace PokeLab.UI
         // up to speaking size is a mosaic. Right rather than left because the name plate, the
         // rule and the body copy all share the left edge — a figure there would have to be
         // small enough to stay out of them, which is the composition this replaces.
-        private const float PortraitRight = 60f;
-        private const float PortraitWidth = 440f;
-        private const float PortraitBottom = 232f;
-        private const float PortraitHeight = 700f;
+        // Centred, not tucked into the right corner. The portraits are drawn facing the
+        // viewer, and a figure looking straight out from the edge of the frame reads as
+        // having been pushed aside; the games put the speaker in the middle of the shot.
+        // Two framings, because a conversation and a staged scene are not the same shot.
+        //
+        // Staged is the opening: the professor alone on a drawn room, whole figure in frame,
+        // standing clear of the box. It is a composed picture and cropping it would spoil it.
+        //
+        // Close is every other conversation: the speaker enlarged and stood at the bottom of
+        // the screen so the frame cuts them below the knee. That is what makes somebody read
+        // as leaning into the shot to talk to you rather than as a doll placed in the middle
+        // of it — and at this size their face is large enough to carry the line.
+        private const float StagedWidth = 620f;
+        private const float StagedBottom = 300f;
+        private const float StagedHeight = 720f;
+
+        private const float CloseWidth = 900f;
+        private const float CloseHeight = 1180f;
+        // Negative: the figure's feet sit below the screen edge, so the cut lands on the shin
+        // rather than on the floor beneath them.
+        private const float CloseBottom = -230f;
         private const float ChoiceWidth = 820f;
         private const float ChoiceHeight = 62f;
         private const int ChoiceSlant = 12;
@@ -95,7 +118,6 @@ namespace PokeLab.UI
         private TweenHandle _caret;
         private Action _onAdvance;
         private Action<int> _onChoice;
-        private Action _onMenu;
         private IReadOnlyList<string> _pendingChoices;
         private bool _revealing;
         private bool _built;
@@ -114,6 +136,62 @@ namespace PokeLab.UI
         /// scaled to the line's length. Persists across lines, the way a visual novel's
         /// does — it is a reading mode, not a per-line property.
         /// </summary>
+        /// <summary>
+        /// What sits behind the speaker: a drawn room, a texture grabbed from the game, or
+        /// nothing at all.
+        ///
+        /// Passing null clears it, which is the right answer for a line spoken by something
+        /// that is not a person — a sign, a terminal — where a staged background would imply
+        /// a face that is not there.
+        /// </summary>
+        /// <summary>
+        /// Chooses how the speaker is framed: the opening's composed full figure, or the
+        /// close crop every ordinary conversation uses.
+        /// </summary>
+        public void SetPortraitFraming(bool staged)
+        {
+            if (_portraitFrame == null) return;
+
+            UiBuilder.Anchor(_portraitFrame, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f),
+                new Vector2(0f, staged ? StagedBottom : CloseBottom),
+                staged ? new Vector2(StagedWidth, StagedHeight)
+                       : new Vector2(CloseWidth, CloseHeight));
+        }
+
+        public void SetBackdrop(Sprite room, Texture blurredWorld = null, float dim = 1f)
+        {
+            if (_backdrop == null) return;
+
+            if (room != null)
+            {
+                _backdrop.sprite = room;
+                _backdrop.material = null;
+                _backdrop.color = new Color(dim, dim, dim, 1f);
+                _backdrop.enabled = true;
+                return;
+            }
+
+            if (blurredWorld != null)
+            {
+                // Wrapped in a Sprite because Image cannot take a bare Texture, and rebuilt
+                // each time rather than cached: the capture is a different RenderTexture on
+                // every open, and a sprite pointing at a released one draws garbage.
+                var texture2d = blurredWorld as Texture2D;
+                if (texture2d != null)
+                {
+                    _backdrop.sprite = Sprite.Create(texture2d,
+                        new Rect(0f, 0f, texture2d.width, texture2d.height), new Vector2(0.5f, 0.5f));
+                    _backdrop.color = new Color(dim, dim, dim, 1f);
+                    _backdrop.enabled = true;
+                    return;
+                }
+            }
+
+            _backdrop.enabled = false;
+            _backdrop.sprite = null;
+        }
+
         public bool AutoAdvance
         {
             get => _autoAdvance;
@@ -134,16 +212,11 @@ namespace PokeLab.UI
         }
 
         /// <summary>
-        /// Wires the MENU control. The overlay has no idea what a menu is, so the button is
-        /// hidden until someone owns it — an affordance that does nothing is worse than an
-        /// absent one.
+        /// Kept so the capture harness still compiles; the overlay has no MENU control any
+        /// more, because the trainer menu is Escape's and belongs over the world.
         /// </summary>
-        public void SetMenuHandler(Action onMenu)
-        {
-            _onMenu = onMenu;
-            if (_menuButton != null) _menuButton.gameObject.SetActive(onMenu != null);
-            LayOutControls();
-        }
+        [System.Obsolete("The dialogue overlay no longer has a MENU button.")]
+        public void SetMenuHandler(Action onMenu) { }
 
         /// <summary>
         /// Shows a line. <paramref name="onAdvance"/> fires when the player presses past a
@@ -215,11 +288,12 @@ namespace PokeLab.UI
             // that does pass a sprite still wins, which is what keeps a one-off scripted shot
             // able to override the cast.
             var art = portrait != null ? portrait : DialoguePortraits.For(speaker);
-            if (_portraitFrame != null) _portraitFrame.gameObject.SetActive(art != null);
+            if (_portraitFrame != null) _portraitFrame.gameObject.SetActive(true);
             if (_portrait != null)
             {
                 _portrait.sprite = art;
                 _portrait.enabled = art != null;
+                _portraitTargetAlpha = art != null ? 1f : 0f;
             }
 
             SetOpen(true);
@@ -248,6 +322,9 @@ namespace PokeLab.UI
         {
             ClearChoices();
             _autoCountdown = -1f;
+            // The speaker leaves with the box rather than vanishing with it: the fade keeps
+            // running while the panel slides away, so the figure goes out rather than blinking.
+            _portraitTargetAlpha = 0f;
             SetOpen(false);
         }
 
@@ -258,6 +335,7 @@ namespace PokeLab.UI
         /// </summary>
         private void Update()
         {
+            DrivePortraitFade();
             if (_autoCountdown < 0f) return;
             _autoCountdown -= Time.unscaledDeltaTime;
             if (_autoCountdown > 0f) return;
@@ -427,6 +505,10 @@ namespace PokeLab.UI
 
         private void SetOpen(bool open, bool immediate = false)
         {
+            // Whether this call is the box arriving, rather than one already-open line
+            // replacing another. Read before IsOpen is overwritten.
+            var arriving = open && !IsOpen;
+
             IsOpen = open;
             if (_group == null) return;
             if (open) gameObject.SetActive(true);
@@ -440,12 +522,22 @@ namespace PokeLab.UI
                 return;
             }
 
-            if (open && _box != null)
+            // The slide belongs to the box appearing, not to every line inside it.
+            //
+            // Show is called once per line and this ran every time, so the panel dropped and
+            // rose again under text the player was in the middle of reading — the whole
+            // conversation bounced with each press. Now it enters once and then holds still,
+            // and only the words change.
+            if (arriving && _box != null)
             {
                 var target = _box.anchoredPosition;
                 _box.anchoredPosition = target + new Vector2(0f, -24f);
                 UiTween.AnchoredMove(_box, target, 0.28f, Ease.OutCubic);
             }
+
+            // Likewise the fade: only on the way in or out. Re-fading an already-visible box
+            // makes every advance flicker.
+            if (open && !arriving) return;
 
             UiTween.Fade(_group, open ? 1f : 0f, open ? 0.2f : 0.16f, open ? Ease.OutCubic : Ease.InCubic, 0f,
                 () => { if (!open && this != null) gameObject.SetActive(false); });
@@ -484,6 +576,38 @@ namespace PokeLab.UI
                 Vector2.zero, new Vector2(0f, ScrimHeight));
             _box = box;
 
+            // A full-screen catcher, behind everything, that advances on click.
+            //
+            // The caret is a 36-pixel target in the corner and the box itself is not clickable,
+            // so a player reaching for the mouse had nothing to hit. Built first so it is
+            // underneath every real control — the AUTO toggle and the choice buttons consume
+            // their own clicks before this ever sees them.
+            var catcher = UiBuilder.Image("ClickCatcher", root, null, new Color(0f, 0f, 0f, 0f),
+                Image.Type.Simple);
+            UiBuilder.Stretch(catcher.rectTransform);
+            catcher.raycastTarget = true;
+            UiBuilder.Button("ClickCatcher", catcher.rectTransform, catcher, OnClickAnywhere);
+
+            // The speaker is built on the root, before and outside the overlay.
+            //
+            // It used to be a child of the box, and the box slides up from the bottom of the
+            // screen every time a line opens — so the person rode up with the panel and
+            // settled with it, as though they were printed on it. They are two different
+            // things: the panel is furniture that comes and goes, the speaker is standing in
+            // the scene behind it. Separating them is also what puts the box in front, since
+            // the speaker is now built first and the whole overlay after.
+            BuildSpeakerLayer(root);
+
+            // The overlay was created first and therefore sat at the bottom of the draw order,
+            // which put the click catcher, the backdrop and the speaker on top of it — a full
+            // screen image covering the scrim, the name plate and every line of text. The
+            // conversation was running correctly behind a picture of a room.
+            //
+            // Moved to the end here rather than built later, because the box has to exist
+            // before the pieces below can be parented into it. Everything built after this —
+            // the controls, the choice buttons — still lands above the box, which is right.
+            box.SetAsLastSibling();
+
             BuildScrim(box);
 
             _rule = UiBuilder.Image("Rule", box, UiSprites.FadeRule(256, 0.70f), UiPalette.RuleBright,
@@ -521,19 +645,22 @@ namespace PokeLab.UI
         /// </summary>
         private static void BuildScrim(RectTransform box)
         {
-            var body = UiBuilder.Image("BodyWash", box, UiSprites.Solid(),
+            // One continuous ramp from the bottom edge of the screen to nothing.
+            //
+            // This was three pieces: a flat wash behind the body, a lighter flat wash behind
+            // the name, and a short fade on top. Three constant alphas meant two visible steps
+            // across the overlay — you could point at where one band ended and the next began,
+            // which is exactly what a scrim is supposed to avoid. A single gradient is darkest
+            // where the screen ends and gone by the time it reaches the speaker's waist, so
+            // the text sits on enough ground to read and nothing draws a horizon.
+            //
+            // The gamma is what keeps the dark end short: a linear ramp over this height puts
+            // half the screen in shadow, while a curved one holds the density near the bottom
+            // and lets go quickly.
+            var wash = UiBuilder.Image("Scrim", box, UiSprites.VerticalFade(256, 1.9f),
                 UiPalette.Scrim.WithAlpha(UiPalette.ScrimBodyAlpha), Image.Type.Simple);
-            Band(body.rectTransform, -48f, RuleY + 48f, 0f, 0f);
-
-            var name = UiBuilder.Image("NameWash", box, UiSprites.Solid(),
-                UiPalette.Scrim.WithAlpha(UiPalette.ScrimNameAlpha), Image.Type.Simple);
-            Band(name.rectTransform, RuleY, ScrimHeight - RuleY, 0f, 0f);
-
-            // A ramp, not an edge. See UiSprites.VerticalFade for why the top of the overlay
-            // must not be a line anyone can point at.
-            var fade = UiBuilder.Image("TopFade", box, UiSprites.VerticalFade(96, 1.35f),
-                UiPalette.Scrim.WithAlpha(UiPalette.ScrimNameAlpha), Image.Type.Simple);
-            Band(fade.rectTransform, ScrimHeight, TopFadeHeight, 0f, 0f);
+            wash.raycastTarget = false;
+            Band(wash.rectTransform, -48f, ScrimHeight + TopFadeHeight + 48f, 0f, 0f);
         }
 
         private void BuildSpeakerRow(RectTransform box)
@@ -569,6 +696,68 @@ namespace PokeLab.UI
             _speakerSubtitle.gameObject.SetActive(false);
         }
 
+        /// <summary>
+        /// Walks the speaker's alpha toward where it should be.
+        ///
+        /// Unscaled, because a conversation can be running while the world is paused — a fade
+        /// on scaled time would simply never finish there.
+        /// </summary>
+        /// <summary>
+        /// A click on empty space.
+        ///
+        /// Ignored while choices are up: there the player is picking between answers, and a
+        /// stray click on the background must not count as taking one.
+        /// </summary>
+        private void OnClickAnywhere()
+        {
+            if (!IsOpen || _pendingChoices != null) return;
+            Advance();
+        }
+
+        private void DrivePortraitFade()
+        {
+            if (_portraitGroup == null) return;
+
+            var step = _portraitFadeSeconds > 0.001f
+                ? Time.unscaledDeltaTime / _portraitFadeSeconds
+                : 1f;
+            _portraitGroup.alpha = Mathf.MoveTowards(_portraitGroup.alpha, _portraitTargetAlpha, step);
+        }
+
+        /// <summary>
+        /// The speaker and whatever is behind them, on their own layer.
+        ///
+        /// Deliberately not part of the dialogue box. The box is a panel that slides in and
+        /// out; this is the scene the conversation is happening in, and it holds still while
+        /// the panel moves.
+        /// </summary>
+        private void BuildSpeakerLayer(RectTransform root)
+        {
+            _backdrop = UiBuilder.Image("Backdrop", root, null, Color.white, Image.Type.Simple);
+            UiBuilder.Stretch(_backdrop.rectTransform);
+            _backdrop.raycastTarget = false;
+            _backdrop.enabled = false;
+
+            var portraitFrame = UiBuilder.Rect("Speaker", root, false);
+            UiBuilder.Anchor(portraitFrame, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, CloseBottom),
+                new Vector2(CloseWidth, CloseHeight));
+            _portraitFrame = portraitFrame;
+
+            _portrait = UiBuilder.Image("Image", portraitFrame, null, Color.white, Image.Type.Simple);
+            _portrait.preserveAspect = true;
+            _portrait.raycastTarget = false;
+            UiBuilder.Stretch(_portrait.rectTransform);
+
+            // Faded rather than switched. A figure that appears between two frames reads as a
+            // pop-up; the same figure over a fifth of a second reads as somebody stepping into
+            // the shot, which is what it is meant to be.
+            _portraitGroup = portraitFrame.gameObject.AddComponent<CanvasGroup>();
+            _portraitGroup.alpha = 0f;
+            _portraitGroup.blocksRaycasts = false;
+            _portraitGroup.interactable = false;
+        }
+
         private void BuildBody(RectTransform box)
         {
             // Unframed, and it rises well above the scrim rather than sitting inside it. Both
@@ -579,16 +768,6 @@ namespace PokeLab.UI
             // It starts above the body band, so a line reads at exactly the same measure whether
             // or not a character has art. That is what lets the whole cast ship without
             // illustrations and the layout still be the final one.
-            var portraitFrame = UiBuilder.Rect("Portrait", box, false);
-            UiBuilder.Anchor(portraitFrame, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
-                new Vector2(-PortraitRight, PortraitBottom), new Vector2(PortraitWidth, PortraitHeight));
-            _portraitFrame = portraitFrame;
-
-            _portrait = UiBuilder.Image("Image", portraitFrame, null, Color.white, Image.Type.Simple);
-            _portrait.preserveAspect = true;
-            UiBuilder.Stretch(_portrait.rectTransform);
-            portraitFrame.gameObject.SetActive(false);
-
             _body = UiBuilder.Text("Body", box, string.Empty, UiTextRole.Body, UiPalette.TextPrimary,
                 TextAlignmentOptions.TopLeft);
             _body.fontSize = 30f;
@@ -618,10 +797,9 @@ namespace PokeLab.UI
             // the loudest thing in the composition and they sit directly above a Korean
             // dialogue line, so two English words there is the one place the mixed-language
             // seam would be impossible not to see.
-            _menuButton = ControlSlab(bar, "Menu", Core.Loc.Get("ui.menu"), ControlMenuWidth, 0f, out _,
-                () => _onMenu?.Invoke());
-            _menuButton.gameObject.SetActive(false);
-
+            // No MENU slab. The trainer menu is Escape's, opened over the world by
+            // StartMenuPresenter, and a second door to it sitting on top of a conversation is
+            // both a duplicate and the loudest object on a screen that is meant to be read.
             _autoButton = ControlSlab(bar, "Auto", Core.Loc.Get("ui.auto"), ControlAutoWidth, 0f, out _autoFill,
                 () => AutoAdvance = !AutoAdvance);
         }
@@ -638,8 +816,7 @@ namespace PokeLab.UI
         private void LayOutControls()
         {
             if (_autoButton == null) return;
-            var menuShown = _menuButton != null && _menuButton.gameObject.activeSelf;
-            _autoButton.anchoredPosition = new Vector2(menuShown ? -(ControlMenuWidth + ControlGap) : 0f, 0f);
+            _autoButton.anchoredPosition = Vector2.zero;
         }
 
         /// <summary>

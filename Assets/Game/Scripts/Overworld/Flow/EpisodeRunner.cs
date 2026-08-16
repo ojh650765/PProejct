@@ -48,6 +48,16 @@ namespace PokeLab.Overworld
         /// the player confirms an empty field — or, today, when nothing in the project can ask.
         /// </summary>
         AskName = 13,
+        /// <summary>
+        /// Put a wild creature on a mark and leave it there, visible, doing nothing.
+        /// `id` is the marker, `target` is the game species id, `amount` is the level.
+        /// </summary>
+        StageCreature = 14,
+        /// <summary>
+        /// Walk the staged creature up to the player and block until it arrives.
+        /// `seconds` is a timeout, as with <see cref="MoveActor"/>.
+        /// </summary>
+        CreatureApproach = 15,
     }
 
     [Serializable]
@@ -69,6 +79,19 @@ namespace PokeLab.Overworld
         public string DisplayName;
         /// <summary>Progression flag that means this episode has already run.</summary>
         public string CompletionFlag;
+
+        /// <summary>
+        /// Played the instant this one ends. For scenes that are really one scene, split so
+        /// each half can be judged on its own.
+        ///
+        /// The field is what makes the split safe. episodes.json has carried
+        /// <c>"NextEpisodeId": "rival_first_battle"</c> on <c>opening_departure</c> since the
+        /// act was written, and this class did not declare it — JsonUtility drops members it
+        /// has no field for without a word, so the chain was authored, documented in the
+        /// schema, and silently discarded at load. The rival battle had no other way to start.
+        /// </summary>
+        public string NextEpisodeId;
+
         public List<EpisodeBeat> Beats = new List<EpisodeBeat>();
     }
 
@@ -175,7 +198,43 @@ namespace PokeLab.Overworld
         private void Start()
         {
             if (!_autoPlayOpening) return;
-            if (!ServiceHub.TryGet<IPlayerProfile>(out var profile) || profile == null) return;
+
+            // A debug jump asked to start somewhere else in the game. Checked before the
+            // coroutine so the opening never begins at all, rather than beginning and being
+            // interrupted — an episode stopped between taking control and giving it back
+            // leaves the player frozen.
+            if (DebugFlow.SuppressOpening) return;
+
+            StartCoroutine(AutoPlayOpening());
+        }
+
+        /// <summary>
+        /// Plays the opening once the profile exists.
+        ///
+        /// This used to be a plain Start that gave up the moment ServiceHub had no profile in
+        /// it — and whether it did came down to which component's Start ran first. The opening
+        /// therefore played on some runs and not others, from the same save state, with
+        /// nothing logged either way: the player simply began a new game standing in the plaza
+        /// with control and no professor. Waiting a few frames for the host to register makes
+        /// the outcome depend on the save rather than on script execution order.
+        /// </summary>
+        private System.Collections.IEnumerator AutoPlayOpening()
+        {
+            IPlayerProfile profile = null;
+            var deadline = Time.realtimeSinceStartup + 5f;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                if (ServiceHub.TryGet<IPlayerProfile>(out profile) && profile != null) break;
+                yield return null;
+            }
+
+            if (profile == null)
+            {
+                Debug.LogWarning("[Episode] No player profile was ever registered, so the opening " +
+                                 "cannot decide whether it is due. A new game will start with the " +
+                                 "player loose in the plaza.", this);
+                yield break;
+            }
 
             // The completion flag, read through the profile, is the only test that survives a
             // save. It replaces a check on the party being empty, which cannot work in this
@@ -183,13 +242,15 @@ namespace PokeLab.Overworld
             // before this component's Start runs, so "has a party" was true on the very first
             // frame of a new game and the opening never played once.
             if (_episodes.TryGetValue(_openingEpisodeId, out var opening)
-                && IsFlagSet(opening.CompletionFlag)) return;
+                && IsFlagSet(opening.CompletionFlag)) yield break;
 
             // A session restored from a save has had its opening whatever the flags say — that
             // covers saves written before the flag was persisted, without a save migration.
-            if (SessionBeganFromSave() && profile.Party != null && profile.Party.Count > 0) return;
+            if (SessionBeganFromSave() && profile.Party != null && profile.Party.Count > 0) yield break;
 
-            Play(_openingEpisodeId);
+            if (!Play(_openingEpisodeId))
+                Debug.LogWarning($"[Episode] '{_openingEpisodeId}' would not start. The book holds " +
+                                 $"{_episodes.Count} episode(s); check _bookPath on this component.", this);
         }
 
         private void LoadBook()
@@ -255,15 +316,51 @@ namespace PokeLab.Overworld
                 // The alternative is a player who cannot move and no message saying why,
                 // which is the worst failure this system can have.
                 if (tookControl) SetControl(true);
+                ClearStagedCreature();
                 if (!string.IsNullOrEmpty(episode.CompletionFlag)) SetFlag(episode.CompletionFlag, true);
                 _running = null;
                 _playingId = null;
                 EpisodeFinished?.Invoke(episode.Id);
+
+                // Chained here, inside the finally, and not after it: this runs in the same
+                // frame the previous episode released, so IsPlaying never reads false in
+                // between. One such frame is enough for the StoryEncounter waiting on it to
+                // decide the scene is over and hand control back to the player halfway
+                // through what the script treats as one continuous act.
+                if (!string.IsNullOrEmpty(episode.NextEpisodeId)
+                    && !Play(episode.NextEpisodeId)
+                    && !AlreadyPlayed(episode.NextEpisodeId))
+                {
+                    Debug.LogWarning($"[Episode] '{episode.Id}' names '{episode.NextEpisodeId}' as " +
+                                     "what follows it and it would not start, so the act ends here " +
+                                     "with the player free and nothing left to walk towards.", this);
+                }
             }
         }
 
+        /// <summary>
+        /// Whether an episode's completion flag is already set — the benign reason
+        /// <see cref="Play"/> refuses, and the one that must not be warned about.
+        /// </summary>
+        private bool AlreadyPlayed(string episodeId) =>
+            _episodes.TryGetValue(episodeId, out var episode) && IsFlagSet(episode.CompletionFlag);
+
+        /// <summary>The episode currently playing, or null. Read by the capture stamp.</summary>
+        public string PlayingEpisodeId => _playingId;
+
+        /// <summary>
+        /// The beat being performed right now, as "Kind:id".
+        ///
+        /// Exists so a screenshot can say which beat it is a screenshot of. Reading a capture
+        /// and having to guess whether the episode stalled, skipped a beat or never started is
+        /// how several rounds of this have been wasted.
+        /// </summary>
+        public string CurrentBeat { get; private set; }
+
         private IEnumerator Perform(EpisodeBeat beat)
         {
+            CurrentBeat = beat.Kind + (string.IsNullOrEmpty(beat.Id) ? "" : ":" + beat.Id);
+
             switch (beat.Kind)
             {
                 case EpisodeBeatKind.Wait:
@@ -323,6 +420,14 @@ namespace PokeLab.Overworld
 
                 case EpisodeBeatKind.Battle:
                     yield return RunBattle(beat);
+                    break;
+
+                case EpisodeBeatKind.StageCreature:
+                    yield return RunStageCreature(beat);
+                    break;
+
+                case EpisodeBeatKind.CreatureApproach:
+                    yield return RunCreatureApproach(beat);
                     break;
 
                 default:
@@ -580,6 +685,30 @@ namespace PokeLab.Overworld
         /// screen, which is what this method used to guard against by never opening one at
         /// all — the note it carried is now satisfied rather than deferred.
         /// </summary>
+        /// <summary>
+        /// Starts the opening theme as the question is asked.
+        ///
+        /// Reached by reflection for the same reason the screen wipe is: MusicDirector lives
+        /// in the audio assembly, which PokeLab.Overworld does not reference, and adding that
+        /// reference to play one cue would tie every scripted scene in the game to the audio
+        /// layer. Silence is an acceptable outcome here — the scene still works without it —
+        /// so a missing director is not worth a hard dependency or an error.
+        /// </summary>
+        private void PlayOpeningTheme()
+        {
+            var director = FindAnyObjectByType(
+                System.Type.GetType("PokeLab.Audio.MusicDirector, PokeLab.Audio"), FindObjectsInactive.Exclude);
+            if (director == null) return;
+
+            var play = director.GetType().GetMethod("PlayTrack",
+                BindingFlags.Public | BindingFlags.Instance, null,
+                new[] { typeof(string), typeof(float) }, null);
+            play?.Invoke(director, new object[] { OpeningTrack, 1.2f });
+        }
+
+        /// <summary>The cue that plays from the name prompt onward.</summary>
+        private const string OpeningTrack = "Music_Opening_Introduction";
+
         private IEnumerator RunAskName(EpisodeBeat beat)
         {
             var chosen = string.IsNullOrWhiteSpace(beat.Id) ? "Ren" : beat.Id.Trim();
@@ -601,6 +730,8 @@ namespace PokeLab.Overworld
             DefaultName = chosen;
             SubmittedName = null;
             IsAwaitingName = true;
+
+            PlayOpeningTheme();
 
             var elapsed = 0f;
             while (SubmittedName == null && elapsed < _nameEntryTimeoutSeconds)
@@ -737,8 +868,26 @@ namespace PokeLab.Overworld
         private static void PlaceActor(Transform body, PlayerLocomotion locomotion,
             Vector3 position, Quaternion rotation)
         {
-            if (locomotion != null) locomotion.Warp(position, rotation);
-            else body.SetPositionAndRotation(position, rotation);
+            if (locomotion != null) { locomotion.Warp(position, rotation); return; }
+
+            // An agent has to be Warped, not moved.
+            //
+            // A live NavMeshAgent keeps its own nextPosition and writes it back over the
+            // transform on the frame after any direct assignment — so setting the position of
+            // an NPC that has one looks like it worked and is silently undone. That is what
+            // makes a MoveActor across the town/field seam fail: the two bands bake separate
+            // navmeshes with nothing linking them, the agent paths only as far as its own mesh
+            // ends, and the snap that is supposed to finish the walk is reverted. Kes stopped
+            // at the town gate and the battle that waits for him at the lake fired there.
+            var agent = body.GetComponent<UnityEngine.AI.NavMeshAgent>();
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.Warp(position);
+                body.rotation = rotation;
+                return;
+            }
+
+            body.SetPositionAndRotation(position, rotation);
         }
 
         /// <summary>Turns an actor to face the player on arrival. Talking to a shoulder reads as broken.</summary>
@@ -780,6 +929,16 @@ namespace PokeLab.Overworld
         /// </summary>
         private IEnumerator RunBattle(EpisodeBeat beat)
         {
+            // A wild fight against the creature a StageCreature beat put on the ground, rather
+            // than a trainer named by id. Split off here so the two never share a request: this
+            // one has no trainer and must carry the staged creature's species, and the trainer
+            // path has no creature to read one from.
+            if (beat.Target == "staged")
+            {
+                yield return RunStagedBattle();
+                yield break;
+            }
+
             if (!ServiceHub.TryGet<IGameFlow>(out var flow) || flow == null)
             {
                 Debug.LogWarning($"[Episode] Battle '{beat.Id}': no IGameFlow is registered, so " +
@@ -832,6 +991,272 @@ namespace PokeLab.Overworld
             // The flow hands control back to the player when it returns, which is right for a
             // wild encounter and wrong in the middle of a scripted scene. Put the freeze back.
             if (_controlHeld) SetControl(false);
+        }
+
+        // --- Staged creatures ------------------------------------------------------------------
+
+        /// <summary>
+        /// The creature the running episode put on the ground, if any. At most one: a scene that
+        /// needs two staged creatures is a scene, not a beat, and nothing authored wants it.
+        /// </summary>
+        private RoamingCreature _staged;
+
+        /// <summary>Name the staged actor is given, so CameraTo can frame it by name.</summary>
+        private const string StagedCreatureName = "Actor_StagedCreature";
+
+        /// <summary>
+        /// Stands a wild creature on a mark, visible, and leaves it there.
+        ///
+        /// This is a <see cref="RoamingCreature"/> and not something new, and that is the whole
+        /// design decision in the ambush. What the ambush needs is a creature the player can see
+        /// standing in the grass before anything happens, that walks toward them, and that the
+        /// battle is then fought against — its species, its level, and gone from the world
+        /// afterwards. RoamingCreature already is all of that: it resolves the Gen 5 sprite
+        /// through <c>IOverworldCreatureArtFactory</c>, walks on the same NavMesh everyone else
+        /// does, and <see cref="EncounterDirector.ApplyResult"/> already knows to consume or
+        /// retreat it when the fight ends. Writing a bespoke ambusher would mean a second piece
+        /// of art resolution, a second walk, and a battle whose result nothing cleans up.
+        ///
+        /// <see cref="RoamingCreatureSpawner"/> is deliberately <em>not</em> used. Its job is the
+        /// opposite of this one: it keeps an ambient population alive in a ring around the player
+        /// and refuses to place anything closer than twenty-two metres, precisely so nothing ever
+        /// appears in view. The ambush has to appear in view, on an authored mark, at a species
+        /// and level the script chose. Asking the spawner for that would mean disabling every
+        /// rule it exists to enforce. It is also switched off entirely for the length of the
+        /// prologue — see <see cref="StoryPhase"/> — so there is nothing to ask.
+        ///
+        /// The creature is held (<see cref="RoamingCreature.ScriptedHold"/>) from the moment it
+        /// lands, so it cannot wander off its mark between being placed and being needed.
+        /// </summary>
+        private IEnumerator RunStageCreature(EpisodeBeat beat)
+        {
+            ClearStagedCreature();
+
+            if (!int.TryParse(beat.Target, out var speciesId) || speciesId <= 0)
+            {
+                Debug.LogWarning($"[Episode] StageCreature: '{beat.Target}' is not a game species " +
+                                 "id. Nothing was placed, so the scene plays out with an empty " +
+                                 "patch of grass in it.", this);
+                yield break;
+            }
+
+            var stand = ResolveStagePosition(beat.Id);
+            var host = new GameObject(StagedCreatureName);
+
+            var creatureLayer = LayerMask.NameToLayer(OverworldNames.LayerCreature);
+            if (creatureLayer >= 0) host.layer = creatureLayer;
+
+            // Same agent settings the spawner builds its roamers with. Copied rather than shared
+            // because the method that builds them is private to the spawner and this scene must
+            // not depend on a spawner existing — the prologue switches it off.
+            var agent = host.AddComponent<NavMeshAgent>();
+            agent.autoBraking = true;
+            agent.angularSpeed = 360f;
+            agent.acceleration = 12f;
+            agent.stoppingDistance = 0.35f;
+            agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
+
+            _staged = host.AddComponent<RoamingCreature>();
+            // Placid: the temperament is inert while the hold is on, and it is the one that does
+            // nothing if the hold is ever lifted by accident. An Aggressive ambusher that got
+            // loose would charge the player during a line and start the battle early.
+            _staged.Configure(speciesId, Mathf.Max(1, beat.Amount), Temperament.Placid, stand);
+            _staged.ScriptedHold = true;
+
+            // Turned to face the player from the start. A creature standing side-on in the grass
+            // reads as scenery; one looking at you reads as the thing the next line is about.
+            var player = FindActor("Player");
+            if (player != null)
+            {
+                var facing = Flatten(player.transform.position - host.transform.position);
+                if (facing.sqrMagnitude > 1e-4f) host.transform.rotation = Quaternion.LookRotation(facing);
+            }
+
+            yield break;
+        }
+
+        /// <summary>
+        /// Where the staged creature stands. The authored marker, or a point in front of the
+        /// player when there is none.
+        ///
+        /// It falls back rather than skipping, which is the opposite of what
+        /// <see cref="RunMoveActor"/> does with a missing marker, and the difference is what is
+        /// lost. A walk that does not happen costs a piece of staging; an ambusher that is never
+        /// placed costs the battle, the starter choice that depends on it and every episode
+        /// chained behind it. Six metres in front of the player is not the shot the scene wants,
+        /// but it is a scene.
+        /// </summary>
+        private Vector3 ResolveStagePosition(string markerName)
+        {
+            var marker = FindMarker(markerName);
+            if (marker != null) return marker.position;
+
+            var player = FindActor("Player");
+            var origin = player != null ? player.transform : transform;
+            var guess = origin.position + Flatten(origin.forward).normalized * 6f;
+
+            Debug.LogWarning($"[Episode] StageCreature: no marker '{markerName}' in the scene, so " +
+                             "the creature was put six metres in front of the player instead. It " +
+                             "will not be standing in the grass the dialogue says it is standing " +
+                             "in; the marker's world position belongs in cast.json.", this);
+
+            return NavMesh.SamplePosition(guess, out var hit, 8f, NavMesh.AllAreas) ? hit.position : guess;
+        }
+
+        /// <summary>
+        /// Walks the staged creature at the player and blocks until it is close enough to be
+        /// threatening.
+        ///
+        /// Driven from here rather than by letting the creature's own Aggressive reaction do it,
+        /// because that reaction is a negotiation — alertness builds, it commits, it may give up
+        /// and retreat if the player is beyond its notice radius — and this beat has to finish.
+        /// The scene is holding the player's control while it runs. So it is a plain walk with a
+        /// ceiling on it, like every other wait in this file, and the creature is snapped onto
+        /// its final distance if the walk does not land: a scripted approach that never arrives
+        /// would hold the player frozen watching a Rattata stuck on a rock.
+        /// </summary>
+        private IEnumerator RunCreatureApproach(EpisodeBeat beat)
+        {
+            if (_staged == null)
+            {
+                Debug.LogWarning("[Episode] CreatureApproach with nothing staged. The beat before " +
+                                 "this one was meant to place it; the scene continues without an " +
+                                 "approach.", this);
+                yield break;
+            }
+
+            var player = FindActor("Player");
+            if (player == null) yield break;
+
+            var body = _staged.transform;
+            var agent = _staged.GetComponent<NavMeshAgent>();
+            var timeout = beat.Seconds > 0.01f ? beat.Seconds : _defaultMoveTimeoutSeconds;
+            var elapsed = 0f;
+            var arrived = false;
+
+            while (elapsed < timeout)
+            {
+                elapsed += Time.deltaTime;
+                var target = player.transform.position;
+                var flat = Flatten(target - body.position);
+
+                // Stopped short of the player's own capsule. Walking into it leaves the two
+                // interpenetrating for the whole of the choice that follows.
+                if (flat.magnitude <= ApproachStopDistance)
+                {
+                    arrived = true;
+                    break;
+                }
+
+                if (agent != null && agent.enabled && agent.isOnNavMesh)
+                {
+                    // The agent turns itself, so nothing here touches the rotation — writing it
+                    // as well leaves the two fighting over the same transform every frame.
+                    agent.isStopped = false;
+                    agent.SetDestination(target);
+                }
+                else
+                {
+                    // No navmesh under it. Walked straight at the player rather than skipped:
+                    // the beat after this is a battle, and a creature that never moved is a
+                    // battle that begins with the ambusher still out in the grass.
+                    body.position = Vector3.MoveTowards(body.position, body.position + flat,
+                        _actorWalkSpeed * Time.deltaTime);
+                    body.rotation = Quaternion.LookRotation(flat.normalized);
+                }
+
+                yield return null;
+            }
+
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.ResetPath();
+            }
+
+            if (arrived) yield break;
+
+            Debug.LogWarning($"[Episode] The staged creature did not reach the player within " +
+                             $"{timeout:0.0}s and was placed in front of them. The next beat is a " +
+                             "battle against it and needs it on screen.", this);
+
+            var toPlayer = Flatten(player.transform.position - body.position);
+            if (toPlayer.sqrMagnitude < 1e-4f) yield break;
+
+            var mark = player.transform.position - toPlayer.normalized * ApproachStopDistance;
+            body.rotation = Quaternion.LookRotation(toPlayer.normalized);
+
+            // Warped rather than assigned. A NavMeshAgent keeps its own copy of where it is and
+            // writing the transform underneath it snaps back on the next frame it moves — the
+            // same reason PlaceActor puts the player through PlayerLocomotion.Warp.
+            if (agent != null && agent.enabled && agent.isOnNavMesh) agent.Warp(mark);
+            else body.position = mark;
+        }
+
+        /// <summary>Metres the ambusher stops at. Just outside the player's capsule.</summary>
+        private const float ApproachStopDistance = 1.6f;
+
+        /// <summary>
+        /// Fights the staged creature, and blocks until the result has been applied.
+        ///
+        /// Routed through <see cref="EncounterDirector"/> rather than straight at
+        /// <see cref="IGameFlow"/> like <see cref="RunBattle"/> does, because the director is what
+        /// makes the fight be against <em>this</em> creature: it builds the request from the
+        /// creature's own species and level, plays its telegraph, and removes it from the world
+        /// afterwards. Waiting on <c>SequenceRunning</c> rather than on a callback because that is
+        /// the only completion signal the director publishes, and it does not go false until the
+        /// result has been written to the profile.
+        /// </summary>
+        private IEnumerator RunStagedBattle()
+        {
+            var director = EncounterDirector.Instance;
+            if (director == null || _staged == null)
+            {
+                Debug.LogWarning("[Episode] The staged battle has no creature or no " +
+                                 "EncounterDirector to run it. The beat is skipped and the scene " +
+                                 "continues to the lines after the fight, which will read as " +
+                                 "though the player won.", this);
+                yield break;
+            }
+
+            if (!director.TriggerStagedEncounter(_staged))
+            {
+                Debug.LogWarning("[Episode] The EncounterDirector refused the staged battle — " +
+                                 "something else is already running one. Skipped rather than " +
+                                 "waited on, because nothing is going to finish.", this);
+                yield break;
+            }
+
+            var elapsed = 0f;
+            while (director.SequenceRunning && elapsed < _battleTimeoutSeconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            if (director.SequenceRunning)
+                Debug.LogError($"[Episode] The staged battle never resolved after " +
+                               $"{_battleTimeoutSeconds:0}s. The episode is continuing without it " +
+                               "rather than holding the player in a cutscene forever.", this);
+
+            // The director unfreezes the player on its way out, which is right for a wild
+            // encounter met while walking and wrong in the middle of a scripted scene.
+            if (_controlHeld) SetControl(false);
+        }
+
+        /// <summary>
+        /// Removes the staged creature, on every path out of the episode.
+        ///
+        /// Unconditional. Beaten or caught it is already inactive and this only tidies up the
+        /// object; fled, or left behind by a battle that never resolved, it is an aggressive wild
+        /// creature standing on the lake bank that no spawner owns, will never despawn, and that
+        /// the player meets again on their way back to town.
+        /// </summary>
+        private void ClearStagedCreature()
+        {
+            if (_staged == null) return;
+            Destroy(_staged.gameObject);
+            _staged = null;
         }
 
         // --- Starter -------------------------------------------------------------------------

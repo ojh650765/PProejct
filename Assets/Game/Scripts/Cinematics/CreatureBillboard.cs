@@ -571,7 +571,13 @@ namespace PokeLab.Cinematics
                     // Side sheets are drawn with the subject's left flank to the lens —
                     // the Gen 4 field sprites walk screen-left as authored — so the right
                     // facing is the one that needs mirroring.
-                    _sideFlip = _facing == SpriteFacing.Right;
+                    //
+                    // Inverted again when the borrowed sheet is the back one, because a view
+                    // from behind reverses the subject's left and right: the flip that turns a
+                    // borrowed front view toward the opponent turns a borrowed back view away
+                    // from it. Left uncorrected this was half of what made the two combatants
+                    // face the same way.
+                    _sideFlip = (_facing == SpriteFacing.Right) ^ _sideBorrowsBack;
                 }
                 else
                 {
@@ -641,8 +647,25 @@ namespace PokeLab.Cinematics
         /// The mirror actually applied: the authored mode's choice, flipped again when a side
         /// sector is borrowing the opposite-handed view. Two flips cancel, which is correct —
         /// a left-facing subject borrowing an already-mirrored front should end up unmirrored.
+        ///
+        /// <see cref="MirrorMode.Off"/> stops the borrow flip as well, and that is the point of
+        /// it. The mode's whole promise is "never mirror", and until this read the mode the
+        /// side-sector fallback mirrored underneath it: at the arena's original 32° layout yaw
+        /// the player's creature sat at 131° against a 135° boundary, landed in a side sector,
+        /// borrowed the back sheet and had it flipped — so it faced the same way as the
+        /// opponent instead of at it, which is the fault this pair of lines was reported for.
+        /// The pin in <c>BattleStage.Occupy</c> keeps a battle out of the side sectors
+        /// altogether; this is what makes the beats that release the pin — the victory turn —
+        /// and any arena tuned to a different yaw safe as well.
         /// </summary>
-        private bool EffectiveFlip => IsSideSector ? _flip ^ _sideFlip : _flip;
+        private bool EffectiveFlip
+        {
+            get
+            {
+                if (mirrorMode == MirrorMode.Off) return false;
+                return IsSideSector ? _flip ^ _sideFlip : _flip;
+            }
+        }
 
         private void ApplyBlock()
         {

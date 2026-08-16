@@ -457,14 +457,14 @@
     },
     {
       "key": "professor",
-      "name": "Professor Oak",
+      "name": "Professor",
       "role": "professor",
-      "note": "Swept grey hair, white lab coat over a mauve shirt. The white coat mass is the read: no other character in the cast has it, so he is legible from the three-quarter camera before any dialogue starts. Kanto's professor, which is also the right one for a cast of 53 Kanto species.",
+      "note": "White swept-back hair and a heavy white moustache, blue waistcoat over white shirtsleeves, dark tie. The white hair mass over a saturated blue torso is the read: no other character in the cast pairs them, so he is legible from the three-quarter camera before any dialogue starts. Named for the role rather than for Rowan -- the game's professor is Linden, and the artwork is where the resemblance stops.",
       "origin": {
         "kind": "traced",
         "detail": "Official Gen 4 (Platinum) overworld artwork, imported pixel-for-pixel. Not redrawn, not restyled, not rescaled.",
-        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/prof_oak.png",
-        "staged": "Tools/Sprites/source_overworld/prof_oak.png"
+        "upstream": "pret/pokeplatinum res/graphics/field_sprites/**/prof_rowan.png",
+        "staged": "Tools/Sprites/source_overworld/prof_rowan.png"
       },
       "sheet": "Assets/Game/Art/Sprites/People/professor.png",
       "sheet_size": [
@@ -594,7 +594,7 @@
         },
         "anchors_note": "y is a row index from the TOP of the cell; Unity's sprite space counts from the bottom, so use cell_height - 1 - y."
       },
-      "palette_colours": 15,
+      "palette_colours": 11,
       "alignment": {
         "translation_applied": [
           0,

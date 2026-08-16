@@ -66,6 +66,21 @@ namespace PokeLab.Overworld
         /// </summary>
         public bool SubmitPressed { get; private set; }
 
+        /// <summary>
+        /// True on the frame the player asked to move a conversation on.
+        ///
+        /// Separate from <see cref="SubmitPressed"/> because that one reads the Interact
+        /// action, which is bound to E — the key you press to start talking to somebody. Using
+        /// the same key to advance the line meant the button that opens a conversation is the
+        /// button that skips through it. Space is what these games use, and it is not bound to
+        /// anything in the world.
+        ///
+        /// The gamepad face buttons come along, so a controller still works and so the play
+        /// probe — which drives a synthetic pad through the real action asset — can still get
+        /// through a conversation.
+        /// </summary>
+        public bool AdvancePressed { get; private set; }
+
         /// <summary>Raised on interact so interactables can react without polling.</summary>
         public event Action Interacted;
 
@@ -124,6 +139,7 @@ namespace PokeLab.Overworld
             Run = false;
             InteractPressed = false;
             SubmitPressed = false;
+            AdvancePressed = false;
             MenuPressed = false;
         }
 
@@ -134,6 +150,15 @@ namespace PokeLab.Overworld
 
             // Read before the gate: dialogue and menus need confirm even while movement is frozen.
             SubmitPressed = _interact != null && _interact.WasPressedThisFrame();
+
+            // Read off the devices rather than through an action, because the asset's Interact
+            // is the E binding this is deliberately not using and adding a second action to a
+            // shared asset would change what every other map sees.
+            var keyboard = UnityEngine.InputSystem.Keyboard.current;
+            var pad = UnityEngine.InputSystem.Gamepad.current;
+            AdvancePressed =
+                (keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
+                || (pad != null && (pad.buttonSouth.wasPressedThisFrame || pad.buttonNorth.wasPressedThisFrame));
 
             if (!_enabled) return;
 
@@ -153,7 +178,15 @@ namespace PokeLab.Overworld
                 Run = sprintHeld;
             }
 
-            if (SubmitPressed)
+            // Space talks as well as advances, which is how the series works: one button both
+            // opens a conversation and moves it on. E is kept as an alias rather than replaced,
+            // because it is what the action asset binds and what anything reading the Interact
+            // action directly still expects.
+            //
+            // Gated on _enabled, unlike AdvancePressed itself — dialogue needs the button while
+            // movement is frozen, but walking up to somebody and talking to them is movement's
+            // business and must stop when movement does.
+            if (SubmitPressed || AdvancePressed)
             {
                 InteractPressed = true;
                 Interacted?.Invoke();

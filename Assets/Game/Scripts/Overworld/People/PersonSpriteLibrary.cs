@@ -66,6 +66,45 @@ namespace PokeLab.Overworld.People
             contentHeight > 0.001f ? displayHeightMetres / contentHeight : displayHeightMetres;
     }
 
+    /// <summary>
+    /// A drawn object rather than a drawn person: the starter briefcase, the player reaching
+    /// into it.
+    ///
+    /// Its own type rather than a <see cref="PersonEntry"/> with the unused views left null,
+    /// because a prop is not a character seen from three sides — it has one drawing and one
+    /// optional loop, and the manifest names them <c>Idle</c> and <c>Play</c> rather than
+    /// front/back/side. <c>JsonUtility</c> matches field names exactly, which is why those two
+    /// are capitalised here against the convention: they are the shape of the data, not a
+    /// choice made in this file.
+    /// </summary>
+    [Serializable]
+    public sealed class PersonProp
+    {
+        public string key;
+        public string nameEn;
+
+        [Tooltip("Height of the drawn object in metres — the content, not the frame.")]
+        public float displayHeightMetres = 1f;
+
+        [Tooltip("Where the object's base sits inside the frame, as a fraction from the bottom.")]
+        public float groundOrigin = 0.0625f;
+
+        [Tooltip("Fraction of the frame the object occupies vertically.")]
+        public float contentHeight = 0.5f;
+
+        public string texture;
+        public PersonClip Idle;
+        public PersonClip Play;
+
+        /// <summary>
+        /// Height of the whole frame in metres — the quad's size, for
+        /// <see cref="PersonEntry.FrameHeightMetres"/>'s reason: the margins are part of the
+        /// image, and sizing to the content scales the object up by the margin.
+        /// </summary>
+        public float FrameHeightMetres =>
+            contentHeight > 0.001f ? displayHeightMetres / contentHeight : displayHeightMetres;
+    }
+
     [Serializable]
     internal sealed class PersonManifest
     {
@@ -74,6 +113,7 @@ namespace PokeLab.Overworld.People
         public float pixelsPerUnit = 13.714286f;
         public string resourceRoot = "";
         public PersonEntry[] people;
+        public PersonProp[] props;
     }
 
     /// <summary>
@@ -96,6 +136,8 @@ namespace PokeLab.Overworld.People
 
         private readonly Dictionary<string, PersonEntry> _byKey =
             new Dictionary<string, PersonEntry>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, PersonProp> _props =
+            new Dictionary<string, PersonProp>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Texture2D> _textures =
             new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _warned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -135,14 +177,20 @@ namespace PokeLab.Overworld.People
                 return;
             }
 
-            if (manifest?.people == null) return;
+            if (manifest == null) return;
             FrameSize = Mathf.Max(1, manifest.frameSize);
             _resourceRoot = manifest.resourceRoot ?? string.Empty;
 
-            foreach (var entry in manifest.people)
+            foreach (var entry in manifest.people ?? Array.Empty<PersonEntry>())
             {
                 if (entry == null || string.IsNullOrEmpty(entry.key)) continue;
                 _byKey[entry.key] = entry;
+            }
+
+            foreach (var prop in manifest.props ?? Array.Empty<PersonProp>())
+            {
+                if (prop == null || string.IsNullOrEmpty(prop.key)) continue;
+                _props[prop.key] = prop;
             }
         }
 
@@ -196,6 +244,41 @@ namespace PokeLab.Overworld.People
             return null;
         }
 
+        /// <summary>
+        /// Finds a drawn prop — "briefcase", "player_takes_ball".
+        ///
+        /// No aliasing and no fallback, unlike <see cref="Find"/>. A person the level names by
+        /// a role it invented should still be drawn as the nearest archetype; a prop is asked
+        /// for by name by exactly one scene, and quietly handing back a different object is
+        /// worse than drawing nothing.
+        /// </summary>
+        public PersonProp Prop(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return null;
+            if (_props.TryGetValue(key, out var prop)) return prop;
+
+            if (_warned.Add("prop:" + key))
+                Debug.LogWarning($"[People] No prop '{key}' in the manifest; it will not be drawn.");
+            return null;
+        }
+
+        /// <summary>
+        /// Every art key this speaker key could mean, best first.
+        ///
+        /// Exposed because the dialogue box has to make the same journey. A speaker is
+        /// "npc_gate_01"; the world sprite for him is filed under "townsman", and the box's
+        /// portrait is filed under "townsman" too — but the box was resolving only the prefix
+        /// and the trailing number, landing on "gate", and drawing the walking sprite because
+        /// no portrait is filed under a place name. Two lookups that disagree about who
+        /// somebody is will always disagree about what to draw.
+        /// </summary>
+        public static IEnumerable<string> ArtKeysFor(string key)
+        {
+            if (string.IsNullOrEmpty(key)) yield break;
+            yield return key;
+            foreach (var alias in Aliases(key)) yield return alias;
+        }
+
         private static IEnumerable<string> Aliases(string key)
         {
             switch (key.ToLowerInvariant())
@@ -212,7 +295,6 @@ namespace PokeLab.Overworld.People
                 // in its own spriteKey field. These three are that mapping, so a place name
                 // still finds the person who works there.
                 case "gate": yield return "townsman"; break;
-                case "market": yield return "shopkeeper"; break;
                 case "garden": yield return "gardener"; break;
                 default: yield break;
             }

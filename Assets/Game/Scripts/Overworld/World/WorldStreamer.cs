@@ -116,9 +116,25 @@ namespace PokeLab.Overworld.World
             // frame the load completes, before anything renders.
             if (!_enabled) return;
 
+            var active = SceneManager.GetActiveScene().name;
+
+            // A scene that is not one of the bands has no neighbours, so it streams nothing.
+            //
+            // This component is built into every playable scene by the rig setup, interiors
+            // included, and without this an interior claimed BOTH bands and preloaded them:
+            // the whole town arriving additively around a room the player is standing in,
+            // and — because a claimed scene is one a door must stand down on — the way back
+            // out refusing to open. The guard is on the band list rather than on a flag,
+            // because a flag serialized into an interior scene is one PlayerRigSetup's repair
+            // pass turns back on by design.
+            var isBand = false;
+            foreach (var band in _bands)
+                if (band != null && band.scene == active) isBand = true;
+
+            if (!isBand) return;
+
             // Claimed up front, before a single load begins, so a door can refuse from the
             // first frame rather than from whenever the load happens to finish.
-            var active = SceneManager.GetActiveScene().name;
             foreach (var band in _bands)
             {
                 if (band == null || string.IsNullOrEmpty(band.scene)) continue;
@@ -247,7 +263,14 @@ namespace PokeLab.Overworld.World
                     || root.GetComponentInChildren<UnityEngine.EventSystems.EventSystem>(true) != null
                     || root.name == "GameHosts";
 
-                if (isSessionOwner) Destroy(root);
+                if (!isSessionOwner) continue;
+
+                // Switched off before it is destroyed. Destroy does not take effect until the
+                // end of the frame, and in that gap the duplicate EventSystem's own Update
+                // runs and complains that there are two of it — a warning about an object that
+                // is already condemned. Deactivating first makes the removal silent.
+                root.SetActive(false);
+                Destroy(root);
             }
         }
     }

@@ -6,13 +6,15 @@ using PokeLab.Core;
 namespace PokeLab.UI
 {
     /// <summary>
-    /// The name-plate above a combatant: name, level, types, status, health and — on the
-    /// player's side — exact HP numbers and the experience bar.
+    /// The name-plate for one combatant, built to the Sword/Shield shape: a sheared dark slab
+    /// carrying name, level, a full-width health bar and the exact HP figures, with the
+    /// experience bar added on the player's side.
     ///
-    /// The asymmetry is intentional and matches the genre: the player knows their own
-    /// creature's exact HP and experience, and only a fraction for the opponent. Showing the
-    /// opponent's raw numbers would flatten every "can I survive this" decision into
-    /// arithmetic.
+    /// The slab leans rather than sitting square because the two plates are the only UI in the
+    /// shot that touches the corners of the frame, and a square slab in the corner of a
+    /// perspective HD-2D scene reads as a debug overlay pasted on top. The lean is small — 14px
+    /// over the plate height — which is enough to tie it to the diorama and not enough to make
+    /// the text look crooked.
     ///
     /// All state changes route through <see cref="Bind"/>, which diffs against the last
     /// snapshot so a health tween is never restarted by an unrelated status change.
@@ -20,28 +22,36 @@ namespace PokeLab.UI
     [DisallowMultipleComponent]
     public sealed class CreatureStatusPanel : MonoBehaviour
     {
+        /// <summary>Plate width. Public so the HUD anchors the plate at the size its slab sprite was drawn for.</summary>
+        public const float PlateWidth = 496f;
+
+        /// <summary>Opponent plate height: name row, health bar, HP figures.</summary>
+        public const float OpponentHeight = 132f;
+
+        /// <summary>Player plate height. The extra band is the experience line.</summary>
+        public const float PlayerHeight = 148f;
+
+        /// <summary>Horizontal shear of the slab, in pixels across its full height.</summary>
+        private const int Shear = 14;
+
         [Header("Identity")]
         [SerializeField] private TextMeshProUGUI _name;
+        [SerializeField] private TextMeshProUGUI _gender;
         [SerializeField] private TextMeshProUGUI _level;
-        [SerializeField] private RectTransform _typeRow;
         [SerializeField] private StatusBadge _status;
 
         [Header("Health")]
         [SerializeField] private AnimatedBar _healthBar;
-        [SerializeField] private TextMeshProUGUI _healthText;
         [SerializeField] private AnimatedNumber _healthNumber;
 
         [Header("Experience")]
         [SerializeField] private AnimatedBar _experienceBar;
 
         [Header("Shell")]
-        [SerializeField] private Image _panel;
         [SerializeField] private CanvasGroup _group;
         [SerializeField] private RectTransform _rect;
 
-        private readonly TypeBadge[] _typeBadges = new TypeBadge[2];
         private BattleSide _side = BattleSide.Player;
-        private bool _showExactHp;
         private string _boundInstanceId;
         private int _lastHp = -1;
         private StatusCondition _lastStatus = StatusCondition.None;
@@ -67,18 +77,32 @@ namespace PokeLab.UI
             SetVisible(true);
 
             if (_name != null) _name.SetText(UiServices.NameOf(creature));
-            if (_level != null) _level.SetText("Lv " + creature.Level);
-
-            UiServices.TypesOf(creature.SpeciesId, out var primary, out var secondary);
-            EnsureTypeBadges();
-            _typeBadges[0]?.Bind(primary);
-            _typeBadges[1]?.Bind(secondary);
+            if (_level != null) _level.SetText("Lv. " + creature.Level);
 
             BindHealth(creature, immediate || isNewCreature);
             BindStatus(creature, immediate || isNewCreature);
             BindExperience(creature, immediate || isNewCreature);
 
             if (isNewCreature && !immediate) PlayEnter();
+        }
+
+        /// <summary>
+        /// Shows or clears the gender mark beside the name. Pass null to hide it.
+        ///
+        /// Separate from <see cref="Bind"/> because <see cref="CreatureInstance"/> carries no
+        /// gender yet. The plate reserves the space and draws nothing rather than deriving a
+        /// symbol from the instance id: a made-up mark here would contradict whatever the
+        /// party and summary screens later show for the same creature, and a wrong ♂ is worse
+        /// than no ♂.
+        /// </summary>
+        public void SetGenderMark(string mark, Color? color = null)
+        {
+            if (_gender == null) return;
+            var visible = !string.IsNullOrEmpty(mark);
+            _gender.gameObject.SetActive(visible);
+            if (!visible) return;
+            _gender.SetText(mark);
+            _gender.color = color ?? UiPalette.TextSecondary;
         }
 
         private void BindHealth(CreatureInstance creature, bool immediate)
@@ -102,19 +126,13 @@ namespace PokeLab.UI
                 }
             }
 
-            if (_showExactHp && _healthNumber != null)
+            if (_healthNumber != null)
             {
                 var max = creature.MaxHp;
-                _healthNumber.WithFormat(v => $"{Mathf.RoundToInt(v)}<size=70%><color=#FFFFFF66> / {max}</color></size>");
+                _healthNumber.WithFormat(v => $"{Mathf.RoundToInt(v)}<size=78%><color=#FFFFFF70>/{max}</color></size>");
                 if (immediate) _healthNumber.SetImmediate(creature.CurrentHp);
                 else _healthNumber.SetValue(creature.CurrentHp);
                 _healthNumber.SetColor(color, 0.3f);
-            }
-            else if (_healthText != null && !_showExactHp)
-            {
-                // Opponent side: a percentage is the honest amount of information.
-                _healthText.SetText(Mathf.CeilToInt(fraction * 100f) + "%");
-                _healthText.color = color;
             }
 
             // Low-health pulse on the player's own bar only — a nagging red flash on the
@@ -186,116 +204,110 @@ namespace PokeLab.UI
         {
             if (_rect == null) return;
             var target = _rect.anchoredPosition;
-            // Enters from the side of the screen the combatant is on.
-            var from = target + new Vector2(_side == BattleSide.Player ? -70f : 70f, 0f);
+            // Enters from the outside edge the plate is pinned to, so it reads as sliding in
+            // from off-screen rather than drifting across the creature it describes.
+            var from = target + new Vector2(_side == BattleSide.Player ? -90f : 90f, 0f);
             _rect.anchoredPosition = from;
             UiTween.AnchoredMove(_rect, target, 0.45f, Ease.OutCubic);
             UiTween.Fade(_group, 1f, 0.3f);
         }
 
-        private void EnsureTypeBadges()
-        {
-            if (_typeRow == null) return;
-            for (var i = 0; i < 2; i++)
-            {
-                if (_typeBadges[i] == null) _typeBadges[i] = TypeBadge.BuildCompact(_typeRow, ElementType.None, 20f);
-            }
-        }
-
         /// <summary>
-        /// Builds a plate. The player's plate carries exact HP and an experience bar; the
-        /// opponent's does not, and is mirrored so both read outward from the centre.
+        /// Builds a plate. Both sides share the construction; the player's carries the
+        /// experience band underneath the health bar.
         /// </summary>
         public static CreatureStatusPanel Build(Transform parent, BattleSide side)
         {
             var isPlayer = side == BattleSide.Player;
+            var height = isPlayer ? PlayerHeight : OpponentHeight;
 
             var root = UiBuilder.Rect("StatusPanel_" + side, parent, false);
-            root.sizeDelta = new Vector2(340f, isPlayer ? 96f : 78f);
+            root.sizeDelta = new Vector2(PlateWidth, height);
 
             var panel = root.gameObject.AddComponent<CreatureStatusPanel>();
             panel._rect = root;
             panel._side = side;
-            panel._showExactHp = isPlayer;
             panel._group = UiBuilder.Group(root);
+            BuildSlab(root, Mathf.RoundToInt(height));
 
-            panel._panel = UiBuilder.Panel("Plate", root, UiPalette.Surface.WithAlpha(0.92f), 14, true, 20, 0.45f);
-            var rim = UiBuilder.Image("Rim", panel._panel.rectTransform, UiSprites.Frame(14, 1),
-                Color.white.WithAlpha(0.07f));
-            UiBuilder.Stretch(rim.rectTransform);
-
+            // Side padding is wider than the top/bottom because the slab's edges lean: at the
+            // top of the plate the left edge has already travelled Shear pixels inward, and
+            // text laid out to a square inset would touch it.
             var stack = UiBuilder.Rect("Stack", root);
-            UiBuilder.Vertical(stack, 5f, new RectOffset(14, 14, 9, 9), TextAnchor.MiddleLeft);
+            UiBuilder.Vertical(stack, 7f, new RectOffset(30, 30, 14, 14), TextAnchor.MiddleLeft);
 
-            // --- name row
+            // --- name row: name, gender mark, status pill, level right-aligned
             var nameRow = UiBuilder.Rect("NameRow", stack);
-            UiBuilder.Horizontal(nameRow, 7f, null, TextAnchor.MiddleLeft);
-            UiBuilder.Size(nameRow, preferredHeight: 22f, minHeight: 22f, flexibleWidth: 1f);
+            UiBuilder.Horizontal(nameRow, 10f, null, TextAnchor.MiddleLeft);
+            UiBuilder.Size(nameRow, preferredHeight: 38f, minHeight: 38f, flexibleWidth: 1f);
 
             panel._name = UiBuilder.Text("Name", nameRow, "—", UiTextRole.Body, UiPalette.TextPrimary);
             panel._name.fontStyle = FontStyles.Bold;
             panel._name.textWrappingMode = TextWrappingModes.NoWrap;
-            UiBuilder.Size(panel._name.rectTransform, preferredWidth: 130f, minWidth: 70f, flexibleWidth: 1f);
+            UiBuilder.Size(panel._name.rectTransform, minWidth: 90f, flexibleWidth: 1f);
 
-            panel._status = StatusBadge.Build(nameRow, 18f);
+            panel._gender = UiBuilder.Text("Gender", nameRow, string.Empty, UiTextRole.Body,
+                UiPalette.TextSecondary, TextAlignmentOptions.Center);
+            UiBuilder.Size(panel._gender.rectTransform, preferredWidth: 22f, minWidth: 22f);
+            panel._gender.gameObject.SetActive(false);
 
-            var typeRow = UiBuilder.Rect("Types", nameRow, false);
-            UiBuilder.Horizontal(typeRow, 4f, null, TextAnchor.MiddleRight);
-            UiBuilder.Size(typeRow, preferredWidth: 44f, minWidth: 44f);
-            panel._typeRow = typeRow;
+            // Carried on both plates, not just the player's. A status the opponent is under
+            // changes what the player should do next as much as one of their own, and the badge
+            // hides itself when there is nothing to say, so it costs no space when idle.
+            panel._status = StatusBadge.Build(nameRow, 30f);
 
-            panel._level = UiBuilder.Text("Level", nameRow, "Lv 1", UiTextRole.Numeric, UiPalette.TextSecondary,
-                TextAlignmentOptions.Right);
-            panel._level.fontSize = 15f;
-            UiBuilder.Size(panel._level.rectTransform, preferredWidth: 48f, minWidth: 48f);
+            panel._level = UiBuilder.Text("Level", nameRow, "Lv. 1", UiTextRole.Numeric,
+                UiPalette.TextSecondary, TextAlignmentOptions.Right);
+            // Wide enough for "Lv. 100" at the Numeric size without ellipsing. Level is the one
+            // figure on the plate that silently grows a digit late in the game.
+            UiBuilder.Size(panel._level.rectTransform, preferredWidth: 132f, minWidth: 132f);
 
-            // --- health row
-            var healthRow = UiBuilder.Rect("HealthRow", stack);
-            UiBuilder.Horizontal(healthRow, 8f, null, TextAnchor.MiddleLeft);
-            UiBuilder.Size(healthRow, preferredHeight: 16f, minHeight: 16f, flexibleWidth: 1f);
+            // --- health bar, spanning the plate
+            panel._healthBar = AnimatedBar.Build("HealthBar", stack, 12f, UiPalette.Health(1f), true);
 
-            var hpLabel = UiBuilder.Text("HpLabel", healthRow, "HP", UiTextRole.Overline, UiPalette.TextMuted);
-            hpLabel.fontSize = 9f;
-            hpLabel.characterSpacing = 3f;
-            UiBuilder.Size(hpLabel.rectTransform, preferredWidth: 22f, minWidth: 22f);
-
-            panel._healthBar = AnimatedBar.Build("HealthBar", healthRow, 10f, UiPalette.Health(1f), true);
-
+            // --- experience band, player only, immediately under the health bar
             if (isPlayer)
             {
-                var hpText = UiBuilder.Text("HpValue", healthRow, "0 / 0", UiTextRole.Numeric,
-                    UiPalette.TextPrimary, TextAlignmentOptions.Right);
-                hpText.fontSize = 14f;
-                UiBuilder.Size(hpText.rectTransform, preferredWidth: 84f, minWidth: 84f);
-                panel._healthText = hpText;
-                panel._healthNumber = AnimatedNumber.Attach(hpText, v => Mathf.RoundToInt(v).ToString(), 0.6f);
-            }
-            else
-            {
-                var hpText = UiBuilder.Text("HpValue", healthRow, "100%", UiTextRole.Numeric,
-                    UiPalette.TextPrimary, TextAlignmentOptions.Right);
-                hpText.fontSize = 14f;
-                UiBuilder.Size(hpText.rectTransform, preferredWidth: 44f, minWidth: 44f);
-                panel._healthText = hpText;
-            }
-
-            // --- experience row, player only
-            if (isPlayer)
-            {
-                var expRow = UiBuilder.Rect("ExpRow", stack);
-                UiBuilder.Horizontal(expRow, 8f, null, TextAnchor.MiddleLeft);
-                UiBuilder.Size(expRow, preferredHeight: 8f, minHeight: 8f, flexibleWidth: 1f);
-
-                var expLabel = UiBuilder.Text("ExpLabel", expRow, "EXP", UiTextRole.Overline, UiPalette.TextMuted);
-                expLabel.fontSize = 8f;
-                expLabel.characterSpacing = 2f;
-                UiBuilder.Size(expLabel.rectTransform, preferredWidth: 22f, minWidth: 22f);
-
-                panel._experienceBar = AnimatedBar.Build("ExpBar", expRow, 5f, UiPalette.Info, false);
+                panel._experienceBar = AnimatedBar.Build("ExpBar", stack, 6f, UiPalette.Info, false,
+                    UiPalette.SurfaceSunken.WithAlpha(0.85f));
                 panel._experienceBar.SetImmediate(0f);
             }
 
+            // --- exact HP figures, left-aligned under the bars
+            //
+            // Shown for the opponent as well as the player. That reverses the asymmetry this
+            // plate used to enforce — the genre hides the opponent's raw HP so "can I survive
+            // this" stays a judgement call — because the reference layout being matched puts
+            // the figures on both plates. Flip the opponent back to a percentage by giving that
+            // side a plain label instead of an AnimatedNumber here; nothing else depends on it.
+            var hpText = UiBuilder.Text("HpValue", stack, "0/0", UiTextRole.Numeric,
+                UiPalette.TextPrimary, TextAlignmentOptions.Left);
+            UiBuilder.Size(hpText.rectTransform, preferredHeight: 30f, minHeight: 30f, flexibleWidth: 1f);
+            panel._healthNumber = AnimatedNumber.Attach(hpText, v => Mathf.RoundToInt(v).ToString(), 0.6f);
+
             return panel;
+        }
+
+        /// <summary>The sheared slab, its rim and the shadow beneath it.</summary>
+        private static void BuildSlab(RectTransform root, int height)
+        {
+            // Drawn first so it lands behind the body. Rounded rather than sheared: at this
+            // spread and opacity the lean is invisible, and a sheared shadow would need a
+            // second generated texture per plate height for no visible gain.
+            var shadow = UiBuilder.Image("Shadow", root, UiSprites.Shadow(16, 22),
+                UiPalette.Shadow.WithAlpha(0.55f));
+            shadow.rectTransform.offsetMin = new Vector2(-14f, -18f);
+            shadow.rectTransform.offsetMax = new Vector2(14f, 10f);
+
+            // Backdrop rather than Surface: these plates sit over a lit 3D diorama, and the
+            // lighter Surface value leaves white text at barely 3:1 against a sunlit tile.
+            var body = UiBuilder.Image("Body", root, UiSprites.Slant(height, Shear),
+                UiPalette.Backdrop.WithAlpha(0.88f));
+            UiBuilder.Stretch(body.rectTransform);
+
+            var rim = UiBuilder.Image("Rim", root, UiSprites.SlantFrame(height, Shear, 2),
+                Color.white.WithAlpha(0.11f));
+            UiBuilder.Stretch(rim.rectTransform);
         }
     }
 }

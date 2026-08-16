@@ -332,7 +332,7 @@
     },
     {
       "key": "professor",
-      "nameEn": "Professor Oak",
+      "nameEn": "Professor",
       "role": "professor",
       "displayHeightMetres": 1.8229,
       "groundOrigin": 0.0625,

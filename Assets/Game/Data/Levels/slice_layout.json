@@ -26977,37 +26977,28 @@
     "npcId": "npc_rival_01",
     "displayName": "Rival",
     "position": [
-     -6.2,
-     2.728,
-     -7.4
+     -16.0,
+     2.355,
+     -9.2
     ],
     "rotation": [
      0,
-     226,
+     50,
      0
     ],
     "schedule": [
      {
-      "startHour": 7.0,
+      "startHour": 0.0,
       "activity": "Idle",
       "waypoint": [
-       -6.2,
-       2.728,
-       -7.4
+       -16.0,
+       2.355,
+       -9.2
       ],
       "wanderRadius": 0.6
-     },
-     {
-      "startHour": 12.0,
-      "activity": "Walk",
-      "waypoint": [
-       -5.7,
-       0.105,
-       10.0
-      ],
-      "wanderRadius": 3.0
      }
-    ]
+    ],
+    "note": "In the square, because gate_wait_for_kes sends the player to \uad11\uc7a5 and he has to be in it. He was at (-6.2, -7.4), which is 4.15 m from Town_Lab's axis against a collider face 4.70 m out at that bearing -- inside the building, unreachable, and on ground the navmesh bake carves away. This spot is 2.25 m clear of the nearest prop, flat to 0.09 m across 1.5 m, and 3.97 m from Mark_Kes_Approach, which is 2.8 s of walk against kes_summons' 4 s MoveActor timeout -- so the walk-over lands rather than ending in the snap the timeout exists to cover.\n\nONE schedule entry, and that is load-bearing. The second entry used to walk him to the route head at noon; NpcController.ApplyEntry fires on any change of entry, so the schedule would have marched him out of the field post kes_summons puts him on and rival_first_battle waits for him at. A single entry starting at hour 0 can never change."
    },
    {
     "name": "NPC_GateKeeper",
@@ -30432,7 +30423,7 @@
    "parent": "Route/Foliage",
    "position": [
     -23.541,
-    13.23,
+    13.073,
     20.287
    ],
    "rotation": [
@@ -31674,7 +31665,7 @@
    "parent": "Route/Terrain",
    "position": [
     -23.301,
-    -0.305,
+    -0.499,
     16.223
    ],
    "rotation": [
@@ -32157,7 +32148,7 @@
    "parent": "Route/Foliage",
    "position": [
     8.531,
-    0.062,
+    -0.061,
     -0.25
    ],
    "rotation": [
@@ -32571,7 +32562,7 @@
    "parent": "Route/Foliage",
    "position": [
     15.502,
-    -0.439,
+    -0.635,
     8.11
    ],
    "rotation": [
@@ -32594,7 +32585,7 @@
    "parent": "Route/Foliage",
    "position": [
     19.081,
-    -1.613,
+    -1.747,
     9.392
    ],
    "rotation": [
@@ -32847,7 +32838,7 @@
    "parent": "Route/Foliage",
    "position": [
     26.569,
-    -1.641,
+    -1.786,
     8.158
    ],
    "rotation": [
@@ -33307,7 +33298,7 @@
    "parent": "Route/Foliage",
    "position": [
     41.493,
-    -0.694,
+    -0.838,
     18.861
    ],
    "rotation": [
@@ -33399,7 +33390,7 @@
    "parent": "Route/Foliage",
    "position": [
     40.611,
-    -2.356,
+    -2.53,
     22.112
    ],
    "rotation": [
@@ -33422,7 +33413,7 @@
    "parent": "Route/Foliage",
    "position": [
     43.404,
-    -2.151,
+    -2.327,
     22.084
    ],
    "rotation": [
@@ -33882,7 +33873,7 @@
    "parent": "Route/Foliage",
    "position": [
     31.969,
-    -0.902,
+    -1.035,
     22.482
    ],
    "rotation": [
@@ -33905,7 +33896,7 @@
    "parent": "Route/Foliage",
    "position": [
     32.748,
-    -0.8,
+    -0.971,
     21.082
    ],
    "rotation": [
@@ -33951,7 +33942,7 @@
    "parent": "Route/Foliage",
    "position": [
     33.626,
-    -1.42,
+    -1.591,
     23.783
    ],
    "rotation": [
@@ -33974,7 +33965,7 @@
    "parent": "Route/Foliage",
    "position": [
     33.78,
-    -2.304,
+    -2.486,
     25.973
    ],
    "rotation": [
@@ -34043,7 +34034,7 @@
    "parent": "Route/Foliage",
    "position": [
     36.912,
-    -3.298,
+    -3.482,
     27.251
    ],
    "rotation": [
@@ -34066,7 +34057,7 @@
    "parent": "Route/Foliage",
    "position": [
     -3.332,
-    0.689,
+    0.555,
     4.586
    ],
    "rotation": [
@@ -34181,7 +34172,7 @@
    "parent": "Route/Foliage",
    "position": [
     -3.642,
-    -0.515,
+    -0.653,
     14.518
    ],
    "rotation": [
@@ -34549,7 +34540,7 @@
    "parent": "Route/Foliage",
    "position": [
     10.252,
-    -1.688,
+    -1.821,
     10.574
    ],
    "rotation": [
@@ -34687,7 +34678,7 @@
    "parent": "Route/Foliage",
    "position": [
     9.924,
-    -0.954,
+    -1.12,
     20.307
    ],
    "rotation": [
@@ -34733,7 +34724,7 @@
    "parent": "Route/Foliage",
    "position": [
     9.841,
-    -1.002,
+    -1.178,
     21.288
    ],
    "rotation": [
@@ -34756,7 +34747,7 @@
    "parent": "Route/Foliage",
    "position": [
     18.392,
-    -1.412,
+    -1.619,
     15.253
    ],
    "rotation": [
@@ -35216,7 +35207,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     29.674,
-    -2.482,
+    -2.67,
     33.405
    ],
    "rotation": [
@@ -35239,7 +35230,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     31.298,
-    -3.399,
+    -3.608,
     33.708
    ],
    "rotation": [
@@ -35285,7 +35276,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     29.245,
-    -2.591,
+    -2.783,
     35.198
    ],
    "rotation": [
@@ -35354,7 +35345,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     29.994,
-    -3.136,
+    -3.345,
     38.161
    ],
    "rotation": [
@@ -35446,7 +35437,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     29.493,
-    -2.59,
+    -2.778,
     40.091
    ],
    "rotation": [
@@ -35492,7 +35483,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     32.936,
-    -4.301,
+    -4.451,
     41.37
    ],
    "rotation": [
@@ -35814,7 +35805,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     29.674,
-    -0.726,
+    -0.861,
     54.308
    ],
    "rotation": [
@@ -35837,7 +35828,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     30.512,
-    -0.939,
+    -1.141,
     54.924
    ],
    "rotation": [
@@ -35860,7 +35851,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     29.8,
-    -0.594,
+    -0.722,
     56.244
    ],
    "rotation": [
@@ -35883,7 +35874,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     31.55,
-    -1.459,
+    -1.657,
     54.555
    ],
    "rotation": [
@@ -35906,7 +35897,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     31.613,
-    -1.358,
+    -1.552,
     55.213
    ],
    "rotation": [
@@ -35952,7 +35943,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     29.41,
-    -0.481,
+    -0.61,
     58.645
    ],
    "rotation": [
@@ -36044,7 +36035,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     43.851,
-    -2.96,
+    -3.11,
     23.358
    ],
    "rotation": [
@@ -36067,7 +36058,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     46.168,
-    -4.227,
+    -4.371,
     25.084
    ],
    "rotation": [
@@ -36090,7 +36081,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     46.443,
-    -2.488,
+    -2.646,
     21.706
    ],
    "rotation": [
@@ -36113,7 +36104,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     46.743,
-    -4.235,
+    -4.388,
     24.946
    ],
    "rotation": [
@@ -36182,7 +36173,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     47.353,
-    -2.53,
+    -2.695,
     21.489
    ],
    "rotation": [
@@ -36205,7 +36196,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     49.686,
-    -3.352,
+    -3.517,
     22.252
    ],
    "rotation": [
@@ -36228,7 +36219,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     48.466,
-    -1.816,
+    -2.023,
     19.786
    ],
    "rotation": [
@@ -36274,7 +36265,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     50.504,
-    -1.7,
+    -1.858,
     19.212
    ],
    "rotation": [
@@ -36297,7 +36288,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     50.53,
-    -3.353,
+    -3.51,
     22.035
    ],
    "rotation": [
@@ -36343,7 +36334,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     52.498,
-    -3.289,
+    -3.474,
     21.909
    ],
    "rotation": [
@@ -36412,7 +36403,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     72.545,
-    30.628,
+    30.431,
     25.047
    ],
    "rotation": [
@@ -36481,7 +36472,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     78.116,
-    15.905,
+    15.781,
     37.823
    ],
    "rotation": [
@@ -36872,7 +36863,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     74.926,
-    16.676,
+    16.513,
     55.633
    ],
    "rotation": [
@@ -36941,7 +36932,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     71.052,
-    16.35,
+    16.189,
     57.139
    ],
    "rotation": [
@@ -36964,7 +36955,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     72.614,
-    16.668,
+    16.514,
     57.065
    ],
    "rotation": [
@@ -37079,7 +37070,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     68.119,
-    16.77,
+    16.603,
     62.663
    ],
    "rotation": [
@@ -37125,7 +37116,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     66.762,
-    16.963,
+    16.8,
     63.583
    ],
    "rotation": [
@@ -37194,7 +37185,7 @@
    "parent": "Lakeside/Terrain",
    "position": [
     45.014,
-    -5.104,
+    -5.286,
     28.022
    ],
    "rotation": [
@@ -37240,7 +37231,7 @@
    "parent": "Lakeside/Terrain",
    "position": [
     34.251,
-    -5.2,
+    -4.999,
     37.503
    ],
    "rotation": [
@@ -37378,7 +37369,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     20.572,
-    -1.274,
+    -1.468,
     14.077
    ],
    "rotation": [
@@ -37401,7 +37392,7 @@
    "parent": "Lakeside/Foliage",
    "position": [
     19.649,
-    -0.213,
+    -0.381,
     7.074
    ],
    "rotation": [
@@ -37654,7 +37645,7 @@
    "parent": "Cave/Terrain",
    "position": [
     4.661,
-    3.455,
+    3.322,
     49.08
    ],
    "rotation": [
@@ -38621,7 +38612,7 @@
    "parent": "Cave/Terrain",
    "position": [
     5.367,
-    -0.594,
+    -0.72,
     35.554
    ],
    "rotation": [
@@ -38713,7 +38704,7 @@
    "parent": "Cave/Foliage",
    "position": [
     6.749,
-    -0.408,
+    -0.541,
     37.711
    ],
    "rotation": [
@@ -38759,7 +38750,7 @@
    "parent": "Cave/Foliage",
    "position": [
     6.554,
-    -0.345,
+    -0.479,
     38.636
    ],
    "rotation": [
@@ -38851,7 +38842,7 @@
    "parent": "Cave/Foliage",
    "position": [
     6.357,
-    3.463,
+    3.332,
     45.621
    ],
    "rotation": [
@@ -38897,7 +38888,7 @@
    "parent": "Cave/Foliage",
    "position": [
     6.488,
-    -0.534,
+    -0.664,
     24.025
    ],
    "rotation": [
@@ -38920,7 +38911,7 @@
    "parent": "Cave/Foliage",
    "position": [
     6.845,
-    -0.62,
+    -0.784,
     31.099
    ],
    "rotation": [
@@ -39057,9 +39048,9 @@
    "name": "Town_Lab_01",
    "parent": "Town/Buildings",
    "position": [
-    -2.164,
+    -1.928,
     2.728,
-    -6.414
+    -7.862
    ],
    "rotation": [
     0.0,
@@ -39817,7 +39808,7 @@
    "parent": "Town/Detail",
    "position": [
     -26.769,
-    2.486,
+    2.355,
     -30.429
    ],
    "rotation": [
@@ -39978,7 +39969,7 @@
    "parent": "Town/Detail",
    "position": [
     -8.55,
-    2.425,
+    2.29,
     -31.14
    ],
    "rotation": [
@@ -40093,7 +40084,7 @@
    "parent": "Town/Detail",
    "position": [
     -26.061,
-    2.513,
+    2.381,
     -29.067
    ],
    "rotation": [
@@ -40277,7 +40268,7 @@
    "parent": "Town/Terrain",
    "position": [
     2.155,
-    2.426,
+    2.302,
     -28.323
    ],
    "rotation": [
@@ -40300,7 +40291,7 @@
    "parent": "Town/Terrain",
    "position": [
     1.385,
-    2.428,
+    2.283,
     -30.441
    ],
    "rotation": [
@@ -40943,9 +40934,9 @@
    "name": "Town_LaneLamp_03",
    "parent": "Town/Detail",
    "position": [
-    -20.814,
+    -20.773,
     2.369,
-    -30.85
+    -31.237
    ],
    "rotation": [
     0.0,
@@ -41012,9 +41003,9 @@
    "name": "Town_SouthGate_01",
    "parent": "Town/Detail",
    "position": [
-    -16.345,
+    -16.264,
     2.44,
-    -39.968
+    -40.418
    ],
    "rotation": [
     0.0,
@@ -41036,7 +41027,7 @@
    "parent": "Town/Props",
    "position": [
     -23.2,
-    2.461,
+    2.323,
     -37.2
    ],
    "rotation": [
@@ -41403,9 +41394,9 @@
    "name": "Town_GatePost_02",
    "parent": "Town/Foliage",
    "position": [
-    -3.773,
+    -3.56,
     2.728,
-    -0.701
+    0.029
    ],
    "rotation": [
     0.0,
@@ -41565,7 +41556,7 @@
    "parent": "Town/Foliage",
    "position": [
     -41.444,
-    2.972,
+    2.803,
     -29.661
    ],
    "rotation": [
@@ -41863,9 +41854,9 @@
    "name": "Town_HedgeLoop_01",
    "parent": "Town/Foliage",
    "position": [
-    -31.05,
+    -31.647,
     2.6,
-    -29.246
+    -30.13
    ],
    "rotation": [
     0.0,
@@ -41886,9 +41877,9 @@
    "name": "Town_HedgeLoop_02",
    "parent": "Town/Foliage",
    "position": [
-    -29.588,
+    -29.556,
     2.591,
-    -29.396
+    -29.861
    ],
    "rotation": [
     0.0,
@@ -41909,9 +41900,9 @@
    "name": "Town_HedgeLoop_03",
    "parent": "Town/Foliage",
    "position": [
-    -28.126,
+    -28.099,
     2.584,
-    -29.308
+    -29.691
    ],
    "rotation": [
     0.0,

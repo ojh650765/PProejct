@@ -204,6 +204,14 @@ namespace PokeLab.Overworld
         private bool CanEncounter()
         {
             if (_sequenceRunning) return false;
+            // The opening act places the only creature the player is allowed to meet, and it
+            // places it three metres from where a grass roll would have fired. Both paths into a
+            // wild battle — pressure from a source, and contact with a roamer — funnel through
+            // here, so this one line covers both; the scripted ambush comes in through
+            // TriggerStagedEncounter instead, which is the point of that method existing.
+            // Without it the player fights whatever the table rolled and the staged creature is
+            // left standing in the grass with nothing to do.
+            if (StoryPhase.WildEncountersSuppressed) return false;
             if (_immunityTimer > 0f) return false;
             if (_zoneDirector != null && _zoneDirector.IsTransitioning) return false;
             if (ServiceHub.TryGet<IGameFlow>(out var flow) && flow.Mode != GameMode.Exploring) return false;
@@ -380,6 +388,39 @@ namespace PokeLab.Overworld
             request.WorldPosition = roamer.transform.position;
 
             StartCoroutine(RunEncounterSequence(roamer, request));
+        }
+
+        /// <summary>
+        /// Starts a battle against a creature an episode staged by hand.
+        ///
+        /// Identical to <see cref="TriggerRoamerEncounter"/> in everything that matters — the
+        /// species and level come off the creature standing in front of the player, the telegraph
+        /// is the creature squaring up, and <see cref="ApplyResult"/> consumes or retreats it
+        /// afterwards — and different in one: it does not ask
+        /// <see cref="StoryPhase.WildEncountersSuppressed"/>. That suppression exists to keep
+        /// *ambient* encounters off the scripted one; routing the scripted one through it would
+        /// have the scene refuse its own battle and hand control back with the ambusher still
+        /// standing there.
+        ///
+        /// Everything else still applies. A battle already running, a transition, or a flow that
+        /// is not exploring all refuse, and the caller is told so — the episode's Battle beat
+        /// needs an answer either way, because it is holding the player's control while it waits.
+        /// </summary>
+        /// <returns>False when nothing was started, so the beat can stop waiting.</returns>
+        public bool TriggerStagedEncounter(RoamingCreature staged)
+        {
+            if (staged == null) return false;
+            if (_sequenceRunning) return false;
+            if (_zoneDirector != null && _zoneDirector.IsTransitioning) return false;
+            if (ServiceHub.TryGet<IGameFlow>(out var flow) && flow.Mode != GameMode.Exploring) return false;
+
+            _pendingRoamer = staged;
+            var rng = new DeterministicRandom(_worldSeed ^ staged.GetInstanceID());
+            var request = BuildRequest(staged.SpeciesId, staged.Level, ref rng);
+            request.WorldPosition = staged.transform.position;
+
+            StartCoroutine(RunEncounterSequence(staged, request));
+            return true;
         }
 
         /// <summary>Starts a trainer battle. The party is resolved battle-side from the trainer id.</summary>

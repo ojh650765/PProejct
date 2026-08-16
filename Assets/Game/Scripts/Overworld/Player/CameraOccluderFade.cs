@@ -59,9 +59,11 @@ namespace PokeLab.Overworld
         private readonly Dictionary<Renderer, float> _faded = new Dictionary<Renderer, float>();
         private readonly Dictionary<Renderer, Material[]> _solidMaterials =
             new Dictionary<Renderer, Material[]>();
-        private readonly Dictionary<Material, Material> _ghosts = new Dictionary<Material, Material>();
+        private readonly Dictionary<(Renderer, Material), Material> _ghosts =
+            new Dictionary<(Renderer, Material), Material>();
         private readonly List<Renderer> _blocking = new List<Renderer>();
         private readonly List<Renderer> _finished = new List<Renderer>();
+        private readonly List<Renderer> _stale = new List<Renderer>();
         private MaterialPropertyBlock _block;
         private Camera _camera;
 
@@ -70,8 +72,15 @@ namespace PokeLab.Overworld
             _block = new MaterialPropertyBlock();
             if (_target == null)
             {
+                // The rig's follow target, not the rig's transform. This component sits on
+                // the CinemachineCamera alongside OverworldCameraRig, and Cinemachine drives
+                // that transform to exactly where the brain puts Camera.main — so falling
+                // back to it made the probe a cast from the camera to itself. CollectBlockers
+                // discards anything under 5 cm as a degenerate direction, so it returned on
+                // the first line every frame and nothing was ever collected or faded. Every
+                // scene serialises _target as null, so this fallback is the only path.
                 var rig = GetComponent<OverworldCameraRig>();
-                if (rig != null) _target = rig.transform;
+                if (rig != null) _target = rig.FollowTarget;
             }
         }
 
@@ -151,6 +160,33 @@ namespace PokeLab.Overworld
             }
 
             foreach (var renderer in _finished) _faded.Remove(renderer);
+
+            // Anything still wearing ghost materials that is no longer fading is put back.
+            //
+            // The invariant this enforces is "ghosted implies fading". Without it the two
+            // bookkeeping sets can drift apart — a renderer destroyed and rebuilt by a level
+            // rebuild, a scene streamed out mid-fade, an early return that skips a frame — and
+            // a renderer that leaves _faded while still on the transparent clone has nothing
+            // left that would ever restore it. That is the reported fault exactly: a building
+            // goes translucent once and stays translucent, and after a walk around town every
+            // building the camera has passed behind is translucent at the same time.
+            _stale.Clear();
+            foreach (var pair in _solidMaterials)
+            {
+                if (pair.Key == null) { _stale.Add(pair.Key); continue; }
+                if (!_faded.ContainsKey(pair.Key)) _stale.Add(pair.Key);
+            }
+            foreach (var renderer in _stale)
+            {
+                if (renderer != null)
+                {
+                    renderer.GetPropertyBlock(_block);
+                    _block.SetFloat(FadeAmount, 0f);
+                    renderer.SetPropertyBlock(_block);
+                }
+                MakeSolid(renderer);
+                _solidMaterials.Remove(renderer);
+            }
         }
 
         /// <summary>
@@ -170,7 +206,15 @@ namespace PokeLab.Overworld
                 var source = solid[i];
                 if (source == null) continue;
 
-                if (!_ghosts.TryGetValue(source, out var ghost) || ghost == null)
+                // Keyed by renderer *and* source, not by source alone.
+                //
+                // Every building in town shares one atlas material, so a single ghost per
+                // source is a single object shared by all of them — and any state that lives
+                // on the material rather than in a property block is then shared too. Keeping
+                // them separate costs one material per faded renderer, which is at most the
+                // handful the camera is actually behind.
+                var ghostKey = (renderer, source);
+                if (!_ghosts.TryGetValue(ghostKey, out var ghost) || ghost == null)
                 {
                     ghost = new Material(source) { name = source.name + " (fading)" };
                     // Alpha over what is behind, and no depth write — a faded wall that
@@ -180,7 +224,7 @@ namespace PokeLab.Overworld
                     ghost.SetFloat(DstBlend, (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                     ghost.SetFloat(ZWriteMode, 0f);
                     ghost.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-                    _ghosts[source] = ghost;
+                    _ghosts[ghostKey] = ghost;
                 }
                 ghosted[i] = ghost;
             }

@@ -1946,12 +1946,23 @@ def gameplay_block(baked):
                  {"startHour": 22.0, "activity": "Idle", "waypoint": g(-21.6, -26.4),
                   "wanderRadius": 1.0}]},
             {"name": "NPC_Rival", "npcId": "npc_rival_01", "displayName": "Rival",
-             "position": g(-6.2, -7.4), "rotation": [0, 226, 0],
+             "position": g(-16.0, -9.2), "rotation": [0, 50, 0],
              "schedule": [
-                 {"startHour": 7.0, "activity": "Idle", "waypoint": g(-6.2, -7.4),
-                  "wanderRadius": 0.6},
-                 {"startHour": 12.0, "activity": "Walk", "waypoint": g(-5.7, 10.0),
-                  "wanderRadius": 3.0}]},
+                 {"startHour": 0.0, "activity": "Idle", "waypoint": g(-16.0, -9.2),
+                  "wanderRadius": 0.6}],
+             "note": "In the square, because gate_wait_for_kes sends the player to 광장 and "
+                     "he has to be in it. He was at (-6.2, -7.4), which is 4.15 m from "
+                     "Town_Lab's axis against a collider face 4.70 m out at that bearing -- "
+                     "inside the building, unreachable, and on ground the navmesh bake "
+                     "carves away. This spot is 2.25 m clear of the nearest prop, flat to "
+                     "0.09 m across 1.5 m, and 3.97 m from Mark_Kes_Approach, which is 2.8 s "
+                     "of walk against kes_summons' 4 s MoveActor timeout -- so the walk-over "
+                     "lands rather than ending in the snap the timeout exists to cover.\n\n"
+                     "ONE schedule entry, and that is load-bearing. The second entry used to "
+                     "walk him to the route head at noon; NpcController.ApplyEntry fires on "
+                     "any change of entry, so the schedule would have marched him out of the "
+                     "field post kes_summons puts him on and rival_first_battle waits for him "
+                     "at. A single entry starting at hour 0 can never change."},
             {"name": "NPC_GateKeeper", "npcId": "npc_gate_01", "displayName": "Townsfolk",
              "position": g(-9.6, 0.4), "rotation": [0, 150, 0],
              "schedule": [{"startHour": 6.0, "activity": "Idle", "waypoint": g(-9.6, 0.4),

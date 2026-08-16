@@ -119,6 +119,13 @@ namespace PokeLab.Cinematics
 
             playerTrainerView = EnsureTrainer(playerTrainerView, playerTrainerMark, "TrainerView_Player");
             opponentTrainerView = EnsureTrainer(opponentTrainerView, opponentTrainerMark, "TrainerView_Opponent");
+
+            // The same pinned pair the creatures get in Occupy, for the same reason. The camera
+            // stands behind the player's mark, so the player is the one whose back is to it and
+            // the opposing trainer is the one looking into it. Set here rather than in
+            // SetTrainers so it is already true for a mark a scene bound by hand.
+            playerTrainerView.DrawnFrom = SpriteFacing.Back;
+            opponentTrainerView.DrawnFrom = SpriteFacing.Front;
         }
 
         private Transform EnsureMark(Transform existing, string markName, Vector3 localPosition)
@@ -237,6 +244,15 @@ namespace PokeLab.Cinematics
             // are for, and it is a property of the layout rather than something to be recovered
             // from the angle between a creature's forward and the lens.
             view.ForceFacing(side == BattleSide.Player ? SpriteFacing.Back : SpriteFacing.Front);
+
+            // And the player's is flipped.
+            //
+            // Both sheets are drawn facing the same way on the page. Standing them on opposite
+            // sides of the field therefore leaves them looking the same direction, not at each
+            // other — the player's creature was turned away from the fight, out of frame. The
+            // opponent's front sheet already points across the field from where it stands, so
+            // only one of the two needs turning.
+            view.Mirror = side == BattleSide.Player ? MirrorMode.On : MirrorMode.Off;
             view.Bind(creature);
 
             // Sized after the bind, never before: the display height is not known until the

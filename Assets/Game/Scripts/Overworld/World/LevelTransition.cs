@@ -17,6 +17,10 @@ namespace PokeLab.Overworld
     /// the build settings fails silently in a player and throws in the editor, and the
     /// failure surfaces as "the cave door does nothing", which is a long way from the
     /// cause. So it is checked up front and says so.
+    ///
+    /// A building's front door is the same component with one thing added: it remembers the
+    /// doorstep it stands on, because the interior it leads to may be shared by seven houses
+    /// and cannot know on its own which one to put the player back outside.
     /// </summary>
     [RequireComponent(typeof(Collider))]
     [DisallowMultipleComponent]
@@ -40,17 +44,84 @@ namespace PokeLab.Overworld
         [Tooltip("Tag the trigger reacts to. Only the player travels between levels.")]
         [SerializeField] private string _travellerTag = "Player";
 
+        [Tooltip("Scene this door stands in, published for the door on the far side to come " +
+                 "back to. Empty on a door that is not a way in.")]
+        [SerializeField] private string _returnScene;
+
+        [Tooltip("Marker beside this door, on this side of it. Where the far side sends the " +
+                 "player back to.")]
+        [SerializeField] private string _returnSpawn;
+
+        [Tooltip("This door is the way back out. It prefers the doorstep the player came in " +
+                 "through over its own destination fields.")]
+        [SerializeField] private bool _returnsToDoor;
+
         private bool _travelling;
 
         /// <summary>Where the next scene should put the player down. Cleared by whoever
         /// consumes it on arrival.</summary>
         public static string PendingArrivalSpawn { get; set; }
 
+        /// <summary>
+        /// The doorstep the player last stepped in from, remembered across the load.
+        ///
+        /// Interiors are shared — seven front doors in the town all lead to Interior_House —
+        /// so the way out cannot be a fixed destination baked into the interior: it is
+        /// whichever door was walked through. That is only knowable on the outside, so the
+        /// outside door records it here on its way through and the interior's own door reads
+        /// it back. A static for the same reason <see cref="PendingArrivalSpawn"/> is one:
+        /// the value has to outlive every component in the scene being torn down.
+        /// </summary>
+        public static string ReturnScene { get; set; }
+
+        /// <summary>Marker in <see cref="ReturnScene"/> the way out aims at. See it.</summary>
+        public static string ReturnSpawn { get; set; }
+
         /// <summary>Set by the level builder.</summary>
         public void Configure(string sceneName, string arrivalSpawn)
         {
             _sceneName = sceneName;
             if (!string.IsNullOrEmpty(arrivalSpawn)) _arrivalSpawn = arrivalSpawn;
+        }
+
+        /// <summary>A door into a building: remembers where it stood so the way out can find it.</summary>
+        public void ConfigureDoor(string sceneName, string arrivalSpawn,
+            string returnScene, string returnSpawn)
+        {
+            Configure(sceneName, arrivalSpawn);
+            _returnScene = returnScene;
+            _returnSpawn = returnSpawn;
+        }
+
+        /// <summary>
+        /// The way out of an interior. The scene and marker given here are only the fallback,
+        /// used when the interior was opened directly rather than walked into — which is how
+        /// it is worked on in the editor, and a way out that does nothing in that case is a
+        /// room with no exit for whoever is building it.
+        /// </summary>
+        public void ConfigureReturn(string fallbackScene, string fallbackSpawn)
+        {
+            Configure(fallbackScene, fallbackSpawn);
+            _returnsToDoor = true;
+        }
+
+        /// <summary>
+        /// Where this door actually leads this time.
+        ///
+        /// Resolved in one place because <see cref="OnTriggerEnter"/>'s "already here" guards
+        /// and <see cref="Travel"/>'s load have to agree: a return door that checked its
+        /// fallback scene and then loaded the remembered one would stand down for the wrong
+        /// reasons and travel to the wrong place.
+        /// </summary>
+        private void Destination(out string scene, out string spawn)
+        {
+            scene = _sceneName;
+            spawn = _arrivalSpawn;
+            if (!_returnsToDoor) return;
+            if (string.IsNullOrEmpty(ReturnScene) || string.IsNullOrEmpty(ReturnSpawn)) return;
+
+            scene = ReturnScene;
+            spawn = ReturnSpawn;
         }
 
         private void Reset()
@@ -74,7 +145,9 @@ namespace PokeLab.Overworld
         {
             if (_travelling) return;
             if (!string.IsNullOrEmpty(_travellerTag) && !other.CompareTag(_travellerTag)) return;
-            if (string.IsNullOrEmpty(_sceneName))
+
+            Destination(out var destination, out _);
+            if (string.IsNullOrEmpty(destination))
             {
                 Debug.LogWarning($"[LevelTransition] '{name}' has no destination scene set.", this);
                 return;
@@ -85,10 +158,10 @@ namespace PokeLab.Overworld
             // town layout, so its To_Town link points at content the player is standing in.
             // Loading any of those tears down the world they are in to rebuild the one they
             // are already in, which is the teleport that was reported at the town gate.
-            if (World.WorldStreamer.Claimed.Contains(_sceneName)
-                || World.WorldStreamer.Streamed.Contains(_sceneName)
-                || SceneManager.GetSceneByName(_sceneName).isLoaded
-                || string.Equals(_sceneName, SceneManager.GetActiveScene().name,
+            if (World.WorldStreamer.Claimed.Contains(destination)
+                || World.WorldStreamer.Streamed.Contains(destination)
+                || SceneManager.GetSceneByName(destination).isLoaded
+                || string.Equals(destination, SceneManager.GetActiveScene().name,
                                  System.StringComparison.OrdinalIgnoreCase))
             {
                 return;
@@ -108,10 +181,27 @@ namespace PokeLab.Overworld
         {
             _travelling = true;
 
+            Destination(out var destination, out var arrivalSpawn);
+
             // A static rather than a field on the profile: IPlayerProfile is part of the
             // frozen Core contract and this does not warrant widening it. The value has
             // to outlive the scene load, which rules out anything held by a component.
-            PendingArrivalSpawn = _arrivalSpawn;
+            PendingArrivalSpawn = arrivalSpawn;
+
+            // Published before the load, consumed by the door on the far side. Cleared on the
+            // way back out rather than left standing: a spent doorstep that survived would be
+            // the destination of the next interior the player walked into, and they would
+            // come out of a house they were never in.
+            if (!string.IsNullOrEmpty(_returnSpawn))
+            {
+                ReturnScene = _returnScene;
+                ReturnSpawn = _returnSpawn;
+            }
+            else if (_returnsToDoor)
+            {
+                ReturnScene = null;
+                ReturnSpawn = null;
+            }
 
             // Cover the screen before the world changes, rather than waiting out a fade
             // duration and then cutting anyway — which is what this did, and is a teleport
@@ -140,16 +230,24 @@ namespace PokeLab.Overworld
                 yield return new WaitForSeconds(_fadeOutSeconds);
             }
 
-            if (!Application.CanStreamedLevelBeLoaded(_sceneName))
+            if (!Application.CanStreamedLevelBeLoaded(destination))
             {
                 Debug.LogError(
-                    $"[LevelTransition] Scene '{_sceneName}' is not in the build settings, so " +
+                    $"[LevelTransition] Scene '{destination}' is not in the build settings, so " +
                     "walking into this door does nothing. Add it under File > Build Settings.", this);
                 _travelling = false;
                 yield break;
             }
 
-            var load = SceneManager.LoadSceneAsync(_sceneName, LoadSceneMode.Single);
+            // Nothing is streamed on the far side of a Single load — the sets are static and
+            // survive the teardown that empties them of meaning. Left standing, the town's
+            // claim on Field followed the player into a building, and the door back out
+            // stood down because it believed its destination was already beside it. That is
+            // the "the door does nothing" failure, arrived at from the opposite direction.
+            World.WorldStreamer.Claimed.Clear();
+            World.WorldStreamer.Streamed.Clear();
+
+            var load = SceneManager.LoadSceneAsync(destination, LoadSceneMode.Single);
             while (load != null && !load.isDone) yield return null;
 
             // Uncovered on the far side. The cover host is registered fresh by the scene that

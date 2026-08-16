@@ -276,7 +276,6 @@ namespace PokeLab.UI.Editor
                 var view = viewGo.AddComponent<DialogueView>();
                 view.BuildRuntime();
 
-                if (shot.menu) view.SetMenuHandler(() => { });
                 view.AutoAdvance = shot.auto;
 
                 if (shot.choices != null && shot.choices.Length > 0)

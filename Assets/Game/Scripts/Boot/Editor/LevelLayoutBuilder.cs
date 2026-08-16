@@ -71,7 +71,8 @@ namespace PokeLab.Boot.Editor
         public static void Build(string sceneName)
         {
             var open = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene().name;
-            var layoutPath = LayoutFor(string.IsNullOrEmpty(sceneName) ? open : sceneName);
+            var band = string.IsNullOrEmpty(sceneName) ? open : sceneName;
+            var layoutPath = LayoutFor(band);
 
             if (!File.Exists(layoutPath))
             {
@@ -105,10 +106,15 @@ namespace PokeLab.Boot.Editor
                 BuildCaveEntrances(layout, root.transform, parents);
                 BuildBarriers(layout, root.transform, parents);
                 BuildSceneLinks(layout, root.transform, parents);
+                BuildBuildingDoors(layout, root.transform, parents);
                 BuildPeople(layout, root.transform, parents);
                 BuildAnchors(layout, root.transform, parents);
                 BuildSpawn(layout, root.transform);
-                BuildCast(root.transform, parents);
+                BuildCast(layout, root.transform, parents, band);
+                // After BuildCast, which is what stands the professor up: an encounter armed
+                // on an actor the previous step has not created yet finds nothing to hang on.
+                BuildStoryTriggers();
+                BuildStoryGate(layout, root.transform, parents);
                 BuildNavigation(root);
             }
             finally
@@ -140,6 +146,7 @@ namespace PokeLab.Boot.Editor
                 $"{layout.caveEntrances?.Length ?? 0} cave entrance(s), " +
                 $"{layout.barrierVolumes?.Length ?? 0} barrier(s), " +
                 $"{layout.sceneLinks?.Length ?? 0} scene link(s), " +
+                $"{layout.buildingDoors?.Length ?? 0} building door(s), " +
                 $"{layout.npcs?.Length ?? 0} npc(s), {layout.trainers?.Length ?? 0} trainer(s), " +
                 $"{layout.ambientAnchors?.Length ?? 0} anchors.");
         }
@@ -699,6 +706,112 @@ namespace PokeLab.Boot.Editor
         }
 
         /// <summary>
+        /// How far past the door volume the doorstep the player comes back out onto sits.
+        ///
+        /// The volume is a metre deep and starts about 50 mm off the building's face, so
+        /// anything closer than this is inside the door the player has just come out of — and
+        /// arriving inside a door trigger is a loop: out of the building, straight back in,
+        /// with one wipe per lap and no input that can stop it.
+        /// </summary>
+        private const float DoorstepMetres = 1.4f;
+
+        /// <summary>
+        /// The front doors, and the doorstep to come back out onto.
+        ///
+        /// The layout has carried <c>buildingDoors</c> since the emitter learned to write them
+        /// — nine of them in the town, one per enterable building — and the builder's <c>Layout</c>
+        /// had no field of that name, so <c>JsonUtility</c> dropped the whole array on the floor
+        /// without a word. That is the whole of why no building could be entered: the data was
+        /// authored, emitted and then silently discarded one layer short of the scene.
+        ///
+        /// Same machinery as a cave mouth and a scene seam, because it is the same thing: a
+        /// volume you walk into that loads somewhere else. What a building adds is the way back.
+        /// Seven of the town's doors lead to the same Interior_House, so the interior cannot
+        /// hold a fixed exit — the door records the doorstep it stands on and the interior's own
+        /// door reads it back.
+        ///
+        /// The volume is left where the emitter put it: at the foot of the entrance, outside the
+        /// building's own footprint. That is deliberate and it is what makes the door work at all
+        /// — the buildings are collided against their real geometry, doorway included, so a
+        /// trigger anywhere inside the porch is a trigger behind a wall the player is stopped by.
+        /// They walk at the door, they are taken in before they reach it.
+        ///
+        /// Doors whose interior scene does not exist are skipped rather than built. A door to a
+        /// missing scene is not inert: LevelTransition covers the screen, fails the build-settings
+        /// check and leaves the player standing in a dark frame.
+        /// </summary>
+        private static void BuildBuildingDoors(Layout layout, Transform root,
+            Dictionary<string, Transform> parents)
+        {
+            var built = 0;
+            var missing = new HashSet<string>();
+
+            foreach (var door in layout.buildingDoors ?? Array.Empty<BuildingDoor>())
+            {
+                if (door == null || string.IsNullOrEmpty(door.name)) continue;
+                if (string.IsNullOrEmpty(door.scene))
+                {
+                    Debug.LogWarning($"[Level] {door.name} names no interior, so it is a doorway " +
+                                     "that leads nowhere. Give it a scene in the emitter.");
+                    continue;
+                }
+
+                if (!File.Exists(InteriorScenePath(door.scene)))
+                {
+                    missing.Add(door.scene);
+                    continue;
+                }
+
+                var facing = Quaternion.Euler(0f, door.facingYaw, 0f);
+
+                var go = new GameObject(door.name);
+                go.transform.SetParent(ResolveParent(root, parents, "Gameplay/Transitions"), false);
+                go.transform.localPosition = ToVector(door.position);
+                go.transform.localRotation = facing;
+
+                var box = go.AddComponent<BoxCollider>();
+                box.size = ToVector(door.size, new Vector3(1.6f, 2.4f, 1f));
+                box.center = new Vector3(0f, box.size.y * 0.5f, 0f);
+                box.isTrigger = true;
+
+                // Named for the door rather than for the building, because the name is resolved
+                // by GameObject.Find on the far side of a scene load and two markers that differ
+                // only by which of them was built first is the kind of collision that lands the
+                // player outside the wrong house.
+                var doorstep = "Spawn_Outside_" + door.name;
+
+                go.AddComponent<LevelTransition>().ConfigureDoor(
+                    door.scene,
+                    string.IsNullOrEmpty(door.arrivalSpawn) ? "Spawn_FromDoor" : door.arrivalSpawn,
+                    layout.scene, doorstep);
+                SetLayer(go, "ZoneTrigger");
+
+                // The door's own yaw points out of the building — the emitter offsets the volume
+                // along it to stand it clear of the front wall — so the same rotation is both
+                // "further out" and "facing away from the door you just came out of".
+                var back = new GameObject(doorstep);
+                back.transform.SetParent(ResolveParent(root, parents, "Gameplay/Arrivals"), false);
+                back.transform.localPosition = SeatOnGround(layout,
+                    ToVector(door.position) + facing * Vector3.forward * DoorstepMetres);
+                back.transform.localRotation = facing;
+
+                built++;
+            }
+
+            if (missing.Count > 0)
+            {
+                Debug.LogWarning($"[Level] {missing.Count} interior scene(s) do not exist, so the " +
+                                 "doors that lead to them were not built and those buildings stay " +
+                                 "shut:\n  " + string.Join("\n  ", missing) +
+                                 "\nRun Tools/Poké Lab/Rebuild/Create Interior Scenes.");
+            }
+            if (built > 0) Debug.Log($"[Level] {built} building door(s) open onto an interior.");
+        }
+
+        private static string InteriorScenePath(string scene) =>
+            "Assets/Game/Scenes/" + scene + ".unity";
+
+        /// <summary>
         /// Stands the authored residents and trainers up in the world.
         ///
         /// Nothing was doing this. Six NPCs and four trainers are authored in the layout
@@ -1107,15 +1220,27 @@ namespace PokeLab.Boot.Editor
         ///
         /// The two files are written by different hands: the layout is generated from a
         /// seeded design script, while cast.json is written by whoever writes the episodes.
-        /// The episodes name ten camera and actor marks and one professor; the layout knows
-        /// about none of them, so every CameraTo and MoveActor beat in the opening degraded
-        /// to a warning and the shot the whole town was composed around was never taken.
+        /// The episodes name camera marks, actor destinations, the trigger objects the beats
+        /// hang off, one professor and one bag; the layout knows about none of them, so every
+        /// CameraTo and MoveActor beat degraded to a warning and the shots the town and the
+        /// lake bank were composed around were never taken.
         ///
         /// Read here rather than folded into the emitter because these are narrative
         /// positions, not level design: they move when the script moves, and a level rebuild
         /// should not be the thing that carries a rewrite.
+        ///
+        /// <paramref name="band"/> is what keeps each of them to one copy. cast.json is one
+        /// file describing one world, but the world ships as two scenes that WorldStreamer
+        /// loads together over a ten-metre overlap, and this ran unfiltered in both — so
+        /// NPC_Professor and all ten marks were built into Town.unity AND Field.unity at
+        /// identical coordinates, and every <c>GameObject.Find</c> in EpisodeRunner picked
+        /// arbitrarily between two of them. The failure is invisible from either scene alone:
+        /// each one is correct on its own, and the doubling only exists once both are loaded.
+        /// Streaming will not clean it up either — <c>WorldStreamer.StripDuplicateHosts</c>
+        /// drops session owners and deliberately keeps a streamed scene's people.
         /// </summary>
-        private static void BuildCast(Transform root, Dictionary<string, Transform> parents)
+        private static void BuildCast(Layout layout, Transform root,
+            Dictionary<string, Transform> parents, string band)
         {
             var path = Path.Combine(Directory.GetCurrentDirectory(), CastPath);
             if (!File.Exists(path))
@@ -1135,9 +1260,11 @@ namespace PokeLab.Boot.Editor
             }
 
             var marks = 0;
+            var skipped = 0;
             foreach (var marker in cast?.markers ?? Array.Empty<CastMarker>())
             {
                 if (marker == null || string.IsNullOrEmpty(marker.name)) continue;
+                if (!OwnedBy(band, marker.scene, marker.name)) { skipped++; continue; }
                 if (GameObject.Find(marker.name) != null) continue;
 
                 var go = new GameObject(marker.name);
@@ -1153,6 +1280,7 @@ namespace PokeLab.Boot.Editor
             {
                 var required = speaker?.requiredNpc;
                 if (required == null || string.IsNullOrEmpty(required.name)) continue;
+                if (!OwnedBy(band, speaker.scene, required.name)) { skipped++; continue; }
                 if (GameObject.Find(required.name) != null) continue;
 
                 var go = new GameObject(required.name);
@@ -1171,27 +1299,357 @@ namespace PokeLab.Boot.Editor
                 SetLayer(go, "Interactable");
                 TrySetTag(go, "Interactable");
                 people++;
+
+                // A mark on their own doorstep, so a scene that took them away from it has
+                // somewhere to send them back to. cast.json lists only camera marks and the
+                // marks of the one walk each actor makes outward; without this an actor ends
+                // a scene wherever the last MoveActor left them, and any later beat that
+                // assumes they went home has nowhere to send them.
+                var home = new GameObject("Mark_" + required.name.Replace("NPC_", "") + "_Home");
+                home.transform.SetParent(ResolveParent(root, parents, "Story/Marks"), false);
+                home.transform.localPosition = ToVector(required.position);
+                marks++;
             }
 
-            if (marks + people > 0)
-                Debug.Log($"[Level] Cast: {marks} marker(s) and {people} authored person/people.");
+            var props = BuildCastProps(cast, layout, root, parents, band, ref skipped);
+
+            if (marks + people + props + skipped > 0)
+            {
+                Debug.Log($"[Level] Cast: {marks} marker(s), {people} authored " +
+                          $"person/people and {props} story prop(s) in '{band}'; " +
+                          $"{skipped} owned by another band.");
+            }
+        }
+
+        /// <summary>
+        /// Stands up the story props: the things a beat asks the player to look at.
+        ///
+        /// A mark is an empty, and an empty is the right shape for a camera target or a
+        /// destination. It is the wrong shape for a beat whose whole content is that the
+        /// player can see something — <c>field_bag_left</c> says the professor has left his bag
+        /// on the bank, <c>CameraTo Prop_ProfessorBag</c> takes the only close shot in the
+        /// field on it, and if that object has no renderer the shot is of an empty patch of
+        /// ground and the line is about nothing.
+        ///
+        /// Read from cast.json rather than emitted with the level for the same reason the marks
+        /// are: where the bag lies is a decision the script makes, and a level regeneration
+        /// should not be what carries a rewrite of the act. Built here rather than by hand in
+        /// the scene because a hand-placed object in a .unity file is destroyed by the next
+        /// rebuild, which is what this whole file exists to stop.
+        ///
+        /// No collider, deliberately. The ambusher has to walk from the grass to within 1.6 m
+        /// of a player who is standing next to this thing, and a solid on that ground is a hole
+        /// carved out of the navmesh exactly where the approach has to land.
+        /// </summary>
+        private static int BuildCastProps(Cast cast, Layout layout, Transform root,
+            Dictionary<string, Transform> parents, string band, ref int skipped)
+        {
+            var built = 0;
+            foreach (var prop in cast?.props ?? Array.Empty<CastProp>())
+            {
+                if (prop == null || string.IsNullOrEmpty(prop.name)) continue;
+                if (!OwnedBy(band, prop.scene, prop.name)) { skipped++; continue; }
+                if (GameObject.Find(prop.name) != null) continue;
+
+                var asset = AssetDatabase.LoadAssetAtPath<GameObject>(prop.prefab);
+                if (asset == null)
+                {
+                    Debug.LogWarning($"[Level] cast.json prop '{prop.name}' names " +
+                                     $"'{prop.prefab}', which will not load. The beat that " +
+                                     "frames it will point the camera at nothing.");
+                    continue;
+                }
+
+                var go = (GameObject)PrefabUtility.InstantiatePrefab(
+                    asset, ResolveParent(root, parents, "Story/Props"));
+                if (go == null) continue;
+
+                go.name = prop.name;
+                go.transform.localScale = ToVector(prop.scale, Vector3.one);
+                go.transform.localEulerAngles = ToVector(prop.rotation);
+                go.transform.localPosition = SeatProp(layout, go, ToVector(prop.position));
+                SetLayer(go, "Environment");
+                built++;
+            }
+            return built;
+        }
+
+        /// <summary>How far a seated story prop is pushed into the ground, in metres.</summary>
+        /// <remarks>
+        /// Matches audit_placement.py's BITE. A prop seated exactly on the surface z-fights
+        /// along its whole base seam, and on ground that is not flat it also shows daylight
+        /// under its downhill corner.
+        /// </remarks>
+        private const float PropBiteMetres = 0.06f;
+
+        /// <summary>
+        /// Puts a prop on the ground by its footprint rather than by its pivot.
+        ///
+        /// Sampling the height under the pivot alone is the check that cannot see the failure
+        /// it is meant to catch: a box pivoted at the centre of its base, on a slope, passes at
+        /// exactly zero while its downhill half hangs in the air. So this takes the lowest
+        /// ground under the object's real footprint, which is where the daylight would show.
+        ///
+        /// The height comes from the layout's baked grid, not from a raycast, so the answer is
+        /// the same one every emitted object's Y was taken from. A raycast would hit whatever
+        /// collider happened to be there and stand the prop on top of it.
+        /// </summary>
+        private static Vector3 SeatProp(Layout layout, GameObject instance, Vector3 position)
+        {
+            var bounds = LocalBounds(instance);
+            var scale = instance.transform.lossyScale;
+            var yaw = instance.transform.localEulerAngles.y;
+            var rotation = Quaternion.Euler(0f, yaw, 0f);
+
+            var lowest = float.PositiveInfinity;
+            for (var ix = -1; ix <= 1; ix++)
+            {
+                for (var iz = -1; iz <= 1; iz++)
+                {
+                    var local = new Vector3(bounds.center.x + bounds.extents.x * ix, 0f,
+                                            bounds.center.z + bounds.extents.z * iz);
+                    var offset = rotation * Vector3.Scale(local, scale);
+                    if (TrySampleGround(layout, position.x + offset.x, position.z + offset.z,
+                                        out var y))
+                        lowest = Mathf.Min(lowest, y);
+                }
+            }
+
+            if (float.IsPositiveInfinity(lowest))
+            {
+                Debug.LogWarning($"[Level] '{instance.name}' could not be seated: the layout " +
+                                 "carries no height grid, so it is left at its authored Y and " +
+                                 "may be standing in the air.", instance);
+                return position;
+            }
+
+            // The asset's own base may sit below its pivot; keep that offset or a prop modelled
+            // around its centre sinks by half its height.
+            position.y = lowest - bounds.min.y * scale.y - PropBiteMetres;
+            return position;
+        }
+
+        /// <summary>
+        /// Whether the band being built is the one that owns this cast entry.
+        ///
+        /// An entry with no <c>scene</c> falls to the first band rather than to all of them.
+        /// Building it everywhere is what produced the duplicate this field exists to stop,
+        /// and building it nowhere is worse still — a professor who is missing from the whole
+        /// world fails loudly, but only at the moment the opening tries to walk him, which is
+        /// after the build has already reported success. One copy in a possibly wrong band is
+        /// recoverable by moving it; zero copies and two copies both are not. The warning
+        /// names the entry so the missing tag is fixed rather than lived with.
+        /// </summary>
+        private static bool OwnedBy(string band, string owner, string entryName)
+        {
+            if (string.IsNullOrEmpty(owner))
+            {
+                owner = SceneLayouts[0].Scene;
+                Debug.LogWarning($"[Level] cast.json entry '{entryName}' names no scene, so " +
+                                 $"it is built into '{owner}' alone. Give it a \"scene\" or it " +
+                                 "sits in whichever band happens to be listed first.");
+            }
+            return string.Equals(band, owner, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Which townsperson carries which episode, and what has to be true first.
+        ///
+        /// This table is the thing that was missing. The episodes are authored in
+        /// episodes.json, most of them behind a trigger, and <c>StoryEncounter</c> — the
+        /// component written to fire them — was on nothing in either scene: a search of
+        /// Town.unity and Field.unity for its guid returned the .meta file and nothing else.
+        /// So the opening played, the broadcast finished, control came back, and the game had
+        /// no further step of any kind. The rival stood at the lab door for the rest of the
+        /// save with no reason to move.
+        ///
+        /// It lives here rather than in cast.json because it is a binding between scene
+        /// objects and episode ids, not a narrative position, and because the town is
+        /// generated: anything hung on these NPCs by hand is gone at the next rebuild.
+        ///
+        /// Order matters only in that each entry's <c>Requires</c> is the previous entry's
+        /// completion flag, which is what keeps the act in sequence without a state machine.
+        ///
+        /// One entry per actor, and that is a hard rule rather than a convention:
+        /// <see cref="BuildStoryTriggers"/> reuses the <c>StoryEncounter</c> it finds on the
+        /// object, so a second entry naming the same actor silently replaces the first. Bram
+        /// and Kes are each wanted twice; each spends his slot on the beat that has to come
+        /// from the character, and the other beat hangs off a marker object standing nearby.
+        ///
+        /// Every episode id here must be in episodes.json. One that is not is refused by the
+        /// runner, and <see cref="StoryEncounter"/> retires the beat after three refusals with
+        /// an error — the act it was meant to open is then unreachable for that whole save.
+        /// That is why <c>opening_departure</c> and <c>leaving_town</c> are gone from this
+        /// table rather than left in place: they were retired from episodes.json with the
+        /// rewrite of the opening act.
+        /// </summary>
+        private readonly struct StoryTrigger
+        {
+            public readonly string Actor;
+            public readonly string EpisodeId;
+            public readonly string Requires;
+            public readonly string Completes;
+            public readonly float Radius;
+            public readonly float ApproachSeconds;
+
+            public StoryTrigger(string actor, string episodeId, string requires, string completes,
+                                float radius, float approachSeconds)
+            {
+                Actor = actor;
+                EpisodeId = episodeId;
+                Requires = requires;
+                Completes = completes;
+                Radius = radius;
+                ApproachSeconds = approachSeconds;
+            }
+        }
+
+        private static readonly StoryTrigger[] StoryTriggers =
+        {
+            // Bram at the head of the ramp. The refusal is on him rather than on a marker
+            // because it is the one beat that has to come from the man doing the refusing.
+            new StoryTrigger("NPC_GateKeeper", "gate_wait_for_kes",
+                             "story.opening_seen", "story.gate_refused", 4.0f, 0f),
+
+            // The square, as an object. Kes' own StoryEncounter slot is spent on the rival
+            // battle -- BuildStoryTriggers reuses whatever component it finds, so two entries
+            // naming one actor is not two beats, it is the second overwriting the first -- so
+            // his send-off hangs off a marker in the square and walks him in with MoveActor.
+            new StoryTrigger("Trigger_Square", "kes_summons",
+                             "story.gate_refused", "story.kes_summons_done", 5.0f, 0f),
+
+            // Bram's second beat, on its own marker for the same one-slot-per-actor reason.
+            // Tight radius: it sits at the top of the ramp and must not fire from the street.
+            new StoryTrigger("Trigger_GateOpen", "gate_opens",
+                             "story.kes_summons_done", "story.gate_acknowledged", 3.5f, 0f),
+
+            // Linden on the lake bank, in the Field. Gated on story.gate_open rather than on
+            // the acknowledgement, because gate_opens is deliberately skippable -- the ramp is
+            // already down by then -- and a player who walked past Bram must still meet him.
+            // Approach is zero: he is seventy-one and mid-count, and a professor who jogs at
+            // the player undoes the one joke the character has.
+            new StoryTrigger("NPC_Professor", "field_professor_mutters",
+                             "story.gate_open", "story.prof_mutter_done", 4.0f, 0f),
+
+            // The bag he leaves behind, which is why this beat hangs off a prop and not a
+            // person: there is nobody on the bank once he has gone.
+            new StoryTrigger("Prop_ProfessorBag", "field_bag_left",
+                             "story.prof_mutter_done", "story.bag_seen", 3.0f, 0f),
+
+            // Kes, at the lake. On him and not on a marker beside him: TrainerController
+            // .StandsDown reads the StoryEncounter on its own GameObject and refuses to notice
+            // the player while it is pending, and it can only read one that is there. Without
+            // that, the sight cone and the story beat race for who starts the fight and the
+            // loser is the party built from the player's starter.
+            new StoryTrigger("NPC_Rival", "rival_first_battle",
+                             "story.pokedex", "story.rival_battle_done", 5.0f, 0f),
+        };
+
+        /// <summary>Arms the authored story beats on the people who carry them.</summary>
+        private static void BuildStoryTriggers()
+        {
+            var armed = 0;
+            foreach (var trigger in StoryTriggers)
+            {
+                // Absent is normal, not an error: the table covers the whole slice and each
+                // scene holds only its own half of the cast.
+                var actor = GameObject.Find(trigger.Actor);
+                if (actor == null) continue;
+
+                var encounter = actor.GetComponent<StoryEncounter>();
+                if (encounter == null) encounter = actor.AddComponent<StoryEncounter>();
+                encounter.Configure(trigger.EpisodeId, trigger.Requires, trigger.Completes,
+                                    trigger.Radius, trigger.ApproachSeconds);
+                armed++;
+            }
+
+            if (armed > 0) Debug.Log($"[Level] Story: {armed} encounter(s) armed.");
+        }
+
+        /// <summary>
+        /// Closes the way out of town until the story opens it.
+        ///
+        /// Built from the scene link rather than from a hand-written position, so it stays
+        /// across the doorway when the emitter moves the ramp. Placed a metre to the town side
+        /// of the link — in front of it, not on it — because the arrival marker for travellers
+        /// coming the other way sits 2.5 m town-side, and a wall on top of that would strand
+        /// anyone walking back in.
+        ///
+        /// Skipped in any scene with no gatekeeper in it. The route does not need a gate; it
+        /// needs the town to have had one.
+        /// </summary>
+        private static void BuildStoryGate(Layout layout, Transform root,
+            Dictionary<string, Transform> parents)
+        {
+            var keeper = GameObject.Find("NPC_GateKeeper");
+            if (keeper == null) return;
+
+            var link = layout.sceneLinks != null && layout.sceneLinks.Length > 0
+                ? layout.sceneLinks[0]
+                : null;
+            if (link == null)
+            {
+                Debug.LogWarning("[Level] There is a gatekeeper but no scene link to stand him " +
+                                 "in front of, so the way out of town is open from the first " +
+                                 "frame and story.gate_open still gates nothing.");
+                return;
+            }
+
+            var facing = Quaternion.Euler(0f, link.facingYaw, 0f);
+            var go = new GameObject("StoryGate_TownRamp");
+            go.transform.SetParent(ResolveParent(root, parents, "Story/Gates"), false);
+            go.transform.localPosition = SeatOnGround(layout,
+                ToVector(link.position) + facing * Vector3.back * 1.0f);
+            go.transform.localRotation = facing;
+
+            // Wider than the doorway it closes. Sized exactly to the link, a player who hugs
+            // the cliff walks around the end of it, and a gate with a gap beside it is worse
+            // than no gate: it reads as a bug rather than as a rule.
+            var opening = ToVector(link.size, new Vector3(5f, 3f, 1.6f));
+            go.AddComponent<StoryGate>().Configure("story.gate_open",
+                keeper.GetComponent<NpcController>(),
+                new Vector3(opening.x + 1.5f, 4f, 0.6f));
+
+            SetLayer(go, "Environment");
+            Debug.Log("[Level] Story: the town ramp is closed until story.gate_open.");
         }
 
         [Serializable] private sealed class Cast
         {
             public CastSpeaker[] speakers;
             public CastMarker[] markers;
+            public CastProp[] props;
+        }
+
+        /// <summary>
+        /// A thing on the ground that a beat looks at. See <see cref="BuildCastProps"/> for why
+        /// this is not simply another marker.
+        /// </summary>
+        [Serializable] private sealed class CastProp
+        {
+            public string name;
+            /// <summary>Which band builds this. See <see cref="BuildCast"/>.</summary>
+            public string scene;
+            public string prefab;
+            /// <summary>X and Z are authored; Y is replaced by <see cref="SeatProp"/>.</summary>
+            public float[] position;
+            public float[] rotation;
+            public float[] scale;
         }
 
         [Serializable] private sealed class CastMarker
         {
             public string name;
+            /// <summary>Which band builds this. See <see cref="BuildCast"/>.</summary>
+            public string scene;
             public float[] position;
         }
 
         [Serializable] private sealed class CastSpeaker
         {
             public string spriteKey;
+            /// <summary>Which band builds this. See <see cref="BuildCast"/>.</summary>
+            public string scene;
             public RequiredNpc requiredNpc;
         }
 
@@ -1286,6 +1744,7 @@ namespace PokeLab.Boot.Editor
             public CaveEntrance[] caveEntrances;
             public BarrierVolume[] barrierVolumes;
             public SceneLink[] sceneLinks;
+            public BuildingDoor[] buildingDoors;
             public NpcRecord[] npcs;
             public TrainerRecord[] trainers;
             public float[] playerSpawn;
@@ -1414,6 +1873,26 @@ namespace PokeLab.Boot.Editor
             public string name;
             public string scene;
             public string arrivalSpawn;
+            public float[] position;
+            public float facingYaw;
+            public float[] size;
+        }
+
+        /// <summary>
+        /// A way into a building. Matches <c>building_doors</c> in emit_unity_layout.py.
+        ///
+        /// <c>facingYaw</c> is the building's own yaw, and the emitter has already pushed the
+        /// position out along it to the far side of the front wall — so the yaw points out of
+        /// the building, the opposite convention to a <see cref="SceneLink"/>.
+        /// </summary>
+        [Serializable]
+        private sealed class BuildingDoor
+        {
+            public string name;
+            public string scene;
+            public string arrivalSpawn;
+            /// <summary>Prose for whoever reads the layout. Nothing draws it.</summary>
+            public string label;
             public float[] position;
             public float facingYaw;
             public float[] size;

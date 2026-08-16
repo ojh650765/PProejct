@@ -24,6 +24,7 @@ namespace PokeLab.Overworld
             TrainerRegistry.Reset();
             EncounterTable.ResetBuiltIns();
             RoamingCreature.ResetRegistry();
+            WaterBody.ResetRegistry();
         }
     }
 }

@@ -21,8 +21,16 @@ namespace PokeLab.Overworld
     /// there is one. Sharing the code would mean every story beat inherited a sight cone
     /// the player could sidestep.
     /// </summary>
+    /// <remarks>
+    /// Carries no collider requirement, and must not gain one back. Proximity here is a
+    /// distance test in <see cref="Update"/>, not a trigger callback — nothing in this file
+    /// reads OnTriggerEnter. The requirement used to be here anyway, and its Awake forced
+    /// <c>isTrigger</c> on whatever <c>GetComponent&lt;Collider&gt;</c> happened to return.
+    /// Every story character in the generated town has exactly one collider, the capsule that
+    /// is their body, so arming an encounter turned the rival into something the player walks
+    /// straight through.
+    /// </remarks>
     [DisallowMultipleComponent]
-    [RequireComponent(typeof(Collider))]
     public sealed class StoryEncounter : MonoBehaviour
     {
         [Header("Identity")]
@@ -59,26 +67,57 @@ namespace PokeLab.Overworld
         [SerializeField] private string _episodeId = "";
 
         private Transform _player;
+        private EpisodeRunner _runner;
         private bool _fired;
         private bool _running;
 
-        private void Reset()
-        {
-            var trigger = GetComponent<Collider>();
-            if (trigger != null) trigger.isTrigger = true;
-        }
+        /// <summary>False once a step has established that the beat did not actually play.</summary>
+        private bool _spoke;
 
-        private void Awake()
+        private int _refusals;
+        private const int MaxRefusals = 3;
+
+        /// <summary>
+        /// True while this character still owes the player a story beat.
+        ///
+        /// Read by <see cref="TrainerController"/> on the same GameObject, and only for that.
+        /// Kes is both a story character and a trainer, and the two notice the player by
+        /// different rules — this one on proximity, the other down a sight cone after a
+        /// confirmation delay — so which of them wins is a race decided by the angle the player
+        /// walks in at. Losing it means the rival battle happens through the trainer path, whose
+        /// party is a placeholder species the episode was supposed to fill in: a fight against
+        /// nothing, in place of the one the act is built around.
+        /// </summary>
+        public bool Pending => !_fired && !string.IsNullOrEmpty(_episodeId) && !AlreadySeen();
+
+        /// <summary>
+        /// Hangs a story beat on this character. Called by the level builder.
+        ///
+        /// Exists for the same reason <see cref="NpcController.Configure"/> does: the town is
+        /// generated, so a beat wired by hand in the scene file is destroyed by the next
+        /// rebuild. This is the only supported way to arm one.
+        /// </summary>
+        public void Configure(string episodeId, string requiresFlag, string completionFlag,
+                              float approachRadius, float approachSeconds)
         {
-            // A trigger, not a solid: the character still needs their own collider so the
-            // player cannot walk through them, and that is a separate one on the body.
-            var trigger = GetComponent<Collider>();
-            if (trigger != null) trigger.isTrigger = true;
+            _episodeId = episodeId ?? "";
+            _requiresFlag = requiresFlag ?? "";
+            _completionFlag = completionFlag ?? "";
+            if (approachRadius > 0f) _approachRadius = approachRadius;
+            _approachSeconds = Mathf.Max(0f, approachSeconds);
         }
 
         private void Update()
         {
             if (_fired || _running) return;
+
+            // Never on top of a scene that is already running. Two story characters standing
+            // within a couple of metres of each other is normal staging — the professor and the
+            // rival share the lab door — and without this the second one's Play() is refused,
+            // Speak() falls through to a null sequence, and the beat marks itself complete
+            // having shown the player nothing at all.
+            if (_runner == null) _runner = FindFirstObjectByType<EpisodeRunner>();
+            if (_runner != null && _runner.IsPlaying) return;
 
             if (_player == null)
             {
@@ -142,14 +181,31 @@ namespace PokeLab.Overworld
                     rig.LookToward(transform.position);
                 }
 
+                _spoke = true;
                 yield return Approach();
                 FaceThePlayer();
                 yield return Speak();
                 yield return Battle();
 
-                if (!string.IsNullOrEmpty(_completionFlag))
+                // Only marked done if the beat actually happened. Marking it regardless is how
+                // a refused episode becomes permanent: the flag says the scene has been seen,
+                // so it can never be offered again, and the act it was meant to open is lost
+                // for the rest of that save with nothing on screen to say so.
+                if (_spoke && !string.IsNullOrEmpty(_completionFlag))
                     ResolveProfile()?.SetFlagBool(_completionFlag, true);
-                _fired = true;
+                _fired = _spoke;
+
+                // A refusal re-arms the beat rather than losing it, but not forever. An episode
+                // id that is simply not in the book is refused every frame the player stands
+                // here, and a warning per frame buries whatever else the log was going to say.
+                if (!_spoke && ++_refusals >= MaxRefusals)
+                {
+                    _fired = true;
+                    Debug.LogError($"[Story] {name} gave up on episode '{_episodeId}' after " +
+                                   $"{MaxRefusals} refusals. Whatever it was meant to open is now " +
+                                   "unreachable on this save; check that the id is in episodes.json.",
+                                   this);
+                }
             }
             finally
             {
@@ -206,7 +262,14 @@ namespace PokeLab.Overworld
                                  $"{name}; falling back to the dialogue.", this);
             }
 
-            if (_sequence == null) yield break;
+            if (_sequence == null)
+            {
+                // Nothing was said. An encounter armed with only an episode id, whose episode
+                // the runner refused, has no fallback — so say it did not happen rather than
+                // letting Run() retire the beat on the strength of having tried.
+                _spoke = false;
+                yield break;
+            }
 
             var dialogue = DialogueRunner.Instance;
             if (dialogue == null)

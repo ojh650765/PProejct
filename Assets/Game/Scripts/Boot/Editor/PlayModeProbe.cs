@@ -172,6 +172,14 @@ namespace PokeLab.Boot.Editor
 
             // Menu items first, so a probe can rebuild or repair what it is about to
             // measure. Without this every fix needs a human to click before it can be
+            // Imports whatever has changed on disk since the editor last looked.
+            //
+            // Auto-refresh is off in this project, so a script edited between two probe runs is
+            // simply not compiled: the probe then photographs the previous build of the game
+            // and the frames disagree with the source for reasons nothing reports. Refreshing
+            // here makes a run always about the code as it stands.
+            AssetDatabase.Refresh(ImportAssetOptions.Default);
+
             // verified, and the verification arrives a round later than the fix.
             foreach (var item in request.menuItems ?? Array.Empty<string>())
             {
@@ -179,6 +187,12 @@ namespace PokeLab.Boot.Editor
                 if (!EditorApplication.ExecuteMenuItem(item))
                     Debug.LogWarning($"[PlayProbe] Menu item '{item}' could not be executed.");
             }
+
+            // Every frame this run produces will say which scene, mode and beat it is a frame
+            // of. Written as a file rather than set directly because the stamp is read during
+            // the play-mode domain reload, after this editor code has stopped running.
+            try { File.WriteAllText(Path.Combine(TempDir, "pokelab_stamp.txt"), "on"); }
+            catch (Exception e) { Debug.LogWarning($"[PlayProbe] Could not arm the state stamp: {e.Message}"); }
 
             SessionState.SetString(PendingKey, json);
             EditorApplication.isPlaying = true;

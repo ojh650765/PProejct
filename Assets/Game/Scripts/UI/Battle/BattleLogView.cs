@@ -137,10 +137,14 @@ namespace PokeLab.UI
         {
             while (_lines.Count < _maxLines)
             {
-                var text = UiBuilder.Text("Line", _lineParent, string.Empty, UiTextRole.Secondary,
-                    UiPalette.TextSecondary);
-                text.fontSize = 16f;
-                UiBuilder.Size(text.rectTransform, flexibleWidth: 1f, minHeight: 20f);
+                // Body, and no hardcoded size over the top of it.
+                //
+                // This is the battle's narration — "앗! 야생 포켓몬이 나타났다!" — not a caption,
+                // and it was pinned to 16pt, which overrode the type scale and left the one
+                // thing the player has to read the smallest text on the screen.
+                var text = UiBuilder.Text("Line", _lineParent, string.Empty, UiTextRole.Body,
+                    UiPalette.TextPrimary);
+                UiBuilder.Size(text.rectTransform, flexibleWidth: 1f, minHeight: 34f);
                 text.gameObject.SetActive(false);
                 _lines.Add(text);
             }

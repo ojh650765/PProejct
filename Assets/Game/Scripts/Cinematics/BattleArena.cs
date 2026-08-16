@@ -6,10 +6,12 @@ namespace PokeLab.Cinematics
     /// <summary>
     /// Which of the four authored backdrops a battle is performed in front of.
     ///
-    /// The values mirror <c>PokeLab.Overworld.ZoneKind</c> deliberately, and this enum exists
-    /// anyway because the cinematics assembly cannot reference the overworld one — the same
-    /// reason the zone arrives as <see cref="EncounterRequest.BiomeId"/> rather than as the enum
-    /// itself. <see cref="BattleArena.ZoneFor"/> is the single place that translation happens.
+    /// The values mirror <c>PokeLab.Overworld.ZoneKind</c> and this is still its own enum, for
+    /// one reason: what arrives on an <see cref="EncounterRequest"/> is
+    /// <see cref="EncounterRequest.BiomeId"/>, a string, not the zone kind — so something has to
+    /// do the translation anyway, and a set of dressings is a presentation list that should be
+    /// free to gain a member the world has no zone kind for.
+    /// <see cref="BattleArena.ZoneFor"/> is the single place that translation happens.
     /// </summary>
     public enum BattleZone
     {
@@ -51,6 +53,10 @@ namespace PokeLab.Cinematics
         [SerializeField] private BattleCameraRig rig;
         [SerializeField] private BattlePresenter presenter;
 
+        [Tooltip("Where the player's body is put down while the battle runs. Behind the camera, " +
+                 "not on the trainer mark — see PlayerStand.")]
+        [SerializeField] private Transform playerStand;
+
         [Header("Backdrops")]
         [Tooltip("One dressing root per BattleZone, in enum order. Exactly one is ever active.")]
         [SerializeField] private GameObject[] dressings = new GameObject[4];
@@ -74,8 +80,20 @@ namespace PokeLab.Cinematics
         /// <summary>The choreographer performing into this arena.</summary>
         public BattlePresenter Presenter { get { EnsureWired(); return presenter; } }
 
-        /// <summary>Where the player stands to watch and to throw from.</summary>
-        public Transform PlayerStand => Stage.TrainerMarkOf(BattleSide.Player);
+        /// <summary>
+        /// Where the player's body is parked for the duration of the battle.
+        ///
+        /// Deliberately <b>not</b> the trainer mark, even though that is where the player appears
+        /// to be standing. The person who throws the ball is a <see cref="TrainerView"/> that is
+        /// drawn only around the throw, and the real player rig would be a second copy of the same
+        /// sprite standing on the same spot for the whole fight — the exact thing the trainer beat
+        /// exists to avoid.
+        ///
+        /// So the body goes behind the camera. It still travels: everything that asks where the
+        /// player is during a battle — the streamer, the zone director, the ambience — sees the
+        /// arena rather than a town they are no longer in, and the return is a real restore.
+        /// </summary>
+        public Transform PlayerStand => playerStand != null ? playerStand : Stage.TrainerMarkOf(BattleSide.Player);
 
         private void Awake()
         {
@@ -120,7 +138,7 @@ namespace PokeLab.Cinematics
             if (dressings.Length <= (int)zone || dressings[(int)zone] == null)
             {
                 Debug.LogWarning($"[Arena] No {zone} dressing in the battle scene, so the fight " +
-                                 "happens in an empty room. Run Create Battle Arena In Open Scene.", this);
+                                 "happens in an empty room. Run Build Battle Arena Scene.", this);
             }
 
             Stage.SetGroundSurface(SurfaceFor(zone));

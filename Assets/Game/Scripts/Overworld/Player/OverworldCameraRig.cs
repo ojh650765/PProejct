@@ -110,6 +110,16 @@ namespace PokeLab.Overworld
         /// <summary>Suspends player steering, e.g. while a trainer approach cutscene plays.</summary>
         public bool ControlEnabled { get; set; } = true;
 
+        /// <summary>
+        /// The chest-height point on the player the camera frames.
+        ///
+        /// Exposed for <see cref="CameraOccluderFade"/>, which needs the far end of the
+        /// boom rather than the rig. This component lives on the CinemachineCamera, so
+        /// its own transform is where the camera ends up — reading it instead gives a
+        /// probe that starts and ends at the same point.
+        /// </summary>
+        public Transform FollowTarget => _followTarget;
+
         private void Awake()
         {
             if (_camera == null) _camera = GetComponent<CinemachineCamera>();

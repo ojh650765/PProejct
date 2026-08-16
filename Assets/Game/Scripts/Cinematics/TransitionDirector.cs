@@ -1,11 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Unity.Cinemachine;
 using PokeLab.Core;
+using PokeLab.Overworld;
 
 namespace PokeLab.Cinematics
 {
@@ -499,8 +499,8 @@ namespace PokeLab.Cinematics
             if (arena == null)
             {
                 Debug.LogError("[TransitionDirector] The battle scene loaded without a BattleArena " +
-                               "in it, so there is nothing to stage. Run Create Battle Arena In " +
-                               "Open Scene with Battle.unity open.", this);
+                               "in it, so there is nothing to stage. Run Build Battle Arena " +
+                               "Scene.", this);
                 return;
             }
 
@@ -521,6 +521,43 @@ namespace PokeLab.Cinematics
 
             // Ordered after the reset, which clears any hold left by a previous encounter.
             presenter.HoldPerformance(coverDuration + stagingHold + revealDuration + 4f);
+        }
+
+        // --- Who is standing at the marks ------------------------------------------------------
+
+        /// <summary>The key the player is drawn under in <c>people_manifest.json</c>.</summary>
+        private const string PlayerPersonKey = "player";
+
+        /// <summary>
+        /// Drawn when no trainer registry can name the opposing trainer's class.
+        ///
+        /// Nothing in the project implements <c>ITrainerRegistry</c> yet, so this is what every
+        /// trainer battle currently uses. A generic opponent is the right failure: the
+        /// alternative is a trainer battle where the ball comes out of an empty patch of ground,
+        /// which reads as a bug rather than as missing art.
+        /// </summary>
+        private const string DefaultTrainerPersonKey = "youngster";
+
+        /// <summary>
+        /// Who stands at the opponent's mark, or null for a wild encounter.
+        ///
+        /// Null is not an absence here, it is the statement that makes the encounter wild — see
+        /// <see cref="BattleStage.SetTrainers"/>. Nothing is drawn at the far mark and no ball is
+        /// thrown from it, because a wild creature belongs to nobody.
+        /// </summary>
+        private static string OpponentPersonKey(EncounterRequest request)
+        {
+            if (request == null || request.Kind != BattleKind.Trainer) return null;
+
+            if (ServiceHub.TryGet<ITrainerRegistry>(out var registry) && registry != null
+                && !string.IsNullOrEmpty(request.TrainerId)
+                && registry.TryGetProfile(request.TrainerId, out var profile) && profile != null
+                && !string.IsNullOrEmpty(profile.ArtKey))
+            {
+                return profile.ArtKey;
+            }
+
+            return DefaultTrainerPersonKey;
         }
 
         // --- Carrying the player ------------------------------------------------------------
@@ -565,37 +602,31 @@ namespace PokeLab.Cinematics
         }
 
         /// <summary>
-        /// Repositions the player through <c>PlayerLocomotion.Warp</c>, by name.
+        /// Repositions the player through <c>PlayerLocomotion.Warp</c>, which is the only correct
+        /// way to move them.
         ///
-        /// Reflection, and deliberately: the player lives in <c>PokeLab.Overworld</c>, which this
-        /// assembly cannot reference and must not start to. Rewriting the transform directly is
-        /// not an option — the <see cref="CharacterController"/> caches its own position and
-        /// reasserts the old one on the next Move — and reimplementing the disable-write-enable
-        /// dance here would still miss the rest of what Warp resets: the previous-position sample
-        /// the distance accumulator differences, which feeds the step counter wild encounters are
-        /// rolled against. Two kilometres of it would fire an encounter the moment the player
-        /// took their next step home.
+        /// Writing the transform is not enough on its own: the <see cref="CharacterController"/>
+        /// caches its own position and reasserts the old one on the next Move. Nor is
+        /// disable-write-enable enough, which is the trap in reimplementing this — Warp also
+        /// resets the previous-position sample the distance accumulator differences, and that
+        /// accumulator feeds the step counter wild encounters are rolled against. Two kilometres
+        /// of phantom travel would fire an encounter on the player's next step home.
         ///
-        /// Returns false when there is nothing to call, in which case the battle simply happens
-        /// with the player still standing in the overworld — worse-looking, never broken.
+        /// Returns false when there is no player to move, in which case the battle simply happens
+        /// with nobody standing at the trainer's mark — worse-looking, never broken.
         /// </summary>
         private static bool Warp(Transform player, Vector3 position, Quaternion rotation)
         {
-            foreach (var component in player.GetComponents<MonoBehaviour>())
+            var locomotion = player.GetComponent<PlayerLocomotion>();
+            if (locomotion == null)
             {
-                if (component == null) continue;
-                MethodInfo warp = component.GetType().GetMethod("Warp",
-                    BindingFlags.Public | BindingFlags.Instance, null,
-                    new[] { typeof(Vector3), typeof(Quaternion), typeof(bool) }, null);
-                if (warp == null) continue;
-
-                warp.Invoke(component, new object[] { position, rotation, false });
-                return true;
+                Debug.LogWarning("[TransitionDirector] The player has no PlayerLocomotion, so they " +
+                                 "were left in the overworld for the duration of the battle.");
+                return false;
             }
 
-            Debug.LogWarning("[TransitionDirector] The player has no Warp(Vector3, Quaternion, bool), " +
-                             "so they were left in the overworld for the duration of the battle.");
-            return false;
+            locomotion.Warp(position, rotation);
+            return true;
         }
 
         /// <summary>

@@ -26,6 +26,10 @@ Shader "PokeLab/Foliage"
 
         _Cutoff("Alpha Cutoff", Range(0,1)) = 0.45
 
+        // Driven by CameraOccluderFade when a tree stands between the camera and the
+        // player. Dithered rather than blended -- see PL_FadeDither.
+        _FadeAmount("Camera Fade", Range(0,1)) = 0
+
         [Header(Colour Variation)][Space(4)]
         _TipColor("Tip Colour", Color) = (0.72,0.88,0.42,1)
         _RootColor("Root Colour", Color) = (0.16,0.32,0.18,1)
@@ -99,6 +103,7 @@ Shader "PokeLab/Foliage"
             half4  _BaseColor;
             half   _BumpScale;
             half   _Cutoff;
+            half   _FadeAmount;
             half4  _TipColor;
             half4  _RootColor;
             half   _GradientPower;
@@ -234,6 +239,7 @@ Shader "PokeLab/Foliage"
                 half4 baseSample = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv);
                 half alpha = baseSample.a * _BaseColor.a;
                 clip(alpha - _Cutoff);
+                PL_FadeDither(input.positionCS.xy, _FadeAmount);
 
                 // Root-to-tip gradient. Cheap way to get depth into a flat card and
                 // to stop a whole meadow reading as one shade of green.
@@ -331,8 +337,29 @@ Shader "PokeLab/Foliage"
                 // --- Ambient and rim -------------------------------------------
                 colour += PL_Ambient(normalWS) * albedo * occlusion;
 
+                // _PL_RimBoost lands once, on the strength. It used to land twice — scaled into
+                // the rim colour as well — and the two multiply, so the director's boost entered
+                // this term squared.
+                //
+                // That is the blown-out white foliage in the battle arena, and the arithmetic is
+                // the evidence: _TipColor on M_Env_Foliage is pure white, so the base is already
+                // 1.0 before any boost. LightingDirector blends GradeLibrary.Battle() in whenever
+                // the mode is Battle or EncounterIntro, which takes _PL_RimBoost from Day's 0.15
+                // to about 0.59. Doubled, that was (1 + 0.59) * (0.35 + 0.59) = 1.49 of near-white
+                // added to a leaf — over full white on its own, before the battle grade's gain and
+                // bloom. Applied once it is 0.94, and the canopy stays green under a hot rim.
+                //
+                // Nothing changes at _PL_RimBoost = 0: lerp gives _TipColor and the strength is
+                // the material's own, which is exactly what this line evaluated to before.
+                //
+                // Why only foliage went white while the rock beside it did not: PokeLabTerrainBlend
+                // has no rim term at all, and a rock's shading normals follow its surface, so its
+                // rim stays a silhouette edge. A canopy is hundreds of cards whose normals are bent
+                // 45% toward the crown's outward direction by _NormalSpherify, so a large share of
+                // the shell sits inside the rim band at once. Occlusion is what left the interior
+                // green: it multiplies the rim, and the canopy interior is where vertex B is low.
                 half rim = PL_Rim(normalWS, viewDirWS, _RimPower, 0.2);
-                half3 rimColour = _TipColor.rgb + _PL_RimTint.rgb * _PL_RimBoost;
+                half3 rimColour = lerp(_TipColor.rgb, _PL_RimTint.rgb, saturate(_PL_RimBoost));
                 colour += rimColour * rim * (_RimStrength + _PL_RimBoost) * occlusion;
 
                 colour = MixFog(colour, input.fogAndVariation.x);
@@ -409,6 +436,7 @@ Shader "PokeLab/Foliage"
                 UNITY_SETUP_INSTANCE_ID(input);
                 half alpha = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv).a * _BaseColor.a;
                 clip(alpha - _Cutoff);
+                PL_FadeDither(input.positionCS.xy, _FadeAmount);
                 return 0;
             }
             ENDHLSL
@@ -466,6 +494,7 @@ Shader "PokeLab/Foliage"
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
                 half alpha = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv).a * _BaseColor.a;
                 clip(alpha - _Cutoff);
+                PL_FadeDither(input.positionCS.xy, _FadeAmount);
                 return 0;
             }
             ENDHLSL
@@ -531,6 +560,7 @@ Shader "PokeLab/Foliage"
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
                 half alpha = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv).a * _BaseColor.a;
                 clip(alpha - _Cutoff);
+                PL_FadeDither(input.positionCS.xy, _FadeAmount);
 
                 half3 normalWS = NormalizeNormalPerPixel(input.normalWS);
                 normalWS *= IS_FRONT_VFACE(facing, 1.0, -1.0);

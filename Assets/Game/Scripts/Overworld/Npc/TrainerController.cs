@@ -89,7 +89,36 @@ namespace PokeLab.Overworld
 
         public string InteractionPrompt => Loc.Get(IsDefeated && CanRematch() ? "ui.rematch" : "ui.talk");
 
-        public bool CanInteract(GameObject instigator) => !_sequenceRunning && _definition != null;
+        public bool CanInteract(GameObject instigator) =>
+            !_sequenceRunning && _definition != null && !StandsDown;
+
+        /// <summary>
+        /// Whether this trainer must ignore the player entirely — no notice, no prompt, no fight.
+        ///
+        /// Two reasons, and they are both about a fight happening before the game can hold one.
+        ///
+        /// The prologue is the first: until the Pokédex is granted the player may have no party
+        /// at all, and a trainer who challenges an empty party opens a battle that cannot be
+        /// fought and cannot be left. See <see cref="StoryPhase"/> for what else stands down with
+        /// it and why they lift together.
+        ///
+        /// A story beat this same character still owes is the second. Kes is a trainer and a
+        /// story character at once, and his rival battle is built by an episode — it is the only
+        /// thing in the project that can field the counter to the player's starter, because
+        /// <see cref="TrainerDefinition"/> has no notion of one and carries a placeholder species
+        /// in its place. Whichever of the two noticing rules fires first wins, so without this
+        /// the fight is decided by the angle the player walks in at, and half the time it is a
+        /// battle against species id zero.
+        /// </summary>
+        private bool StandsDown
+        {
+            get
+            {
+                if (StoryPhase.TrainerChallengesSuppressed) return true;
+                var beat = GetComponent<StoryEncounter>();
+                return beat != null && beat.Pending;
+            }
+        }
 
         /// <summary>
         /// Applied by the level builder from the authored layout.
@@ -156,6 +185,7 @@ namespace PokeLab.Overworld
             if (_sequenceRunning || _engaged) return;
             if (_definition == null || _playerTransform == null) return;
             if (IsDefeated) return; // a beaten trainer no longer ambushes; they can still be talked to
+            if (StandsDown) return;
             if (!IsActiveNow()) return;
 
             if (CanSeePlayer())
@@ -200,6 +230,10 @@ namespace PokeLab.Overworld
         public void Interact(GameObject instigator)
         {
             if (_sequenceRunning || _definition == null) return;
+            // Also tested here and not only in CanInteract: StoryEncounter.Battle() calls this
+            // directly, and so would anything else that reaches a trainer without going through
+            // the interaction prompt.
+            if (StandsDown) return;
 
             if (IsDefeated)
             {

@@ -176,7 +176,9 @@ namespace PokeLab.Overworld
 
             if (profile is PlayerProfile concrete)
             {
+                var progression = SnapshotProgression(concrete);
                 concrete.InitialiseNewGame(trainerName, Choice.SpeciesId, _level, _seed);
+                foreach (var flag in progression) concrete.SetFlag(flag.Key, flag.Value);
                 return true;
             }
 
@@ -184,6 +186,33 @@ namespace PokeLab.Overworld
                            "does not expose InitialiseNewGame. The starter was chosen but " +
                            "not granted.", this);
             return false;
+        }
+
+        /// <summary>Prefix of the flags that describe how far the story has got.</summary>
+        private const string ProgressionPrefix = "story.";
+
+        /// <summary>
+        /// Copies out the progression flags so they can be put back after the profile is reset.
+        ///
+        /// <c>InitialiseNewGame</c> clears every flag, which is right for the thing it is named
+        /// after — a brand new save — and wrong for when it is actually called. It runs from the
+        /// middle of <c>opening_departure</c>, by which point <c>story.opening_seen</c> is set
+        /// and the opening's own no-replay guard, the rival encounter's gate and Bram's dialogue
+        /// state all depend on it. Wiping it there put the save back to before the prologue while
+        /// the player stood at the gate holding a Pokémon: the opening was due again on the next
+        /// load, and nothing that gates on having seen it would open.
+        ///
+        /// Only <c>story.</c> is carried across. Trainer defeats, pickups and everything else
+        /// keyed off a flag genuinely should start empty on a new game, and preserving the whole
+        /// table would make the reset meaningless.
+        /// </summary>
+        private static List<KeyValuePair<string, string>> SnapshotProgression(PlayerProfile profile)
+        {
+            var kept = new List<KeyValuePair<string, string>>();
+            foreach (var flag in profile.Flags)
+                if (flag.Key != null && flag.Key.StartsWith(ProgressionPrefix, StringComparison.Ordinal))
+                    kept.Add(flag);
+            return kept;
         }
     }
 }

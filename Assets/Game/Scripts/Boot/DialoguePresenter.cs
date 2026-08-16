@@ -100,6 +100,8 @@ namespace PokeLab.Boot
             // is what knows whether the sequence has more lines. The view is told what to
             // draw and nothing else, so a click on the box and a press of the button take
             // the same path rather than two that can disagree.
+            ApplyBackdrop(line);
+
             if (line.Choices != null && line.Choices.Length > 0)
             {
                 var labels = new string[line.Choices.Length];
@@ -116,6 +118,97 @@ namespace PokeLab.Boot
 
         private readonly System.Collections.Generic.Dictionary<string, Sprite> _portraits =
             new System.Collections.Generic.Dictionary<string, Sprite>();
+
+        // Scenes that are staged rather than met, keyed by the conversation rather than by who
+        // is having it.
+        //
+        // Keyed on the speaker to begin with, which put the laboratory behind Linden every time
+        // he opened his mouth — including standing at the lake counting fish. A room belongs to
+        // a moment. The opening happens indoors before the world exists; everything after it
+        // happens somewhere the player walked to, and that place is the backdrop.
+        private static readonly System.Collections.Generic.Dictionary<string, string> Rooms =
+            new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "op_prologue", "study" },
+                { "op_prologue_confirm", "study" },
+            };
+
+        private Texture2D _worldBlur;
+
+        /// <summary>
+        /// Puts something behind the speaker.
+        ///
+        /// The professor is talking in his own laboratory, so he gets a room: the scene is
+        /// staged, the player is not walking around during it, and the world behind him is
+        /// whatever corner of the plaza the camera was left pointing at. Everyone else stops
+        /// the player where they stand, and the honest background for that is the game itself
+        /// thrown out of focus -- it keeps the conversation in the place it is happening
+        /// while taking the detail out from behind the text.
+        /// </summary>
+        private void ApplyBackdrop(DialogueLine line)
+        {
+            if (_view == null) return;
+
+            var sequence = _runner != null ? _runner.CurrentSequenceId : null;
+            if (!string.IsNullOrEmpty(sequence) && Rooms.TryGetValue(sequence, out var room))
+            {
+                var sprite = Resources.Load<Sprite>("Portraits/Backdrops/" + room);
+                if (sprite != null)
+                {
+                    // A staged room and the composed full-figure framing go together: the
+                    // drawn backdrop exists to be stood in, and cropping the figure that is
+                    // standing in it leaves a room with a pair of legs in it.
+                    _view.SetPortraitFraming(staged: true);
+                    _view.SetBackdrop(sprite, null, 1f);
+                    return;
+                }
+            }
+
+            // Everyone else is met where they stand, so they are framed close.
+            _view.SetPortraitFraming(staged: false);
+
+            // Grabbed once per line rather than per frame: the world is frozen for the length
+            // of a conversation anyway, and a re-capture every frame would cost a full
+            // readback of the screen for a picture that does not change.
+            _view.SetBackdrop(null, CaptureBlurredWorld(), 0.72f);
+        }
+
+        /// <summary>
+        /// The game as it looks right now, at a fraction of its resolution.
+        ///
+        /// The blur is the downsample. Rendering the camera into a small target and letting
+        /// the UI stretch it back up is a box filter done by the sampler, which costs one
+        /// pass and no shader — and at this size the difference between that and a real
+        /// gaussian is not visible behind a text panel.
+        /// </summary>
+        private Texture2D CaptureBlurredWorld()
+        {
+            var camera = Camera.main;
+            if (camera == null) return null;
+
+            const int width = 160;
+            const int height = 90;
+
+            var target = RenderTexture.GetTemporary(width, height, 16);
+            var previousTarget = camera.targetTexture;
+            var previousActive = RenderTexture.active;
+
+            camera.targetTexture = target;
+            camera.Render();
+
+            RenderTexture.active = target;
+            if (_worldBlur == null)
+                _worldBlur = new Texture2D(width, height, TextureFormat.RGB24, false)
+                    { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            _worldBlur.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
+            _worldBlur.Apply();
+
+            camera.targetTexture = previousTarget;
+            RenderTexture.active = previousActive;
+            RenderTexture.ReleaseTemporary(target);
+
+            return _worldBlur;
+        }
 
         /// <summary>
         /// The speaker's face, cut out of the sheet they walk around in.
@@ -139,8 +232,22 @@ namespace PokeLab.Boot
             // Resources/Portraits and is what the box is really designed around; the
             // sprite-sheet face below is what shows until that art exists, so neither
             // path has to wait for the other.
-            var portrait = DialoguePortraits.For(line.PortraitKey);
+            // Asked for by the normalised key, not the raw one. The book writes PortraitKey as
+            // the speaker id — npc_professor_01 — and the drawn portraits are filed under the
+            // role, so looking up the raw value missed every one of them and quietly fell
+            // through to the walking sprite. The same mistake as the world art, one lookup
+            // along: the key has to be normalised wherever it is used, not where it is read.
+            // Through the same alias table the world sprite uses, so the box and the world
+            // cannot disagree about who a speaker is.
+            Sprite portrait = null;
+            foreach (var candidate in PersonSpriteLibrary.ArtKeysFor(key))
+            {
+                portrait = DialoguePortraits.For(candidate);
+                if (portrait != null) break;
+            }
+            if (portrait == null) portrait = DialoguePortraits.For(line.PortraitKey);
             if (portrait == null) portrait = DialoguePortraits.For(line.SpeakerName);
+
             if (portrait != null)
             {
                 _portraits[key] = portrait;

@@ -26,6 +26,9 @@ namespace PokeLab.Boot.Editor
         private const string TerrainRoot = "Assets/Game/Art/Environment/Terrain/";
         private const string SpriteRoot = "Assets/Game/Art/Sprites/";
 
+        /// <summary>Portraits and their backdrops: loaded as Sprites, not sliced in code.</summary>
+        private const string PortraitRoot = "Assets/Game/Art/Sprites/Resources/Portraits/";
+
         /// <summary>
         /// Which hand-authored material each art family is bound to.
         ///
@@ -305,6 +308,26 @@ namespace PokeLab.Boot.Editor
             Debug.Log($"[Art] Reimported {reimported} model(s).");
         }
 
+        /// <summary>
+        /// Forces the portraits through the importer again.
+        ///
+        /// Touching a file is not enough: the asset pipeline keys its cache on content and
+        /// importer settings, not on the modification time, so a rule that changed in code
+        /// does not reach art that has not itself changed. This is how a new rule is applied
+        /// to files that already exist.
+        /// </summary>
+        [MenuItem("Tools/Poké Lab/Rebuild/Reimport Portraits", priority = 12)]
+        public static void ReimportPortraits()
+        {
+            var guids = AssetDatabase.FindAssets("t:Texture2D", new[] { PortraitRoot.TrimEnd('/') });
+            foreach (var guid in guids)
+                AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid),
+                    ImportAssetOptions.ForceUpdate);
+
+            AssetDatabase.Refresh();
+            Debug.Log($"[Art] Reimported {guids.Length} portrait(s) as sprites.");
+        }
+
         private void OnPreprocessTexture()
         {
             if (!IsGameArt(assetPath)) return;
@@ -321,6 +344,24 @@ namespace PokeLab.Boot.Editor
                 importer.textureType = TextureImporterType.Sprite;
                 importer.alphaIsTransparency = true;
                 importer.mipmapEnabled = false;
+                return;
+            }
+
+            // Dialogue portraits are the one thing under the sprite root that is loaded as a
+            // Sprite rather than sliced out of a sheet in code.
+            //
+            // ApplyPixelArtRules sets textureType to Default, which is right for the walk
+            // sheets — nothing loads those as sprites, they are cut up with Sprite.Create at
+            // runtime — and silently wrong here: Resources.Load<Sprite> returned null for a
+            // file sitting in the folder, the box fell back to the walking sprite, and a
+            // hand-written .meta could not fix it because the importer rewrites the meta from
+            // its own settings after every import. The rule has to change, not the file.
+            if (assetPath.StartsWith(PortraitRoot, StringComparison.Ordinal))
+            {
+                ApplyPixelArtRules(importer);
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.spritePixelsPerUnit = 100f;
                 return;
             }
 

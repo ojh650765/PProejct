@@ -2,42 +2,50 @@
   "schema": {
     "version": 1,
     "authoredBy": "narrative-design",
-    "note": "Staging data for the episodes: who speaks, where the camera looks, where actors walk to, and the copy on the three balls. Nothing reads this file yet -- it is here so that the numbers a beat depends on live next to the scene that depends on them instead of only in a scene asset. Every position is in the slice_layout.json coordinate space.",
-    "yWarning": "The Y values below were taken from the nearest path control point in slice_layout.json, not resampled from terrain.heightField.grid. Snap them to the grid before trusting them; a marker 20cm under the cobbles is a camera that looks at the ground."
+    "note": "Staging data for the episodes: who speaks, where the camera looks, where actors walk to, and the copy on the three balls. LevelLayoutBuilder.BuildCast reads the speakers' requiredNpc and the markers; the rest is still notes for whoever writes the episodes. Every position is in the slice_layout.json coordinate space.",
+    "yWarning": "The Y values below were taken from the nearest path control point in slice_layout.json, not resampled from terrain.heightField.grid. Snap them to the grid before trusting them; a marker 20cm under the cobbles is a camera that looks at the ground.",
+    "sceneField": "Every speaker, marker and prop carries a \"scene\": the ONE playable scene that builds it. This file describes one world, but the world ships as Town.unity and Field.unity, which WorldStreamer loads together over a ten-metre overlap -- so an entry with no owner was built into both and existed twice at identical coordinates, and GameObject.Find chose between the copies at random. The act now plays across both bands: the gate and the square are Town, the lake bank is Field. A marker is a camera target rather than level content, so it belongs to the band whose episode aims at it and not to the band its coordinates happen to fall in.",
+    "retired": "Look_GateStand, Look_Case, Look_RouteHead, Look_LabDoor, Mark_Rival_GateStand, Mark_Player_GateStand, Mark_Prof_Case and Mark_Rival_GateWait were staged for 'opening_departure' and 'leaving_town', both retired with the rewrite of the act. They are kept and still built because a marker with nothing aimed at it costs one empty GameObject, while deleting one that turns out to be referenced costs a beat -- but nothing in episodes.json names them today.",
+    "verification": "Every position added for the rewritten act was sampled against the emitted layout's own height grid (the bilinear read LevelLayoutBuilder.TrySampleGround does), measured for clearance against every emitted collider's rotated footprint, and measured against the lake's traced waterline. The numbers are in each entry's note. This is the check that was missing when a professor was authored standing inside the lab."
   },
 
   "speakers": [
     {
       "speakerId": "npc_professor_01",
+      "scene": "Field",
       "name": "Linden",
       "nameKo": "린든",
       "subtitle": "Aster Field Lab",
       "subtitleKo": "아스터 필드 연구소",
       "role": "professor",
       "spriteKey": "professor",
-      "note": "Named for the lime tree, following the series' habit of naming professors after plants, and matching a town named for a flower. Seventy-one, unhurried, and specific about paperwork -- the joke and the characterisation are the same thing: he is the person who believes writing it down is the work. DOES NOT EXIST IN THE LEVEL. slice_layout.json gameplay.npcs has no professor. He must be placed before any episode that names NPC_Professor can run.",
+      "note": "Named for the lime tree, following the series' habit of naming professors after plants, and matching a town named for a flower. Seventy-one, unhurried, and specific about paperwork -- the joke and the characterisation are the same thing: he is the person who believes writing it down is the work. He is the only speaker here the level does not author: neither slice_town_unity.json nor slice_field_unity.json has a professor in gameplay.npcs, so requiredNpc below is what stands him up, and it is read only when building the scene named in \"scene\".",
       "requiredNpc": {
         "name": "NPC_Professor",
         "npcId": "npc_professor_01",
         "displayName": "Professor Linden",
-        "position": [-4.6, 2.8, -7.6],
-        "rotation": [0, 222, 0],
-        "positionNote": "The far end of Path_TownLane_Lab, at the lab door, facing the same way as Town_Lab_01 (yaw 222) so he reads as having just come out of it. He is on the 45 deg camera axis with the dome behind him."
+        "position": [28.75, -0.436, 29.5],
+        "rotation": [0, 20, 0],
+        "positionNote": "MOVED TO THE FIELD, and the move is two fixes at once. The act was rewritten so the player meets him on the lake bank instead of at his lab door; and while he was authored as Town he was built into Town.unity only, so the field beats that name him found nothing -- or, once WorldStreamer had both bands loaded, whichever of two identically-placed copies GameObject.Find reached first. He exists exactly once now, in Field, and there is no Town copy.",
+        "verification": "On the bank at the head of the lake's south-west corner, where Path_LakeBranch runs out at the water. Ground -0.436, read from slice_field_unity.json's height grid with the same bilinear sample LevelLayoutBuilder.TrySampleGround uses; ground varies 0.18 m across the 1.5 m around him, so this is a flat shelf and not the drop into the lake. 3.48 m from Water_Lake's traced waterline (nearest point (29.92, 32.78)) -- the bank, without standing in the shallows. Nearest collider is Route_StreamNorth_22, a conifer, at 6.30 m; nearest barrier volume 27 m; so nothing carves the navmesh under him and NpcController.SnapToNavMesh has nothing to correct. The player first comes inside his 4.0 m trigger radius at (25.18, 27.79), a Path_LakeBranch control point 3.96 m out; from there he lies on a bearing of 64.4 degrees while Look_LakeBank lies on 39.1, so he sits 25.3 degrees off the shot's axis, inside the exploration camera's roughly 33 degree horizontal half-angle. Yaw 20 turns him to the water he is counting (nearest waterline bears 19.6); the player arrives from 244, so the first thing they see is his back, which is what the beat asks for."
       }
     },
     {
       "speakerId": "npc_rival_01",
+      "scene": "Town",
       "name": "Kes",
       "nameKo": "케스",
       "subtitle": "Aster Town",
       "subtitleKo": "아스터 마을",
       "role": "rival",
       "spriteKey": "rival",
-      "existsAs": "NPC_Rival at (-6.2, 2.728, -7.4), yaw 226",
+      "existsAs": "NPC_Rival at (-16.0, 2.355, -9.2), yaw 55 -- standing in the town square, authored in Tools/Level/build_layout.py gameplay.npcs and emitted into slice_town_unity.json. NOT authored here: this file only stands up people the layout has none of.",
+      "movedFrom": "(-6.2, 2.728, -7.4). That position was 4.15 m from Town_Lab_01's axis and the lab's own collider face is 4.70 m out at that bearing, so he was inside the building's mesh collider -- unreachable, and standing on ground the navmesh bake had carved away. It was also the wrong place for the rewritten act: gate_wait_for_kes sends the player to 광장, the square, and he has to be in it.",
       "note": "Short for Kestrel. One syllable because he is interrupted constantly and the name plate has to survive being read forty times. He is Barry's function, not Barry: the momentum the player has not earned yet. He talks in three-word sentences when excited and complete ones when he has lost, which is the only characterisation the writing has room for."
     },
     {
       "speakerId": "npc_gate_01",
+      "scene": "Town",
       "name": "Bram",
       "nameKo": "브람",
       "subtitle": "Aster Gate",
@@ -45,32 +53,35 @@
       "role": "gatekeeper",
       "spriteKey": "townsman",
       "existsAs": "NPC_GateKeeper at (-9.6, 2.654, 0.4), yaw 150 -- standing at the head of the gate ramp, facing back down the street",
-      "note": "MISMATCH: slice_layout.json gives this NPC displayName 'Townsfolk'. He carries the whole first act's gating and needs a name in the plate; either update the layout or let the dialogue's SpeakerName win over displayName. He is DP's mother-at-the-tall-grass and DP's route guard folded together."
+      "note": "NOT A MISMATCH, checked: slice_town_unity.json does give this NPC displayName 'Townsfolk', but no name plate reads it. DialoguePresenter renders line.SpeakerName, which DialogueBookLine.ToLine takes from dialogue.json -- and every gate line there already carries SpeakerName 'Bram' / SpeakerNameKo '브람'. NpcController.DisplayName has no reader anywhere in Assets/Game/Scripts, so the layout's 'Townsfolk' is inert. He is DP's mother-at-the-tall-grass and DP's route guard folded together."
     },
     {
       "speakerId": "npc_market_01",
+      "scene": "Town",
       "name": "Sela",
       "nameKo": "셀라",
       "subtitle": "Aster Market",
       "subtitleKo": "아스터 시장",
       "role": "stallholder",
       "spriteKey": "shopkeeper",
-      "existsAs": "NPC_Stallholder at (-13.6, 2.453, -12.2), yaw 8 -- market row, in the same shot as the spawn",
-      "note": "Same displayName mismatch as Bram. Her only structural job is to answer 'what am I supposed to do' for a player who has been given control and no arrow."
+      "existsAs": "NPC_Stallholder at (-18.9, 2.347, -11.6), yaw 8 -- market row. Re-read from slice_town_unity.json; the position recorded here before, (-13.6, 2.453, -12.2), was from an older emit and no longer matched the scene.",
+      "note": "Same inert displayName as Bram, and inert for the same reason. Her only structural job is to answer 'what am I supposed to do' for a player who has been given control and no arrow."
     },
     {
       "speakerId": "npc_garden_01",
+      "scene": "Town",
       "name": "Odell",
       "nameKo": "오델",
       "subtitle": "Town Gardens",
       "subtitleKo": "마을 정원",
       "role": "gardener",
       "spriteKey": "gardener",
-      "existsAs": "NPC_Gardener at (-19.0, 2.355, -5.4), yaw 100",
-      "note": "Same displayName mismatch. Pure flavour, one line, and it is the only corroboration the bulletin gets."
+      "existsAs": "NPC_Gardener at (-33.6, 2.766, -11.4), yaw 130. Re-read from slice_town_unity.json; the (-19.0, 2.355, -5.4) yaw 100 recorded here before was from an older emit and is 15m out.",
+      "note": "Same inert displayName. Pure flavour, one line, and it is the only corroboration the bulletin gets."
     },
     {
       "speakerId": "prop_research_terminal",
+      "scene": "Town",
       "name": "Aster Field Lab",
       "nameKo": "아스터 필드 연구소",
       "subtitle": "Morning Bulletin",
@@ -82,27 +93,56 @@
   ],
 
   "markers": [
-    { "name": "Look_LabDome", "position": [-1.45, 8.2, -5.69], "usedBy": "opening",
+    { "name": "Look_LabDome", "scene": "Town", "position": [-1.45, 8.2, -5.69], "usedBy": "opening",
       "note": "CameraTo target for the first frame. Town_Lab_01 stands at (-1.453, 2.728, -5.691), 0.4m up and 8.8m tall, dead on the 45 deg camera axis from the player spawn; this marker is the dome itself at roughly 5.5m above its base. The fade-in reveals it already composed." },
-    { "name": "Look_GateRamp", "position": [-7.4, 2.1, 3.2], "usedBy": "opening_departure",
-      "note": "Second control point of Path_GateRamp. Framing the ramp head with the two of them walking into it, so the drop is visible before Bram says anything about it." },
-    { "name": "Look_RouteHead", "position": [-5.7, 1.6, 10.0], "usedBy": "opening_departure",
+    { "name": "Look_GateRamp", "scene": "Town", "position": [-7.4, 2.1, 3.2], "usedBy": "gate_wait_for_kes, gate_opens, kes_summons",
+      "note": "Fourth control point of Path_GateRamp. Framing the ramp head so the drop is visible before Bram says anything about it -- the refusal is composed on what is being refused rather than on the man refusing it. kes_summons reuses it to turn the camera away from Kes before he runs, so the shot is of where he went and not of him going." },
+    { "name": "Look_RouteHead", "scene": "Town", "position": [-5.7, 1.6, 10.0], "usedBy": "opening_departure",
       "note": "Bottom of the gate ramp / Spawn_RouteHead, lifted 1.5m so the flock has sky to go up into. The one shot in the opening that looks at the route." },
-    { "name": "Look_GateStand", "position": [-9.2, 3.1, -1.6], "usedBy": "opening_departure, rival_first_battle",
+    { "name": "Look_GateStand", "scene": "Town", "position": [-9.2, 3.1, -1.6], "usedBy": "opening_departure, rival_first_battle",
       "note": "Head height over the group standing at the top of the street. The default framing for everything spoken at the gate, including the rival battle." },
-    { "name": "Look_Case", "position": [-10.1, 2.95, -2.9], "usedBy": "opening_departure",
+    { "name": "Look_Case", "scene": "Town", "position": [-10.1, 2.95, -2.9], "usedBy": "opening_departure",
       "note": "The open case between Linden and the player, at chest height. The only close shot in the episode -- it exists so the three balls are the largest thing on screen at the moment of choosing." },
-    { "name": "Look_LabDoor", "position": [-4.0, 3.6, -7.0], "usedBy": "leaving_town",
-      "note": "Linden in his own doorway with the dome above him. Deliberately rhymes with Look_LabDome from the first frame: the episode that opens the world is framed on the same building that opened the game." },
+    { "name": "Look_LabDoor", "scene": "Town", "position": [-4.0, 3.6, -11.4], "usedBy": "leaving_town",
+      "note": "Linden outside his lab with the dome above him. Deliberately rhymes with Look_LabDome from the first frame: the episode that opens the world is framed on the same building that opened the game. Moved with him -- it was at (-4.0, -7.0), aimed at the doorway he used to be standing inside; left there it would frame an empty porch while he speaks four metres away. Height unchanged, and it sits 0.35 m lab-side of him so the porch and the drum are in the same shot." },
 
-    { "name": "Mark_Rival_GateStand", "position": [-8.8, 2.41, -0.6], "usedBy": "opening_departure",
+    { "name": "Mark_Rival_GateStand", "scene": "Town", "position": [-8.8, 2.41, -0.6], "usedBy": "opening_departure",
       "note": "MoveActor destination for Kes. Just short of Bram, on Path_TownMain between (-9.6,-1.5) and (-8.2,1.0)." },
-    { "name": "Mark_Player_GateStand", "position": [-10.4, 2.42, -2.6], "usedBy": "opening_departure",
+    { "name": "Mark_Player_GateStand", "scene": "Town", "position": [-10.4, 2.42, -2.6], "usedBy": "opening_departure",
       "note": "MoveActor destination for the player, ~2m behind Kes and facing north-east up the street. Roughly 9m of walk from the plaza spawn." },
-    { "name": "Mark_Prof_Case", "position": [-10.9, 2.42, -3.6], "usedBy": "opening_departure",
+    { "name": "Mark_Prof_Case", "scene": "Town", "position": [-10.9, 2.42, -3.6], "usedBy": "opening_departure",
       "note": "Where Linden stops, behind and to the side of the player, having come up Path_TownMain from the lab lane junction near (-11.4,-5.0). ~11m of walk; the beat allows 6s and he should use most of it." },
-    { "name": "Mark_Rival_GateWait", "position": [-8.4, 2.41, 0.2], "usedBy": "rival_first_battle",
-      "note": "Where Kes settles after the battle, at the very lip of the ramp, so he is the last thing in frame before the player descends. Conflicts with TrainerController.ReturnToPost -- see the beat note." }
+    { "name": "Mark_Rival_GateWait", "scene": "Town", "position": [-8.4, 2.41, 0.2], "usedBy": "retired (was rival_first_battle at the gate)",
+      "note": "Where Kes used to settle after the battle, at the lip of the ramp. The battle has moved to the lake; nothing names this now." },
+
+    { "name": "Trigger_Square", "scene": "Town", "position": [-14.0, 2.441, -9.0], "usedBy": "kes_summons (StoryEncounter host, radius 5.0)",
+      "note": "Not a camera target: this is the object LevelLayoutBuilder.StoryTriggers hangs kes_summons on, because Kes' own single StoryEncounter slot is spent on the rival battle. In the square, on the cobbles of Path_TownMain where it widens -- ground 2.441 off slice_town_unity.json's height grid, 0.03 m of variation across 1.5 m, 2.58 m clear of the nearest collider (Town_Planter_01) and 7.26 m off the nearest barrier volume. 6.73 m from the player spawn at (-9.0, -13.5), so a radius of 5 cannot fire the instant the opening hands control back. Walking south from the gate the player crosses the radius at (-11.41, -5.36), a Path_TownMain control point 4.47 m out and inside the plaza polygon, so the beat starts with them standing in the square rather than short of it." },
+    { "name": "Trigger_GateOpen", "scene": "Town", "position": [-8.1, 2.716, 1.5], "usedBy": "gate_opens (StoryEncounter host, radius 3.5)",
+      "note": "Also a trigger object, for the same one-slot reason -- Bram's slot is spent on the refusal. At the top of the gate ramp: 0.51 m from Ramp_TownGate's own head at (-8.2, 2.4, 1.0), ground 2.716, 2.05 m clear of Town_Signpost_01. Six of Path_GateRamp's control points lie inside the 3.5 m radius, from the head at (-8.2, 1.0) down to (-7.0, 4.5), so there is no line down the 4 m ramp that misses it. The To_Field volume at (-6.6, 5.6) is 4.37 m away and therefore outside -- the beat fires while the player is still on the ramp, not as they are being handed to the other scene. 1.86 m from Bram, which is close on purpose: he is the one speaking." },
+    { "name": "Mark_Kes_Approach", "scene": "Town", "position": [-13.0, 2.429, -6.6], "usedBy": "kes_summons",
+      "note": "MoveActor destination for Kes -- where he stops in front of the player, facing them. 3.97 m from his post at (-16.0, -9.2), which is 2.8 s of walking at NpcController's 1.4 m/s against the beat's 4.0 s timeout, so the walk lands and is never the snap the timeout exists to cover. Placed on the line between the square and (-11.41, -5.36), the point on Path_TownMain where Trigger_Square catches the player: from there he bears 232.1 degrees and Look_Square bears 231.7, so he is on the shot's axis rather than at its edge. Ground 2.429, 1.63 m clear of Town_Lamp_05." },
+    { "name": "Look_Square", "scene": "Town", "position": [-17.8, 4.03, -10.4], "usedBy": "kes_summons",
+      "note": "The square itself, at head height -- ground 2.332 plus 1.7. OverworldCameraRig.LookToward only sets the rig's yaw from the player, so this is a direction and not a camera position; what it has to do is put Kes and the square in the same frame. From the catch point at (-11.41, -5.36) it bears 231.7 degrees against Mark_Kes_Approach's 232.1 and Kes' post at 230.1 -- under half a degree of spread, so the shot looks down the square with him walking up its axis. Kept 1.59 m off Town_Market_02 rather than dead-centre of the plaza: the market row is what the camera should be looking past, not into." },
+
+    { "name": "Look_LakeBank", "scene": "Field", "position": [31.39, -1.0, 35.44], "usedBy": "field_professor_mutters, field_professor_returns",
+      "note": "Out over the bay at the lake's south-west corner, 2.81 m inside Water_Lake's traced waterline, so the shot is water and not the ground short of it. Y is authored at the lake surface (-2.2) plus 1.2 for legibility in the editor; LookToward projects onto the ground plane and ignores it. From the player's catch point at (25.18, 27.79) this bears 39.1 degrees, with Linden 25.3 degrees off it on one side and Mark_Ambush_Grass 25.5 off on the other -- both inside the camera's roughly 33 degree horizontal half-angle at a 40 degree vertical FOV. So the one framing carries the whole scene: the bank and Linden on the right, the water he is counting in the middle, the tall grass the ambush comes out of on the left." },
+    { "name": "Mark_Ambush_Grass", "scene": "Field", "position": [26.5, -1.153, 33.25], "usedBy": "field_bag_left (StageCreature)",
+      "note": "Where the Rattata is standing before anything mentions it, so it must be real grass and not a bare patch that happens to be inside a trigger box. It is both: 109 Field_Lake_ShoreGrass instances stand within 1.5 m of it and the nearest is 0.21 m away, and it is inside the Grass_Lake_ShoreGrass trigger volume (centre (44.45, -3.69, 24.66), size 41.41 x 30.19) that makes this ground encounter-bearing in the first place. Ground -1.153, which is 1.05 m above the lake surface, and 2.51 m from the waterline, so it is bank and not shallows. 6.74 m to the nearest tree, so the creature has room to turn and the camera has no trunk across it. 6.54 m from the bag: the CreatureApproach beat walks that in about 3 s against a 6 s timeout, and every point along the line is dry ground rising no more than 0.77 m, so the walk cannot snag on water or a step. In frame from Look_LakeBank -- 25.5 degrees off its axis from the player's catch point, see that marker." },
+    { "name": "Mark_Prof_Return", "scene": "Field", "position": [29.9, -0.539, 29.3], "usedBy": "field_professor_returns",
+      "note": "Beside the bag, 1.36 m from it, on the landward side so he arrives between the player and the town rather than out of the water. Ground -0.539, 0.19 m of variation across 1.5 m, 6.01 m clear of the nearest collider, 3.43 m from the waterline." },
+    { "name": "Mark_Prof_Offstage", "scene": "Field", "position": [21.8, 0.033, 26.2], "usedBy": "field_professor_mutters, field_professor_returns",
+      "note": "Town-ward along Path_LakeBranch, and the distance is set by the beats' own timeouts rather than by taste. 7.69 m from where he stands, which is 5.5 s of walking at 1.4 m/s against the 7 s the mutter beat allows; 8.67 m from Mark_Prof_Return, 6.2 s against 8 s. So all three walks land, and none of them ends in the snap the timeout exists to cover. It is far enough that his return is a walk the player watches and not a step, and it sits behind the camera in the Look_LakeBank framing, which is what makes it offstage. Ground 0.033, flat to 0.06 m, 4.83 m clear." },
+    { "name": "Mark_Rival_FieldPost", "scene": "Field", "position": [38.5, -1.452, 33.5], "usedBy": "kes_summons",
+      "note": "Where Kes ends up after bolting out of the square, and where rival_first_battle then waits for the dex. On Path_LakeShoreTrail above the beach, ground -1.452 with 0.58 m of variation across 1.5 m, 0.99 m from the waterline and 10.49 m from the nearest collider. Distance from the bag is 9.01 m, which is the number that matters: story.pokedex is set with the player standing within 3 m of the bag, and his 5.0 m radius must not fire in that same frame -- worst case here is 6.01 m, so it cannot. 4.24 m from Trainer_Lake_Fisher, who is facing yaw 250 with a 24 degree half-angle while this mark bears 160 from him, so the trainer that wakes up on story.pokedex does not challenge the player over Kes' shoulder." }
+  ],
+
+  "props": [
+    { "name": "Prop_ProfessorBag", "scene": "Field", "prefab": "Assets/Game/Art/Environment/Town/Env_Crate.fbx",
+      "position": [31.0, -0.631, 28.5], "rotation": [0, 24, 0], "scale": [0.78, 0.52, 0.6],
+      "usedBy": "field_bag_left (StoryEncounter host, radius 3.0), CameraTo in field_bag_left and field_ambush",
+      "asset": "PLACEHOLDER, and it is the one thing in this file that is not the right object. There is no bag in the kit -- Assets/Game/Art/Props holds capture balls, a healing machine, a terminal and a scanner, and the town set holds a crate. So this is Env_Crate squashed to 0.54 x 0.34 x 0.42 m, which reads at HD-2D distance as a satchel set down on its side. It needs a real Env_Prop_FieldBag; the line calls it a bag with three balls unfastened in the top, and a crate is not that.",
+      "note": "A prop and not a marker because the beat's whole content is that the player can see it: field_bag_left takes the only close shot in the field on this object, and CameraTo on an empty is a shot of bare ground. The Y above is the pivot ground height (-0.631) for reference only; LevelLayoutBuilder.SeatProp overwrites it, sampling the nine points across the scaled and rotated footprint and seating on the lowest (-0.675) less a 0.06 m bite, so it beds into the 0.08 m of fall across its own 0.54 m rather than perching on the uphill corner of it. 2.41 m from the waterline with the water on bearing 129, which is what puts the lake behind the player when the thing in the grass comes at them from the north-west. 2.46 m from where Linden was standing, close enough to read as set down and forgotten and far enough that the player takes a step toward it rather than being caught by a 3 m radius the instant he walks off. 5.02 m clear of the nearest collider, and the whole 6.5 m from Mark_Ambush_Grass to here is dry ground rising no more than 0.77 m with 5.02 m of collider clearance at its tightest. Built with no collider of its own, deliberately -- the ambusher has to reach within 1.6 m of a player standing over this, and a solid here is a hole in the navmesh exactly where that approach lands."
+    }
   ],
 
   "starterOptions": {
@@ -116,11 +156,18 @@
   },
 
   "flags": [
-    { "key": "story.opening_seen", "setBy": "opening", "gates": "opening_departure" },
-    { "key": "story.starter_chosen", "setBy": "opening_departure", "gates": "Bram's dialogue state 2; also the episode's own CompletionFlag" },
-    { "key": "story.rival_battle_done", "setBy": "rival_first_battle", "gates": "leaving_town's trigger" },
-    { "key": "story.pokedex", "setBy": "leaving_town", "gates": "Bram's dialogue state 3, Sela's alternate line" },
-    { "key": "story.gate_open", "setBy": "leaving_town", "gates": "the LevelTransition on the gate ramp. NOTHING TESTS THIS TODAY -- the ramp is walkable from the first frame." },
+    { "note": "The chain as LevelLayoutBuilder.StoryTriggers now wires it. Each trigger's Requires is the previous one's Completes, which is what keeps the act in sequence without a state machine -- so a flag that is set by nothing stalls everything below it." },
+    { "key": "story.opening_seen", "setBy": "opening", "gates": "gate_wait_for_kes, on NPC_GateKeeper" },
+    { "key": "story.gate_refused", "setBy": "gate_wait_for_kes", "gates": "kes_summons, on Trigger_Square" },
+    { "key": "story.kes_summons_done", "setBy": "kes_summons", "gates": "gate_opens, on Trigger_GateOpen" },
+    { "key": "story.gate_open", "setBy": "kes_summons (a SetFlag beat, not the completion flag)", "gates": "StoryGate_TownRamp, which is the wall across the ramp; field_professor_mutters, on NPC_Professor; and Bram's fourth dialogue state. Gating the field beat on this rather than on story.gate_acknowledged is deliberate -- gate_opens is skippable by design, so a player who walked straight past Bram must still meet Linden." },
+    { "key": "story.gate_acknowledged", "setBy": "gate_opens", "gates": "nothing. It is the completion flag that stops those two lines replaying." },
+    { "key": "story.prof_mutter_done", "setBy": "field_professor_mutters", "gates": "field_bag_left, on Prop_ProfessorBag" },
+    { "key": "story.bag_seen", "setBy": "field_bag_left", "gates": "nothing -- field_ambush is chained by NextEpisodeId, not by a flag." },
+    { "key": "story.ambush_done", "setBy": "field_ambush", "gates": "nothing -- field_professor_returns is chained the same way." },
+    { "key": "story.starter_chosen", "setBy": "field_ambush (SetFlag after the commit)", "gates": "Bram's second dialogue state" },
+    { "key": "story.pokedex", "setBy": "field_professor_returns (its CompletionFlag, so it is set even on a failed path)", "gates": "rival_first_battle, on NPC_Rival; Bram's first dialogue state; Sela's alternate line; and StoryPhase, which is what re-arms wild encounters, roamers and trainer challenges." },
+    { "key": "story.rival_battle_done", "setBy": "rival_first_battle", "gates": "Kes' riv_idle line. Nothing else -- this is the end of the act." },
     { "key": "profile.body.male / profile.body.female", "setBy": "op_prologue choice ResultEventId", "gates": "which player sprite sheet is used (Tools/Sprites/people.py has player_m and player_f). Nothing listens for these signals yet." }
   ],
 

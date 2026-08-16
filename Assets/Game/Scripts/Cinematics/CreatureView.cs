@@ -132,6 +132,25 @@ namespace PokeLab.Cinematics
             if (_billboard != null) _billboard.ForcedFacing = facing;
         }
 
+        /// <summary>
+        /// Which way the drawn sheet is flipped.
+        ///
+        /// Exposed so the stage can decide per side. The sheets are drawn facing one way and
+        /// the arena stands its two combatants on opposite sides of a line, so whether a given
+        /// sheet points at the fight or away from it is a fact about the layout — which the
+        /// stage knows and this component does not.
+        /// </summary>
+        public MirrorMode Mirror
+        {
+            get => mirrorMode;
+            set
+            {
+                mirrorMode = value;
+                EnsureBuilt();
+                if (_billboard != null) _billboard.Mirror = value;
+            }
+        }
+
         // --- ICreatureView ----------------------------------------------------------------
 
         /// <inheritdoc />

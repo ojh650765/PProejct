@@ -128,6 +128,52 @@ namespace PokeLab.Core
         void FaceTowards(Vector3 worldPoint, float duration = 0.3f);
     }
 
+    /// <summary>
+    /// One creature's worth of overworld art, owned by whoever asked the factory for it.
+    ///
+    /// This exists because the sprite billboard lives in PokeLab.Cinematics and the roaming
+    /// creature that needs one lives in PokeLab.Overworld, and Cinematics already references
+    /// Overworld — so the reference the roamer would need is a cycle the compiler rejects.
+    /// The alternative shapes were both worse: a second billboard written inside Overworld
+    /// duplicates the mirror-is-a-UV-flip reasoning that took a lighting bug to arrive at,
+    /// and a Boot-side component polling <c>RoamingCreature.AllLive</c> means art appears a
+    /// frame after the creature does, which reads as a pop.
+    ///
+    /// Deliberately smaller than <see cref="ICreatureView"/>: a roamer has no head anchor to
+    /// hang an HP bar off and no <see cref="CreatureInstance"/> to bind, because it is a
+    /// species and a level until the moment a battle actually starts.
+    /// </summary>
+    public interface IOverworldCreatureArt
+    {
+        /// <summary>The transform the art hangs off, for parenting and for facing it.</summary>
+        Transform Root { get; }
+
+        /// <summary>Points the art at a species and sizes it in metres, feet at the origin.</summary>
+        void Bind(int speciesId, float displayHeight);
+
+        /// <summary>Requests an animation state. Unsupported states must degrade, never throw.</summary>
+        void Play(CreatureAnimation animation);
+
+        /// <summary>Hides without destroying, so a pooled roamer can be reused.</summary>
+        void SetVisible(bool visible);
+
+        /// <summary>Destroys the art. Called when the roamer that owns it is destroyed.</summary>
+        void Dispose();
+    }
+
+    /// <summary>
+    /// Builds <see cref="IOverworldCreatureArt"/>. Registered by the composition root, because
+    /// it is the only assembly that can see both halves.
+    ///
+    /// Absence is survivable on purpose: with nothing registered a roamer still walks, still
+    /// reacts and still starts a battle, it is simply invisible. That is a bad build rather
+    /// than a broken one, and it keeps the overworld testable before any art exists.
+    /// </summary>
+    public interface IOverworldCreatureArtFactory
+    {
+        IOverworldCreatureArt Create(Transform parent);
+    }
+
     /// <summary>Player progression, persisted between sessions.</summary>
     public interface IPlayerProfile
     {

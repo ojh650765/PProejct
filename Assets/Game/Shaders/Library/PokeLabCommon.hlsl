@@ -247,6 +247,40 @@ float4 PL_TriplanarGrad(TEXTURE2D_PARAM(tex, samp), float3 posWS, float3 w, floa
 #define PL_TRIPLANAR_SAMPLE_GRAD(tex, samp, posWS, w, scale) \
     PL_TriplanarGrad(TEXTURE2D_ARGS(tex, samp), (posWS), (w), (scale))
 
+// Fades a surface out by dropping pixels in a screen-space pattern.
+//
+// The camera fade on PropGroundBlend is real alpha: one convex building between
+// the camera and the player, drawn once, blends correctly. A tree canopy cannot
+// do that. It is thousands of two-sided leaf cards at every depth with no sort
+// order between them, so blending them tears the canopy into visibly wrong
+// layers -- leaves behind drawn over leaves in front, rearranging every time the
+// camera moves.
+//
+// Dithering leaves the opaque path exactly as it is: still alpha-clipped, still
+// ZWrite on, still depth-sorted. It only discards a share of the pixels, so at
+// 0.72 fade roughly seven in ten are gone and the player reads clearly through
+// the leaves.
+//
+// Interleaved gradient noise rather than an ordered Bayer matrix. Two reasons:
+// a matrix needs a dynamically indexed local array, which is what broke this
+// header's compilation the first time and took every declaration after it down
+// with it; and at the sizes a tree canopy is faded at, an ordered lattice reads
+// as a grid laid over the leaves while this reads as a tone.
+//
+// Keyed to the screen, not to the surface. Keyed to the surface the pattern
+// swims as the camera moves and looks like crawling texture rather than like
+// something being seen through.
+void PL_FadeDither(float2 positionCS, half fade)
+{
+    if (fade <= 0.001h) return;
+
+    float noise = frac(52.9829189 * frac(dot(positionCS, float2(0.06711056, 0.00583715))));
+
+    // Clipped where the noise falls below how far faded we are, so fade 1 removes
+    // every pixel and fade 0 removes none.
+    clip(noise - fade);
+}
+
 #define PL_TRIPLANAR_SAMPLE_LOD(tex, samp, posWS, w, scale, lod) ( \
     SAMPLE_TEXTURE2D_LOD(tex, samp, (posWS).zy * (scale), lod) * (w).x + \
     SAMPLE_TEXTURE2D_LOD(tex, samp, (posWS).xz * (scale), lod) * (w).y + \
@@ -342,9 +376,26 @@ float3 PL_FoliageWind(float3 positionWS, float4 vertexColour,
     float viewDist = distance(positionWS, _WorldSpaceCameraPos);
     float fade = 1.0 - saturate((viewDist - distanceFade) / max(distanceFade, 1.0));
 
+    // Capped, so a gust cannot push a blade further than it is tall.
+    //
+    // amp is multiplied by (1 + gust), and gustStrength on the foliage atlas is 1.7 — so a
+    // 0.24 m sway was reaching 0.65 m at the peak of a gust. A grass card is about 0.4 m, so
+    // the tip was travelling further sideways than the blade is long: the plants lay flat and
+    // visibly stretched as they went.
+    float maxSwing = swayAmplitude * 2.0;
+    amp = clamp(amp, -maxSwing, maxSwing);
+
     float3 offset = float3(dir.x, 0.0, dir.y) * amp;
-    // A little vertical bob keeps the sway from looking like a pure shear.
-    offset.y -= abs(amp) * 0.25;
+
+    // An arc, not a shear.
+    //
+    // The vertical term used to be linear in amp, which tilts the card without shortening it
+    // — the tip ends up further from the base than it started and the blade grows. A tip
+    // swung sideways by x about a base a height h away has to drop by about x^2/2h to stay
+    // the same distance from it, and that quadratic is also what makes a small sway barely
+    // dip while a gust visibly bends the plant over.
+    float bendHeight = max(maxSwing, 0.2);
+    offset.y -= (amp * amp) / (2.0 * bendHeight);
 
     return offset * fade;
 }

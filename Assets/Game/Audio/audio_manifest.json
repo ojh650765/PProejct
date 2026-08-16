@@ -5,7 +5,7 @@
   "sample_rate": 44100,
   "bit_depth": 16,
   "peak_ceiling_dbfs": -1.0,
-  "clip_count": 116,
+  "clip_count": 117,
   "total_bytes": 49340426,
   "total_mb": 47.05,
   "categories": [
@@ -1758,6 +1758,16 @@
       "bytes": 1764044,
       "loop_step_ratio": 0.0953,
       "trigger": "Thin high wind. Night route, cliff edges, exposed ground."
+    },
+    {
+      "name": "Music_Opening_Introduction",
+      "path": "Assets/Game/Audio/Music/Music_Opening_Introduction.mp3",
+      "category": "Music",
+      "loop": false,
+      "channels": 2,
+      "sample_rate": 44100,
+      "trigger": "The opening, from the moment Linden asks the player's name.",
+      "note": "Supplied by hand rather than generated, so it carries no measured levels."
     }
   ]
 }

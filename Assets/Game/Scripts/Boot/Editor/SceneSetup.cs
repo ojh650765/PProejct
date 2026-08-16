@@ -100,6 +100,12 @@ namespace PokeLab.Boot.Editor
             EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
 
             CreatureImportSettings.ReimportAll();
+
+            // Before the town, not after. A building door is only built when the interior it
+            // leads to exists on disk — a door into a missing scene covers the screen and then
+            // fails — so creating the interiors after the town means a town with no doors until
+            // somebody runs this a second time.
+            InteriorBuilder.EnsureScenesExist();
             AddToBuildSettings();
 
             var built = 0;
@@ -115,13 +121,19 @@ namespace PokeLab.Boot.Editor
                 built++;
             }
 
+            // The interiors are not in that loop because they are not built from a layout:
+            // LayoutFor falls back to the old combined slice for any scene it does not know,
+            // so running the level builder over Interior_Lab would build the whole town inside
+            // the professor's front room.
+            var rooms = InteriorBuilder.BuildAll();
+
             // Finish on the town: it is the scene that gets pressed Play on, and leaving
             // whichever scene happened to be last in the list open is how a review ends up
             // looking at the wrong one.
             var start = SceneDir + "Town.unity";
             if (File.Exists(start)) EditorSceneManager.OpenScene(start, OpenSceneMode.Single);
 
-            Debug.Log($"[Scenes] Rebuilt {built} scene(s) end to end.");
+            Debug.Log($"[Scenes] Rebuilt {built} scene(s) and {rooms} interior(s) end to end.");
         }
 
         private static string[] AllPlayableScenes()
@@ -146,6 +158,16 @@ namespace PokeLab.Boot.Editor
                 var path = SceneDir + name + ".unity";
                 if (File.Exists(path)) wanted.Add(path);
             }
+
+            // The interiors, which are exactly the case this method's summary describes: every
+            // front door in the town is a LevelTransition into one of them, and a scene that is
+            // missing here is a door that covers the screen and then logs an error.
+            foreach (var interior in InteriorBuilder.SceneNames())
+            {
+                var path = SceneDir + interior + ".unity";
+                if (File.Exists(path)) wanted.Add(path);
+            }
+
             foreach (var extra in new[] { SceneDir + "Boot.unity", SceneDir + "Battle.unity" })
                 if (File.Exists(extra)) wanted.Add(extra);
 

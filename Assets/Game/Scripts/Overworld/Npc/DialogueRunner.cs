@@ -67,6 +67,16 @@ namespace PokeLab.Overworld
         /// <summary>The line currently on screen. Only meaningful while <see cref="IsPlaying"/>.</summary>
         public DialogueLine CurrentLine { get; private set; }
 
+        /// <summary>
+        /// Which sequence is playing, or null.
+        ///
+        /// The box needs it to stage a scene. A drawn room belongs to a *moment*, not to a
+        /// person: Linden speaks in his laboratory during the opening and on the lake bank an
+        /// act later, and keying the backdrop on the speaker put the laboratory behind him
+        /// while he stood at the water.
+        /// </summary>
+        public string CurrentSequenceId => _sequence != null ? _sequence.SequenceId : null;
+
         /// <summary>Raised with each line. C# event for code listeners; the UnityEvent is for the inspector.</summary>
         public event Action<DialogueLine> LinePresented;
 
@@ -145,7 +155,17 @@ namespace PokeLab.Overworld
             if (_lockoutTimer > 0f) _lockoutTimer -= Time.deltaTime;
             if (_awaitingChoice) return;
 
-            if (CurrentLine.AutoAdvanceSeconds > 0f)
+            // Only when nobody is there to press the button.
+            //
+            // Ten lines in the book carry an AutoAdvanceSeconds of three to four seconds, and
+            // this used to honour it unconditionally — so the opening read itself aloud and
+            // moved on while the player was still on the first sentence, with the box's own
+            // 자동 toggle sitting there switched off. A timer that overrides the reader is not
+            // an authored pace, it is a line the player never got to finish.
+            //
+            // Kept for cutscenes, where the player genuinely has no control and a conversation
+            // that never advanced would be a soft lock.
+            if (CurrentLine.AutoAdvanceSeconds > 0f && !_advanceOnInteract)
             {
                 _lineTimer += Time.deltaTime;
                 if (_lineTimer >= CurrentLine.AutoAdvanceSeconds)
@@ -160,9 +180,20 @@ namespace PokeLab.Overworld
             if (_advanceOnInteract && _lockoutTimer <= 0f && WasAdvancePressed()) Advance();
         }
 
-        // SubmitPressed, not InteractPressed: movement input is gated off during a conversation,
-        // and the gated flag would never be set.
-        private bool WasAdvancePressed() => _input != null && _input.SubmitPressed;
+        /// <summary>
+        /// True on the frame the player asked for the next line.
+        ///
+        /// AdvancePressed, not SubmitPressed: the latter reads the Interact action, which is
+        /// bound to E — so the key that starts a conversation was also the key that skipped
+        /// through it, and a single held press could open a line and dismiss it. This is the
+        /// space bar, which nothing in the world uses.
+        ///
+        /// Never while somebody is typing. The name prompt sits over this box, and the space
+        /// in a two-word name would otherwise both enter a space and advance the question
+        /// asking for it.
+        /// </summary>
+        private bool WasAdvancePressed() =>
+            _input != null && _input.AdvancePressed && !PokeLab.Core.TextEntry.IsTyping;
 
         /// <summary>Moves to the next line, or ends the sequence. Called by the UI's continue button.</summary>
         public void Advance()

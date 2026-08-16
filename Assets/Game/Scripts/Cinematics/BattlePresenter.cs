@@ -222,7 +222,22 @@ namespace PokeLab.Cinematics
                     break;
                 }
 
-                var stream = battle.SubmitAction(ChooseAction(battle));
+                // The player's turn, if anything is able to ask them for one. ActionRoutine is
+                // allowed to take as many frames as it likes — that is the whole difference
+                // between a policy, which answers instantly, and a person, who has to read the
+                // field first. ChooseAction stays the fallback for both a missing UI and a UI
+                // that ran its routine without ever committing.
+                BattleAction action;
+                if (ActionRoutine != null)
+                {
+                    _committed = null;
+                    yield return ActionRoutine(battle.Engine, a => _committed = a);
+                    if (!battle.IsBattleActive) break;
+                    action = _committed ?? ChooseAction(battle);
+                }
+                else action = ChooseAction(battle);
+
+                var stream = battle.SubmitAction(action);
                 if (stream.Count == 0 && battle.IsBattleActive)
                 {
                     // A live battle that produces no events for a turn cannot be advanced by
@@ -267,6 +282,28 @@ namespace PokeLab.Cinematics
         /// </summary>
         public Func<BattleEngine, BattleAction> ActionSource { get; set; }
 
+        /// <summary>
+        /// Asks the player for a turn and waits for the answer.
+        ///
+        /// <see cref="ActionSource"/> cannot be a person: it returns a value on the frame it is
+        /// called, and a person needs to look at the field, open a menu and change their mind.
+        /// This runs as a coroutine instead and reports through the callback whenever the
+        /// choice is actually made. Leaving it null keeps the old behaviour exactly.
+        /// </summary>
+        public Func<BattleEngine, Action<BattleAction>, IEnumerator> ActionRoutine { get; set; }
+
+        private BattleAction? _committed;
+
+        /// <summary>
+        /// Every battle event, as it arrives, before the performance queue.
+        ///
+        /// The seam the HUD listens on. It cannot be given to the engine as a second
+        /// <c>IBattleEventListener</c> from here — the engine is built inside the stage and the
+        /// UI assembly cannot see either — so the presenter, which does receive them all,
+        /// passes them on.
+        /// </summary>
+        public event Action<BattleEvent> EventObserved;
+
         // --- Queue -----------------------------------------------------------------------
 
         /// <inheritdoc />
@@ -277,8 +314,39 @@ namespace PokeLab.Cinematics
             // Enqueue and return immediately. The engine calls this synchronously while
             // resolving a turn, and the contract says handlers must not block.
             _pending.Add(evt);
+
+            // Handed on unqueued, because the HUD is reporting state rather than performing it:
+            // a health bar that only moved once the camera had finished its shot would be
+            // showing the player a number that stopped being true several seconds ago. The
+            // exception is an event that carries the result — see <see cref="RevealsOutcome"/>.
+            if (!RevealsOutcome(evt)) EventObserved?.Invoke(evt);
             if (_pump == null && isActiveAndEnabled) _pump = CinematicRunner.Run(Pump());
         }
+
+        /// <summary>
+        /// Whether relaying this event on arrival would tell the player something the
+        /// performance has not shown yet.
+        ///
+        /// The engine resolves a whole turn in one frame, so the hit, the faint and the end of
+        /// the battle all arrive together while the pump is still seconds away from performing
+        /// the first of them. For state — damage, HP, status — arriving early is the point. For
+        /// the result it is the spoiler the split exists to prevent: the victory card goes up
+        /// while the losing creature is still on its feet. So a result waits for its own beat.
+        ///
+        /// A predicate rather than a type test at the call site, so the next event that carries
+        /// a result joins the paced half by name.
+        ///
+        /// The battle's end qualifies because the engine emits it last and emits nothing after
+        /// it, so holding it back cannot reorder the HUD's view of anything else in the stream.
+        ///
+        /// A faint qualifies for the same reason at a smaller scale: "쓰러졌다" printed while the
+        /// creature is still standing is the same spoiler one beat earlier, and it is what the
+        /// player actually reads. Nothing is lost by waiting — the health bar already emptied on
+        /// the DamageDealt event ahead of it, which is state and still arrives immediately, so
+        /// the bar drains, then the creature falls, then the line says so.
+        /// </summary>
+        private static bool RevealsOutcome(BattleEvent evt) =>
+            evt is BattleEndedEvent || evt is CreatureFaintedEvent;
 
         /// <summary>Queues an entire turn's worth of events at once.</summary>
         public void OnBattleEvents(IReadOnlyList<BattleEvent> events)
@@ -339,6 +407,11 @@ namespace PokeLab.Cinematics
 
                 BattleEvent evt = _pending[0];
                 _pending.RemoveAt(0);
+
+                // The paced half of the split in OnBattleEvent. Raised as the beat opens rather
+                // than after it, so the result card is up for the celebration it belongs to
+                // instead of arriving once the camera has already left.
+                if (RevealsOutcome(evt)) EventObserved?.Invoke(evt);
 
                 float startedAt = Time.unscaledTime;
                 yield return Perform(evt);
@@ -478,6 +551,14 @@ namespace PokeLab.Cinematics
                 // Wind-up. Nothing moves yet — this is what makes the throw read as a throw, and
                 // it only reads at all now that there is a person to wind up.
                 yield return CinematicRunner.Wait(timing.ThrowWindUp * scale);
+
+                // The arm, running under the ball rather than before it.
+                //
+                // Forked, not awaited: the five drawn poses are the throw, and the ball has to
+                // leave the hand partway through them. Played in sequence first and the ball
+                // launched afterwards, the trainer would complete the whole motion with empty
+                // hands and then a ball would appear.
+                CinematicRunner.Fork(thrower.PlayThrow(timing.BallFlight * scale * 0.9f));
 
                 var ball = BallActor.Spawn(ballPrefab, trainer.position + Vector3.up * 1.25f);
                 yield return ball.Throw(burstPoint, timing.BallFlight * scale, 1.3f);
@@ -1060,6 +1141,8 @@ namespace PokeLab.Cinematics
             yield return thrower.Enter(timing.TrainerEnter);
 
             yield return CinematicRunner.Wait(timing.CaptureThrowWindUp);
+
+            CinematicRunner.Fork(thrower.PlayThrow(timing.CaptureFlight * 0.9f));
 
             var ball = BallActor.Spawn(ballPrefab, trainer.position + Vector3.up * 1.3f);
             yield return ball.Throw(target.BodyAnchor != null ? target.BodyAnchor.position : groundPoint + Vector3.up,

@@ -306,11 +306,20 @@ CAST = [
     # These two carry the first five minutes, so they are built before the
     # generic residents and both are chosen for silhouette rather than
     # convenience.
-    ("professor", "prof_oak", "professor", "Professor Oak",
-     "Swept grey hair, white lab coat over a mauve shirt. The white coat mass "
-     "is the read: no other character in the cast has it, so he is legible "
-     "from the three-quarter camera before any dialogue starts. Kanto's "
-     "professor, which is also the right one for a cast of 53 Kanto species."),
+    # Rowan, not Oak, and the choice is forced rather than preferred: the
+    # dialogue portrait is built by build_portraits.py from Rowan's own art
+    # (`pret/pokediamond` files/demo/intro/intro/rowan_front.png), and this row
+    # named prof_oak. Both halves were official artwork and both were correct on
+    # their own, so nothing failed -- the player simply talked to a white-haired
+    # man in the box and then watched a different white-haired man walk away.
+    # The two sides of one character have to come off the same person.
+    ("professor", "prof_rowan", "professor", "Professor",
+     "White swept-back hair and a heavy white moustache, blue waistcoat over "
+     "white shirtsleeves, dark tie. The white hair mass over a saturated blue "
+     "torso is the read: no other character in the cast pairs them, so he is "
+     "legible from the three-quarter camera before any dialogue starts. Named "
+     "for the role rather than for Rowan -- the game's professor is Linden, "
+     "and the artwork is where the resemblance stops."),
     ("rival", "barry", "rival", "Rival",
      "Blond spiked hair, orange-striped shirt, green scarf. The Diamond/Pearl "
      "rival, whose role in the opening is exactly the one being written -- he "
