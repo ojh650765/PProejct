@@ -1,0 +1,132 @@
+{
+  "schema": {
+    "version": 1,
+    "note": "Read by PokeLab.Core.Loc. Keys are dotted and grouped by the system that shows them. Every string a player reads that is not a proper name belongs here.",
+    "korean": "Written as a Korean game writes, not as English put through a translator. No '그것은', no '~하는 것이다', no padding adverbs; the sentence ends where Korean ends it. Where the series has an established Korean term, that term wins over a more literal one."
+  },
+  "entries": [
+    {
+      "key": "water.needs_surf",
+      "en": "The water is deep and cold. Nothing here could carry you across.",
+      "ko": "물이 깊다. 여기서는 건널 방법이 없다."
+    },
+    {
+      "key": "water.blocked_unexpected",
+      "en": "The water is deep. Something is stopping you anyway.",
+      "ko": "물이 깊다. 그런데 무언가가 앞을 막고 있다."
+    },
+    {
+      "key": "water.surf_offer",
+      "en": "The water is deep here. Cross on {0}?",
+      "ko": "물이 깊다. {0}(을)를 타고 건널까?"
+    },
+
+    {
+      "key": "starter.prompt",
+      "en": "Three of them. Not one is a better choice than the others — only a different one. Take your time.",
+      "ko": "세 마리다. 어느 쪽이 더 낫다는 건 없다. 다를 뿐이지. 천천히 골라라."
+    },
+    {
+      "key": "starter.speaker",
+      "en": "Linden",
+      "ko": "린든"
+    },
+
+    {
+      "key": "pickup.found",
+      "en": "Found {0}.",
+      "ko": "{0}(을)를 주웠다."
+    },
+    {
+      "key": "pickup.bag_full",
+      "en": "There is no room left in the bag.",
+      "ko": "가방에 자리가 없다."
+    },
+
+    {
+      "key": "encounter.wild_appeared",
+      "en": "A wild {0} appeared.",
+      "ko": "야생 {0}(이)가 나타났다."
+    },
+    {
+      "key": "encounter.trainer_spotted",
+      "en": "{0} noticed you.",
+      "ko": "{0}(이)가 이쪽을 봤다."
+    },
+
+    {
+      "key": "door.locked",
+      "en": "It is locked.",
+      "ko": "잠겨 있다."
+    },
+    {
+      "key": "door.nobody_home",
+      "en": "Nobody answers.",
+      "ko": "인기척이 없다."
+    },
+    {
+      "key": "sign.read",
+      "en": "Read",
+      "ko": "읽기"
+    },
+
+    {
+      "key": "ui.talk",
+      "en": "Talk",
+      "ko": "말 걸기"
+    },
+    {
+      "key": "ui.take",
+      "en": "Take",
+      "ko": "줍기"
+    },
+    {
+      "key": "ui.enter",
+      "en": "Enter",
+      "ko": "들어가기"
+    },
+    {
+      "key": "ui.auto",
+      "en": "AUTO",
+      "ko": "자동"
+    },
+    {
+      "key": "ui.yes",
+      "en": "Yes",
+      "ko": "예"
+    },
+    {
+      "key": "ui.no",
+      "en": "No",
+      "ko": "아니오"
+    },
+
+    {
+      "key": "centre.heal_offer",
+      "en": "Shall I take a look at your Pokémon?",
+      "ko": "포켓몬을 봐 드릴까요?"
+    },
+    {
+      "key": "centre.healed",
+      "en": "They are back on their feet. Come again.",
+      "ko": "모두 건강해졌습니다. 또 오세요."
+    },
+
+    {
+      "key": "battle.degraded",
+      "en": "The battle resolved without a stage to show it on.",
+      "ko": "전투를 보여줄 무대가 없어 결과만 처리했다."
+    },
+
+    {
+      "key": "scanner.no_target",
+      "en": "Nothing in range.",
+      "ko": "범위 안에 아무것도 없다."
+    },
+    {
+      "key": "scanner.reading",
+      "en": "Reading {0}.",
+      "ko": "{0}(을)를 분석하는 중."
+    }
+  ]
+}

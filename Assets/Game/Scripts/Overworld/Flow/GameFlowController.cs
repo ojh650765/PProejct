@@ -104,7 +104,12 @@ namespace PokeLab.Overworld
             // Resolved in Start, not Awake: the cinematics and battle layers register during their
             // own Awake, and resolution order between them is not guaranteed.
             _transitions = ServiceBridge.Resolve<ITransitionDirector>(_transitionDirectorObject);
-            _battleStage = new ServiceBridge(_battleStageObject);
+            // Resolved the same way as the line above, which it was not: this took the
+            // inspector field alone and never asked the hub, so BattleStageHost could
+            // register a stage in Awake and this still reported not finding one. Every
+            // encounter then resolved in degraded mode with nothing on screen, and the
+            // warning pointed at a missing component that was sitting on the same object.
+            _battleStage = ServiceBridge.Resolve<IBattleStage>(_battleStageObject);
 
             if (!_transitions.IsValid)
                 Debug.LogWarning("[GameFlow] No transition director; falling back to a timed hold. "

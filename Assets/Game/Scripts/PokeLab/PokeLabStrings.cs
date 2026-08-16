@@ -35,28 +35,28 @@ namespace PokeLab.Intelligence
 
         // --- Names --------------------------------------------------------------------
 
-        // SpeciesData.DisplayName and MoveData.DisplayName both prefer the Korean name, so
-        // using them here would mix languages inside a single English sentence. Name
-        // selection is a localisation decision, so it lives in this file with the rest of
-        // them: a Korean build swaps these two bodies over to NameKo and nothing else moves.
+        // Name selection is a localisation decision and there is now one place that makes
+        // it. Before Loc existed these preferred English while SpeciesData.DisplayName
+        // preferred Korean, so the same creature could be named in two languages inside one
+        // sentence depending on which path reached it.
 
         public static string MoveName(MoveData move)
         {
             if (move == null) return "an unknown move";
-            return string.IsNullOrEmpty(move.NameEn) ? move.NameKo : move.NameEn;
+            return Loc.Pick(move.NameEn, move.NameKo);
         }
 
         public static string SpeciesName(SpeciesData species)
         {
             if (species == null) return "the opposing creature";
-            return string.IsNullOrEmpty(species.NameEn) ? species.NameKo : species.NameEn;
+            return Loc.Pick(species.NameEn, species.NameKo);
         }
 
         /// <summary>Same, but the fallback reads as one of the player's own party.</summary>
         public static string PartyMemberName(SpeciesData species)
         {
             if (species == null) return "your next creature";
-            return string.IsNullOrEmpty(species.NameEn) ? species.NameKo : species.NameEn;
+            return Loc.Pick(species.NameEn, species.NameKo);
         }
 
         // --- Evidence labels ----------------------------------------------------------

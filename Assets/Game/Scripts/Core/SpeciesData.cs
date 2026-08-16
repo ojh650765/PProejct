@@ -52,7 +52,7 @@ namespace PokeLab.Core
 
         public bool HasType(ElementType type) => type != ElementType.None && (Type1 == type || Type2 == type);
 
-        public string DisplayName => string.IsNullOrEmpty(NameKo) ? NameEn : NameKo;
+        public string DisplayName => Loc.Pick(NameEn, NameKo);
     }
 
     /// <summary>
@@ -108,7 +108,7 @@ namespace PokeLab.Core
         /// <summary>True for contact moves — drives the lunge animation and contact abilities.</summary>
         public bool MakesContact = true;
 
-        public string DisplayName => string.IsNullOrEmpty(NameKo) ? NameEn : NameKo;
+        public string DisplayName => Loc.Pick(NameEn, NameKo);
     }
 
     [Serializable]

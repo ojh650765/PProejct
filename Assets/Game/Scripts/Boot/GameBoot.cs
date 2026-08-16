@@ -34,6 +34,16 @@ namespace PokeLab.Boot
 
         private void Awake()
         {
+            // A second GameBoot stands down rather than re-initialising over the first. It
+            // is not enough for it to be harmless on the way in: on the way out it would
+            // take the shared ServiceHub with it.
+            if (_owner != null && _owner != this)
+            {
+                enabled = false;
+                return;
+            }
+            _owner = this;
+
             if (_persist) DontDestroyOnLoad(gameObject);
             InitializeServices();
         }
@@ -73,11 +83,18 @@ namespace PokeLab.Boot
 
         private void OnApplicationQuit() => Teardown();
 
+        private static GameBoot _owner;
+
         private void OnDestroy()
         {
-            // Only the root tears down, and only when it is the object leaving play mode —
-            // a scene unload that destroys a copy must not wipe live registrations.
-            if (ServicesReady) Teardown();
+            // Only the instance that actually initialised the services may tear them down.
+            //
+            // The guard used to be `if (ServicesReady)`, which is a static and therefore true
+            // for every copy — so a second GameBoot arriving with an additively loaded scene
+            // and then being unloaded wiped registrations the first one still owned. The
+            // comment claimed to handle exactly that case and could not, because nothing
+            // recorded which instance was the owner.
+            if (_owner == this && ServicesReady) Teardown();
         }
 
         private static void Teardown()
@@ -88,6 +105,9 @@ namespace PokeLab.Boot
             ServiceHub.Reset();
             GameEvents.Reset();
             ServicesReady = false;
+            // Released with the services it owned, or the next session finds a stale owner
+            // that no longer exists and never initialises at all.
+            _owner = null;
         }
     }
 }

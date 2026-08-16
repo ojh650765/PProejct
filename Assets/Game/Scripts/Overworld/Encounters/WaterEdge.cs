@@ -26,15 +26,13 @@ namespace PokeLab.Overworld
 
         [SerializeField] private string _sequenceId = "water_needs_surf";
 
-        [TextArea(2, 4)]
-        [SerializeField] private string _line =
-            "The water is deep and cold. Nothing here could carry you across.";
+        [Tooltip("String table key. The text itself lives in strings.json so it exists in " +
+                 "every language the game ships, not just the one it was typed in.")]
+        [SerializeField] private string _lineKey = "water.needs_surf";
 
-        [TextArea(2, 4)]
         [Tooltip("Said instead once the player has a Pokémon that could swim but the wall is " +
                  "still up — which should not happen, and is worth hearing if it does.")]
-        [SerializeField] private string _unexpectedLine =
-            "The water is deep. Something is stopping you anyway.";
+        [SerializeField] private string _unexpectedKey = "water.blocked_unexpected";
 
         private Collider _collider;
         private float _nextSpeakTime;
@@ -63,7 +61,7 @@ namespace PokeLab.Overworld
             var runner = DialogueRunner.Instance;
             if (runner == null || runner.IsPlaying) return;
 
-            var text = SurfCapability.CanSurf() ? _unexpectedLine : _line;
+            var text = PokeLab.Core.Loc.Get(SurfCapability.CanSurf() ? _unexpectedKey : _lineKey);
             var sequence = DialogueSequence.FromLines(_sequenceId, new DialogueLine
             {
                 SpeakerName = string.Empty,

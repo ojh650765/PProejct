@@ -30,12 +30,10 @@ namespace PokeLab.Boot
         [SerializeField] private StarterSelection _selection;
         [SerializeField] private DialogueView _view;
 
-        [Tooltip("Who is offering. Shown on the name plate.")]
-        [SerializeField] private string _speaker = "Linden";
-
-        [TextArea(2, 4)]
-        [SerializeField] private string _prompt =
-            "Three of them. Not one is a better choice than the others — only a different one. Take your time.";
+        [Tooltip("String table keys. The text lives in strings.json so the moment reads in " +
+                 "the player's language and not in the one it was written in.")]
+        [SerializeField] private string _speakerKey = "starter.speaker";
+        [SerializeField] private string _promptKey = "starter.prompt";
 
         private bool _offering;
 
@@ -83,7 +81,8 @@ namespace PokeLab.Boot
             var labels = new string[options.Count];
             for (var i = 0; i < labels.Length; i++) labels[i] = options[i].DisplayName;
 
-            _view.ShowChoices(_speaker, _prompt, labels, index =>
+            _view.ShowChoices(PokeLab.Core.Loc.Get(_speakerKey),
+                PokeLab.Core.Loc.Get(_promptKey), labels, index =>
             {
                 // Chosen raises through StarterSelection, which is what the runner is
                 // waiting on — the view is not told the answer twice.
