@@ -247,6 +247,19 @@ def build_ground(grid, painter, extents):
                 y = grid.rows[iz][ix]
                 n = grid.normal(x, z)
                 w = painter.at(x, z)
+
+                # Rock on the steep faces, baked in rather than left entirely to the
+                # shader's own slope term. The shader steers by the interpolated pixel
+                # normal, which on a 1 m grid still leaves grass weight sitting on a
+                # near-vertical cliff and shows as green mixed into the rock. Baking
+                # it at the vertex settles what the surface *is*; the shader's term
+                # then only refines the transition.
+                slope = grid.slope_degrees(x, z)
+                rock = smoothstep((slope - 34.0) / 20.0)
+                if rock > 0.0:
+                    for i in range(4):
+                        w[i] *= (1.0 - rock)
+                    w[ROCK] += rock
                 index[key] = len(verts) // 3
                 verts.extend((x, y, z))
                 norms.extend(n)
@@ -263,10 +276,29 @@ def build_ground(grid, painter, extents):
                     b = vertex(ix + 1, iz)
                     c = vertex(ix + 1, iz + 1)
                     d = vertex(ix, iz + 1)
-                    # Alternating diagonal. A grid that splits every quad the same
-                    # way develops a visible corduroy grain across open ground once
-                    # a low sun rakes it.
-                    if (ix + iz) & 1:
+
+                    # Which way to split the quad. Splitting every quad the same way
+                    # puts a corduroy grain across open ground under a low sun, so
+                    # the tie-break alternates — but alternating *unconditionally*,
+                    # which this did, turns a cliff into a row of sawteeth: on an
+                    # 80 degree face adjacent columns differ by metres, and swapping
+                    # the diagonal every quad zigzags the fold line up and down the
+                    # face instead of running it along the cliff.
+                    #
+                    # So the diagonal follows the terrain: join the pair of opposite
+                    # corners whose heights are closest, which is the fold that lies
+                    # in the surface rather than cutting across it. On level ground
+                    # both diagonals are equal and the checkerboard tie-break stands.
+                    ha, hb = grid.rows[iz][ix], grid.rows[iz][ix + 1]
+                    hc, hd = grid.rows[iz + 1][ix + 1], grid.rows[iz + 1][ix]
+                    ac = abs(ha - hc)
+                    bd = abs(hb - hd)
+                    if abs(ac - bd) < 1e-4:
+                        split_ac = bool((ix + iz) & 1)
+                    else:
+                        split_ac = ac < bd
+
+                    if split_ac:
                         tris.extend((a, c, b, a, d, c))
                     else:
                         tris.extend((a, d, b, b, d, c))
@@ -496,6 +528,18 @@ def inside_any(x, z, polys):
     return any(point_in_poly(x, z, poly) for poly, _ in polys)
 
 
+# Assets that stand at the threshold and belong to the *outside*. The cave filter
+# would otherwise take them with the interior, and it did: Env_Cave_Arch is the
+# doorway the player sees from the gorge, and holding it back left the level with no
+# visible way onward at all — the transition trigger was there, but nothing to walk
+# toward.
+ENTRANCE_ASSETS = ("Env_Cave_Arch", "Env_Ramp_CaveFromRoute")
+
+
+def is_entrance(prefab):
+    return any(k in prefab for k in ENTRANCE_ASSETS)
+
+
 def cave_entrances(layout, grid):
     """Where the overworld hands off to a cave scene."""
     out = []
@@ -627,7 +671,8 @@ def main():
         # Cave_Rocks_01/02 and Cave_ItemBall_01 were surviving the filter and landing
         # 14 to 17 m under the hillside. Anything buried that far below the outside
         # surface is inside the massif by definition, whatever polygon it falls in.
-        if inside_any(x, z, caves) or (y - grid.at(x, z)) < -2.0:
+        if not is_entrance(o.get("prefab", "")) and (
+                inside_any(x, z, caves) or (y - grid.at(x, z)) < -2.0):
             interior += 1
             continue
         objects.append(o)
