@@ -244,8 +244,8 @@ namespace PokeLab.Overworld.World
                     || root.GetComponentInChildren<OverworldCameraRig>(true) != null
                     || root.GetComponentInChildren<OverworldInputReader>(true) != null
                     || root.GetComponent<Camera>() != null
-                    || root.name == "GameHosts"
-                    || root.name == "EventSystem";
+                    || root.GetComponentInChildren<UnityEngine.EventSystems.EventSystem>(true) != null
+                    || root.name == "GameHosts";
 
                 if (isSessionOwner) Destroy(root);
             }

@@ -246,7 +246,7 @@ Shader "PokeLab/TerrainBlend"
 
                 // --- Triplanar rock ---------------------------------------------
                 float3 triW = PL_TriplanarWeights(geoNormalWS, _TriplanarSharpness);
-                half4 a3 = PL_TRIPLANAR_SAMPLE(_Layer3Map, sampler_Layer0Map,
+                half4 a3 = PL_TRIPLANAR_SAMPLE_GRAD(_Layer3Map, sampler_Layer0Map,
                                                positionWS, triW, _Layer3Scale);
 
                 // --- Height-aware blend -----------------------------------------
@@ -264,7 +264,7 @@ Shader "PokeLab/TerrainBlend"
                 half3 n1 = UnpackNormalScale(SAMPLE_TEXTURE2D(_Layer1Normal, sampler_Layer0Map, uv1), _Layer1NormalScale);
                 half3 n2 = UnpackNormalScale(SAMPLE_TEXTURE2D(_Layer2Normal, sampler_Layer0Map, uv2), _Layer2NormalScale);
                 half3 nRock = UnpackNormalScale(
-                    PL_TRIPLANAR_SAMPLE(_Layer3Normal, sampler_Layer0Map, positionWS, triW, _Layer3Scale),
+                    PL_TRIPLANAR_SAMPLE_GRAD(_Layer3Normal, sampler_Layer0Map, positionWS, triW, _Layer3Scale),
                     _Layer3NormalScale);
 
                 half3 normalTS = normalize(n0 * w.x + n1 * w.y + n2 * w.z + nRock * w.w + half3(0, 0, 1e-4));

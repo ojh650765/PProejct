@@ -221,6 +221,32 @@ float3 PL_TriplanarWeights(float3 normalWS, float sharpness)
     SAMPLE_TEXTURE2D(tex, samp, (posWS).xz * (scale)) * (w).y + \
     SAMPLE_TEXTURE2D(tex, samp, (posWS).xy * (scale)) * (w).z )
 
+// Explicit gradients, all three planes derived from one world-space derivative.
+//
+// The plain macro above lets each projection pick its own mip from its own UV
+// derivatives. On a wall receding into the distance the two vertical planes have
+// derivatives dominated by the vertical screen gradient while the horizontal plane
+// has almost none, so the three disagree about which mip to use and step at
+// different depths -- and every step is a hard horizontal line across the face.
+// That is the banding on the far cliffs.
+//
+// Deriving all three from ddx/ddy of the same scaled world position makes them
+// agree, and hands the hardware a real anisotropic gradient rather than one
+// inferred from a UV that jumps between projections.
+float4 PL_TriplanarGrad(TEXTURE2D_PARAM(tex, samp), float3 posWS, float3 w, float scale)
+{
+    float3 p  = posWS * scale;
+    float3 dx = ddx(p);
+    float3 dy = ddy(p);
+
+    return SAMPLE_TEXTURE2D_GRAD(tex, samp, p.zy, dx.zy, dy.zy) * w.x
+         + SAMPLE_TEXTURE2D_GRAD(tex, samp, p.xz, dx.xz, dy.xz) * w.y
+         + SAMPLE_TEXTURE2D_GRAD(tex, samp, p.xy, dx.xy, dy.xy) * w.z;
+}
+
+#define PL_TRIPLANAR_SAMPLE_GRAD(tex, samp, posWS, w, scale) \
+    PL_TriplanarGrad(TEXTURE2D_ARGS(tex, samp), (posWS), (w), (scale))
+
 #define PL_TRIPLANAR_SAMPLE_LOD(tex, samp, posWS, w, scale, lod) ( \
     SAMPLE_TEXTURE2D_LOD(tex, samp, (posWS).zy * (scale), lod) * (w).x + \
     SAMPLE_TEXTURE2D_LOD(tex, samp, (posWS).xz * (scale), lod) * (w).y + \

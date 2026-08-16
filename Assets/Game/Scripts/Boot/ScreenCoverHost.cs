@@ -35,10 +35,28 @@ namespace PokeLab.Boot
 
         public bool IsCovered => _overlay != null && _overlay.IsCovered;
 
+        private static ScreenCoverHost _instance;
+
         private void Awake()
         {
+            // First one wins. A streamed scene brings its own GameHosts, whose copy of this
+            // registered over the original on the hub and was then stripped — so the next
+            // door to ask for a cover called a destroyed object and threw from inside the
+            // transition, with the player already committed to walking through it.
+            if (_instance != null && _instance != this)
+            {
+                Destroy(this);
+                return;
+            }
+            _instance = this;
+
             if (_overlay == null) _overlay = FindFirstObjectByType<ScreenTransitionOverlay>();
             ServiceHub.Register<IScreenCover>(this);
+        }
+
+        private void OnDestroy()
+        {
+            if (_instance == this) _instance = null;
         }
 
         public void Cover(float seconds, Action onComplete) => Run(true, seconds, onComplete);

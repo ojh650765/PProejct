@@ -332,6 +332,19 @@ namespace PokeLab.Boot.Editor
 
             importer.textureType = TextureImporterType.Default;
             importer.sRGBTexture = true;
+
+            // Terrain layers are sampled triplanar at a grazing angle up a cliff, which is
+            // the worst case for filtering: the gradient is long in one axis and near zero
+            // in the other. With aniso at 1 the hardware answers a heavily anisotropic
+            // footprint with an isotropic mip, and the mip steps read as horizontal bands
+            // across a distant wall.
+            if (assetPath.StartsWith(TerrainRoot, StringComparison.Ordinal)
+                && assetPath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            {
+                importer.anisoLevel = 8;
+                importer.mipmapEnabled = true;
+                importer.filterMode = FilterMode.Trilinear;
+            }
         }
 
         /// <summary>
