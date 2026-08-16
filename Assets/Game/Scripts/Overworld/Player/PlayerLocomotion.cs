@@ -63,6 +63,15 @@ namespace PokeLab.Overworld
                  "Falling out of the world has to be recoverable however the level is built.")]
         [SerializeField] private float _fallRecoveryDrop = 12f;
 
+        [Tooltip("Seconds of asking to move and not moving, while standing lower than the " +
+                 "ground last walked on, before the player is lifted out. This is the pit " +
+                 "case: grounded, alive, and walled in by slopes past the climb limit.")]
+        [SerializeField] private float _stuckSeconds = 1.6f;
+
+        [Tooltip("How far below the last freely-walked ground counts as being down a hole. " +
+                 "Above this the player is just pushing on a wall, which is allowed.")]
+        [SerializeField] private float _stuckDepth = 0.6f;
+
         [Header("Slopes")]
         [Tooltip("Above this angle the player slides instead of walking. Matches CharacterController.slopeLimit.")]
         [SerializeField] private float _slopeLimit = 48f;
@@ -87,6 +96,9 @@ namespace PokeLab.Overworld
         private readonly RaycastHit[] _groundHits = new RaycastHit[8];
         private Vector3 _lastGroundedPosition;
         private bool _hasGroundedPosition;
+        private Vector3 _lastFreePosition;
+        private bool _hasFreePosition;
+        private float _stuckTimer;
         private CharacterController _controller;
         private Vector3 _horizontalVelocity;
         private float _verticalVelocity;
@@ -162,6 +174,7 @@ namespace PokeLab.Overworld
 
             ProbeGround();
             RecoverFromFall();
+            RecoverFromPit(dt);
 
             if (_motionFrozen)
             {
@@ -406,6 +419,55 @@ namespace PokeLab.Overworld
                              $"near {_lastGroundedPosition}.");
             Warp(_lastGroundedPosition, transform.rotation);
             _timeSinceGrounded = 0f;
+        }
+
+        /// <summary>
+        /// Lifts the player out of a hole they cannot climb.
+        ///
+        /// The fall recovery above only triggers on a long drop, because that is what
+        /// leaving the world looks like. A pit is the opposite shape and just as final: the
+        /// player is grounded, unhurt and completely stuck, because every wall around them
+        /// is past the 48-degree climb limit and there is no jump in this game. The world is
+        /// generated, so holes like that are not authored and cannot be reviewed away — a
+        /// dip between two rocks the scatter happened to place is enough.
+        ///
+        /// Two conditions together, and both are needed. Asking to move and not moving is
+        /// also what pushing into a wall looks like, and that is legitimate; standing lower
+        /// than the ground last walked freely is what makes it a hole rather than a wall.
+        /// </summary>
+        private void RecoverFromPit(float dt)
+        {
+            var wants = _input != null && _input.InputEnabled && _input.Move.sqrMagnitude > 0.04f;
+
+            if (IsGrounded && Speed > 0.5f)
+            {
+                _lastFreePosition = transform.position;
+                _hasFreePosition = true;
+                _stuckTimer = 0f;
+                return;
+            }
+
+            if (!wants || !IsGrounded || !_hasFreePosition)
+            {
+                _stuckTimer = 0f;
+                return;
+            }
+
+            if (transform.position.y > _lastFreePosition.y - _stuckDepth)
+            {
+                // Level with where they were walking: this is a wall, and walls are allowed.
+                _stuckTimer = 0f;
+                return;
+            }
+
+            _stuckTimer += dt;
+            if (_stuckTimer < _stuckSeconds) return;
+
+            Debug.LogWarning($"[Player] Stuck at {transform.position} for {_stuckSeconds:F1}s " +
+                             "in a hole with no way out, and was lifted back to " +
+                             $"{_lastFreePosition}. The scatter has left a trap there.");
+            Warp(_lastFreePosition, transform.rotation);
+            _stuckTimer = 0f;
         }
 
         private void ProbeGround()
