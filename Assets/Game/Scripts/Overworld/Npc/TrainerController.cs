@@ -103,6 +103,15 @@ namespace PokeLab.Overworld
             // The id is the object's name when no definition is assigned — see TrainerId
             // above — so naming it is how the layout's trainerId reaches
             // EncounterRequest. A definition asset, once one exists, wins over this.
+            // Built from the trainer table when nothing was authored, which on a generated
+            // level is always. Without a definition CanInteract is false and the trainer
+            // cannot be challenged at all — they stand there with a sight cone and no fight
+            // behind it.
+            if (_definition == null && !string.IsNullOrEmpty(trainerId))
+                _definition = TrainerBook.Shared?.Build(trainerId);
+            if (_definition == null && !string.IsNullOrEmpty(name))
+                _definition = TrainerBook.Shared?.Build(name);
+
             if (!string.IsNullOrEmpty(trainerId) && _definition == null) gameObject.name = trainerId;
             if (sightRange > 0f) _sightRange = sightRange;
             if (sightHalfAngle > 0f) _sightHalfAngle = sightHalfAngle;

@@ -147,7 +147,10 @@ namespace PokeLab.Overworld
     public sealed class DialogueBook
     {
         /// <summary>Where the book lives. The one path every consumer defaults to.</summary>
-        public const string DefaultPath = "Assets/Game/Data/Story/dialogue.json";
+        public const string DefaultPath = "Assets/Game/Data/Story/Resources/dialogue.json";
+
+        /// <summary>Name the book is looked up under once it is inside a Resources folder.</summary>
+        public const string ResourceName = "dialogue";
 
         private readonly Dictionary<string, DialogueBookEntry> _entries =
             new Dictionary<string, DialogueBookEntry>(StringComparer.Ordinal);
@@ -186,7 +189,16 @@ namespace PokeLab.Overworld
             if (string.IsNullOrEmpty(projectRelativePath)) return book;
 
             var path = Path.Combine(Directory.GetCurrentDirectory(), projectRelativePath);
-            if (!File.Exists(path))
+            // Resources first, because it is the only lookup that exists in a build. This
+            // read from disk alone, which works in the editor and finds nothing in a player
+            // — every line of dialogue in the shipped game would simply have been missing,
+            // and the editor is exactly where that cannot be noticed.
+            var packaged = Resources.Load<TextAsset>(ResourceName);
+            var json = packaged != null ? packaged.text
+                     : File.Exists(path) ? File.ReadAllText(path)
+                     : null;
+
+            if (string.IsNullOrEmpty(json))
             {
                 Debug.LogWarning($"[Dialogue] No dialogue book at {projectRelativePath}. Every " +
                                  "scripted conversation will be skipped with a warning, and the " +
@@ -197,7 +209,7 @@ namespace PokeLab.Overworld
             DialogueBookFile file = null;
             try
             {
-                file = JsonUtility.FromJson<DialogueBookFile>(File.ReadAllText(path));
+                file = JsonUtility.FromJson<DialogueBookFile>(json);
             }
             catch (Exception ex)
             {

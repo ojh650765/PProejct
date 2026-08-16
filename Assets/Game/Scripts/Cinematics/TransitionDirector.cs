@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Unity.Cinemachine;
 using PokeLab.Core;
 
@@ -36,6 +38,14 @@ namespace PokeLab.Cinematics
     /// <see cref="EncounterRequest.PlayerRotation"/>, not from wherever the camera happened
     /// to be, so the geography stays continuous: the player sees the ground they were
     /// standing on rotate away underneath the move.
+    ///
+    /// <b>The battle is a scene load, not a root swap.</b> Both halves of the round trip carry
+    /// one under the cover: <c>Battle.unity</c> is loaded additively on the way in and unloaded
+    /// on the way out, and the player is carried across to the arena and back. Toggling roots in
+    /// the level scene was the old mechanism and it could not work, because the thing being
+    /// staged has to stand somewhere the battle camera can move without clipping through
+    /// scenery, and the level has no such place in it. See <see cref="BattleArena"/> for why the
+    /// load is additive rather than single.
     /// </summary>
     [DefaultExecutionOrder(-450)]
     public sealed class TransitionDirector : MonoBehaviour, ITransitionDirector
@@ -47,12 +57,14 @@ namespace PokeLab.Cinematics
         [SerializeField] private CinemachineCamera overworldFollowCamera;
         [Tooltip("Wipe layer. Created on this object when empty.")]
         [SerializeField] private ScreenTransitionOverlay overlay;
-        [Tooltip("Battle presenter, so the battle rig can be readied while covered.")]
-        [SerializeField] private BattlePresenter battlePresenter;
-        [Tooltip("Root of the battle arena. Enabled during battle, disabled in the overworld.")]
-        [SerializeField] private GameObject battleRoot;
-        [Tooltip("Root of the overworld. Disabled during battle when a separate stage is used.")]
-        [SerializeField] private GameObject overworldRoot;
+
+        [Header("Battle level")]
+        [Tooltip("Scene holding the arena. Loaded additively under the cover and unloaded on the " +
+                 "way out; must be in File > Build Settings or no encounter can be shown.")]
+        [SerializeField] private string battleSceneName = "Battle";
+        [Tooltip("Seconds the load may take before the sequence gives up and shows the encounter " +
+                 "in whatever state it reached. A stalled load must never strand the player.")]
+        [SerializeField] private float sceneLoadTimeout = 8f;
 
         [Header("Encounter swing")]
         [Tooltip("Seconds spent swinging around the player onto the creature.")]
@@ -107,6 +119,19 @@ namespace PokeLab.Cinematics
         private float _timeScaleBeforeFreeze = 1f;
         private bool _worldFrozen;
 
+        // Where the player was standing when the encounter fired, kept here so they can be put
+        // back before the arena's floor is unloaded from under them. The game flow captures the
+        // same pose and restores it again a moment later through PlayerLocomotion.Warp; that
+        // remains the authoritative restore and this one only has to survive the unload.
+        private Vector3 _homePosition;
+        private Quaternion _homeRotation = Quaternion.identity;
+        private bool _playerCarried;
+        private string _biomeBeforeBattle;
+
+        /// <summary>The presenter in the loaded battle scene, or null when no arena is up.</summary>
+        private BattlePresenter Presenter =>
+            BattleArena.Current != null ? BattleArena.Current.Presenter : null;
+
         /// <inheritdoc />
         public bool IsTransitioning { get; private set; }
 
@@ -118,7 +143,6 @@ namespace PokeLab.Cinematics
             if (brain == null && Camera.main != null) brain = Camera.main.GetComponent<CinemachineBrain>();
             if (overlay == null) overlay = GetComponent<ScreenTransitionOverlay>();
             if (overlay == null) overlay = gameObject.AddComponent<ScreenTransitionOverlay>();
-            if (battlePresenter == null) battlePresenter = FindAnyObjectByType<BattlePresenter>();
 
             AttachOverlay();
         }
@@ -180,9 +204,16 @@ namespace PokeLab.Cinematics
         /// <summary>
         /// Exploration to encounter intro.
         ///
-        /// The callback fires the frame the cover is opaque and nothing before it. Everything
-        /// after the callback — the hold, the reveal, the marks, the grade, the HUD — is this
-        /// routine continuing to run while the flow stages the battle behind the cover.
+        /// The callback fires once the screen is opaque <i>and the battle level has arrived</i>,
+        /// and nothing before it. The second half of that is new and is load-bearing: the flow
+        /// calls <c>BeginEncounter</c> on the frame after this callback, and the stage only waits
+        /// to be driven a turn at a time if something is already subscribed to it. The presenter
+        /// subscribes in its own <c>OnEnable</c>, which runs during the scene load — so releasing
+        /// the flow before the load finished would hand the whole battle to the stage's
+        /// unattended auto-play and the player would watch an empty arena while it resolved.
+        ///
+        /// Everything after the callback — the hold, the reveal, the marks, the grade, the HUD —
+        /// is this routine continuing to run while the flow stages the battle behind the cover.
         /// </summary>
         private IEnumerator EncounterIntroRoutine(EncounterRequest request, CallbackOnce stageReady)
         {
@@ -210,19 +241,23 @@ namespace PokeLab.Cinematics
                 yield return overlay.CoverIn(coverDuration, WipeStyle.ShutterWipe);
                 CinematicHooks.Audio(CinematicAudioCues.TransitionWhoosh, origin);
 
-                // Opaque. The flow may now build the arena unseen.
+                // Opaque. The level may now be swapped unseen.
+                yield return LoadBattleLevel();
+                PrepareArena(request);
+
+                // Released here, with the arena standing and the presenter subscribed.
                 stageReady.Fire();
 
-                PrepareBattleRoots(request);
                 yield return CinematicRunner.Wait(stagingHold);
 
                 // The rig is retargeted while still covered, so the first visible frame is
                 // correctly framed rather than damping toward correct over half a second.
-                if (battlePresenter != null)
+                var presenter = Presenter;
+                if (presenter != null)
                 {
-                    battlePresenter.Rig.SetRigActive(true);
-                    battlePresenter.Rig.Show(BattleShot.Field);
-                    battlePresenter.Rig.Retarget();
+                    presenter.Rig.SetRigActive(true);
+                    presenter.Rig.Show(BattleShot.Field);
+                    presenter.Rig.Retarget();
                 }
                 if (_swingCamera != null)
                 {
@@ -243,7 +278,7 @@ namespace PokeLab.Cinematics
                 // The battle may perform now. Released here rather than before the wipe because
                 // the send-out is the one beat the player only ever sees once per encounter, and
                 // behind an opaque cover it is spent on nothing.
-                if (battlePresenter != null) battlePresenter.ReleasePerformance();
+                if (presenter != null) presenter.ReleasePerformance();
 
                 // Marks: trainers and creatures settle before anything else is asked of the frame.
                 yield return CinematicRunner.Wait(marksHold);
@@ -273,6 +308,12 @@ namespace PokeLab.Cinematics
         /// Battle back toward exploration. Covers and hands back; it does not reveal, because
         /// the flow repositions the player after this callback and
         /// <see cref="PlayReveal"/> is what shows the result.
+        ///
+        /// The unload happens <b>before</b> the callback rather than after it, and the player is
+        /// walked home first. Two reasons, both of which are visible when they are got wrong: the
+        /// callback is what starts the flow's reveal, so anything left running past it is racing
+        /// a screen that is about to open; and the player is standing on the arena's floor, so
+        /// unloading the level while they are still on it drops them through the world.
         /// </summary>
         private IEnumerator BattleOutroRoutine(EncounterResult result, CallbackOnce worldRestorable)
         {
@@ -281,8 +322,9 @@ namespace PokeLab.Cinematics
                 // The stage resolves on the turn that ends the battle, so the flow asks for the
                 // outro while the knockout, the experience and the victory pose are still queued.
                 // Covering on that frame throws away the end of every battle the player wins.
-                if (battlePresenter != null)
-                    yield return battlePresenter.WaitUntilIdle(Mathf.Max(0f, outroDrain));
+                var presenter = Presenter;
+                if (presenter != null)
+                    yield return presenter.WaitUntilIdle(Mathf.Max(0f, outroDrain));
 
                 CinematicHooks.HudVisible(false, 0.35f);
                 yield return CinematicRunner.Wait(0.35f);
@@ -292,17 +334,18 @@ namespace PokeLab.Cinematics
                 yield return overlay.CoverIn(coverDuration, WipeStyle.SplitWipe);
                 CinematicHooks.Audio(CinematicAudioCues.TransitionWhoosh, transform.position);
 
-                // Opaque. The flow may now put the player back and swap the world in.
-                worldRestorable.Fire();
-
-                if (battlePresenter != null)
+                if (presenter != null)
                 {
-                    battlePresenter.FlushQueue();
-                    battlePresenter.Rig.SetRigActive(false);
+                    presenter.FlushQueue();
+                    presenter.Rig.SetRigActive(false);
                 }
-                if (battleRoot != null) battleRoot.SetActive(false);
-                if (overworldRoot != null) overworldRoot.SetActive(true);
                 if (_swingCamera != null) _swingCamera.Priority = 0;
+
+                CarryPlayerHome();
+                yield return UnloadBattleLevel();
+
+                // Opaque. The flow may now put the player back and reveal.
+                worldRestorable.Fire();
 
                 StagedMode = GameMode.Exploring;
             }
@@ -365,59 +408,209 @@ namespace PokeLab.Cinematics
             }
         }
 
+        // --- The battle level ------------------------------------------------------------
+
         /// <summary>
-        /// Brings the arena up behind the cover.
+        /// Brings <c>Battle.unity</c> in beside the level the player is standing in.
         ///
-        /// <paramref name="request"/> is what makes the battle happen somewhere rather than
-        /// nowhere: the arena is stood up at the spot the encounter fired and its field discs are
-        /// made of that zone's ground, so the backdrop is the cave when the fight starts in the
-        /// cave. <see cref="overworldRoot"/> is therefore expected to be <b>unassigned</b> for an
-        /// in-world arena — assigning it switches the level off and takes the backdrop with it.
-        /// It is kept for the other configuration, a dedicated set standing somewhere the player
-        /// never walks.
+        /// Additive, and the alternative is worse in a way that is easy to miss: a single-mode
+        /// load tears down the level scene, and with it <c>GameFlowController</c> — the coroutine
+        /// that is at this moment holding the player frozen and waiting for a battle result. It
+        /// would never be released and the encounter's whole outcome would be thrown away. So the
+        /// two scenes coexist for the length of a battle, and the arena is authored far enough
+        /// from the map that nothing in either can be seen from the other.
+        ///
+        /// A scene that is missing from the build settings is the failure this guards hardest:
+        /// it fails silently in a player and the symptom is a battle in an empty room, a long way
+        /// from the cause.
         /// </summary>
-        private void PrepareBattleRoots(EncounterRequest request)
+        private IEnumerator LoadBattleLevel()
         {
-            if (battleRoot != null) battleRoot.SetActive(true);
-            if (overworldRoot != null && battleRoot != null && overworldRoot != battleRoot)
-                overworldRoot.SetActive(false);
+            if (BattleArena.Current != null) yield break;   // already up, e.g. an aborted outro
 
-            // The reveal leaves the follow rig on 100 on the way out, which outranks every
-            // battle camera in the rig. Left alone, the first encounter of a session is framed
-            // correctly and every one after it is framed by the exploration camera, looking at a
-            // player standing in a world that has just been switched off.
-            if (overworldFollowCamera != null) overworldFollowCamera.Priority = 0;
-
-            if (battlePresenter == null) return;
-            battlePresenter.ResetForNewBattle();
-
-            var stage = battlePresenter.Stage;
-            if (stage != null && request != null)
+            if (string.IsNullOrEmpty(battleSceneName))
             {
-                stage.PlaceInWorld(request.WorldPosition, request.PlayerRotation);
-                stage.SetGroundSurface(SurfaceFor(request.BiomeId));
+                Debug.LogError("[TransitionDirector] No battle scene name, so there is no arena to " +
+                               "load and the encounter will play in the overworld.", this);
+                yield break;
             }
 
-            // Ordered after the reset, which clears any hold left by a previous encounter.
-            battlePresenter.HoldPerformance(coverDuration + stagingHold + revealDuration + 4f);
+            if (!Application.CanStreamedLevelBeLoaded(battleSceneName))
+            {
+                Debug.LogError($"[TransitionDirector] Scene '{battleSceneName}' is not in the build " +
+                               "settings, so the battle has nowhere to happen. Add it under " +
+                               "File > Build Settings.", this);
+                yield break;
+            }
+
+            var load = SceneManager.LoadSceneAsync(battleSceneName, LoadSceneMode.Additive);
+            if (load == null) yield break;
+
+            // Unscaled and bounded. The world is frozen at this point, so a WaitForSeconds would
+            // never return, and a load that never finishes has to hand back rather than sit under
+            // an opaque screen until the flow's own watchdog fires.
+            float elapsed = 0f;
+            while (!load.isDone && elapsed < Mathf.Max(1f, sceneLoadTimeout))
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            if (!load.isDone)
+                Debug.LogError($"[TransitionDirector] '{battleSceneName}' did not finish loading in " +
+                               $"{sceneLoadTimeout:0.0}s; showing the encounter anyway.", this);
+        }
+
+        /// <summary>Takes the battle level away again. Safe when none is loaded.</summary>
+        private IEnumerator UnloadBattleLevel()
+        {
+            var scene = SceneManager.GetSceneByName(battleSceneName);
+            if (!scene.isLoaded) yield break;
+
+            var unload = SceneManager.UnloadSceneAsync(scene);
+            float elapsed = 0f;
+            while (unload != null && !unload.isDone && elapsed < Mathf.Max(1f, sceneLoadTimeout))
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            // The grade follows the place. Put back what the player was standing in, or a fight
+            // that happened in a cave leaves the overworld lit like one.
+            if (!string.IsNullOrEmpty(_biomeBeforeBattle)) GameEvents.RaiseBiomeEntered(_biomeBeforeBattle);
         }
 
         /// <summary>
-        /// Which terrain layer the field discs are made of, from the zone the encounter fired in.
+        /// Dresses the arena for the zone the encounter fired in and moves the player into it.
         ///
-        /// Matched on the biome id rather than on <c>ZoneKind</c> because the id is what the
-        /// request already carries, and reaching into the overworld assembly for an enum the
-        /// cinematics layer would use once is a dependency that buys nothing. Unknown ids fall
-        /// through to grass, which is wrong quietly rather than pink and loud.
+        /// The dressing is the whole of "a cave fight happens in a cave" now that the fight is
+        /// not staged in the cave itself: four authored backdrops, chosen by the request's biome
+        /// id, with the field discs made of that zone's ground.
         /// </summary>
-        private static BattleFieldSurface SurfaceFor(string biomeId)
+        private void PrepareArena(EncounterRequest request)
         {
-            if (string.IsNullOrEmpty(biomeId)) return BattleFieldSurface.Grass;
-            string id = biomeId.ToLowerInvariant();
-            if (id.Contains("cave")) return BattleFieldSurface.Rock;
-            if (id.Contains("lake") || id.Contains("shore") || id.Contains("beach")) return BattleFieldSurface.Sand;
-            if (id.Contains("town")) return BattleFieldSurface.Dirt;
-            return BattleFieldSurface.Grass;
+            // The reveal leaves the follow rig on 100 on the way out, which outranks every
+            // battle camera in the rig. Left alone, the first encounter of a session is framed
+            // correctly and every one after it is framed by the exploration camera, looking at a
+            // player who is no longer standing where it is pointing.
+            if (overworldFollowCamera != null) overworldFollowCamera.Priority = 0;
+
+            var arena = BattleArena.Current;
+            if (arena == null)
+            {
+                Debug.LogError("[TransitionDirector] The battle scene loaded without a BattleArena " +
+                               "in it, so there is nothing to stage. Run Create Battle Arena In " +
+                               "Open Scene with Battle.unity open.", this);
+                return;
+            }
+
+            BattleZone zone = BattleArena.ZoneFor(request != null ? request.BiomeId : null);
+            arena.Dress(zone);
+
+            _biomeBeforeBattle = request != null && !string.IsNullOrEmpty(request.BiomeId)
+                ? request.BiomeId
+                : "route_01";
+            GameEvents.RaiseBiomeEntered(BattleArena.GradeIdFor(zone));
+
+            CarryPlayerTo(arena.PlayerStand, request);
+
+            var presenter = arena.Presenter;
+            if (presenter == null) return;
+            presenter.ResetForNewBattle();
+
+            // Ordered after the reset, which clears any hold left by a previous encounter.
+            presenter.HoldPerformance(coverDuration + stagingHold + revealDuration + 4f);
+        }
+
+        // --- Carrying the player ------------------------------------------------------------
+
+        /// <summary>
+        /// Stands the player on the arena's trainer mark, remembering the step they were on.
+        ///
+        /// This is what makes the battle somewhere the player <i>is</i> rather than a camera
+        /// pointed at a diorama: they are visible behind their own creature, and the balls are
+        /// thrown from where they are standing rather than from a bare transform.
+        /// </summary>
+        private void CarryPlayerTo(Transform stand, EncounterRequest request)
+        {
+            _playerCarried = false;
+            if (stand == null) return;
+
+            Transform player = ResolvePlayer();
+            if (player == null) return;
+
+            // The request's pose, not the live transform's: the flow froze the player and may
+            // already have nudged them, and this pose is the one the return has to match.
+            _homePosition = request != null ? request.WorldPosition : player.position;
+            _homeRotation = request != null ? request.PlayerRotation : player.rotation;
+
+            Vector3 facing = stand.forward;
+            facing.y = 0f;
+            Quaternion look = facing.sqrMagnitude < 1e-5f
+                ? stand.rotation
+                : Quaternion.LookRotation(facing.normalized, Vector3.up);
+
+            _playerCarried = Warp(player, stand.position, look);
+        }
+
+        /// <summary>Puts the player back on the step they were standing on, before the arena goes.</summary>
+        private void CarryPlayerHome()
+        {
+            if (!_playerCarried) return;
+            _playerCarried = false;
+
+            Transform player = ResolvePlayer();
+            if (player != null) Warp(player, _homePosition, _homeRotation);
+        }
+
+        /// <summary>
+        /// Repositions the player through <c>PlayerLocomotion.Warp</c>, by name.
+        ///
+        /// Reflection, and deliberately: the player lives in <c>PokeLab.Overworld</c>, which this
+        /// assembly cannot reference and must not start to. Rewriting the transform directly is
+        /// not an option — the <see cref="CharacterController"/> caches its own position and
+        /// reasserts the old one on the next Move — and reimplementing the disable-write-enable
+        /// dance here would still miss the rest of what Warp resets: the previous-position sample
+        /// the distance accumulator differences, which feeds the step counter wild encounters are
+        /// rolled against. Two kilometres of it would fire an encounter the moment the player
+        /// took their next step home.
+        ///
+        /// Returns false when there is nothing to call, in which case the battle simply happens
+        /// with the player still standing in the overworld — worse-looking, never broken.
+        /// </summary>
+        private static bool Warp(Transform player, Vector3 position, Quaternion rotation)
+        {
+            foreach (var component in player.GetComponents<MonoBehaviour>())
+            {
+                if (component == null) continue;
+                MethodInfo warp = component.GetType().GetMethod("Warp",
+                    BindingFlags.Public | BindingFlags.Instance, null,
+                    new[] { typeof(Vector3), typeof(Quaternion), typeof(bool) }, null);
+                if (warp == null) continue;
+
+                warp.Invoke(component, new object[] { position, rotation, false });
+                return true;
+            }
+
+            Debug.LogWarning("[TransitionDirector] The player has no Warp(Vector3, Quaternion, bool), " +
+                             "so they were left in the overworld for the duration of the battle.");
+            return false;
+        }
+
+        /// <summary>
+        /// The player's transform.
+        ///
+        /// Found by tag rather than held, because <see cref="BindPlayer"/> is on the interface
+        /// and nothing has ever called it — a cached null would mean the player is silently never
+        /// carried, which looks exactly like the arena being empty.
+        /// </summary>
+        private Transform ResolvePlayer()
+        {
+            if (_player != null) return _player;
+
+            var tagged = GameObject.FindGameObjectWithTag("Player");
+            if (tagged != null) _player = tagged.transform;
+            return _player;
         }
 
         /// <summary>
@@ -653,9 +846,17 @@ namespace PokeLab.Cinematics
             if (_swingCamera != null) _swingCamera.Priority = 0;
 
             bool battle = mode == GameMode.Battle || mode == GameMode.EncounterIntro || mode == GameMode.BattleOutro;
-            if (battleRoot != null) battleRoot.SetActive(battle);
-            if (overworldRoot != null) overworldRoot.SetActive(!battle);
             if (overworldFollowCamera != null) overworldFollowCamera.Priority = battle ? 0 : 100;
+
+            // Aborting out of a battle has to take the level with it, and has to bring the player
+            // back first — an arena left loaded is a second world standing beside this one with
+            // the player still on its floor, and the next encounter would load a scene that is
+            // already there and find two arenas.
+            if (!battle && SceneManager.GetSceneByName(battleSceneName).isLoaded)
+            {
+                CarryPlayerHome();
+                CinematicRunner.Fork(UnloadBattleLevel());
+            }
 
             _overlayStack.Clear();
             StagedMode = mode;

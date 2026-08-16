@@ -11,6 +11,12 @@ namespace PokeLab.Cinematics
     /// cave arena and a lakeside arena can differ in scale and orientation without touching
     /// a line of presenter code. The marks are also what the transition director flies the
     /// camera between, so they must exist before the encounter intro starts.
+    ///
+    /// The marks are authored where they stand and are never carried to meet the world. They
+    /// used to be: the arena was set down at the spot each encounter fired, which put the
+    /// battle camera inside whatever the player had been walking through. The arena has its own
+    /// scene now — see <see cref="BattleArena"/> — and the only thing that still moves the marks
+    /// is <see cref="AdaptToCreatureSizes"/>, which moves them relative to one another.
     /// </summary>
     [DefaultExecutionOrder(-360)]
     public sealed class BattleStage : MonoBehaviour
@@ -212,35 +218,6 @@ namespace PokeLab.Cinematics
             EnsureBuilt();
             if (playerDisc != null) playerDisc.SetSurface(surface);
             if (opponentDisc != null) opponentDisc.SetSurface(surface);
-        }
-
-        /// <summary>
-        /// Stands the arena up at the spot the encounter fired, facing the way the player was.
-        ///
-        /// This is what makes the backdrop the zone rather than a set: the fight is staged in the
-        /// live world, so the cave is the cave and the lakeside is the lakeside without anything
-        /// having to be built or kept in sync with a level that is regenerated constantly.
-        ///
-        /// Anchored on the <i>player's trainer mark</i> rather than on the stage centre, so the
-        /// player stands where they were standing and the field opens out in front of them. Any
-        /// other anchor puts the player's own creature behind them or drops the camera inside
-        /// whatever they were walking past.
-        /// </summary>
-        public void PlaceInWorld(Vector3 origin, Quaternion facing)
-        {
-            EnsureBuilt();
-
-            Vector3 forward = facing * Vector3.forward;
-            forward.y = 0f;
-            Quaternion flat = forward.sqrMagnitude < 1e-5f
-                ? Quaternion.identity
-                : Quaternion.LookRotation(forward.normalized, Vector3.up);
-
-            transform.SetPositionAndRotation(origin, flat);
-
-            Vector3 drift = origin - playerTrainerMark.position;
-            drift.y = 0f;
-            transform.position += drift;
         }
 
         /// <summary>Turns both creatures to face each other over <paramref name="duration"/> seconds.</summary>

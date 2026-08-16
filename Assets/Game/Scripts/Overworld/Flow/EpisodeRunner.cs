@@ -103,7 +103,7 @@ namespace PokeLab.Overworld
     {
         [Tooltip("Authored episodes, relative to the project root. Read at Awake so the " +
                  "opening can be rewritten without touching code or the scene.")]
-        [SerializeField] private string _bookPath = "Assets/Game/Data/Story/episodes.json";
+        [SerializeField] private string _bookPath = "Assets/Game/Data/Story/Resources/episodes.json";
 
         [Tooltip("Authored dialogue, relative to the project root. Beat ids key into it.")]
         [SerializeField] private string _dialoguePath = "Assets/Game/Data/Story/dialogue.json";

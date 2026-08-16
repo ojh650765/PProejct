@@ -77,6 +77,26 @@ namespace PokeLab.Overworld
         public DialogueSequence OnPlayerDefeat => _onPlayerDefeat;
         public DialogueSequence RematchIntro => _rematchIntro;
 
+        /// <summary>
+        /// Attaches the conversations to a definition built at runtime from the trainer
+        /// table.
+        ///
+        /// The table can carry everything about a trainer except this: a sequence is an
+        /// object reference and JSON holds ids. Without it a generated trainer walks over,
+        /// says nothing and the battle simply begins, which is the one thing a trainer
+        /// encounter must not do.
+        /// </summary>
+        public void BindDialogue(DialogueSequence preBattle, DialogueSequence onDefeat,
+            DialogueSequence afterDefeat, DialogueSequence onPlayerDefeat,
+            DialogueSequence rematchIntro)
+        {
+            _preBattle = preBattle;
+            _onDefeat = onDefeat;
+            _afterDefeat = afterDefeat;
+            _onPlayerDefeat = onPlayerDefeat;
+            _rematchIntro = rematchIntro;
+        }
+
         /// <summary>Flag key recording that this trainer has been beaten.</summary>
         public string DefeatFlag => "trainer_defeated_" + _trainerId;
 
