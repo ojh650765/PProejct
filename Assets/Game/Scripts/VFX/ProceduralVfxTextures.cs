@@ -385,7 +385,12 @@ namespace PokeLab.Vfx
                     float n = TilingFbm(u, v, period, 4);
                     // Two different frequencies in different channels, so one texture
                     // serves as flow noise (R) and as a coarser dissolve mask (G).
-                    float coarse = TilingFbm(u * 0.5f, v * 0.5f, period, 3);
+                    //
+                    // The lattice period has to travel with the coordinate scale or the
+                    // texture no longer wraps: at half scale the coordinate covers only
+                    // half a lattice period across the image, so the two edges sample
+                    // unrelated values and the dissolve mask showed a seam every repeat.
+                    float coarse = TilingFbm(u * 0.5f, v * 0.5f, period / 2, 3);
                     float fine = TilingFbm(u * 2f, v * 2f, period * 2, 3);
                     byte r = (byte)Mathf.Clamp(Mathf.RoundToInt(n * 255f), 0, 255);
                     byte g = (byte)Mathf.Clamp(Mathf.RoundToInt(coarse * 255f), 0, 255);

@@ -75,8 +75,21 @@ namespace PokeLab.Audio
 
         // ------------------------------------------------------------------------------
 
+        private static BattleAudioPresenter _instance;
+
         private void Awake()
         {
+            // First one wins, and any later arrival removes itself. Every playable scene
+            // carries its own GameHosts, so an additively streamed band brings a second
+            // presenter whose Awake runs during the load; it took the hub slot and was then
+            // stripped with the rest of the duplicate hosts, leaving the battle presenter
+            // pushing its event stream at a destroyed listener.
+            if (_instance != null && _instance != this)
+            {
+                Destroy(this);
+                return;
+            }
+            _instance = this;
             ServiceHub.Register(this);
         }
 
@@ -84,6 +97,13 @@ namespace PokeLab.Audio
         {
             StopLowHpWarning();
             StopExpLoop();
+        }
+
+        private void OnDestroy()
+        {
+            if (_instance != this) return;
+            _instance = null;
+            ServiceHub.Unregister(this);
         }
 
         private bool Ready()

@@ -621,13 +621,25 @@ namespace PokeLab.Intelligence.Tactics
             }
         }
 
+        /// <summary>
+        /// One entry per move slot, in slot order.
+        ///
+        /// Slot-aligned rather than compacted, because <see cref="TacticalReadout.MoveForecasts"/>
+        /// is indexed by slot: the battle command panel binds forecast <c>i</c> to move
+        /// <c>i</c>. Dropping an empty slot or one the engine could not forecast used to
+        /// shift every later move's numbers up under the wrong name — a throw on slot 1
+        /// showed slot 2's damage against slot 1's move. A slot with nothing to say keeps
+        /// its place as a default entry, whose <c>Usable</c> is false; every reader here
+        /// already skips those, and the one field that leaves this class carries
+        /// <c>default(DamageForecast)</c> in that position.
+        /// </summary>
         private MoveForecast[] ForecastAll(IBattleEngine engine, IBattleStateView state, BattleSide side)
         {
             var creature = state.ActiveOf(side);
             if (engine == null || creature?.Moves == null || creature.Moves.Count == 0)
                 return Array.Empty<MoveForecast>();
 
-            var results = new List<MoveForecast>(creature.Moves.Count);
+            var results = new MoveForecast[creature.Moves.Count];
 
             for (var index = 0; index < creature.Moves.Count; index++)
             {
@@ -656,11 +668,12 @@ namespace PokeLab.Intelligence.Tactics
                     category = data.Category;
                 }
 
-                results.Add(new MoveForecast(forecast, slot.MoveId, name, type, category));
+                results[index] = new MoveForecast(forecast, slot.MoveId, name, type, category);
             }
-            return results.ToArray();
+            return results;
         }
 
+        /// <summary>The damage half of each forecast, one per slot and still in slot order.</summary>
         private static DamageForecast[] Extract(MoveForecast[] forecasts)
         {
             var result = new DamageForecast[forecasts.Length];

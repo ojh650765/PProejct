@@ -586,16 +586,20 @@ namespace PokeLab.Vfx
                 // A key that was not in the catalogue at warm time can still be served
                 // if the catalogue knows it now; registering here costs one hitch and
                 // never happens twice.
-                if (catalogue.TryGetRecipe(key, out var recipe))
-                {
-                    catalogue.TryGetPrefab(key, out var prefab);
-                    pool.Register(key, recipe, prefab);
-                }
-                else
+                //
+                // Either source is enough. A hand-authored prefab with no matching
+                // built-in recipe is a complete answer — it is the whole point of the
+                // override list, and PlayResolved has always accepted one — but this
+                // asked only for a recipe, so an integrator who overrode a key the
+                // libraries do not define got nothing at all from the direct entry point.
+                bool hasRecipe = catalogue.TryGetRecipe(key, out var recipe);
+                bool hasPrefab = catalogue.TryGetPrefab(key, out var prefab);
+                if (!hasRecipe && !hasPrefab)
                 {
                     if (logUnresolvedKeys) Debug.LogWarning($"[BattleVfxPresenter] Unknown VFX key '{key}'.");
                     return null;
                 }
+                pool.Register(key, recipe, prefab);
             }
 
             return pool.Play(key, position, rotation, scale, parent);

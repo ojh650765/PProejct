@@ -30,7 +30,30 @@ namespace PokeLab.Audio
         private float _lastTypewriterAt = -99f;
         private float _lastNavigateAt = -99f;
 
-        private void Awake() => ServiceHub.Register(this);
+        private static UiAudio _instance;
+
+        private void Awake()
+        {
+            // First one wins, and any later arrival removes itself. Every playable scene
+            // carries its own GameHosts, so a band streamed in additively brings a second
+            // copy whose Awake runs during the load; it took the hub slot and was then
+            // stripped with the duplicate hosts, and every menu blip after that band load
+            // was routed at a destroyed component.
+            if (_instance != null && _instance != this)
+            {
+                Destroy(this);
+                return;
+            }
+            _instance = this;
+            ServiceHub.Register(this);
+        }
+
+        private void OnDestroy()
+        {
+            if (_instance != this) return;
+            _instance = null;
+            ServiceHub.Unregister(this);
+        }
 
         private bool Ready()
         {

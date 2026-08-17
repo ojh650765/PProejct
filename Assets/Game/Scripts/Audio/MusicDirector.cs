@@ -13,7 +13,10 @@ namespace PokeLab.Audio
     /// biome, time of day, weather or game mode is a timed blend from the deck that is
     /// playing to the deck that is about to. A request for the track that is already
     /// playing is ignored, so repeated BiomeEntered events -- which the overworld may
-    /// fire on every trigger re-entry -- cannot restart or stutter the music.
+    /// fire on every trigger re-entry -- cannot restart or stutter the music. A request
+    /// that arrives while a blend is still running retargets that blend instead, whether
+    /// it names a third track or the one being faded away from; either way the music
+    /// carries on from the level it is at.
     ///
     /// The encounter sting is the one deliberate exception to crossfading, and it is
     /// still not a cut: it plays on its own deck while the exploration theme fades under
@@ -71,6 +74,15 @@ namespace PokeLab.Audio
 
         public string CurrentTrack => _currentTrack;
 
+        /// <summary>
+        /// The deck that owns the track being established, and the one being left behind.
+        ///
+        /// The roles are swapped when a blend *starts* rather than when it finishes, so
+        /// that for the whole of a crossfade Active is the deck rising towards
+        /// <see cref="_pendingTrack"/> and Idle is the deck falling away from
+        /// <see cref="_currentTrack"/>. A request arriving mid-blend can then tell which
+        /// deck is which, which is the whole of what it needs to retarget correctly.
+        /// </summary>
         private AudioSource Active => _aIsActive ? _deckA : _deckB;
         private AudioSource Idle => _aIsActive ? _deckB : _deckA;
 
@@ -109,7 +121,11 @@ namespace PokeLab.Audio
 
         private void OnDestroy()
         {
-            if (_instance == this) _instance = null;
+            if (_instance != this) return;
+            _instance = null;
+            // Only while the hub still holds this one: a copy arriving with a streamed band
+            // and standing down must not take the live director's slot with it.
+            ServiceHub.Unregister(this);
         }
 
         private void OnEnable()
@@ -253,10 +269,37 @@ namespace PokeLab.Audio
         public void PlayTrack(string trackName, float fadeSeconds)
         {
             if (string.IsNullOrEmpty(trackName)) return;
-            if (trackName == _currentTrack && Active != null && Active.isPlaying) return;
+
+            // Already on its way there. Repeated BiomeEntered events land here.
             if (trackName == _pendingTrack) return;
 
+            bool fading = _fade != null;
+
+            // Settled on it already, with nothing in flight that needs correcting.
+            if (!fading && trackName == _currentTrack && Active != null && Active.isPlaying) return;
+
+            // Everything a blend needs is resolved before one is started, so the coroutine
+            // has no early exit of its own to strand the fade state on.
             if (_director == null && !AudioDirector.TryResolve(out _director)) return;
+            if (_deckA == null || _deckB == null) return;
+
+            // Asked to come back to the track we are in the middle of leaving -- clipping a
+            // biome trigger and stepping straight back out of it. The clip is still on its
+            // deck and has not reached silence, so the blend is simply reversed: the two
+            // decks swap roles and the loop keeps its position rather than restarting. This
+            // used to match _currentTrack and return, leaving the fade to complete into the
+            // track the player had just walked out of.
+            if (fading && trackName == _currentTrack)
+            {
+                var falling = Idle;
+                if (falling != null && falling.isPlaying && falling.clip != null)
+                {
+                    StopCoroutine(_fade);
+                    BeginFade(falling, Active, trackName, fadeSeconds, restartIncoming: false);
+                    return;
+                }
+            }
+
             var clip = _director.Catalog != null ? _director.Catalog.GetClip(trackName) : null;
             if (clip == null)
             {
@@ -264,30 +307,67 @@ namespace PokeLab.Audio
                 return;
             }
 
-            _pendingTrack = trackName;
-            if (_fade != null) StopCoroutine(_fade);
-            _fade = StartCoroutine(Crossfade(clip, trackName, Mathf.Max(0.05f, fadeSeconds)));
-        }
+            AudioSource outgoing, incoming;
+            if (fading)
+            {
+                StopCoroutine(_fade);
 
-        private IEnumerator Crossfade(AudioClip clip, string trackName, float seconds)
-        {
-            var outgoing = Active;
-            var incoming = Idle;
-
-            // Checked rather than assumed. A coroutine that throws reports a stack with only
-            // its own name in it — in a release build, not even that — so the one place this
-            // can be null is the one place it has to be tested.
-            if (incoming == null || _director == null) yield break;
+                // Mid-blend both decks are sounding, and the new track has to displace one
+                // of them. Keep the louder -- the one the player is actually hearing -- and
+                // build the new track on the quieter, so a retarget costs at most the
+                // fainter half of a blend. Taking the rising deck unconditionally, as this
+                // did, cut whatever it had faded in: entering a battle and learning a
+                // sentence later that it is a trainer battle chopped the wild theme off
+                // mid-note.
+                bool keepActive = LevelOf(Active) >= LevelOf(Idle);
+                outgoing = keepActive ? Active : Idle;
+                incoming = keepActive ? Idle : Active;
+            }
+            else
+            {
+                outgoing = Active;
+                incoming = Idle;
+            }
 
             incoming.clip = clip;
-            incoming.loop = true;
-            incoming.volume = 0f;
-            incoming.time = 0f;
-            incoming.outputAudioMixerGroup = _director.GroupFor(AudioBus.Music);
-            incoming.Play();
+            BeginFade(incoming, outgoing, trackName, fadeSeconds, restartIncoming: true);
+        }
 
-            float target = musicLevel * _duckGain * _weatherTrim;
-            float outStart = outgoing != null && outgoing.isPlaying ? outgoing.volume : 0f;
+        /// <summary>Audible level of a deck; a deck that is not playing counts as silent.</summary>
+        private static float LevelOf(AudioSource deck) =>
+            deck != null && deck.isPlaying ? deck.volume : 0f;
+
+        private void BeginFade(AudioSource incoming, AudioSource outgoing, string trackName,
+                               float fadeSeconds, bool restartIncoming)
+        {
+            // Whatever the outgoing deck holds is the track being left, and that is what a
+            // request to come back mid-blend has to match against. After a retarget it may
+            // be the track the previous blend was heading for rather than the settled one.
+            if (ReferenceEquals(outgoing, Active) && _pendingTrack != null) _currentTrack = _pendingTrack;
+            _pendingTrack = trackName;
+
+            if (restartIncoming)
+            {
+                incoming.loop = true;
+                incoming.volume = 0f;
+                incoming.time = 0f;
+                incoming.outputAudioMixerGroup = _director.GroupFor(AudioBus.Music);
+                incoming.Play();
+            }
+
+            _aIsActive = ReferenceEquals(incoming, _deckA);
+            _fade = StartCoroutine(Crossfade(incoming, outgoing, trackName,
+                                             Mathf.Max(0.05f, fadeSeconds)));
+        }
+
+        private IEnumerator Crossfade(AudioSource incoming, AudioSource outgoing,
+                                      string trackName, float seconds)
+        {
+            // Both ends ramp from where they already are rather than from a fixed 0 and 1,
+            // which is what lets a reversed or retargeted blend continue from the level
+            // that is currently in the room instead of jumping to meet the curve.
+            float inStart = incoming.volume;
+            float outStart = LevelOf(outgoing);
             float t = 0f;
             while (t < seconds)
             {
@@ -309,20 +389,20 @@ namespace PokeLab.Audio
                     outGain = 1f - shaped;
                 }
 
-                target = musicLevel * _duckGain * _weatherTrim;
-                incoming.volume = inGain * target;
+                float target = musicLevel * _duckGain * _weatherTrim;
+                if (incoming == null) break;
+                incoming.volume = Mathf.Lerp(inStart, target, inGain);
                 if (outgoing != null && outgoing.isPlaying) outgoing.volume = outGain * outStart;
                 yield return null;
             }
 
-            incoming.volume = musicLevel * _duckGain * _weatherTrim;
+            if (incoming != null) incoming.volume = musicLevel * _duckGain * _weatherTrim;
             if (outgoing != null)
             {
                 outgoing.Stop();
                 outgoing.clip = null;
             }
 
-            _aIsActive = !_aIsActive;
             _currentTrack = trackName;
             _pendingTrack = null;
             _fade = null;
@@ -332,7 +412,10 @@ namespace PokeLab.Audio
         {
             _pendingTrack = null;
             _currentTrack = null;
-            if (_fade != null) StopCoroutine(_fade);
+            // Cleared as well as stopped: a fade handle left behind is one ApplyLevels
+            // treats as still running, and it stops maintaining deck volume for good.
+            if (_fade != null) { StopCoroutine(_fade); _fade = null; }
+            if (_deckA == null || _deckB == null) return;
             _fade = StartCoroutine(FadeOutRoutine(Mathf.Max(0.05f, seconds)));
         }
 

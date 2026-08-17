@@ -31,10 +31,30 @@ namespace PokeLab.Audio
         private AudioDirector _audio;
         private readonly int[] _lastVariant = new int[5];
 
+        private static OverworldAudio _instance;
+
         private void Awake()
         {
+            // First one wins, and any later arrival removes itself. A band streamed in
+            // additively brings a second copy whose Awake runs during the load; it took the
+            // hub slot and was then stripped with the rest of the duplicate hosts, so every
+            // footstep the player took after crossing that seam went nowhere.
+            if (_instance != null && _instance != this)
+            {
+                Destroy(this);
+                return;
+            }
+            _instance = this;
+
             for (int i = 0; i < _lastVariant.Length; i++) _lastVariant[i] = -1;
             ServiceHub.Register(this);
+        }
+
+        private void OnDestroy()
+        {
+            if (_instance != this) return;
+            _instance = null;
+            ServiceHub.Unregister(this);
         }
 
         private bool Ready()

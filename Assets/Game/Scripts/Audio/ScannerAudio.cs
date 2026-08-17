@@ -51,9 +51,31 @@ namespace PokeLab.Audio
 
         public bool IsOpen => _isOpen;
 
-        private void Awake() => ServiceHub.Register(this);
+        private static ScannerAudio _instance;
+
+        private void Awake()
+        {
+            // First one wins, and any later arrival removes itself. A band streamed in
+            // additively brings a second scanner voice whose Awake runs during the load;
+            // it claimed the hub slot and was then stripped with the duplicate hosts,
+            // which left the scanner panel talking to a destroyed component.
+            if (_instance != null && _instance != this)
+            {
+                Destroy(this);
+                return;
+            }
+            _instance = this;
+            ServiceHub.Register(this);
+        }
 
         private void OnDisable() => StopScanLoop();
+
+        private void OnDestroy()
+        {
+            if (_instance != this) return;
+            _instance = null;
+            ServiceHub.Unregister(this);
+        }
 
         private bool Ready()
         {

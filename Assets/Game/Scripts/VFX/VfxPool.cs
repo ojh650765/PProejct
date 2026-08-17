@@ -15,25 +15,37 @@ namespace PokeLab.Vfx
         internal string Key;
         internal float ExpiresAt;
         internal bool Persistent;
+
+        /// <summary>
+        /// Which use of the instance this handle refers to; zero once the pool has taken it
+        /// back.
+        ///
+        /// The GameObject outlives the play that borrowed it, so a caller holding a handle
+        /// from a finished effect is holding a token for an instance somebody else is now
+        /// using. Without the stamp, stopping a status aura that had already expired stopped
+        /// whichever effect had since been handed that instance.
+        /// </summary>
         internal int Generation;
 
-        public Transform Transform => Root != null ? Root.transform : null;
-        public bool IsAlive => Root != null && Root.activeSelf;
+        private bool Live => Generation != 0 && Root != null;
+
+        public Transform Transform => Live ? Root.transform : null;
+        public bool IsAlive => Live && Root.activeSelf;
 
         public void SetPosition(Vector3 worldPosition)
         {
-            if (Root != null) Root.transform.position = worldPosition;
+            if (Live) Root.transform.position = worldPosition;
         }
 
         public void SetRotation(Quaternion rotation)
         {
-            if (Root != null) Root.transform.rotation = rotation;
+            if (Live) Root.transform.rotation = rotation;
         }
 
         /// <summary>Uniformly scales the effect. Used to size a hit to the creature.</summary>
         public void SetScale(float scale)
         {
-            if (Root != null) Root.transform.localScale = Vector3.one * Mathf.Max(scale, 0.01f);
+            if (Live) Root.transform.localScale = Vector3.one * Mathf.Max(scale, 0.01f);
         }
     }
 
@@ -126,7 +138,17 @@ namespace PokeLab.Vfx
         {
             if (!buckets.TryGetValue(key, out var bucket)) return null;
 
-            VfxHandle handle = bucket.Idle.Count > 0 ? bucket.Idle.Pop() : CreateInstance(key, bucket);
+            VfxHandle handle = null;
+            while (bucket.Idle.Count > 0)
+            {
+                handle = bucket.Idle.Pop();
+                if (handle.Root != null) break;
+                // Destroyed while it sat in the pool. Hand the capacity back instead of
+                // handing out a hole, for the same reason Recycle does.
+                bucket.Created = Mathf.Max(0, bucket.Created - 1);
+                handle = null;
+            }
+            if (handle == null) handle = CreateInstance(key, bucket);
             if (handle == null) return null;
 
             var t = handle.Root.transform;
@@ -136,10 +158,24 @@ namespace PokeLab.Vfx
             t.localScale = Vector3.one * Mathf.Max(scale, 0.01f);
 
             handle.Generation = ++generation;
-            handle.Persistent = bucket.Recipe != null && bucket.Recipe.TotalDuration <= 1e-4f;
-            handle.ExpiresAt = handle.Persistent
-                ? float.MaxValue
-                : Time.time + (bucket.Recipe?.ResolveDuration() ?? 2f);
+            if (bucket.Recipe != null)
+            {
+                handle.Persistent = bucket.Recipe.TotalDuration <= 1e-4f;
+                handle.ExpiresAt = handle.Persistent
+                    ? float.MaxValue
+                    : Time.time + bucket.Recipe.ResolveDuration();
+            }
+            else
+            {
+                // A prefab override has no recipe to ask, so the prefab is the authority.
+                // A looping system is its author saying "this runs until someone stops it";
+                // treating every override as a two-second one-shot force-recycled a looping
+                // aura mid-loop, which is precisely the case an override exists to serve.
+                handle.Persistent = AnyLooping(handle);
+                handle.ExpiresAt = handle.Persistent
+                    ? float.MaxValue
+                    : Time.time + PrefabDuration(handle);
+            }
 
             handle.Root.SetActive(true);
             for (int i = 0; i < handle.Systems.Length; i++)
@@ -161,7 +197,9 @@ namespace PokeLab.Vfx
         /// </summary>
         public void Stop(VfxHandle handle, bool immediate = false)
         {
-            if (handle == null || handle.Root == null) return;
+            // A handle the pool has already reclaimed names an instance somebody else is
+            // playing now, so stopping through it would stop their effect instead.
+            if (handle == null || handle.Generation == 0 || handle.Root == null) return;
 
             for (int i = 0; i < handle.Systems.Length; i++)
             {
@@ -216,7 +254,20 @@ namespace PokeLab.Vfx
 
         private void Recycle(Bucket bucket, VfxHandle handle)
         {
-            if (handle.Root == null) return;
+            // Retired first, whichever way this goes: the caller may still be holding this
+            // handle, and from here on it names an instance it no longer owns.
+            handle.Generation = 0;
+
+            if (handle.Root == null)
+            {
+                // Destroyed from outside — an effect parented to a creature that the battle
+                // tore down while it was still running. The instance is gone, so the count
+                // of instances has to lose it too; leaving it counted burned one of the
+                // key's slots permanently, and twenty-four of those retired the key for the
+                // rest of the session.
+                bucket.Created = Mathf.Max(0, bucket.Created - 1);
+                return;
+            }
 
             for (int i = 0; i < handle.Systems.Length; i++)
             {
@@ -227,7 +278,47 @@ namespace PokeLab.Vfx
 
             handle.Root.SetActive(false);
             handle.Root.transform.SetParent(root, false);
-            bucket.Idle.Push(handle);
+
+            // The instance goes back to the pool wrapped in a fresh handle, so the token the
+            // caller kept cannot be mistaken for the next play of the same instance.
+            bucket.Idle.Push(new VfxHandle
+            {
+                Root = handle.Root,
+                Systems = handle.Systems,
+                Key = handle.Key,
+            });
+        }
+
+        /// <summary>Whether any of an instance's systems loops, i.e. it ends only on Stop.</summary>
+        private static bool AnyLooping(VfxHandle handle)
+        {
+            for (int i = 0; i < handle.Systems.Length; i++)
+            {
+                var ps = handle.Systems[i];
+                if (ps != null && ps.main.loop) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// How long a one-shot prefab needs before the pool may take it back: its own
+        /// emission window plus the life of the last particle it emits.
+        /// </summary>
+        private static float PrefabDuration(VfxHandle handle)
+        {
+            float longest = 0f;
+            for (int i = 0; i < handle.Systems.Length; i++)
+            {
+                var ps = handle.Systems[i];
+                if (ps == null) continue;
+                var main = ps.main;
+                longest = Mathf.Max(longest, main.startDelay.constantMax
+                                             + main.duration
+                                             + main.startLifetime.constantMax);
+            }
+            // Nothing to measure means no particle systems at all, so fall back to the
+            // two seconds this used for everything.
+            return longest > 1e-3f ? longest + 0.15f : 2f;
         }
 
         private VfxHandle CreateInstance(string key, Bucket bucket)

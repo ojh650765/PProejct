@@ -118,8 +118,27 @@ namespace PokeLab.Audio
 
         private void Reset() => profiles = DefaultProfiles();
 
+        private static AmbienceDirector _instance;
+
         private void Awake()
         {
+            // First one wins, and any later arrival removes itself.
+            //
+            // A band streamed in additively brings a second GameHosts, and its Awake runs
+            // during the load: it took the hub slot, allocated ten more layer sources, and
+            // was then stripped along with the rest of the duplicate hosts, leaving the hub
+            // holding a destroyed director and the ambience silent for the session.
+            if (_instance != null && _instance != this)
+            {
+                // Disabled as well as destroyed: Destroy does not take effect until the end
+                // of the frame, and Update on a director that never built its layer sources
+                // is a null reference the moment it runs.
+                enabled = false;
+                Destroy(this);
+                return;
+            }
+            _instance = this;
+
             if (profiles == null || profiles.Count == 0) profiles = DefaultProfiles();
             AudioDirector.TryResolve(out _director);
 
@@ -141,6 +160,13 @@ namespace PokeLab.Audio
                                                group, spatial: true);
             ServiceHub.Register(this);
             Recalculate();
+        }
+
+        private void OnDestroy()
+        {
+            if (_instance != this) return;
+            _instance = null;
+            ServiceHub.Unregister(this);
         }
 
         private void OnEnable()

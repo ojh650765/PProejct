@@ -21,7 +21,13 @@ namespace PokeLab.Intelligence
     public static class PokeLabBootstrap
     {
         private static PokeLabOracle _oracle;
-        private static bool _running;
+
+        /// <summary>
+        /// The load in flight, or null. One task shared by every caller: it is what a second
+        /// caller waits on, and it publishes before it completes, so anyone who has awaited
+        /// it can read <see cref="Oracle"/>.
+        /// </summary>
+        private static Task<PokeLabOracle> _load;
 
         public static bool IsInitialized => _oracle != null;
 
@@ -41,30 +47,56 @@ namespace PokeLab.Intelligence
         /// </summary>
         public static IEnumerator InitializeRoutine(Action<Exception> onError = null)
         {
-            if (_oracle != null || _running) yield break;
-            _running = true;
+            if (_oracle != null) yield break;
 
-            var task = LoadAsync(DataRoot);
-            while (!task.IsCompleted) yield return null;
-            _running = false;
+            // A second caller waits for the load already in flight rather than returning
+            // straight away. It used to yield break on the in-flight flag, so the caller
+            // resumed on the same frame it started and read Oracle as null — which is the
+            // one thing yielding on this was supposed to make impossible.
+            var load = BeginLoad();
+            while (!load.IsCompleted) yield return null;
 
-            if (task.IsFaulted)
+            if (load.IsFaulted)
             {
-                var error = Flatten(task.Exception);
+                if (ReferenceEquals(_load, load)) _load = null;
+                var error = Flatten(load.Exception);
                 Debug.LogError($"[PokeLab] initialisation failed: {error}");
                 onError?.Invoke(error);
-                yield break;
             }
-
-            Publish(task.Result);
         }
 
         /// <summary>Task form, for callers that already have an async context.</summary>
         public static async Task<PokeLabOracle> InitializeAsync()
         {
             if (_oracle != null) return _oracle;
-            var data = await LoadAsync(DataRoot);
-            Publish(data);
+            var load = BeginLoad();
+            try
+            {
+                return await load;
+            }
+            catch
+            {
+                // A load that failed must not become the permanent answer: the export may
+                // simply not have been run yet, and a later attempt should get to try.
+                if (ReferenceEquals(_load, load)) _load = null;
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The one load, started on demand. Publishing happens inside it rather than in the
+        /// callers, so "the task completed" and "the services are registered" are the same
+        /// moment however many callers are waiting.
+        /// </summary>
+        private static Task<PokeLabOracle> BeginLoad()
+        {
+            if (_load == null) _load = LoadAndPublish(DataRoot);
+            return _load;
+        }
+
+        private static async Task<PokeLabOracle> LoadAndPublish(string root)
+        {
+            Publish(await LoadAsync(root));
             return _oracle;
         }
 
@@ -83,7 +115,7 @@ namespace PokeLab.Intelligence
         public static void Reset()
         {
             _oracle = null;
-            _running = false;
+            _load = null;
             Ready = null;
         }
 
@@ -110,7 +142,14 @@ namespace PokeLab.Intelligence
                 var moves = await ReadTextViaWebRequest(root, PokeLabData.Files.Moves);
                 var chart = await ReadTextViaWebRequest(root, PokeLabData.Files.TypeChart);
                 var forest = await ReadBytesViaWebRequest(root, PokeLabData.Files.Forest);
-                var combats = await ReadBytesViaWebRequest(root, PokeLabData.Files.Combats);
+
+                // Optional here exactly as it is on the file path: combats.bin is the
+                // head-to-head history, and PokeLabData.Parse accepts it missing. Fetching
+                // it like everything else meant a 404 on the one artefact documented as
+                // optional took the species, the moves, the type chart and the forest down
+                // with it, and left the scanner offline for the whole session.
+                var combats = await ReadBytesViaWebRequest(root, PokeLabData.Files.Combats,
+                                                           required: false);
 
                 // Parsed on the calling thread in a web player, because there is no other one.
                 //
@@ -174,19 +213,30 @@ namespace PokeLab.Intelligence
             return request.downloadHandler.text;
         }
 
-        private static async Task<byte[]> ReadBytesViaWebRequest(string root, string file)
+        private static async Task<byte[]> ReadBytesViaWebRequest(string root, string file,
+                                                                 bool required = true)
         {
             using var request = UnityWebRequest.Get(root + "/" + file);
-            await SendAsync(request, file);
+            if (!await SendAsync(request, file, required)) return null;
             return request.downloadHandler.data;
         }
 
-        private static async Task SendAsync(UnityWebRequest request, string file)
+        /// <summary>
+        /// Runs the request. Returns false only when an optional artefact could not be
+        /// fetched; anything required still throws.
+        /// </summary>
+        private static async Task<bool> SendAsync(UnityWebRequest request, string file,
+                                                  bool required = true)
         {
             var operation = request.SendWebRequest();
             while (!operation.isDone) await Task.Yield();
-            if (request.result != UnityWebRequest.Result.Success)
+            if (request.result == UnityWebRequest.Result.Success) return true;
+            if (required)
                 throw new IOException($"Poké Lab could not read {file}: {request.error}");
+
+            Debug.LogWarning($"[PokeLab] Optional data {file} was not served ({request.error}). " +
+                             "Predictions carry on without the head-to-head history.");
+            return false;
         }
 
         private static Exception Flatten(AggregateException exception)

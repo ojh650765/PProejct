@@ -68,9 +68,19 @@ namespace PokeLab.Audio
         private float _duckTarget;      // 0 = no duck, 1 = full duck
         private float _duckCurrent;
         private float _duckSpeed = 4f;
-        private int _scopedDucks;
+
+        /// <summary>Depth of every scope that is still holding, one entry per live scope.</summary>
+        private readonly List<float> _scopedDucks = new List<float>();
+        /// <summary>Depth of the timed duck, 0 when none is holding.</summary>
+        private float _timedDuckAmount;
+        /// <summary>Deepest request currently held. 0 when nothing is ducking.</summary>
+        private float _activeDuckAmount;
+        /// <summary>The depth the gain is actually using; glides towards the one above.</summary>
+        private float _amountCurrent;
+
         private Coroutine _timedDuck;
         private bool _warnedNoCatalog;
+        private Action<string> _cue;
 
         /// <summary>
         /// Linear gain the music loops should currently be multiplied by.
@@ -104,8 +114,25 @@ namespace PokeLab.Audio
 
         // ------------------------------------------------------------------------------
 
+        private static AudioDirector _instance;
+
         private void Awake()
         {
+            // First one wins, and any later arrival removes itself.
+            //
+            // Every playable scene carries its own GameHosts, so a band streamed in
+            // additively brings a second director whose Awake runs *during* the load. It
+            // used to overwrite all three hub registrations and was then stripped with the
+            // rest of the duplicate hosts, leaving the hub pointing at a destroyed director
+            // whose voice pools no longer exist: every consumer that resolved audio after
+            // that band load was silent for the remainder of the session.
+            if (_instance != null && _instance != this)
+            {
+                Destroy(this);
+                return;
+            }
+            _instance = this;
+
             ResolveGroups();
 
             _busVolume[AudioBus.Master] = masterVolume;
@@ -128,7 +155,11 @@ namespace PokeLab.Audio
             // Zero-coupling escape hatch. A worker that must not reference this assembly
             // can still fire a cue: ServiceHub.TryGet<Action<string>>(out var cue).
             // Interim only -- the durable fix is an IGameAudio interface in Core.
-            ServiceHub.Register<Action<string>>(name => PlaySfx(name));
+            //
+            // Kept in a field rather than written inline so OnDestroy can hand back this
+            // exact delegate; the hub only drops a registration that is still ours.
+            _cue = name => PlaySfx(name);
+            ServiceHub.Register(_cue);
         }
 
         private void OnDestroy()
@@ -137,6 +168,16 @@ namespace PokeLab.Audio
             _spatialPool?.StopAll();
             _uiPool?.StopAll();
             _loopPool?.StopAll();
+
+            // Only the owning instance gives the services back, and only while they are
+            // still its own: a duplicate standing down must not deregister the live
+            // director, and neither must the outgoing scene's copy once a new one has
+            // taken the slot.
+            if (_instance != this) return;
+            _instance = null;
+            ServiceHub.Unregister<IGameAudio>(this);
+            ServiceHub.Unregister(this);
+            if (_cue != null) ServiceHub.Unregister(_cue);
         }
 
         private void ResolveGroups()
@@ -160,24 +201,28 @@ namespace PokeLab.Audio
 
         private void Update()
         {
-            if (!Mathf.Approximately(_duckCurrent, _duckTarget))
-            {
-                _duckCurrent = Mathf.MoveTowards(_duckCurrent, _duckTarget,
-                                                 _duckSpeed * Time.unscaledDeltaTime);
-                UpdateDuckGain();
-            }
+            bool settled = Mathf.Approximately(_duckCurrent, _duckTarget) &&
+                           Mathf.Approximately(_amountCurrent, _activeDuckAmount);
+            if (settled) return;
+
+            float step = _duckSpeed * Time.unscaledDeltaTime;
+            _duckCurrent = Mathf.MoveTowards(_duckCurrent, _duckTarget, step);
+            // The depth travels at the same rate as the dip itself, so a second duck
+            // arriving on top of the first deepens the music rather than stepping it
+            // down, and handing one back lets the music rise to whatever is still
+            // holding instead of snapping up to it.
+            _amountCurrent = Mathf.MoveTowards(_amountCurrent, _activeDuckAmount, step);
+            UpdateDuckGain();
         }
 
         private void UpdateDuckGain()
         {
             float shaped = duckCurve.Evaluate(Mathf.Clamp01(_duckCurrent));
-            float gain = Mathf.Lerp(1f, 1f - _activeDuckAmount, shaped);
+            float gain = Mathf.Lerp(1f, 1f - _amountCurrent, shaped);
             if (Mathf.Approximately(gain, MusicDuckGain)) return;
             MusicDuckGain = gain;
             MusicDuckChanged?.Invoke(gain);
         }
-
-        private float _activeDuckAmount = 0.55f;
 
         // ---- volume ------------------------------------------------------------------
 
@@ -347,52 +392,76 @@ namespace PokeLab.Audio
 
         private IEnumerator TimedDuck(float amount, float attack, float hold, float release)
         {
-            _activeDuckAmount = Mathf.Max(_activeDuckAmount, amount);
+            _timedDuckAmount = amount;
+            RefreshDuckAmount();
             _duckSpeed = 1f / Mathf.Max(0.01f, attack);
             _duckTarget = 1f;
             yield return new WaitForSecondsRealtime(attack + Mathf.Max(0f, hold));
 
-            if (_scopedDucks == 0)
-            {
-                _duckSpeed = 1f / Mathf.Max(0.01f, release);
-                _duckTarget = 0f;
-            }
             _timedDuck = null;
+            _timedDuckAmount = 0f;
+            RefreshDuckAmount();
+
+            // A scope still holding keeps the music down -- at its own depth, not at the
+            // one this duck asked for.
+            if (_scopedDucks.Count > 0) yield break;
+            _duckSpeed = 1f / Mathf.Max(0.01f, release);
+            _duckTarget = 0f;
         }
 
         public IDisposable DuckMusicScope(float amount01 = 0.55f, float attack = 0.25f,
                                           float release = 0.6f)
         {
-            _scopedDucks++;
-            _activeDuckAmount = Mathf.Max(_activeDuckAmount, Mathf.Clamp01(amount01));
+            float amount = Mathf.Clamp01(amount01);
+            _scopedDucks.Add(amount);
+            RefreshDuckAmount();
             _duckSpeed = 1f / Mathf.Max(0.01f, attack);
             _duckTarget = 1f;
-            return new DuckHandle(this, release);
+            return new DuckHandle(this, amount, release);
         }
 
-        private void EndScope(float release)
+        private void EndScope(float amount, float release)
         {
-            _scopedDucks = Mathf.Max(0, _scopedDucks - 1);
-            if (_scopedDucks > 0 || _timedDuck != null) return;
+            _scopedDucks.Remove(amount);
+            RefreshDuckAmount();
+            if (_scopedDucks.Count > 0 || _timedDuck != null) return;
             _duckSpeed = 1f / Mathf.Max(0.01f, release);
             _duckTarget = 0f;
+        }
+
+        /// <summary>
+        /// Recomputes the dip from the requests that are actually still held.
+        ///
+        /// This used to be a high-water mark that nothing ever lowered, which meant the
+        /// first victory fanfare left every later duck in the session dipping by three
+        /// quarters, and a duck shallower than the initial value -- the authored 0.35
+        /// dialogue dip among them -- could never be heard at all.
+        /// </summary>
+        private void RefreshDuckAmount()
+        {
+            float deepest = _timedDuckAmount;
+            for (int i = 0; i < _scopedDucks.Count; i++)
+                deepest = Mathf.Max(deepest, _scopedDucks[i]);
+            _activeDuckAmount = deepest;
         }
 
         private sealed class DuckHandle : IDisposable
         {
             private AudioDirector _owner;
+            private readonly float _amount;
             private readonly float _release;
 
-            public DuckHandle(AudioDirector owner, float release)
+            public DuckHandle(AudioDirector owner, float amount, float release)
             {
                 _owner = owner;
+                _amount = amount;
                 _release = release;
             }
 
             public void Dispose()
             {
                 if (_owner == null) return;
-                _owner.EndScope(_release);
+                _owner.EndScope(_amount, _release);
                 _owner = null;
             }
         }
