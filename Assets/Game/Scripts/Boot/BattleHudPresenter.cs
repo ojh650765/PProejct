@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using PokeLab.Battle;
 using PokeLab.Cinematics;
 using PokeLab.Core;
@@ -79,16 +80,33 @@ namespace PokeLab.Boot
             _hud.SwitchRequested = index => Commit(BattleAction.SwitchTo(BattleSide.Player, index));
             _hud.RunRequested = () => Commit(BattleAction.Run(BattleSide.Player));
 
-            // The bag and party screens do not exist yet. Rather than a button that silently
-            // does nothing, each resolves to the nearest honest action and says so in the log —
-            // a dead control is worse than a plain one.
+            // The default ball, by name. The HUD cannot commit this itself: ItemCatalog lives
+            // in the battle assembly, which PokeLab.UI must not reference, so the UI raises
+            // the intent and this binding — sitting in Boot, which sees both — names the item.
+            _hud.CaptureRequested = () =>
+                Commit(BattleAction.Capture(BattleSide.Player, ItemCatalog.PokeBallId));
+
+            // The bag screen does not exist yet. Rather than a button that silently does
+            // nothing, it says so in the log — a dead control is worse than a plain one.
             _hud.BagRequested = () =>
             {
                 _hud.Log?.Append(Loc.Pick("The bag is not packed yet.", "가방은 아직 준비되지 않았네."));
                 _hud.BeginPlayerTurn(ActivePlayer());
             };
+
+            // The party command opens the in-battle picker over the engine's own party list —
+            // the authoritative one, because mid-battle HP lives on the engine's instances.
+            // The old honest line survives only for the case it was written for: a party with
+            // genuinely nobody else to send.
             _hud.PartyRequested = () =>
             {
+                var party = PlayerParty();
+                var activeIndex = IndexOfActive(party, ActivePlayer());
+                if (AnyBenchedHealthy(party, activeIndex))
+                {
+                    _hud.OpenPartyPicker(party, activeIndex, false);
+                    return;
+                }
                 _hud.Log?.Append(Loc.Pick("There is nobody else to send out.", "내보낼 다른 포켓몬이 없어."));
                 _hud.BeginPlayerTurn(ActivePlayer());
             };
@@ -134,12 +152,33 @@ namespace PokeLab.Boot
             if (_hud == null || engine == null) yield break;
             _engine = engine;
 
+            // With a player at the controls, a faint must become a choice rather than the
+            // engine quietly fielding whoever is next in the list. Set every turn rather
+            // than once per bind because the flag is per-engine and the engine is a new
+            // object every battle; an assignment to the same bool is free.
+            engine.DeferPlayerReplacement = true;
+
             var active = engine.State?.ActiveOf(BattleSide.Player);
             if (active == null) yield break;
 
             _hasChoice = false;
             _hud.Show();
-            _hud.BeginPlayerTurn(active);
+
+            // The replacement turn: the active creature is down and somebody healthy is
+            // benched, so the only legal action is a switch and the move menu would be a
+            // menu of lies. The picker opens in forced mode — no cancel, because there is
+            // no turn to go back to — and the chosen switch resolves as a free send-out.
+            var party = PlayerParty();
+            var activeIndex = IndexOfActive(party, active);
+            if (active.IsFainted && AnyBenchedHealthy(party, activeIndex))
+            {
+                _hud.Log?.Append(Loc.Pick("Choose your next Pokémon!", "다음 포켓몬을 내보내자!"));
+                _hud.OpenPartyPicker(party, activeIndex, true);
+            }
+            else
+            {
+                _hud.BeginPlayerTurn(active);
+            }
 
             var deadline = Time.unscaledTime + Mathf.Max(5f, _decisionTimeout);
             while (!_hasChoice && Time.unscaledTime < deadline) yield return null;
@@ -170,6 +209,49 @@ namespace PokeLab.Boot
         /// </summary>
         private CreatureInstance ActivePlayer() =>
             _engine?.State?.ActiveOf(BattleSide.Player);
+
+        /// <summary>
+        /// The player's party as the engine sees it — the instances whose HP the battle has
+        /// been mutating. The profile's list is the fallback for the window before the first
+        /// turn hands us an engine; mid-battle it can be a snapshot the fight has moved past.
+        /// </summary>
+        private IReadOnlyList<CreatureInstance> PlayerParty()
+        {
+            var party = _engine?.State?.PartyOf(BattleSide.Player);
+            if (party != null && party.Count > 0) return party;
+            return ServiceHub.TryGet<IPlayerProfile>(out var profile) ? profile.Party : null;
+        }
+
+        /// <summary>
+        /// Where the active creature sits in the party list. By instance id before reference,
+        /// because the engine may clone instances at battle start and the picker needs the
+        /// index the switch action will be validated against.
+        /// </summary>
+        private static int IndexOfActive(IReadOnlyList<CreatureInstance> party, CreatureInstance active)
+        {
+            if (party == null || active == null) return -1;
+            for (var i = 0; i < party.Count; i++)
+            {
+                var member = party[i];
+                if (member == null) continue;
+                if (ReferenceEquals(member, active)) return i;
+                if (!string.IsNullOrEmpty(active.InstanceId) && member.InstanceId == active.InstanceId) return i;
+            }
+            return -1;
+        }
+
+        /// <summary>Whether anyone off the field could still fight.</summary>
+        private static bool AnyBenchedHealthy(IReadOnlyList<CreatureInstance> party, int activeIndex)
+        {
+            if (party == null) return false;
+            for (var i = 0; i < party.Count; i++)
+            {
+                if (i == activeIndex) continue;
+                var member = party[i];
+                if (member != null && !member.IsFainted) return true;
+            }
+            return false;
+        }
 
         /// <summary>
         /// Builds the HUD once, on its own canvas.

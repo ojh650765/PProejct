@@ -368,13 +368,30 @@ namespace PokeLab.Battle
             return highest * 24;
         }
 
-        /// <summary>Every species the player met, so the overworld can mark the dex.</summary>
+        /// <summary>
+        /// The opponent species the player actually met, so the overworld can mark the dex.
+        ///
+        /// Filtered through the engine's scouted set rather than dumping the whole party:
+        /// this used to report every opposing party member, including trainers' reserves
+        /// that never entered the field, which let a battle abandoned on the first turn
+        /// fill in dex entries for creatures the player never laid eyes on. The engine
+        /// already keeps the honest record — <see cref="BattleState.MarkScouted"/> fires
+        /// when a creature shows a move, faints or is caught — so the stage asks it via
+        /// <see cref="IBattleStateView.HasScouted"/> per party member instead of keeping a
+        /// second, disagreeing notion of "seen". Iterating the party and testing
+        /// membership (rather than exposing the raw set) also keeps the player's own
+        /// species out of this list, exactly as before: their captured/seen bookkeeping
+        /// belongs to the profile, not to the encounter result.
+        /// </summary>
         private void CollectSpeciesSeen(List<int> destination)
         {
+            if (Engine == null) return;
+
             for (var i = 0; i < _opponentParty.Count; i++)
             {
                 var member = _opponentParty[i];
-                if (member != null && !destination.Contains(member.SpeciesId)) destination.Add(member.SpeciesId);
+                if (member == null || !Engine.State.HasScouted(member.SpeciesId)) continue;
+                if (!destination.Contains(member.SpeciesId)) destination.Add(member.SpeciesId);
             }
         }
 

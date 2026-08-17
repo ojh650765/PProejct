@@ -115,6 +115,8 @@ namespace PokeLab.UI
 
         private readonly List<Button> _choiceButtons = new List<Button>(4);
         private TweenHandle _typing;
+        private Core.IUiSoundBank _sounds;
+        private int _spokenCharacters;
         private TweenHandle _caret;
         private TweenHandle _openFade;
         private Action _onAdvance;
@@ -326,10 +328,14 @@ namespace PokeLab.UI
             _autoCountdown = -1f;
             if (_revealing)
             {
+                // Completing a reveal is deliberately silent: the flood of text arriving is
+                // its own feedback, and a confirm blip here would make the fast-forward
+                // press and the advance press sound like the same action.
                 CompleteReveal();
                 return;
             }
             if (_pendingChoices != null) return; // Waiting on a choice, not an advance.
+            Sounds?.Confirm();
             _onAdvance?.Invoke();
         }
 
@@ -376,11 +382,18 @@ namespace PokeLab.UI
             _revealing = true;
             SetCaretVisible(false);
 
-            // Reparsed now rather than at the next canvas render. GetParsedText reads the mesh
+// Reparsed now rather than at the next canvas render. GetParsedText reads the mesh
             // TMP last built, so called straight after SetText it hands back the *previous*
             // line — the first line of a session measured as empty and revealed instantly, and
             // every line after it typed at the length and punctuation of the one before.
             _body.ForceMeshUpdate(true);
+
+            // The typewriter speaks. The bank is told a line is starting so its every-nth
+            // cadence restarts on a blip, and then hears every revealed character below —
+            // which characters actually sound (skipping spaces, throttling floods) is the
+            // bank's decision, not this view's.
+            _spokenCharacters = 0;
+            Sounds?.BeginTypewriterLine();
 
             var parsed = _body.GetParsedText();
             var visible = Mathf.Max(1, parsed.Length);
@@ -398,8 +411,41 @@ namespace PokeLab.UI
             _typing = UiTween.Run(duration, t =>
             {
                 if (_body == null) return;
-                _body.maxVisibleCharacters = CharactersAt(parsed, t, pauses);
+                var shown = CharactersAt(parsed, t, pauses);
+                _body.maxVisibleCharacters = shown;
+                SpeakRevealed(parsed, shown);
             }, Ease.Linear, 0f, true, CompleteReveal);
+        }
+
+        /// <summary>
+        /// Feeds each newly revealed character to the sound bank exactly once.
+        ///
+        /// Resolved lazily and treated as optional: dialogue must read identically in a
+        /// scene where the audio layer never booted, so absence is silence, never a wait.
+        /// </summary>
+        private void SpeakRevealed(string parsed, int shownCount)
+        {
+            if (shownCount <= _spokenCharacters) return;
+            var bank = Sounds;
+            if (bank == null)
+            {
+                _spokenCharacters = shownCount;
+                return;
+            }
+            for (var i = _spokenCharacters; i < shownCount && i < parsed.Length; i++)
+            {
+                bank.TypewriterTick(parsed[i]);
+            }
+            _spokenCharacters = shownCount;
+        }
+
+        private Core.IUiSoundBank Sounds
+        {
+            get
+            {
+                if (_sounds == null) Core.ServiceHub.TryGet(out _sounds);
+                return _sounds;
+            }
         }
 
         /// <summary>
@@ -435,6 +481,9 @@ namespace PokeLab.UI
         {
             UiTween.Kill(ref _typing);
             _revealing = false;
+            // A fast-forwarded line must not machine-gun the remaining characters into the
+            // bank in one frame — the flood is visual, so the voice just stops here.
+            _spokenCharacters = int.MaxValue;
             if (_body != null) _body.maxVisibleCharacters = int.MaxValue;
 
             if (_pendingChoices != null)
@@ -584,6 +633,7 @@ namespace PokeLab.UI
 
         private void Choose(int index)
         {
+            Sounds?.Confirm();
             var callback = _onChoice;
             ClearChoices();
             callback?.Invoke(index);
@@ -908,7 +958,13 @@ namespace PokeLab.UI
             // StartMenuPresenter, and a second door to it sitting on top of a conversation is
             // both a duplicate and the loudest object on a screen that is meant to be read.
             _autoButton = ControlSlab(bar, "Auto", Core.Loc.Get("ui.auto"), ControlAutoWidth, 0f, out _autoFill,
-                () => AutoAdvance = !AutoAdvance);
+                () =>
+                {
+                    // Navigate rather than Confirm: flipping a reading mode is an adjustment,
+                    // not a commitment, and the quieter blip keeps it out of the line's way.
+                    Sounds?.Navigate();
+                    AutoAdvance = !AutoAdvance;
+                });
         }
 
         private const float ControlHeight = 46f;

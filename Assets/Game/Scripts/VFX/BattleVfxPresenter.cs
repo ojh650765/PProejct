@@ -75,6 +75,22 @@ namespace PokeLab.Vfx
 
         private MaterialPropertyBlock propertyBlock;
 
+        /// <summary>
+        /// True while a cinematic battle presenter is performing the event stream.
+        ///
+        /// This class was written to be the whole visual response to a battle, with its own
+        /// guessed timings — an impact 0.18s after the cast, capture flashes on a 0.55s
+        /// metronome. When the choreography is live those moments arrive frame-accurately
+        /// through <see cref="ICinematicVfxHook"/> instead (the contact frame, the ball's
+        /// actual open, each real shake), and playing both versions doubles every effect a
+        /// half-beat apart. So the AV composition host sets this when it wires the presenter,
+        /// and the handlers below split the work: everything with a frame-accurate twin
+        /// stands down, everything only this class can do — the hit flash on the creature's
+        /// own material, the persistent status auras, the parented heal and level-up bursts —
+        /// keeps running off the event stream.
+        /// </summary>
+        public bool ChoreographyOwnsBeats { get; set; }
+
         // ---------------------------------------------------------------------
         // Lifecycle
         // ---------------------------------------------------------------------
@@ -261,6 +277,13 @@ namespace PokeLab.Vfx
             // player which type is coming before anything else happens.
             PlayResolved(move.VfxKey, move.MoveType, VfxPhase.Cast, muzzle, facing);
 
+            // Choreographed battles own travel and impact: the presenter flies a real
+            // ProjectileActor between live anchors and raises the impact on the actual
+            // contact frame through the hook. Only the cast survives from here — the
+            // event is dispatched as the wind-up beat opens, which is exactly when the
+            // type telegraph should glow, and the choreography has no cast of its own.
+            if (ChoreographyOwnsBeats) return;
+
             if (move.IsProjectile)
             {
                 StartCoroutine(FlyProjectile(move, muzzle, target, facing));
@@ -326,6 +349,11 @@ namespace PokeLab.Vfx
 
         private void OnMoveMissed(MoveMissedEvent miss)
         {
+            // Choreographed: the miss beat plays its own immunity flare on the staged
+            // impact point (and a dodge streak for a true miss), so the shield here would
+            // be the same statement twice at two slightly different heights.
+            if (ChoreographyOwnsBeats) return;
+
             Vector3 at = BodyPosition(miss.Target);
             if (miss.WasImmune)
             {
@@ -341,6 +369,15 @@ namespace PokeLab.Vfx
         private void OnDamageDealt(DamageDealtEvent hit)
         {
             Vector3 at = BodyPosition(hit.Target);
+
+            // Choreographed: PlayDamage fires impact_critical / impact_super_effective on
+            // the rig's own impact point (this class serves them via the hook), so only the
+            // material flash — which nothing else can do — remains this handler's job.
+            if (ChoreographyOwnsBeats)
+            {
+                if (hit.Effectiveness != Effectiveness.Immune) FlashCreature(hit.Target, hit.Critical);
+                return;
+            }
 
             switch (hit.Effectiveness)
             {
@@ -453,6 +490,10 @@ namespace PokeLab.Vfx
         {
             if (stat.Delta == 0) return;
 
+            // Choreographed: PlayStatStage fires stat_up / stat_down through the hook,
+            // scaled by the swell/flinch gesture it plays alongside. One sparkle per change.
+            if (ChoreographyOwnsBeats) return;
+
             var view = ResolveView(stat.Target);
             Vector3 at = view?.Root != null ? view.Root.position : FallbackPosition(stat.Target);
             string key = stat.Delta > 0
@@ -466,6 +507,10 @@ namespace PokeLab.Vfx
 
         private void OnAbilityTriggered(AbilityTriggeredEvent ability)
         {
+            // Choreographed: PlayAbility fires ability_flare through the hook on the same
+            // beat, so the shield here is the doubled version of that flare.
+            if (ChoreographyOwnsBeats) return;
+
             var view = ResolveView(ability.Side);
             Vector3 at = view?.BodyAnchor != null ? view.BodyAnchor.position : BodyPosition(ability.Side);
             Play(BattleStateVfxLibrary.KeyShield, at, Quaternion.identity, parent: view?.Root);
@@ -479,6 +524,12 @@ namespace PokeLab.Vfx
                 statusAuras.Remove(faint.Side);
             }
 
+            // Choreographed: the faint is a staged set piece — collapse animation, dust on
+            // the ground frame (faint_collapse via the hook), then a recall beam. A shader
+            // dissolve running under a creature that is being physically recalled reads as
+            // two different deaths happening to one body.
+            if (ChoreographyOwnsBeats) return;
+
             var view = ResolveView(faint.Side);
             Vector3 at = view?.Root != null ? view.Root.position : FallbackPosition(faint.Side);
             Play(BattleStateVfxLibrary.KeyFaint, at, Quaternion.identity);
@@ -488,6 +539,11 @@ namespace PokeLab.Vfx
 
         private void OnSentOut(CreatureSentOutEvent sent)
         {
+            // Choreographed: the entrance is the ball flight, the burst (ball_burst via the
+            // hook) and a real fall with landing dust. The materialise dissolve belongs to
+            // the un-staged version only.
+            if (ChoreographyOwnsBeats) return;
+
             var view = ResolveView(sent.Side);
             if (view?.Root == null) return;
 
@@ -504,6 +560,10 @@ namespace PokeLab.Vfx
                 pool.Stop(aura, immediate: true);
                 statusAuras.Remove(withdrawn.Side);
             }
+
+            // Choreographed: BallActor's recall plays its own beam (ball_recall via the
+            // hook) aimed at the creature it is actually absorbing.
+            if (ChoreographyOwnsBeats) return;
 
             var view = ResolveView(withdrawn.Side);
             if (view?.Root == null) return;
@@ -534,6 +594,11 @@ namespace PokeLab.Vfx
 
         private void OnCaptureAttempt(CaptureAttemptEvent capture)
         {
+            // Choreographed: the capture is BallActor's set piece end to end — absorb beam,
+            // real shakes on the ball's own wobble frames, click flash or break-out burst,
+            // all arriving through the hook. This metronome version is for bare scenes.
+            if (ChoreographyOwnsBeats) return;
+
             Vector3 at = BodyPosition(BattleSide.Opponent);
             Play(BattleStateVfxLibrary.KeyCaptureBeam, at, Quaternion.identity);
             StartCoroutine(CaptureShakes(capture, at));
@@ -631,5 +696,39 @@ namespace PokeLab.Vfx
 
         /// <summary>Stops a persistent effect obtained from Play.</summary>
         public void StopEffect(VfxHandle handle, bool immediate = false) => pool?.Stop(handle, immediate);
+
+        /// <summary>
+        /// Builds a stand-alone, destroy-safe instance of a catalogue key.
+        ///
+        /// This exists for <see cref="PokeLab.Core.ICinematicVfxHook.AttachVfx"/>: the
+        /// cinematics layer parents the returned object to a projectile or a ball and later
+        /// calls <c>Destroy</c> on it. Handing out a pooled instance there would let the
+        /// caller destroy an object the pool still owns and believes it can reuse, which
+        /// corrupts the pool for the rest of the session — so attached effects are built
+        /// fresh, outside the pool, and the pool never hears about them.
+        ///
+        /// Falls back through the same chain as move resolution (bare key, then a travel
+        /// phase, since attachment is almost always a projectile) so an engine VfxKey with
+        /// no exact recipe still yields something visible.
+        /// </summary>
+        public GameObject BuildDetached(string key, Transform parent)
+        {
+            if (string.IsNullOrEmpty(key) || catalogue == null) return null;
+
+            if (catalogue.TryGetPrefab(key, out var prefab) && prefab != null)
+                return Instantiate(prefab, parent, false);
+            if (catalogue.TryGetRecipe(key, out var recipe) && recipe != null)
+                return ProceduralVfxFactory.Build(recipe, parent);
+
+            if (catalogue.Resolve(key, ElementType.Normal, VfxPhase.Travel,
+                                  out _, out var resolvedPrefab, out var resolvedRecipe))
+            {
+                if (resolvedPrefab != null) return Instantiate(resolvedPrefab, parent, false);
+                if (resolvedRecipe != null) return ProceduralVfxFactory.Build(resolvedRecipe, parent);
+            }
+
+            if (logUnresolvedKeys) Debug.LogWarning($"[BattleVfxPresenter] No detached build for '{key}'.");
+            return null;
+        }
     }
 }

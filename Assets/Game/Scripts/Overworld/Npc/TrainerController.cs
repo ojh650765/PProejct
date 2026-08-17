@@ -182,7 +182,7 @@ namespace PokeLab.Overworld
 
         private void Awake()
         {
-            EnsureDefinition();
+EnsureDefinition();
             _agent = GetComponent<NavMeshAgent>();
             _restRotation = transform.rotation;
             _restPosition = transform.position;

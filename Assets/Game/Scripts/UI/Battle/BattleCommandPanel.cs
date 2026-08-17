@@ -14,7 +14,7 @@ namespace PokeLab.UI
     {
         /// <summary>Nothing — the engine is resolving a turn.</summary>
         Locked = 0,
-        /// <summary>Fight / Bag / Party / Run.</summary>
+        /// <summary>Fight / Throw Ball / Party / Bag / Run.</summary>
         Root = 1,
         /// <summary>The four move cards with their forecasts.</summary>
         Moves = 2,
@@ -48,8 +48,12 @@ namespace PokeLab.UI
         /// <summary>Column width, including the gutter the selection chevron hangs in.</summary>
         public const float PanelWidth = MoveButtonView.SelectedWidth + ChevronGutter + 8f;
 
-        /// <summary>Column height: the caption band plus the tallest of the three stacks.</summary>
-        public const float PanelHeight = CaptionHeight + StackGap + 4f * MoveButtonView.RowHeight + 3f * PillSpacing;
+        /// <summary>
+        /// Column height: the caption band plus the tallest of the three stacks. Since the
+        /// ball command joined the root menu that is the five-pill root page, not the four
+        /// move cards — five pills at 84px outgrow four rows at 94px.
+        /// </summary>
+        public const float PanelHeight = CaptionHeight + StackGap + 5f * PillHeight + 4f * PillSpacing;
 
         private const float ChevronGutter = 38f;
         private const float CaptionHeight = 44f;
@@ -76,14 +80,16 @@ namespace PokeLab.UI
         [SerializeField] private RectTransform _targetList;
 
         private readonly List<MoveButtonView> _moveButtons = new List<MoveButtonView>(4);
-        private readonly List<CommandPill> _rootPills = new List<CommandPill>(4);
+        private readonly List<CommandPill> _rootPills = new List<CommandPill>(5);
         private readonly List<CommandPill> _targetPills = new List<CommandPill>(2);
-        private readonly List<Entry> _entries = new List<Entry>(4);
+        private readonly List<Entry> _entries = new List<Entry>(5);
         private readonly Stack<BattleCommandPage> _history = new Stack<BattleCommandPage>(4);
 
         private BattleCommandPage _page = BattleCommandPage.Locked;
         private CreatureInstance _active;
         private DamageForecast[] _forecasts;
+        private CommandPill _capturePill;
+        private BattleKind _kind = BattleKind.Wild;
         private int _pendingMoveIndex = -1;
         private int _selected;
         private bool _committed;
@@ -101,6 +107,10 @@ namespace PokeLab.UI
         public Action PartyRequested;
         /// <summary>Raised when the player tries to flee.</summary>
         public Action RunRequested;
+        /// <summary>Raised when the player throws a ball at a wild creature.</summary>
+        public Action CaptureRequested;
+        /// <summary>Raised when the ball command is pressed in a battle where it is illegal.</summary>
+        public Action CaptureBlocked;
 
         /// <summary>The page currently visible.</summary>
         public BattleCommandPage Page => _page;
@@ -121,6 +131,28 @@ namespace PokeLab.UI
             _history.Clear();
             RefreshMoves();
             ShowPage(BattleCommandPage.Root);
+            UiSound.MenuOpen();
+        }
+
+        /// <summary>
+        /// Tells the panel what kind of battle it is commanding. The HUD calls this from
+        /// <see cref="BattleStartedEvent"/>, which is the one moment the kind is stated.
+        ///
+        /// The ball command stays visible in a trainer battle rather than disappearing —
+        /// a menu whose entries come and go between fights reads as the layout being broken,
+        /// and pressing it is how the player learns the rule. It is drawn refused and answers
+        /// with the refusal sound and the engine's own line, mirroring what the engine would
+        /// say had the action reached it.
+        /// </summary>
+        public void SetBattleKind(BattleKind kind)
+        {
+            _kind = kind;
+            if (_capturePill == null) return;
+            _capturePill.Enabled = kind == BattleKind.Wild;
+            // Redraw with the cursor preserved: the resting/refused face is applied by
+            // SetSelected, and the kind can arrive while the root page is already showing.
+            if (_page == BattleCommandPage.Root) ApplySelection();
+            else _capturePill.SetSelected(false);
         }
 
         /// <summary>
@@ -166,6 +198,7 @@ namespace PokeLab.UI
             if (_committed || _page == BattleCommandPage.Locked) return false;
             if (_history.Count == 0) return false;
             ShowPage(_history.Pop(), false);
+            UiSound.Cancel();
             return true;
         }
 
@@ -184,6 +217,11 @@ namespace PokeLab.UI
             if (index < 0 || index >= _entries.Count || index == _selected) return;
             _selected = index;
             ApplySelection();
+            // Ticked here rather than in Move(): this is the one funnel every cursor change
+            // passes through — arrows, WASD, pad and pointer hover — and the guard above has
+            // already dropped the no-op calls that would otherwise click every frame a
+            // pointer rests on the selected pill.
+            UiSound.Navigate();
         }
 
         /// <summary>Takes the entry the cursor is on.</summary>
@@ -336,6 +374,7 @@ namespace PokeLab.UI
             _pendingMoveIndex = index;
             BuildTargetPills(candidates);
             ShowPage(BattleCommandPage.Targets);
+            UiSound.Confirm();
         }
 
         private void Commit(int moveIndex)
@@ -344,12 +383,33 @@ namespace PokeLab.UI
             // the lock's cross-fade has finished dropping raycasts.
             if (_committed) return;
             _committed = true;
-            // Through Lock rather than straight to the page, so committing also clears the back
+// Through Lock rather than straight to the page, so committing also clears the back
             // stack. Remembering the move list here left the cancel control lit through the
             // resolution — refused, now, but a control that is visible and does nothing is its
             // own small lie.
             Lock();
+            UiSound.Confirm();
             MoveChosen?.Invoke(moveIndex);
+        }
+
+        /// <summary>
+        /// The ball command. Legality is decided here rather than greying the pill into
+        /// unnavigability because pressing is how the rule is taught — see
+        /// <see cref="SetBattleKind"/>. The commit itself is not latched here: like RUN, the
+        /// press only raises the request and the presenter's commit is what locks the panel,
+        /// so a capture the binding drops leaves the menu alive rather than soft-locked.
+        /// </summary>
+        private void OnCapturePressed()
+        {
+            if (_committed) return;
+            if (_kind != BattleKind.Wild)
+            {
+                UiSound.Error();
+                CaptureBlocked?.Invoke();
+                return;
+            }
+            UiSound.Confirm();
+            CaptureRequested?.Invoke();
         }
 
         private List<CreatureInstance> BuildTargetCandidates(MoveData move)
@@ -641,24 +701,52 @@ namespace PokeLab.UI
             var stack = BuildStack("Stack", page);
 
             // Icons are borrowed from the procedural type-glyph family rather than drawn fresh:
-            // a fist for the attack, the ring-and-dot that reads as a ball for the party, a
-            // bracket for the bag, a wing for the retreat. One authored stroke weight across
-            // all four, which is what a purpose-made set would have had to match anyway.
+            // a fist for the attack, a plain disc for the thrown ball, the ring-and-dot that
+            // reads as a ball for the party, a bracket for the bag, a wing for the retreat.
+            // One authored stroke weight across all five, which is what a purpose-made set
+            // would have had to match anyway.
             panel._rootPills.Add(BuildPill(stack, Loc.Pick("Fight", "싸운다"),
                 UiTypeIcons.Get(ElementType.Fighting, 48), UiPalette.ScannerAmber, null,
-                () => panel.TakeRootAction(() => panel.ShowPage(BattleCommandPage.Moves))));
+                () => panel.TakeRootAction(() =>
+                {
+                    UiSound.Confirm();
+                    panel.ShowPage(BattleCommandPage.Moves);
+                })));
+
+            // Second slot, directly under FIGHT: in a wild battle the throw is the other
+            // decision the player is actually weighing, and burying it under the bag — where
+            // the games keep it — would cost a submenu this slice does not have. Routed
+            // through TakeRootAction like every root pill, so it obeys the same "only while
+            // the root menu is genuinely the player's" guard; the trainer-battle refusal
+            // still plays, because the guard tests the page, not the battle kind.
+            panel._capturePill = BuildPill(stack, Loc.Pick("Throw Ball", "볼 던지기"),
+                UiSprites.Dot(48), UiPalette.Negative, null,
+                () => panel.TakeRootAction(() => panel.OnCapturePressed()));
+            panel._rootPills.Add(panel._capturePill);
 
             panel._rootPills.Add(BuildPill(stack, Loc.Pick("Party", "포켓몬"),
                 UiTypeIcons.Get(ElementType.Normal, 48), UiPalette.Positive, null,
-                () => panel.TakeRootAction(() => panel.PartyRequested?.Invoke())));
+                () => panel.TakeRootAction(() =>
+                {
+                    UiSound.Confirm();
+                    panel.PartyRequested?.Invoke();
+                })));
 
             panel._rootPills.Add(BuildPill(stack, Loc.Pick("Bag", "가방"),
                 UiSprites.Bracket(48, 6), UiPalette.ScannerCyan, null,
-                () => panel.TakeRootAction(() => panel.BagRequested?.Invoke())));
+                () => panel.TakeRootAction(() =>
+                {
+                    UiSound.Confirm();
+                    panel.BagRequested?.Invoke();
+                })));
 
             panel._rootPills.Add(BuildPill(stack, Loc.Pick("Run", "도망친다"),
                 UiTypeIcons.Get(ElementType.Flying, 48), UiPalette.TextMuted, null,
-                () => panel.TakeRootAction(() => panel.RunRequested?.Invoke())));
+                () => panel.TakeRootAction(() =>
+                {
+                    UiSound.Confirm();
+                    panel.RunRequested?.Invoke();
+                })));
 
             for (var i = 0; i < panel._rootPills.Count; i++)
             {
@@ -812,32 +900,52 @@ namespace PokeLab.UI
             public Color Accent;
             public Action OnTake;
 
+            /// <summary>
+            /// False for a command the current battle refuses — today only the ball in a
+            /// trainer fight. A refused pill stays navigable so pressing it can explain
+            /// itself; it merely never earns the amber fill that promises Enter will work.
+            /// </summary>
+            public bool Enabled = true;
+
             public void Take() => OnTake?.Invoke();
 
             /// <summary>
             /// The selected pill is filled with the accent, is wider, and grows a chevron.
             /// Three cues, because the player's eyes are on the creatures and a single change
             /// of shade at the edge of vision is not a cue at all.
+            ///
+            /// A refused pill under the cursor keeps its grey face and gets only a muted
+            /// chevron and the width: the cursor must still be visible there, but the amber
+            /// fill is the promise that Enter will take, and breaking that promise once is
+            /// how a player learns to stop trusting the highlight everywhere.
             /// </summary>
             public void SetSelected(bool selected)
             {
+                var lit = selected && Enabled;
                 if (Panel != null)
-                    Panel.color = selected ? UiPalette.ScannerAmber : UiPalette.Backdrop.WithAlpha(0.88f);
+                    Panel.color = lit ? UiPalette.ScannerAmber : UiPalette.Backdrop.WithAlpha(Enabled ? 0.88f : 0.66f);
                 if (Rim != null)
-                    Rim.color = selected ? Color.white.WithAlpha(0.35f) : Color.white.WithAlpha(0.08f);
+                    Rim.color = lit ? Color.white.WithAlpha(0.35f)
+                        : Color.white.WithAlpha(selected ? 0.28f : Enabled ? 0.08f : 0.04f);
                 if (Label != null)
-                    Label.color = selected ? UiPalette.TextOnAccent : UiPalette.TextPrimary;
+                    Label.color = lit ? UiPalette.TextOnAccent : Enabled ? UiPalette.TextPrimary : UiPalette.TextMuted;
                 if (Trailing != null)
-                    Trailing.color = selected ? UiPalette.TextOnAccent.WithAlpha(0.75f) : UiPalette.TextSecondary;
+                    Trailing.color = lit ? UiPalette.TextOnAccent.WithAlpha(0.75f)
+                        : Enabled ? UiPalette.TextSecondary : UiPalette.TextMuted;
                 // On the amber fill the icon tile has to invert too, or it reads as a hole.
                 if (IconBackground != null)
-                    IconBackground.color = selected
+                    IconBackground.color = lit
                         ? UiPalette.TextOnAccent.WithAlpha(0.16f)
-                        : Accent.WithAlpha(0.20f);
+                        : Accent.WithAlpha(Enabled ? 0.20f : 0.10f);
                 if (IconGlyph != null)
-                    IconGlyph.color = selected ? UiPalette.TextOnAccent : Accent;
+                    IconGlyph.color = lit ? UiPalette.TextOnAccent : Accent.WithAlpha(Enabled ? 1f : 0.45f);
                 if (Chevron != null)
+                {
                     Chevron.gameObject.SetActive(selected);
+                    var chevronImage = Chevron.GetComponent<Image>();
+                    if (chevronImage != null)
+                        chevronImage.color = Enabled ? UiPalette.ScannerAmber : UiPalette.TextMuted;
+                }
                 if (Sizing != null)
                     Sizing.preferredWidth = selected ? PillSelectedWidth : PillWidth;
             }

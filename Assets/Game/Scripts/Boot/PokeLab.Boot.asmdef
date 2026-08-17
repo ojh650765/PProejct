@@ -8,6 +8,8 @@
         "PokeLab.Overworld",
         "PokeLab.UI",
         "PokeLab.Cinematics",
+        "PokeLab.Audio",
+        "PokeLab.Vfx",
         "Unity.InputSystem",
         "Unity.TextMeshPro",
         "UnityEngine.UI"

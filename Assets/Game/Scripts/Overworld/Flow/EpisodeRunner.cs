@@ -200,6 +200,15 @@ namespace PokeLab.Overworld
         [SerializeField] private float _battleTimeoutSeconds = 600f;
 
         private readonly Dictionary<string, Episode> _episodes = new Dictionary<string, Episode>();
+
+        /// <summary>
+        /// The episodes in the order the book authored them. The dictionary answers "is this id
+        /// an episode"; this answers "which comes first" — and the resume scan needs the second
+        /// question, because a broken chain must be picked up at its earliest missing link, not
+        /// at whichever link a hash table happens to enumerate first.
+        /// </summary>
+        private readonly List<Episode> _episodeOrder = new List<Episode>();
+
         private readonly HashSet<string> _flags = new HashSet<string>();
         private DialogueBook _dialogue;
         private Coroutine _running;
@@ -229,19 +238,19 @@ namespace PokeLab.Overworld
 
         private void Start()
         {
-            if (!_autoPlayOpening) return;
-
             // A debug jump asked to start somewhere else in the game. Checked before the
-            // coroutine so the opening never begins at all, rather than beginning and being
-            // interrupted — an episode stopped between taking control and giving it back
-            // leaves the player frozen.
+            // coroutine so neither the opening nor a chain resume ever begins at all, rather
+            // than beginning and being interrupted — an episode stopped between taking control
+            // and giving it back leaves the player frozen, and a debug jump wants exactly the
+            // state it asked for, not whatever scene the flags say is owed.
             if (DebugFlow.SuppressOpening) return;
 
-            StartCoroutine(AutoPlayOpening());
+            StartCoroutine(RunStartupFlow());
         }
 
         /// <summary>
-        /// Plays the opening once the profile exists.
+        /// Plays the opening once the profile exists, and otherwise resumes a chain the last
+        /// session broke.
         ///
         /// This used to be a plain Start that gave up the moment ServiceHub had no profile in
         /// it — and whether it did came down to which component's Start ran first. The opening
@@ -250,7 +259,7 @@ namespace PokeLab.Overworld
         /// with control and no professor. Waiting a few frames for the host to register makes
         /// the outcome depend on the save rather than on script execution order.
         /// </summary>
-        private System.Collections.IEnumerator AutoPlayOpening()
+        private System.Collections.IEnumerator RunStartupFlow()
         {
             IPlayerProfile profile = null;
             var deadline = Time.realtimeSinceStartup + 5f;
@@ -268,21 +277,81 @@ namespace PokeLab.Overworld
                 yield break;
             }
 
+            if (_autoPlayOpening && OpeningIsDue(profile))
+            {
+                if (!Play(_openingEpisodeId))
+                    Debug.LogWarning($"[Episode] '{_openingEpisodeId}' would not start. The book holds " +
+                                     $"{_episodes.Count} episode(s); check _bookPath on this component.", this);
+                // No resume underneath a fresh opening: a brand new save has no broken chain,
+                // and even if the flags said otherwise, two scripted scenes at once is the race
+                // Play() exists to refuse.
+                yield break;
+            }
+
+            ResumeBrokenChain();
+        }
+
+        /// <summary>Whether the opening still needs to play on this save.</summary>
+        private bool OpeningIsDue(IPlayerProfile profile)
+        {
             // The completion flag, read through the profile, is the only test that survives a
             // save. It replaces a check on the party being empty, which cannot work in this
             // scene: PlayerProfileHost.NewGame hands every fresh profile a debug Charmander
             // before this component's Start runs, so "has a party" was true on the very first
             // frame of a new game and the opening never played once.
             if (_episodes.TryGetValue(_openingEpisodeId, out var opening)
-                && IsFlagSet(opening.CompletionFlag)) yield break;
+                && IsFlagSet(opening.CompletionFlag)) return false;
 
             // A session restored from a save has had its opening whatever the flags say — that
             // covers saves written before the flag was persisted, without a save migration.
-            if (SessionBeganFromSave() && profile.Party != null && profile.Party.Count > 0) yield break;
+            if (SessionBeganFromSave() && profile.Party != null && profile.Party.Count > 0) return false;
 
-            if (!Play(_openingEpisodeId))
-                Debug.LogWarning($"[Episode] '{_openingEpisodeId}' would not start. The book holds " +
-                                 $"{_episodes.Count} episode(s); check _bookPath on this component.", this);
+            return true;
+        }
+
+        /// <summary>
+        /// Restarts a chained episode the last session finished its predecessor of and never ran.
+        ///
+        /// Chained episodes have no trigger of their own — the field's bag/ambush/dex act runs
+        /// <c>field_bag_left → field_ambush → field_professor_returns</c> purely off
+        /// <see cref="Episode.NextEpisodeId"/>, in the same frame each link releases. That works
+        /// while the session lives and dies with a save boundary: quit after
+        /// <c>field_bag_left</c>'s completion flag is persisted and before <c>field_ambush</c>
+        /// finishes, and the reload finds the predecessor complete (so its StoryTrigger never
+        /// re-arms), the successor incomplete, and nothing anywhere pointing at it. The
+        /// starter, the Pokédex and the rival battle all live behind that gap, so the save is
+        /// not "missing a scene" — it can never leave the prologue at all.
+        ///
+        /// So the runner itself closes the gap at startup: any episode whose predecessor's
+        /// completion flag is set and whose own is not is owed to this save, and the earliest
+        /// such link (book order — earlier links play first, and each link's own finally chains
+        /// the rest) is simply played. Interrupted predecessors compose correctly with this:
+        /// <see cref="Run"/> only sets a completion flag when the beats genuinely finished, so
+        /// a predecessor cut off mid-way does not read as complete here and its successor is
+        /// not resumed over the top of the beat that will re-offer the predecessor.
+        /// </summary>
+        private void ResumeBrokenChain()
+        {
+            if (IsPlaying) return;
+
+            foreach (var predecessor in _episodeOrder)
+            {
+                if (string.IsNullOrEmpty(predecessor.NextEpisodeId)) continue;
+                if (!IsFlagSet(predecessor.CompletionFlag)) continue;
+                if (!_episodes.TryGetValue(predecessor.NextEpisodeId, out var successor))
+                {
+                    Debug.LogWarning($"[Episode] '{predecessor.Id}' chains to " +
+                                     $"'{predecessor.NextEpisodeId}', which is not in the book; " +
+                                     "nothing can be resumed there.", this);
+                    continue;
+                }
+                if (IsFlagSet(successor.CompletionFlag)) continue;
+
+                Debug.Log($"[Episode] '{predecessor.Id}' finished on a previous session but " +
+                          $"'{successor.Id}' never did — the chain broke across a save. " +
+                          "Resuming it now.", this);
+                if (Play(successor.Id)) return;
+            }
         }
 
         /// <summary>Name the book is looked up under once it is inside a Resources folder.</summary>
@@ -291,6 +360,7 @@ namespace PokeLab.Overworld
         private void LoadBook()
         {
             _episodes.Clear();
+            _episodeOrder.Clear();
 
             // Resources first, disk second.
             //
@@ -325,6 +395,7 @@ namespace PokeLab.Overworld
             {
                 if (string.IsNullOrEmpty(episode.Id)) continue;
                 _episodes[episode.Id] = episode;
+                _episodeOrder.Add(episode);
             }
         }
 
@@ -364,6 +435,11 @@ namespace PokeLab.Overworld
         private IEnumerator Run(Episode episode)
         {
             var tookControl = false;
+// Whether the beats loop genuinely ran to its end. Everything conditional in the
+            // finally hangs off this pair, because the finally cannot otherwise tell a scene
+            // that finished from one that was cut off — an exception in a beat and a
+            // StopCoroutine both arrive there by the same door. _beatLost narrows it further:
+            // a transient beat failure keeps the flag open without aborting the scene.
             var reachedTheEnd = false;
             _beatLost = false;
 
@@ -377,7 +453,7 @@ namespace PokeLab.Overworld
                     var step = Perform(beat);
                     while (step.MoveNext()) yield return step.Current;
                 }
-                reachedTheEnd = true;
+reachedTheEnd = true;
             }
             finally
             {
@@ -386,7 +462,7 @@ namespace PokeLab.Overworld
                 // which is the worst failure this system can have.
                 if (tookControl) SetControl(true);
 
-                // Marked done only if it was actually done, the way StoryEncounter's _spoke
+// Marked done only if it was actually done, the way StoryEncounter's _spoke
                 // guard does it.
                 //
                 // This finally runs when a beat throws and when the coroutine is disposed —
@@ -396,7 +472,9 @@ namespace PokeLab.Overworld
                 // next autosave, so the opening never replays, the player has no starter,
                 // story.pokedex is never granted, and StoryPhase then holds wild encounters,
                 // roamers and every trainer down for the rest of that file. Nothing on screen
-                // says why, because from the game's point of view the act happened.
+                // says why, because from the game's point of view the act happened. Left
+                // unset instead, the StoryTrigger (or the chain resume at startup) can offer
+                // the scene again, which is recoverable where a wrongly-set flag is not.
                 if (reachedTheEnd && !_beatLost && !string.IsNullOrEmpty(episode.CompletionFlag))
                     SetFlag(episode.CompletionFlag, true);
                 else if (!string.IsNullOrEmpty(episode.CompletionFlag))
@@ -413,8 +491,13 @@ namespace PokeLab.Overworld
                 // between. One such frame is enough for the StoryEncounter waiting on it to
                 // decide the scene is over and hand control back to the player halfway
                 // through what the script treats as one continuous act.
+//
+                // Only a finished episode chains. An interrupted one has not set its
+                // completion flag — see above — so it is still owed to this save, and playing
+                // its successor now would let the startup resume scan (and the player) find
+                // the act continued past a scene that never happened.
                 var handedOn = false;
-                if (!string.IsNullOrEmpty(episode.NextEpisodeId))
+                if (reachedTheEnd && !_beatLost && !string.IsNullOrEmpty(episode.NextEpisodeId))
                 {
                     handedOn = Play(episode.NextEpisodeId);
                     if (!handedOn && !AlreadyPlayed(episode.NextEpisodeId))
@@ -424,17 +507,13 @@ namespace PokeLab.Overworld
                                          this);
                 }
 
-                // The staging comes down after the hand-off, and it used to come down before it.
-                //
-                // Two episodes joined by NextEpisodeId are one scene split for authoring, and
-                // 'field_bag_left' is the case that proves the seam has to be invisible: it is
-                // the beat that stands the ambusher up in the grass, and 'field_ambush' — the
-                // half it hands to — is entirely about that creature. Cleared ahead of the
-                // hand-off, the creature was destroyed on the line before the episode that
-                // needs it started. So every run of the act logged "CreatureApproach with
-                // nothing staged", played no approach, fought no wild battle and opened the
-                // starter choice with nothing standing over it. The first half built the scene
-                // and the join threw it away.
+                // The staging comes down after the hand-off, and it used to come down before
+                // it: field_bag_left stages the ambusher precisely so field_ambush can walk
+                // it over and fight it, and clearing unconditionally here destroyed it in the
+                // frame between the two — the approach and the battle then both skipped with
+                // warnings and the scene the act is built around silently degraded to text.
+                // Every path still ends with a clear, because the last episode of any chain
+                // has no successor to chain to.
                 if (!handedOn)
                 {
                     ClearStagedCreature();
@@ -777,16 +856,23 @@ namespace PokeLab.Overworld
         {
             var total = 0f;
             var onThisLine = 0f;
-            var shown = runner.CurrentLine.Text;
+            // Progress is the line INDEX, not the line text. Text was the old comparison and
+            // it has a false positive built in: two consecutive authored lines with identical
+            // text — a repeated "……", a shouted word said twice — read as one line nobody
+            // advanced, so the stall timer accumulated straight across the boundary and the
+            // watchdog force-advanced a conversation the player was reading at normal speed.
+            // The index is a real identity: DialogueRunner bumps it on every advance, even
+            // onto an identical line, so the timer resets exactly when the conversation moves.
+            var shownIndex = runner.CurrentLineIndex;
             var warned = false;
 
             while (runner.IsPlaying && total < _dialogueBeatTimeoutSeconds)
             {
                 total += Time.unscaledDeltaTime;
 
-                if (!string.Equals(runner.CurrentLine.Text, shown, StringComparison.Ordinal))
+                if (runner.CurrentLineIndex != shownIndex)
                 {
-                    shown = runner.CurrentLine.Text;
+                    shownIndex = runner.CurrentLineIndex;
                     onThisLine = 0f;
                     yield return null;
                     continue;

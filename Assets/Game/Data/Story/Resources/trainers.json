@@ -5,7 +5,7 @@
     "shapedFor": "Assets/Game/Scripts/Overworld/Npc/TrainerDefinition.cs",
     "note": "Field names match TrainerDefinition's serialized fields so a loader can build the ScriptableObject without an asset. The dialogue fields hold SEQUENCE IDS into dialogue.json rather than object references, because a JSON file cannot hold a ScriptableObject reference and an inspector-wired asset cannot be authored by this workstream.",
     "gaps": [
-      "TrainerDefinition has no notion of a party derived from the player's starter choice. trainer_rival_01 needs exactly that, and the mechanism proposed is the Battle beat's Target='starter_counter' -- the runner substitutes StarterOption.RivalCounterSpeciesId for the party entry marked partyFromStarterCounter.",
+      "RESOLVED -- the starter-counter party. TrainerPartyMember now carries FromStarterCounter; StarterSelection.Commit records the chosen option's RivalCounterSpeciesId on the profile under TrainerDefinition.StarterCounterSpeciesFlag ('story.starter_counter_species'); TrainerDefinition.BuildParty resolves a marked slot from that flag at build time and skips it with a warning when no choice is recorded. The Battle beat's Target='starter_counter' hint (EncounterRequest.WildSpeciesId) is kept as a harmless backup for a battle layer that reads it. NOTE the field name is 'FromStarterCounter', matching the C# member exactly -- JsonUtility drops non-matching names without a word, which is how the earlier spelling 'partyFromStarterCounter' was authored, documented and never read.",
       "TrainerController.ReturnToPost walks a trainer back to where it was standing when it woke up. For the rival that is the lab lane, 8m from where the scene needs him. Give him a new rest post or suppress the return once."
     ]
   },
@@ -21,11 +21,11 @@
       "_party": [
         {
           "SpeciesId": 0,
-          "partyFromStarterCounter": true,
+          "FromStarterCounter": true,
           "Level": 5,
           "Nickname": "",
           "HeldItemId": "",
-          "note": "SpeciesId 0 is a placeholder and must never reach CreatureFactory. The real value is the chosen StarterOption.RivalCounterSpeciesId -- game id 5 if the player took 1, game id 10 if they took 5, game id 1 if they took 10. Level 5 matches StarterSelection._level, so the fight is decided by the type chart and nothing else, which is exactly what makes it read as a rival battle rather than a difficulty spike."
+          "note": "SpeciesId 0 is a placeholder and must never reach CreatureFactory. FromStarterCounter (exact C# field name -- JsonUtility ignores any other spelling) makes BuildParty substitute the profile's recorded counter: game id 5 if the player took 1, game id 10 if they took 5, game id 1 if they took 10. Level 5 matches StarterSelection._level, so the fight is decided by the type chart and nothing else, which is exactly what makes it read as a rival battle rather than a difficulty spike."
         }
       ],
 
@@ -54,6 +54,114 @@
 
       "designNote": "Uphill by design. Kes always holds the type advantage, at the same level, with no items -- which means a straight-ahead player usually loses this fight, and riv_won is written to be the more likely branch and to not read as a failure. This is Platinum's arrangement, not Diamond/Pearl's: in DP the first battle is two wild Starly at Lake Verity and the rival has no Pokémon at all until Route 203. See the episode note on rival_first_battle for why the Platinum version is the right one for a one-town slice.",
       "notDone": "The battle engine's difficulty is unknown to this workstream. If a level-5 type-disadvantaged starter cannot win at all, the fix is Kes at level 4, not a change to the writing."
+    },
+
+    {
+      "_trainerId": "trainer_route_01",
+      "_displayName": "Milo",
+      "_trainerClass": "Youngster",
+      "sceneObject": "Trainer_Route_Youngster",
+
+      "_party": [
+        { "SpeciesId": 25, "FromStarterCounter": false, "Level": 4, "Nickname": "", "HeldItemId": "" },
+        { "SpeciesId": 21, "FromStarterCounter": false, "Level": 5, "Nickname": "", "HeldItemId": "" }
+      ],
+
+      "_prizeMoney": 220,
+      "_partySeed": 8675311,
+
+      "_preBattle": "yng_pre",
+      "_onDefeat": "yng_lost",
+      "_onPlayerDefeat": "yng_won",
+      "_afterDefeat": "yng_idle",
+      "_rematchIntro": "",
+
+      "_allowsRematch": true,
+      "_rematchCooldownHours": 24.0,
+      "_rematchLevelBonus": 2,
+
+      "designNote": "The first ordinary trainer most players meet: his cone crosses the road from the south verge, between the two grass fields, right after the dex is granted. Rattata 4 / Pidgey 5 (game ids 25 / 21 -- SliceRoster, not dex) are the same species the surrounding grass rolls at the same band, so the fight teaches nothing the grass has not, on purpose. Prize scales off the rival's 600: two rounds of a starter's early moves, about a third of the stakes."
+    },
+
+    {
+      "_trainerId": "trainer_route_02",
+      "_displayName": "Pia",
+      "_trainerClass": "Lass",
+      "sceneObject": "Trainer_Route_Lass",
+
+      "_party": [
+        { "SpeciesId": 49, "FromStarterCounter": false, "Level": 5, "Nickname": "", "HeldItemId": "" },
+        { "SpeciesId": 21, "FromStarterCounter": false, "Level": 5, "Nickname": "", "HeldItemId": "" }
+      ],
+
+      "_prizeMoney": 260,
+      "_partySeed": 8675312,
+
+      "_preBattle": "las_pre",
+      "_onDefeat": "las_lost",
+      "_onPlayerDefeat": "las_won",
+      "_afterDefeat": "las_idle",
+      "_rematchIntro": "",
+
+      "_allowsRematch": true,
+      "_rematchCooldownHours": 24.0,
+      "_rematchLevelBonus": 2,
+
+      "designNote": "Second bend of the road, facing back down it, so the two route trainers never trigger together (the layout note). Oddish 5 / Pidgey 5 (game ids 49 / 21): Oddish leans on a Charmander picker and rolls over for a Bulbasaur one, which is the first time the type chart asks the player a question the rival fight already answered for them."
+    },
+
+    {
+      "_trainerId": "trainer_lake_01",
+      "_displayName": "Remo",
+      "_trainerClass": "Fisherman",
+      "sceneObject": "Trainer_Lake_Fisher",
+
+      "_party": [
+        { "SpeciesId": 140, "FromStarterCounter": false, "Level": 5, "Nickname": "", "HeldItemId": "" },
+        { "SpeciesId": 66, "FromStarterCounter": false, "Level": 7, "Nickname": "", "HeldItemId": "" }
+      ],
+
+      "_prizeMoney": 340,
+      "_partySeed": 8675313,
+
+      "_preBattle": "fsh_pre",
+      "_onDefeat": "fsh_lost",
+      "_onPlayerDefeat": "fsh_won",
+      "_afterDefeat": "fsh_idle",
+      "_rematchIntro": "",
+
+      "_allowsRematch": true,
+      "_rematchCooldownHours": 24.0,
+      "_rematchLevelBonus": 2,
+
+      "designNote": "On the shore trail facing the water; triggers coming north off the beach. Magikarp 5 into Poliwag 7 (game ids 140 / 66) is the genre's oldest joke told properly: the free round teaches switch timing, then the Poliwag is the first opponent above the player's own level. Both are aquatic-roster species, which is what a fisherman fielding them says about where he got them."
+    },
+
+    {
+      "_trainerId": "trainer_cave_01",
+      "_displayName": "Holt",
+      "_trainerClass": "Hiker",
+      "sceneObject": "Trainer_Cave_Hiker",
+
+      "_party": [
+        { "SpeciesId": 81, "FromStarterCounter": false, "Level": 7, "Nickname": "", "HeldItemId": "" },
+        { "SpeciesId": 73, "FromStarterCounter": false, "Level": 8, "Nickname": "", "HeldItemId": "" }
+      ],
+
+      "_prizeMoney": 460,
+      "_partySeed": 8675314,
+
+      "_preBattle": "hik_pre",
+      "_onDefeat": "hik_lost",
+      "_onPlayerDefeat": "hik_won",
+      "_afterDefeat": "hik_idle",
+      "_rematchIntro": "",
+
+      "_allowsRematch": true,
+      "_rematchCooldownHours": 24.0,
+      "_rematchLevelBonus": 2,
+
+      "designNote": "Up the cave slope -- the deepest optional pocket of the slice, so he is its checkpoint boss. Geodude 7 / Machop 8 (game ids 81 / 73) punish a bird-heavy or Fire-led party and fold to a Water or Grass starter, mirroring the cave's own Zubat/Geodude table. Highest non-rival prize in the slice, still under the rival's 600."
     }
   ],
 

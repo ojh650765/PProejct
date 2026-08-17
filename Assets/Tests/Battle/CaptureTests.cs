@@ -184,6 +184,8 @@ namespace PokeLab.Battle.Tests
 
             var attempt = attempts[0];
             Assert.That(attempt.BallId, Is.EqualTo("ultra-ball"));
+            Assert.That(attempt.Target, Is.EqualTo(BattleSide.Opponent),
+                "The engine must state which side the ball is thrown at; the choreography aims by this field.");
             Assert.That(attempt.CatchProbability, Is.GreaterThan(0.9f));
             Assert.That(attempt.Succeeded, Is.EqualTo(attempt.Shakes == CaptureMath.ShakesForCapture));
 

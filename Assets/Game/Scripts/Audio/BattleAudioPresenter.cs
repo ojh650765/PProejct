@@ -66,6 +66,7 @@ namespace PokeLab.Audio
 
         private ElementType _lastMoveType = ElementType.Normal;
         private bool _lastMoveMadeContact;
+        private BattleKind _battleKind = BattleKind.Wild;
         private AudioSource _lowHpLoop;
         private AudioSource _expLoop;
         private int _shakeVariant;
@@ -157,6 +158,7 @@ namespace PokeLab.Audio
         {
             _lastHpFraction.Clear();
             _shakeVariant = 0;
+            _battleKind = evt.Kind;
             StopLowHpWarning();
             // The music director owns the transition; it only needs to know which of the
             // two battle themes to blend to, which the mode change alone cannot tell it.
@@ -165,17 +167,37 @@ namespace PokeLab.Audio
 
         private void OnSentOut(CreatureSentOutEvent evt)
         {
-            // A replacement after a faint arrives once the player has picked from a menu,
-            // so it is a quieter, less ceremonial beat than opening the battle.
-            float volume = evt.Side == BattleSide.Player ? 1f : 0.85f;
-            if (evt.IsReplacement) volume *= 0.88f;
-            _audio.PlaySfx(AudioIds.BattleSendOut, volume, evt.IsReplacement ? 1.04f : 1f);
+            // Ownership: when the cinematic audio hook is live, a *thrown* entrance gets its
+            // burst from the ball's own open frame (BallActor fires sfx_ball_open exactly
+            // when the ball opens, which the hook maps onto this same clip). This event, on
+            // the performed tap, fires at beat open — the trainer has not even wound up yet —
+            // so playing the burst here too would put it seconds early and then again on
+            // time. A wild opponent has no ball and keeps the cue from here.
+            bool thrownEntrance = evt.Side == BattleSide.Player || _battleKind == BattleKind.Trainer;
+            if (!thrownEntrance || !CinematicHookLive)
+            {
+                // A replacement after a faint arrives once the player has picked from a menu,
+                // so it is a quieter, less ceremonial beat than opening the battle.
+                float volume = evt.Side == BattleSide.Player ? 1f : 0.85f;
+                if (evt.IsReplacement) volume *= 0.88f;
+                _audio.PlaySfx(AudioIds.BattleSendOut, volume, evt.IsReplacement ? 1.04f : 1f);
+            }
 
             // Seed the health tracker from the incoming creature so the first hit it takes
             // drains from the right level even though this side's previous entry fainted.
             if (evt.Creature != null) _lastHpFraction[evt.Side] = evt.Creature.HpFraction;
             if (evt.Side == BattleSide.Player) EvaluateLowHp(evt.Creature);
         }
+
+        /// <summary>
+        /// Whether the frame-accurate cinematic hook is registered. When it is, the ball
+        /// set-piece cues (throw, open, shakes, click, break-out) arrive from the ball's own
+        /// animation frames and the timed approximations in this class stand down. C# null
+        /// check on purpose: the hook host is a persistent object, and a Unity-alive test
+        /// on an interface would box the question this class does not need answered.
+        /// </summary>
+        private static bool CinematicHookLive =>
+            ServiceHub.TryGet<ICinematicAudioHook>(out var hook) && hook != null;
 
         private void OnWithdrawn(CreatureWithdrawnEvent evt)
         {
@@ -261,6 +283,11 @@ namespace PokeLab.Audio
 
         private void OnDamage(DamageDealtEvent evt)
         {
+            // Ownership note: the cinematic hook's sfx_hit_* and sfx_critical cues are
+            // deliberately silent (see CinematicAudioHookHost) because this handler owns
+            // the landing — it knows the move's element, which the hook does not, and on
+            // the performed tap it fires on the very frame the damage beat opens.
+
             // Indirect damage (burn tick, weather, recoil) must not reuse the last move's
             // element -- it is not that move landing.
             bool indirect = !string.IsNullOrEmpty(evt.IndirectSourceId);
@@ -432,6 +459,19 @@ namespace PokeLab.Audio
 
         private void OnCaptureAttempt(CaptureAttemptEvent evt)
         {
+            // Ownership: with the cinematic hook live, every beat of the set piece — throw,
+            // open, land, each shake, the click or the break-out, and the success sting the
+            // click resolves into — is fired by BallActor on its exact animation frames.
+            // This routine is the timed approximation for when no choreography exists, and
+            // running both plays the whole sequence twice, offset by however long the
+            // trainer's wind-up took. The low-HP loop still stops: the field is being
+            // cleared for the shakes either way.
+            if (CinematicHookLive)
+            {
+                StopLowHpWarning();
+                return;
+            }
+
             if (_capture != null) StopCoroutine(_capture);
             _capture = StartCoroutine(CaptureRoutine(evt));
         }

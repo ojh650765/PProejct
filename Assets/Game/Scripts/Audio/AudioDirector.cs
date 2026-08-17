@@ -80,7 +80,7 @@ namespace PokeLab.Audio
 
         private Coroutine _timedDuck;
         private bool _warnedNoCatalog;
-        private Action<string> _cue;
+        private Action<string, Vector3> _cue;
 
         /// <summary>
         /// Linear gain the music loops should currently be multiplied by.
@@ -177,13 +177,19 @@ namespace PokeLab.Audio
             ServiceHub.Register<IGameAudio>(this);
             ServiceHub.Register(this);
 
-            // Zero-coupling escape hatch. A worker that must not reference this assembly
-            // can still fire a cue: ServiceHub.TryGet<Action<string>>(out var cue).
-            // Interim only -- the durable fix is an IGameAudio interface in Core.
+// Zero-coupling escape hatch for the cinematics layer. CinematicHooks probes
+            // ServiceHub for exactly Action<string, Vector3> when no ICinematicAudioHook is
+            // registered, so the delegate must have that shape -- the Action<string> this used
+            // to register was dead code the probe could never find. The position is accepted
+            // and ignored: battle cues read fine flat, and the 3D pool is for the overworld.
+            // Gated on HasClip because the hook vocabulary ("sfx_hit_neutral"...) is not the
+            // catalogue vocabulary; an unmapped cue must degrade to silence here, not to a
+            // warning per swing of every battle. Belt-and-braces only -- the real mapping
+            // lives in CinematicAudioHookHost, and this fires solely when that host is absent.
             //
             // Kept in a field rather than written inline so OnDestroy can hand back this
             // exact delegate; the hub only drops a registration that is still ours.
-            _cue = name => PlaySfx(name);
+            _cue = (cueId, position) => { if (HasClip(cueId)) PlaySfx(cueId); };
             ServiceHub.Register(_cue);
         }
 

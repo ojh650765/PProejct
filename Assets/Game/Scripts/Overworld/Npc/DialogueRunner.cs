@@ -68,6 +68,19 @@ namespace PokeLab.Overworld
         public DialogueLine CurrentLine { get; private set; }
 
         /// <summary>
+        /// Index of <see cref="CurrentLine"/> within the playing sequence, or -1 when idle.
+        ///
+        /// Exposed because the line's <em>text</em> is not an identity. EpisodeRunner's stall
+        /// watchdog used to detect progress by comparing the text on screen against the text it
+        /// last saw, and two consecutive authored lines that read the same — "……" beats, a
+        /// repeated shout — therefore looked like one line nobody was advancing: the watchdog's
+        /// timer kept accumulating across the boundary and it force-advanced a conversation that
+        /// was moving perfectly well. The index changes on every advance, including onto an
+        /// identical line, so it is the thing progress actually is.
+        /// </summary>
+        public int CurrentLineIndex => _sequence != null ? _lineIndex : -1;
+
+        /// <summary>
         /// Which sequence is playing, or null.
         ///
         /// The box needs it to stage a scene. A drawn room belongs to a *moment*, not to a

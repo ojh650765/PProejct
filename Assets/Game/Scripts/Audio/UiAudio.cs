@@ -13,7 +13,7 @@ namespace PokeLab.Audio
     /// does, so the UI worker can call it per character without thinking about it.
     /// </summary>
     [AddComponentMenu("Poke Lab/Audio/UI Audio")]
-    public sealed class UiAudio : MonoBehaviour
+    public sealed class UiAudio : MonoBehaviour, IUiSoundBank
     {
         [SerializeField, Range(1, 8)] private int typewriterEveryNth = 3;
         [Tooltip("Hard floor between blips regardless of character rate.")]
@@ -46,6 +46,10 @@ namespace PokeLab.Audio
             }
             _instance = this;
             ServiceHub.Register(this);
+            // The Core-facing name. The UI assembly cannot reference this one, so every
+            // menu and typewriter speaks through IUiSoundBank and finds this instance on
+            // the hub; the concrete registration above stays for audio-side callers.
+            ServiceHub.Register<IUiSoundBank>(this);
         }
 
         private void OnDestroy()
@@ -53,6 +57,7 @@ namespace PokeLab.Audio
             if (_instance != this) return;
             _instance = null;
             ServiceHub.Unregister(this);
+            ServiceHub.Unregister<IUiSoundBank>(this);
         }
 
         private bool Ready()
@@ -92,5 +97,19 @@ namespace PokeLab.Audio
 
         /// <summary>Resets the character counter so each dialogue line starts on a blip.</summary>
         public void BeginDialogueLine() => _charCounter = 0;
+
+        // ---- IUiSoundBank ------------------------------------------------------------
+        // The Core contract's vocabulary, mapped one-to-one onto the methods above. Thin
+        // on purpose: throttling and jitter stay in one place, and a UI caller pushing a
+        // character per frame gets exactly the same discipline an audio-side caller does.
+
+        void IUiSoundBank.Navigate() => PlayNavigate();
+        void IUiSoundBank.Confirm() => PlayConfirm();
+        void IUiSoundBank.Cancel() => PlayCancel();
+        void IUiSoundBank.Error() => PlayError();
+        void IUiSoundBank.MenuOpen() => PlayMenuOpen();
+        void IUiSoundBank.MenuClose() => PlayMenuClose();
+        void IUiSoundBank.TypewriterTick(char revealed) => PlayTypewriter(revealed);
+        void IUiSoundBank.BeginTypewriterLine() => BeginDialogueLine();
     }
 }
