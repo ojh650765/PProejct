@@ -331,6 +331,83 @@ namespace PokeLab.Battle.Tests
             Assert.That(player.HeldItemId, Is.Null);
         }
 
+        /// <summary>
+        /// A Lum Berry answers a Confuse Ray. Confusion used to be applied without any held
+        /// item check at all, so the berry's cures-confusion branch was reachable only when
+        /// some unrelated status happened to land on an already-confused holder.
+        /// </summary>
+        [Test]
+        public void LumBerry_CuresConfusionTheTurnItLands()
+        {
+            var engine = BattleTestBuilder.Engine();
+            // Growl rather than Protect: a successful Protect would turn the Confuse Ray away
+            // and there would be nothing for the berry to cure.
+            var player = BattleTestBuilder.Creature(TestData.Machop, 30, "growl")
+                .WithAbility(null).WithHeldItem("lum-berry");
+            var foe = BattleTestBuilder.Creature(TestData.Gastly, 30, "confuse-ray").WithAbility(null);
+
+            engine.Begin(BattleKind.Wild,
+                BattleTestBuilder.Party(player),
+                BattleTestBuilder.Party(foe),
+                Weather.Clear, seed: 14);
+
+            engine.DrainPendingEvents();
+            var stream = engine.ResolveTurn(BattleAction.UseMove(BattleSide.Player, 0));
+
+            Assert.That(stream.OfType<ItemUsedEvent>().Exists(e => e.ItemId == "lum-berry"), Is.True,
+                "The berry never fired against a confusion it is supposed to cure.");
+            Assert.That(engine.State.VolatilesOf(BattleSide.Player) & VolatileFlags.Confused,
+                Is.EqualTo(VolatileFlags.None), "The berry fired but the confusion stayed.");
+            Assert.That(player.HeldItemId, Is.Null, "A berry must be consumed when it fires.");
+        }
+
+        /// <summary>
+        /// An item used on a benched member must not claim the active creature's HP bar.
+        ///
+        /// <see cref="HealedEvent"/> and <see cref="StatusChangedEvent"/> carry only a side, so
+        /// one raised for the bench is indistinguishable from one raised for the creature on
+        /// the field — a guaranteed desync for a revive. Until they can name the recipient the
+        /// engine says so in words instead of lying with a beat.
+        /// </summary>
+        [Test]
+        public void BenchedItems_ReachTheRightMemberWithoutFakingTheActiveBar()
+        {
+            var engine = BattleTestBuilder.Engine();
+            var lead = BattleTestBuilder.Creature(TestData.Machop, 30, "protect").WithAbility(null);
+            var bench = BattleTestBuilder.Creature(TestData.Squirtle, 30, "water-gun").WithAbility(null);
+            var foe = BattleTestBuilder.Creature(TestData.Squirtle, 30, "protect").WithAbility(null);
+
+            engine.Begin(BattleKind.Wild,
+                BattleTestBuilder.Party(lead, bench),
+                BattleTestBuilder.Party(foe),
+                Weather.Clear, seed: 13);
+
+            engine.DrainPendingEvents();
+
+            bench.CurrentHp = 0;
+            bench.Status = StatusCondition.Fainted;
+            var leadHpBefore = lead.CurrentHp;
+
+            var revived = engine.ResolveTurn(BattleAction.UseItem(BattleSide.Player, "revive", 1));
+
+            Assert.That(bench.CurrentHp, Is.EqualTo(bench.MaxHp * 50 / 100));
+            Assert.That(bench.IsFainted, Is.False);
+            Assert.That(lead.CurrentHp, Is.EqualTo(leadHpBefore), "The creature on the field must be untouched.");
+            Assert.That(revived.OfType<ItemUsedEvent>().Exists(e => e.ItemId == "revive"), Is.True);
+            Assert.That(revived.OfType<HealedEvent>().Count, Is.EqualTo(0),
+                "A HealedEvent here names only the side, so a presenter would fill the wrong bar.");
+            Assert.That(revived.OfType<MessageEvent>().Exists(m => m.Text.Contains("recovered")), Is.True,
+                "The revive still has to be announced, naming who was actually revived.");
+
+            // The same rule for a plain heal aimed off the field.
+            bench.CurrentHp = 1;
+            var healed = engine.ResolveTurn(BattleAction.UseItem(BattleSide.Player, "potion", 1));
+
+            Assert.That(bench.CurrentHp, Is.EqualTo(21));
+            Assert.That(healed.OfType<HealedEvent>().Count, Is.EqualTo(0));
+            Assert.That(healed.OfType<MessageEvent>().Exists(m => m.Text.Contains("recovered")), Is.True);
+        }
+
         /// <summary>A potion restores its listed amount, clamped to max HP.</summary>
         [Test]
         public void Potion_HealsAndClamps()

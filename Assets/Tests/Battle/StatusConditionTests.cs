@@ -81,6 +81,49 @@ namespace PokeLab.Battle.Tests
             Assert.That(_player.CurrentHp, Is.EqualTo(afterThird));
         }
 
+        /// <summary>
+        /// Toxic escalation belongs to the exchange, not to the creature.
+        ///
+        /// The counter lives on the creature and <see cref="BattleSideState.ResetOnSwitch"/>
+        /// only reaches side state, so a creature that pivoted out at 5/16 a turn used to come
+        /// back in at 6/16 and climbing — and since the fraction is deliberately uncapped, a
+        /// long battle turned re-entry into an execution.
+        /// </summary>
+        [Test]
+        public void BadPoison_EscalationEndsWhenItLeavesTheField()
+        {
+            _engine = BattleTestBuilder.Engine();
+            _player = BattleTestBuilder.Creature(TestData.Machop, 50, "growl").WithAbility(null);
+            var bench = BattleTestBuilder.Creature(TestData.Geodude, 50, "growl").WithAbility(null);
+            _opponent = BattleTestBuilder.Creature(TestData.Machop, 50, "growl").WithAbility(null);
+
+            _engine.Begin(BattleKind.Wild,
+                BattleTestBuilder.Party(_player, bench),
+                BattleTestBuilder.Party(_opponent),
+                Weather.Clear, seed: 4242);
+
+            _player.Status = StatusCondition.BadPoison;
+            _player.StatusCounter = 0;
+            var max = _player.MaxHp;
+
+            Turn();
+            Turn();
+            Turn();
+            Assert.That(_player.StatusCounter, Is.EqualTo(3), "Three turns of toxic climbs to 3/16.");
+
+            _engine.ResolveTurn(BattleAction.SwitchTo(BattleSide.Player, 1));
+            Assert.That(_player.StatusCounter, Is.EqualTo(0), "Leaving the field ends the escalation.");
+            Assert.That(_player.Status, Is.EqualTo(StatusCondition.BadPoison),
+                "…but the poison itself stays, exactly as a switch cannot cure it.");
+
+            var hpOnReturn = _player.CurrentHp;
+            _engine.ResolveTurn(BattleAction.SwitchTo(BattleSide.Player, 0));
+
+            Assert.That(_player.StatusCounter, Is.EqualTo(1));
+            Assert.That(_player.CurrentHp, Is.EqualTo(hpOnReturn - max / 16),
+                "Coming back must restart the ladder at 1/16, not resume it at 4/16.");
+        }
+
         /// <summary>Paralysis halves Speed, which is enough to flip a turn order.</summary>
         [Test]
         public void Paralysis_HalvesSpeed()
@@ -295,6 +338,47 @@ namespace PokeLab.Battle.Tests
 
             Assert.That(selfHits, Is.GreaterThan(0), "Confusion should produce self-hits across 24 seeds.");
             Assert.That(expiries, Is.GreaterThan(0), "Confusion must expire, not persist forever.");
+        }
+
+        /// <summary>
+        /// A rolled duration is a count of turns confusion actually gets to act on.
+        ///
+        /// The counter used to be spent and then checked before the self-hit roll, so a rolled
+        /// 1 snapped out on the victim's very next action without ever risking a hit — a
+        /// quarter of every confusion was free. Confusion lands before the victim's own turn
+        /// here (Gastly outruns Machop), so a duration of n means the snap-out falls on turn
+        /// n + 1 and never on turn one.
+        /// </summary>
+        [Test]
+        public void Confusion_LastsEveryTurnItRolled()
+        {
+            for (var seed = 0; seed < 24; seed++)
+            {
+                _engine = BattleTestBuilder.Engine();
+                _player = BattleTestBuilder.Creature(TestData.Machop, 50, "growl").WithAbility(null);
+                _opponent = BattleTestBuilder.Creature(TestData.Gastly, 50, "confuse-ray").WithAbility(null);
+                _engine.Begin(BattleKind.Wild,
+                    BattleTestBuilder.Party(_player),
+                    BattleTestBuilder.Party(_opponent),
+                    Weather.Clear, seed);
+
+                var expiredOnTurn = -1;
+                for (var turn = 1; turn <= 8 && expiredOnTurn < 0; turn++)
+                {
+                    var stream = Turn();
+
+                    if (turn == 1)
+                        Assert.That(_engine.State.VolatilesOf(BattleSide.Player) & VolatileFlags.Confused,
+                            Is.EqualTo(VolatileFlags.Confused), $"Seed {seed}: Confuse Ray never landed.");
+
+                    if (stream.OfType<VolatileChangedEvent>().Exists(v => (v.Removed & VolatileFlags.Confused) != 0))
+                        expiredOnTurn = turn;
+                }
+
+                Assert.That(expiredOnTurn, Is.InRange(2, 5),
+                    $"Seed {seed}: a duration rolled in 1-4 must buy that many turns, so the snap-out " +
+                    "belongs on turn 2-5 — never on the turn it was inflicted.");
+            }
         }
 
         /// <summary>Sandstorm chips everything that is not Rock, Ground or Steel.</summary>

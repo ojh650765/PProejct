@@ -183,6 +183,55 @@ namespace PokeLab.Battle.Tests
                 "A Pikachu should always outrun a Geodude within four attempts.");
         }
 
+        /// <summary>
+        /// Being faster may never make escaping harder.
+        ///
+        /// The odds used to be taken modulo 256, so a runner past twice its blocker's Speed
+        /// wrapped back round towards zero — Speed 68 against Speed 26 came out at 42% while
+        /// a Speed 20 runner got 50%. The escape roll is the first draw of the battle, so a
+        /// given seed hands every variant below the identical roll and the comparison is
+        /// exact rather than statistical.
+        /// </summary>
+        [Test]
+        public void EscapeOdds_NeverGetWorseAsTheRunnerGetsFaster()
+        {
+            const int Seeds = 40;
+            const int BlockerSpeed = 26;
+            var speeds = new[] { 10, 20, 26, 40, 52, 68, 120, 400 };
+            var escapes = new int[speeds.Length];
+
+            for (var i = 0; i < speeds.Length; i++)
+            {
+                for (var seed = 0; seed < Seeds; seed++)
+                {
+                    var engine = BattleTestBuilder.Engine();
+                    var runner = BattleTestBuilder.Creature(TestData.Machop, 50, "growl")
+                        .WithAbility(null).WithStats(140, 60, 60, 60, 60, speeds[i]);
+                    var blocker = BattleTestBuilder.Creature(TestData.Machop, 50, "growl")
+                        .WithAbility(null).WithStats(140, 60, 60, 60, 60, BlockerSpeed);
+
+                    engine.Begin(BattleKind.Wild,
+                        BattleTestBuilder.Party(runner),
+                        BattleTestBuilder.Party(blocker),
+                        Weather.Clear, seed);
+
+                    engine.ResolveTurn(BattleAction.Run(BattleSide.Player));
+                    if (engine.State.Outcome == BattleOutcome.Fled) escapes[i]++;
+                }
+            }
+
+            for (var i = 1; i < speeds.Length; i++)
+                Assert.That(escapes[i], Is.GreaterThanOrEqualTo(escapes[i - 1]),
+                    $"Speed {speeds[i]} escaped {escapes[i]} times but Speed {speeds[i - 1]} escaped {escapes[i - 1]}.");
+
+            // 68 against 26 is 334 before the attempt bonus is even added: outrunning the
+            // byte range has to mean outrunning the fight, not wrapping back to nothing.
+            Assert.That(escapes[Array.IndexOf(speeds, 68)], Is.EqualTo(Seeds),
+                "A better than 2:1 Speed advantage must be a guaranteed escape.");
+            Assert.That(escapes[0], Is.LessThan(Seeds),
+                "…while a runner slower than its blocker must still sometimes be caught.");
+        }
+
         /// <summary>Legal actions are gated correctly per battle kind and per side.</summary>
         [Test]
         public void LegalActions_AreGatedCorrectly()

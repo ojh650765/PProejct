@@ -119,6 +119,57 @@ namespace PokeLab.Battle.Tests
         }
 
         /// <summary>
+        /// When both sides fall on the same turn, neither replacement's entry ability may
+        /// fire over a body.
+        ///
+        /// The opponent's replacement used to arrive first and immediately announce its
+        /// Intimidate at the player's fainted creature, where TryChangeStage refused it — so
+        /// the player was told about an ability that then did nothing, and the creature that
+        /// arrived a moment later walked in un-intimidated.
+        /// </summary>
+        [Test]
+        public void DoubleKnockout_FiresEntryAbilitiesOnlyOnceBothSidesHaveArrived()
+        {
+            // Rookie, because a switching policy would pull the lead out before it dies and
+            // there would be no double knockout to order.
+            for (var seed = 0; seed < 20; seed++)
+            {
+                ServiceHub.Reset();
+
+                var engine = BattleTestBuilder.Engine(new BattleAi(AiDifficulty.Rookie));
+
+                // Take Down from one HP: the hit kills the target, the recoil kills the user.
+                var doomed = BattleTestBuilder.Creature(TestData.Geodude, 30, "take-down").WithAbility(null);
+                var incoming = BattleTestBuilder.Creature(TestData.Machop, 30, "karate-chop").WithAbility(null);
+                var foeLead = BattleTestBuilder.Creature(TestData.Rattata, 5, "tackle").WithAbility(null);
+                var foeBench = BattleTestBuilder.Creature(TestData.Pidgey, 20, "tackle")
+                    .WithAbility(AbilityIds.Intimidate);
+
+                engine.Begin(BattleKind.Trainer,
+                    BattleTestBuilder.Party(doomed, incoming),
+                    BattleTestBuilder.Party(foeLead, foeBench),
+                    Weather.Clear, seed);
+
+                engine.DrainPendingEvents();
+                doomed.CurrentHp = 1;
+
+                var stream = engine.ResolveTurn(BattleAction.UseMove(BattleSide.Player, 0));
+                if (!doomed.IsFainted || !foeLead.IsFainted) continue;
+
+                Assert.That(engine.State.ActiveOf(BattleSide.Player), Is.SameAs(incoming));
+                Assert.That(engine.State.ActiveOf(BattleSide.Opponent), Is.SameAs(foeBench));
+                Assert.That(stream.OfType<AbilityTriggeredEvent>()
+                    .Exists(e => e.AbilityId == AbilityIds.Intimidate), Is.True,
+                    "The replacement's Intimidate should still be announced.");
+                Assert.That(engine.State.StatStagesOf(BattleSide.Player)[(int)StatKind.Attack], Is.EqualTo(-1),
+                    "Intimidate was announced over a fainted body and then quietly refused.");
+                return;
+            }
+
+            Assert.Fail("No seed produced a double knockout, so the ordering was never exercised.");
+        }
+
+        /// <summary>
         /// With no <see cref="IReplacementChooser"/> registered, the engine keeps picking the
         /// first healthy member itself — the path every headless battle and test relies on.
         /// </summary>
@@ -307,6 +358,109 @@ namespace PokeLab.Battle.Tests
             Assert.That(gains[0].NewLevel, Is.EqualTo(player.Level));
             Assert.That(player.Level, Is.GreaterThan(levelBefore), "A level 30 Pidgey should level a level 5 Machop.");
             Assert.That(gains[0].LeveledUp, Is.True);
+        }
+
+        /// <summary>
+        /// Experience is shared by everything that faced the creature that fell, not banked
+        /// by whoever happened to land the last blow.
+        ///
+        /// The participant set used to be wiped and reseeded on every player send-out, so it
+        /// never held more than one id: the split in AwardExperience always divided by one
+        /// and the creature that did the early work got nothing at all.
+        /// </summary>
+        [Test]
+        public void Experience_IsSplitAcrossEveryParticipant()
+        {
+            var engine = BattleTestBuilder.Engine();
+
+            // Growl on the opener so it puts in turns without ending the fight, and the
+            // finisher only arrives on the last one. Two different species, because the
+            // fixture derives an instance id from species and level — two Machops would
+            // share one, and the participant lookup would match either of them.
+            var opener = BattleTestBuilder.Creature(TestData.Squirtle, 30, "growl").WithAbility(null);
+            var finisher = BattleTestBuilder.Creature(TestData.Machop, 30, "karate-chop").WithAbility(null);
+            var wild = BattleTestBuilder.Creature(TestData.Rattata, 5, "tackle").WithAbility(null);
+
+            Assert.That(opener.InstanceId, Is.Not.EqualTo(finisher.InstanceId),
+                "The two party members have to be distinguishable for this test to mean anything.");
+
+            engine.Begin(BattleKind.Wild,
+                BattleTestBuilder.Party(opener, finisher),
+                BattleTestBuilder.Party(wild),
+                Weather.Clear, seed: 9090);
+
+            engine.DrainPendingEvents();
+
+            engine.ResolveTurn(BattleAction.UseMove(BattleSide.Player, 0));
+            engine.ResolveTurn(BattleAction.SwitchTo(BattleSide.Player, 1));
+            var kill = engine.ResolveTurn(BattleAction.UseMove(BattleSide.Player, 0));
+
+            Assert.That(wild.IsFainted, Is.True, "A level 30 Machop should have finished a level 5 Rattata.");
+            Assert.That(finisher.IsFainted, Is.False);
+            Assert.That(opener.IsFainted, Is.False, "The opener has to survive to be able to collect.");
+
+            var gains = kill.OfType<ExperienceGainedEvent>();
+            Assert.That(gains.Count, Is.EqualTo(2), "Both creatures were on the field against that opponent.");
+            Assert.That(gains.Exists(g => g.InstanceId == opener.InstanceId), Is.True,
+                "The creature that did the early work was cut out of the award.");
+            Assert.That(gains.Exists(g => g.InstanceId == finisher.InstanceId), Is.True);
+
+            BattleTestBuilder.SpeciesRegistry.TryGet(TestData.Rattata, out var beaten);
+            var shared = StatMath.ExperienceFromDefeat(beaten.BaseExperience, wild.Level, 2, false);
+            var undivided = StatMath.ExperienceFromDefeat(beaten.BaseExperience, wild.Level, 1, false);
+
+            Assert.That(gains[0].Amount, Is.EqualTo(shared));
+            Assert.That(gains[1].Amount, Is.EqualTo(shared));
+            Assert.That(shared, Is.LessThan(undivided), "A two-way split has to actually be smaller than a solo one.");
+        }
+
+        /// <summary>
+        /// A species row with fewer than six base stats must not take the battle down. The
+        /// BaseStat helper exists to tolerate hand-authored data, and RecomputeStats used to
+        /// index straight past it — from inside a mid-battle level-up, of all places.
+        /// </summary>
+        [Test]
+        public void RecomputeStats_ToleratesAShortBaseStatRow()
+        {
+            var species = TestData.Species();
+            var moves = TestData.Moves();
+
+            var creature = CreatureFactory.Create(TestData.Machop, 10, 1, species, moves, perfectIvs: true);
+            var truncated = LookUp(species, TestData.Machop);
+            truncated.BaseStats = new[] { 70, 80 };
+
+            creature.Level = 20;
+            Assert.DoesNotThrow(() => CreatureFactory.RecomputeStats(creature, truncated));
+
+            for (var i = 0; i < StatKinds.BaseCount; i++)
+                Assert.That(creature.Stats[i], Is.GreaterThan(0),
+                    $"Stat {i} came out unusable after a short base stat row.");
+        }
+
+        /// <summary>A reused engine must not report the last battle's trainer in a wild encounter.</summary>
+        [Test]
+        public void TrainerId_DoesNotSurviveIntoTheNextBattle()
+        {
+            var engine = BattleTestBuilder.Engine();
+
+            engine.SetOpponentTrainer("hiker-vance");
+            engine.Begin(BattleKind.Trainer,
+                BattleTestBuilder.Party(BattleTestBuilder.Creature(TestData.Machop, 20, "karate-chop")),
+                BattleTestBuilder.Party(BattleTestBuilder.Creature(TestData.Rattata, 20, "tackle")),
+                Weather.Clear, seed: 4200);
+
+            var trainerIntro = engine.DrainPendingEvents().OfType<BattleStartedEvent>()[0];
+            Assert.That(trainerIntro.OpponentTrainerId, Is.EqualTo("hiker-vance"));
+
+            // The same engine again, with nobody named this time.
+            engine.Begin(BattleKind.Wild,
+                BattleTestBuilder.Party(BattleTestBuilder.Creature(TestData.Machop, 20, "karate-chop")),
+                BattleTestBuilder.Party(BattleTestBuilder.Creature(TestData.Pidgey, 8, "tackle")),
+                Weather.Clear, seed: 4201);
+
+            var wildIntro = engine.DrainPendingEvents().OfType<BattleStartedEvent>()[0];
+            Assert.That(wildIntro.OpponentTrainerId, Is.Null,
+                "The previous trainer's id leaked into a wild encounter.");
         }
 
         /// <summary>A level-up recomputes stats rather than leaving the authored ones.</summary>

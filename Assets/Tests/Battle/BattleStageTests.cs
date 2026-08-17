@@ -332,6 +332,46 @@ namespace PokeLab.Battle.Tests
                 Assert.That(result.CapturedCreature, Is.Not.Null, "A capture must hand the creature back.");
         }
 
+        /// <summary>
+        /// A staging that fails must not report the previous battle's spoils.
+        ///
+        /// Finish builds its result from the engine and the opponent party, and a failed
+        /// staging left both holding the last encounter's contents — so an encounter that
+        /// never started could hand the overworld a creature caught in the one before it.
+        /// </summary>
+        [Test]
+        public void FailedStaging_DoesNotLeakThePreviousBattlesResult()
+        {
+            RegisterDataLayer();
+            ServiceHub.Register<IPlayerProfile>(new StubProfile(
+                CreatureFactory.Create(TestData.Machop, 40, 1, _species, _moves, perfectIvs: true)));
+
+            var stage = new BattleStage();
+            stage.BattleStaged += _ => { };
+
+            EncounterResult caught = null;
+            stage.BeginEncounter(WildRequest(2024), r => caught = r);
+            stage.SubmitAction(BattleAction.Capture(BattleSide.Player, ItemCatalog.MasterBallId));
+
+            Assert.That(caught, Is.Not.Null);
+            Assert.That(caught.Outcome, Is.EqualTo(BattleOutcome.Captured), "A master ball never fails.");
+            Assert.That(caught.CapturedCreature, Is.Not.Null);
+
+            // The same stage again, on an encounter it cannot possibly build.
+            var unbuildable = WildRequest(99);
+            unbuildable.WildSpeciesId = 987654;
+
+            EncounterResult failed = null;
+            stage.BeginEncounter(unbuildable, r => failed = r);
+
+            Assert.That(failed, Is.Not.Null);
+            Assert.That(failed.Outcome, Is.EqualTo(BattleOutcome.Fled));
+            Assert.That(failed.CapturedCreature, Is.Null,
+                "A battle that never started handed back the previous one's captured creature.");
+            Assert.That(failed.SpeciesSeen, Is.Empty,
+                "…and the previous one's opposing party along with it.");
+        }
+
         // ---- Stubs -------------------------------------------------------------------
 
         private sealed class StubProfile : IPlayerProfile

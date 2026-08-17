@@ -142,6 +142,9 @@ namespace PokeLab.Battle
             TurnNumber = 0;
             Outcome = BattleOutcome.InProgress;
             CapturedCreature = null;
+            // The trainer belongs to the battle that named them. Begin stamps the next one
+            // in straight after this, so a reused engine cannot carry the last one forward.
+            OpponentTrainerId = null;
         }
     }
 }

@@ -55,6 +55,15 @@ namespace PokeLab.Battle
         private int _runAttempts;
 
         /// <summary>
+        /// Trainer id waiting to be stamped onto the next battle. Held here rather than
+        /// written straight into state because <see cref="SetOpponentTrainer"/> is contracted
+        /// to be called before <see cref="Begin"/>, and Begin has to wipe the previous
+        /// battle's id — a reused engine used to report the last trainer in the next wild
+        /// encounter's <see cref="BattleStartedEvent"/>.
+        /// </summary>
+        private string _pendingTrainerId;
+
+        /// <summary>
         /// Typeless 50-power fallback so a creature that has run out of PP can still act
         /// and the battle is guaranteed to terminate.
         /// </summary>
@@ -120,6 +129,11 @@ namespace PokeLab.Battle
             _stream.Clear();
             _runAttempts = 0;
 
+            // Consumed, not merely read: the id belongs to this battle only, so a reused
+            // engine that is handed no trainer opens a clean wild encounter.
+            _state.OpponentTrainerId = _pendingTrainerId;
+            _pendingTrainerId = null;
+
             _rng = new BattleRandom(seed);
             if (_usingDefaultAi)
                 Ai.Difficulty = kind == BattleKind.Wild ? AiDifficulty.Wild : AiDifficulty.Standard;
@@ -156,7 +170,7 @@ namespace PokeLab.Battle
         }
 
         /// <summary>Sets the trainer id reported by <see cref="BattleStartedEvent"/>. Call before <see cref="Begin"/>.</summary>
-        public void SetOpponentTrainer(string trainerId) => _state.OpponentTrainerId = trainerId;
+        public void SetOpponentTrainer(string trainerId) => _pendingTrainerId = trainerId;
 
         /// <summary>
         /// Changes the field weather mid-battle and announces it. No move in the slice sets
@@ -222,6 +236,11 @@ namespace PokeLab.Battle
             _hasMovedThisTurn[0] = false;
             _hasMovedThisTurn[1] = false;
 
+            // The submitted action is the player's by definition — this method is the
+            // player's half of the turn. A stamp of Opponent used to be honoured, which
+            // handed the opponent two actions and the player none.
+            playerAction = ForPlayer(playerAction);
+
             var opponentAction = Ai.ChooseAction(this, BattleSide.Opponent);
 
             var first = Plan(playerAction);
@@ -236,6 +255,26 @@ namespace PokeLab.Battle
 
             EvaluateOutcome();
             return _stream.ToArray();
+        }
+
+        /// <summary>
+        /// Re-stamps a submitted action onto the player's side, preserving its payload.
+        /// Nothing upstream validates the side — <see cref="BattleStage.SubmitAction"/> passes
+        /// whatever a presenter built straight through — so the engine normalises rather than
+        /// trusts.
+        /// </summary>
+        private static BattleAction ForPlayer(BattleAction action)
+        {
+            if (action.Side == BattleSide.Player) return action;
+
+            return action.Type switch
+            {
+                BattleAction.Kind.Move => BattleAction.UseMove(BattleSide.Player, action.MoveIndex),
+                BattleAction.Kind.Switch => BattleAction.SwitchTo(BattleSide.Player, action.PartyIndex),
+                BattleAction.Kind.Item => BattleAction.UseItem(BattleSide.Player, action.ItemId, action.PartyIndex),
+                BattleAction.Kind.Capture => BattleAction.Capture(BattleSide.Player, action.ItemId),
+                _ => BattleAction.Run(BattleSide.Player),
+            };
         }
 
         private readonly struct PlannedAction
@@ -451,7 +490,13 @@ namespace PokeLab.Battle
             CheckFaint(defenderSide);
             CheckFaint(side);
 
-            if (_state.ActiveOf(defenderSide) != null && !_state.ActiveOf(defenderSide).IsFainted)
+            // A rider aimed at the user survives the target's death: a self-boost authored
+            // on an attacking move is the attacker's reward for landing it, and gating it on
+            // the defender still standing made it vanish on exactly the hit that earned it.
+            // Target-directed riders still need something left to apply to.
+            var riderSide = move.TargetsSelf ? side : defenderSide;
+            var riderTarget = _state.ActiveOf(riderSide);
+            if (riderTarget != null && !riderTarget.IsFainted)
                 ApplySecondaryEffects(side, defenderSide, move);
         }
 
@@ -606,15 +651,25 @@ namespace PokeLab.Battle
                 }
             }
 
-            var passthrough = flags & (VolatileFlags.Charging | VolatileFlags.Recharging | VolatileFlags.Substitute);
-            if (passthrough != VolatileFlags.None)
-            {
-                state.Volatiles |= passthrough;
-                added |= passthrough;
-            }
+            // Charging, Recharging and Substitute have no rule behind them: nothing in the
+            // engine reads them and nothing but a faint or a switch clears them, so setting
+            // one flagged its holder for the rest of the battle to no effect whatsoever. A
+            // data author who reaches for one gets a refusal in the log rather than a flag
+            // that looks like a working feature; implementing two-turn moves and a substitute
+            // HP pool is a feature, not a bug fix, and pretending otherwise is the trap.
+            var unimplemented = flags & (VolatileFlags.Charging | VolatileFlags.Recharging | VolatileFlags.Substitute);
+            if (unimplemented != VolatileFlags.None)
+                Emit(new MessageEvent { Text = "But nothing happened!" });
 
             if (added != VolatileFlags.None)
                 Emit(new VolatileChangedEvent { Target = targetSide, Added = added, Removed = VolatileFlags.None });
+
+            // A cure berry has to see confusion land the same way it sees a status land.
+            // Without this the curesConfusion branch of CheckHeldItem was reachable only when
+            // some other status happened to hit an already-confused holder, which made Lum
+            // Berry unable to answer the one move that confuses.
+            if ((added & VolatileFlags.Confused) != 0)
+                CheckHeldItem(targetSide, HeldItemTrigger.OnStatus);
         }
 
         private void ResolveProtect(BattleSide side)
@@ -702,18 +757,25 @@ namespace PokeLab.Battle
 
             if ((state.Volatiles & VolatileFlags.Confused) != 0)
             {
-                state.ConfusionTurns--;
-                if (state.ConfusionTurns <= 0)
+                // Read exactly like the sleep counter above: it holds the number of turns
+                // confusion still gets to act on, so a turn is spent and then rolled for.
+                // Checking the counter before the roll spent a rolled 1 on nothing at all,
+                // which quietly made a quarter of every confusion harmless.
+                if (state.ConfusionTurns > 0)
+                {
+                    state.ConfusionTurns--;
+                    if (_rng.Chance(ConfusionSelfHitPercent))
+                    {
+                        Emit(new MessageEvent { Text = $"{Name(creature)} is confused!" });
+                        HitSelfInConfusion(side, creature);
+                        return false;
+                    }
+                }
+                else
                 {
                     state.Volatiles &= ~VolatileFlags.Confused;
                     Emit(new VolatileChangedEvent { Target = side, Added = VolatileFlags.None, Removed = VolatileFlags.Confused });
                     Emit(new MessageEvent { Text = $"{Name(creature)} snapped out of its confusion!" });
-                }
-                else if (_rng.Chance(ConfusionSelfHitPercent))
-                {
-                    Emit(new MessageEvent { Text = $"{Name(creature)} is confused!" });
-                    HitSelfInConfusion(side, creature);
-                    return false;
                 }
             }
 
@@ -801,11 +863,27 @@ namespace PokeLab.Battle
             if (outgoing != null && !outgoing.IsFainted)
                 Emit(new CreatureWithdrawnEvent { Side = side, Creature = outgoing });
 
+            ResetToxicEscalation(outgoing);
+
             state.ActiveIndex = partyIndex;
             state.ResetOnSwitch();
 
             SendOut(side, partyIndex, false);
             FireEntryAbility(side);
+        }
+
+        /// <summary>
+        /// Ends a toxic escalation when its holder leaves the field.
+        ///
+        /// The counter lives on the creature rather than in side state, so
+        /// <see cref="BattleSideState.ResetOnSwitch"/> cannot reach it — a creature that
+        /// pivoted out at 5/16 a turn came back in at 6/16 and climbing, and because the
+        /// fraction is deliberately uncapped a long battle turned re-entry into an execution.
+        /// Sleep is left alone: that counter is meant to survive a switch.
+        /// </summary>
+        private static void ResetToxicEscalation(CreatureInstance creature)
+        {
+            if (creature != null && creature.Status == StatusCondition.BadPoison) creature.StatusCounter = 0;
         }
 
         private void UseItem(BattleSide side, string itemId, int partyIndex)
@@ -846,7 +924,7 @@ namespace PokeLab.Battle
                     var previous = target.Status;
                     target.Status = StatusCondition.None;
                     target.StatusCounter = 0;
-                    Emit(new StatusChangedEvent { Target = side, Previous = previous, Current = StatusCondition.None });
+                    EmitStatusCleared(side, index, target, previous);
                     break;
 
                 case BagItemKind.Revive:
@@ -854,16 +932,58 @@ namespace PokeLab.Battle
                     target.Status = StatusCondition.None;
                     target.StatusCounter = 0;
                     target.CurrentHp = Math.Max(1, target.MaxHp * item.Amount / 100);
-                    Emit(new HealedEvent
-                    {
-                        Target = side,
-                        Amount = target.CurrentHp,
-                        RemainingHp = target.CurrentHp,
-                        MaxHp = target.MaxHp,
-                        SourceId = item.Id,
-                    });
+                    EmitHealed(side, index, target, target.CurrentHp, item.Id);
                     break;
             }
+        }
+
+        /// <summary>True when a party index names the creature currently out on that side.</summary>
+        private bool IsOnField(BattleSide side, int partyIndex) => partyIndex == _state.Sides(side).ActiveIndex;
+
+        /// <summary>
+        /// Announces a heal, or names the recipient when it is a benched party member.
+        ///
+        /// <see cref="HealedEvent"/> carries only a <see cref="BattleSide"/>, so one raised for
+        /// a creature on the bench cannot be told apart from one raised for the creature on the
+        /// field: every presenter animates the wrong HP bar, which for a revive means a bar
+        /// that fills for a creature still lying down. A missing animation is recoverable —
+        /// state changed before the event was handed out and a party panel re-reads it — while
+        /// a wrong one is not, so the bench gets a named log line instead. Once HealedEvent can
+        /// carry the recipient's instance id these two branches collapse back into one.
+        /// </summary>
+        private void EmitHealed(BattleSide side, int partyIndex, CreatureInstance creature, int amount, string sourceId)
+        {
+            if (!IsOnField(side, partyIndex))
+            {
+                Emit(new MessageEvent { Text = $"{Name(creature)} recovered {amount} HP!" });
+                return;
+            }
+
+            Emit(new HealedEvent
+            {
+                Target = side,
+                Amount = amount,
+                RemainingHp = creature.CurrentHp,
+                MaxHp = creature.MaxHp,
+                SourceId = sourceId,
+            });
+        }
+
+        /// <summary>
+        /// Announces a status cure. <see cref="StatusChangedEvent"/> has the same identity gap
+        /// as <see cref="HealedEvent"/> — see <see cref="EmitHealed"/> — so a benched member is
+        /// named in the log rather than mislabelled as the creature on the field.
+        /// </summary>
+        private void EmitStatusCleared(BattleSide side, int partyIndex, CreatureInstance creature,
+            StatusCondition previous)
+        {
+            if (!IsOnField(side, partyIndex))
+            {
+                Emit(new MessageEvent { Text = $"{Name(creature)} shook off its {previous}." });
+                return;
+            }
+
+            Emit(new StatusChangedEvent { Target = side, Previous = previous, Current = StatusCondition.None });
         }
 
         private void AttemptRun(BattleSide side)
@@ -887,9 +1007,19 @@ namespace PokeLab.Battle
 
             var ownSpeed = runner?.Stats[(int)StatKind.Speed] ?? 1;
             var foeSpeed = Math.Max(1, blocker?.Stats[(int)StatKind.Speed] ?? 1);
-            var odds = (ownSpeed * 128 / foeSpeed + 30 * _runAttempts) % 256;
 
-            if (_rng.Next(256) < odds)
+            // Clamped at the top of the byte range, never wrapped. Taking the whole
+            // expression modulo 256 meant a runner twice its blocker's Speed came out the
+            // other side at near-zero odds — a Speed 68 creature escaping a Speed 26 one
+            // less often than a Speed 20 one would. Outrunning the range means outrunning
+            // the fight.
+            var odds = ownSpeed * 128 / foeSpeed + 30 * _runAttempts;
+
+            // The draw is taken either way, as everywhere else in the engine: a guaranteed
+            // escape must not shorten the sequence and reshuffle every later roll.
+            var roll = _rng.Next(256);
+
+            if (odds >= 256 || roll < odds)
             {
                 Emit(new MessageEvent { Text = "Got away safely!" });
                 FinishBattle(BattleOutcome.Fled, 0);
@@ -1093,7 +1223,12 @@ namespace PokeLab.Battle
             if (!TryGetSpecies(defeated.SpeciesId, out var species)) return;
 
             var playerSide = _state.PlayerSide;
-            playerSide.Participants.Add(playerSide.Active?.InstanceId ?? string.Empty);
+
+            // The creature that landed the blow counts even if it only just arrived. Guarded,
+            // because an empty id would otherwise join the set and sit there matching nothing.
+            var finisher = playerSide.Active;
+            if (finisher != null && !string.IsNullOrEmpty(finisher.InstanceId))
+                playerSide.Participants.Add(finisher.InstanceId);
 
             var participants = 0;
             for (var i = 0; i < playerSide.Party.Count; i++)
@@ -1115,10 +1250,9 @@ namespace PokeLab.Battle
                 GrantExperience(member, award);
             }
 
-            // The slate is wiped for the next opponent, so a creature that never faced it
-            // does not quietly keep collecting.
-            playerSide.Participants.Clear();
-            if (playerSide.Active != null) playerSide.Participants.Add(playerSide.Active.InstanceId);
+            // The slate is not wiped here. SendOut owns it, because the arrival of a new
+            // opposing creature is what actually defines "the next opponent" — wiping on a
+            // faint alone would miss an opposing trainer pivoting out of a fight it was losing.
         }
 
         private void GrantExperience(CreatureInstance member, int amount)
@@ -1154,16 +1288,29 @@ namespace PokeLab.Battle
 
         private void ReplaceFainted()
         {
-            ReplaceFainted(BattleSide.Opponent);
-            ReplaceFainted(BattleSide.Player);
+            // Both replacements reach the field before either entry ability fires, exactly as
+            // Begin opens the battle. An entry ability reads the creature opposite it —
+            // Intimidate drops its Attack — so firing one while the other side is still a
+            // fainted body announced an ability that TryChangeStage then refused, and the
+            // incoming creature walked in un-intimidated. The player's side goes first so the
+            // opponent's replacement is chosen against a live matchup rather than a corpse.
+            var playerIncoming = ReplaceFainted(BattleSide.Player);
+            var opponentIncoming = ReplaceFainted(BattleSide.Opponent);
+
+            if (opponentIncoming) FireEntryAbility(BattleSide.Opponent);
+            if (playerIncoming) FireEntryAbility(BattleSide.Player);
         }
 
-        private void ReplaceFainted(BattleSide side)
+        /// <summary>
+        /// Sends out a replacement for a fainted creature. Returns true when one arrived, so
+        /// the caller can hold its entry ability back until both sides are settled.
+        /// </summary>
+        private bool ReplaceFainted(BattleSide side)
         {
             var state = _state.Sides(side);
             var active = state.Active;
-            if (active != null && !active.IsFainted) return;
-            if (!state.HasHealthyMember) return;
+            if (active != null && !active.IsFainted) return false;
+            if (!state.HasHealthyMember) return false;
 
             // The AI always picks for itself. The player's forced switch is offered to an
             // IReplacementChooser when one is registered, so the UI can prompt instead of
@@ -1174,12 +1321,12 @@ namespace PokeLab.Battle
                 ? Ai.ChooseReplacement(this, side)
                 : ChoosePlayerReplacement(state);
 
-            if (index < 0) return;
+            if (index < 0) return false;
 
             state.ActiveIndex = index;
             state.ResetOnSwitch();
             SendOut(side, index, true);
-            FireEntryAbility(side);
+            return true;
         }
 
         /// <summary>
@@ -1318,15 +1465,7 @@ namespace PokeLab.Battle
             if (healed <= 0) return 0;
 
             creature.CurrentHp += healed;
-
-            Emit(new HealedEvent
-            {
-                Target = side,
-                Amount = healed,
-                RemainingHp = creature.CurrentHp,
-                MaxHp = creature.MaxHp,
-                SourceId = sourceId,
-            });
+            EmitHealed(side, partyIndex, creature, healed, sourceId);
 
             return healed;
         }
@@ -1519,13 +1658,33 @@ namespace PokeLab.Battle
             // The player always knows its own team; the opponent must earn its entry.
             if (side == BattleSide.Player) _state.MarkScouted(creature.SpeciesId);
 
+            // Experience is split between everything that faced the creature it beat, so the
+            // player's set accumulates across its own switches and is only wiped when a fresh
+            // opponent arrives. Clearing it on every player send-out left the set holding one
+            // id forever, which made the careful split in AwardExperience always divide by one
+            // and handed a creature that switched in for the last blow the whole award.
             if (side == BattleSide.Player)
-            {
-                state.Participants.Clear();
                 state.Participants.Add(creature.InstanceId);
-            }
+            else
+                StartParticipantSetForNewOpponent();
 
             Emit(new CreatureSentOutEvent { Side = side, Creature = creature, IsReplacement = isReplacement });
+        }
+
+        /// <summary>
+        /// Opens the player's participant set for the opponent that has just arrived. Every
+        /// path that puts a new creature opposite the player runs through here — the opening
+        /// lead, a faint replacement and a voluntary pivot alike — because each of them ends
+        /// the exchange the old set was counting.
+        /// </summary>
+        private void StartParticipantSetForNewOpponent()
+        {
+            var playerSide = _state.PlayerSide;
+            playerSide.Participants.Clear();
+
+            var active = playerSide.Active;
+            if (active != null && !active.IsFainted && !string.IsNullOrEmpty(active.InstanceId))
+                playerSide.Participants.Add(active.InstanceId);
         }
 
         private void FireEntryAbility(BattleSide side)

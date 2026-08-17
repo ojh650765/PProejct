@@ -94,8 +94,12 @@ namespace PokeLab.Battle
             creature.Stats[(int)StatKind.Hp] = newMax;
             creature.MaxHp = newMax;
 
+            // Through BaseStat, not the array: that helper exists precisely to tolerate a
+            // short or missing row in hand-authored data, and indexing directly turned such a
+            // row into an IndexOutOfRangeException thrown from a mid-battle level-up.
             for (var i = 1; i < StatKinds.BaseCount; i++)
-                creature.Stats[i] = StatMath.ComputeStat(species.BaseStats[i], creature.Ivs[i], creature.Level);
+                creature.Stats[i] = StatMath.ComputeStat(
+                    BaseStat(species, (StatKind)i), creature.Ivs[i], creature.Level);
 
             if (previousMax > 0 && newMax > previousMax && creature.CurrentHp > 0)
                 creature.CurrentHp += newMax - previousMax;

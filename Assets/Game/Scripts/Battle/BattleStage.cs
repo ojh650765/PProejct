@@ -108,6 +108,7 @@ namespace PokeLab.Battle
             {
                 // The flow is holding the player frozen behind a covered screen. Reporting a
                 // flee is the only honest way out; going silent strands them there.
+                DiscardFailedStaging();
                 Finish(BattleOutcome.Fled, reason);
                 return;
             }
@@ -148,6 +149,26 @@ namespace PokeLab.Battle
         {
             if (!IsBattleActive) return;
             Finish(BattleOutcome.Fled, reason);
+        }
+
+        /// <summary>
+        /// Drops everything a failed staging may have left behind before the flee result is
+        /// assembled.
+        ///
+        /// <see cref="Finish"/> builds its result from <see cref="Engine"/> and
+        /// <see cref="_opponentParty"/>, and a staging that aborted leaves both holding the
+        /// previous battle's contents — so an encounter that never started could hand the
+        /// overworld the last battle's captured creature and its species list. Only reached
+        /// on the failure path: a refused concurrent request returns before this, so a live
+        /// battle is never torn out from under itself.
+        /// </summary>
+        private void DiscardFailedStaging()
+        {
+            Engine = null;
+            _trainerProfile = null;
+            _prizeMoney = 0;
+            _playerParty.Clear();
+            _opponentParty.Clear();
         }
 
         // ---- Party construction -----------------------------------------------------
