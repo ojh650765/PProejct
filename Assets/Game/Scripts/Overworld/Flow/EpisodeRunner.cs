@@ -319,9 +319,22 @@ namespace PokeLab.Overworld
 
         private string _playingId;
 
+        /// <summary>
+        /// Set by a beat that could not happen and could happen next time.
+        ///
+        /// Only for the transient kind. A sequence id that is not in the book, or a scene with
+        /// no DialogueRunner in it, will fail identically on every retry — holding the
+        /// completion flag open for those turns one lost beat into an episode that re-triggers
+        /// forever, which is a worse failure than the one it is guarding against.
+        /// </summary>
+        private bool _beatLost;
+
         private IEnumerator Run(Episode episode)
         {
             var tookControl = false;
+            var reachedTheEnd = false;
+            _beatLost = false;
+
             try
             {
                 foreach (var beat in episode.Beats)
@@ -332,6 +345,7 @@ namespace PokeLab.Overworld
                     var step = Perform(beat);
                     while (step.MoveNext()) yield return step.Current;
                 }
+                reachedTheEnd = true;
             }
             finally
             {
@@ -340,7 +354,25 @@ namespace PokeLab.Overworld
                 // which is the worst failure this system can have.
                 if (tookControl) SetControl(true);
                 ClearStagedCreature();
-                if (!string.IsNullOrEmpty(episode.CompletionFlag)) SetFlag(episode.CompletionFlag, true);
+
+                // Marked done only if it was actually done, the way StoryEncounter's _spoke
+                // guard does it.
+                //
+                // This finally runs when a beat throws and when the coroutine is disposed —
+                // which is what a scene load does to the host mid-episode — and it used to
+                // set the flag in both cases. On the opening that is a bricked save and not a
+                // missed scene: cut off before ChooseStarter, the flag persists through the
+                // next autosave, so the opening never replays, the player has no starter,
+                // story.pokedex is never granted, and StoryPhase then holds wild encounters,
+                // roamers and every trainer down for the rest of that file. Nothing on screen
+                // says why, because from the game's point of view the act happened.
+                if (reachedTheEnd && !_beatLost && !string.IsNullOrEmpty(episode.CompletionFlag))
+                    SetFlag(episode.CompletionFlag, true);
+                else if (!string.IsNullOrEmpty(episode.CompletionFlag))
+                    Debug.LogWarning($"[Episode] '{episode.Id}' did not finish, so its completion " +
+                                     $"flag '{episode.CompletionFlag}' has been left unset and the " +
+                                     "scene can be offered again.", this);
+
                 _running = null;
                 _playingId = null;
                 EpisodeFinished?.Invoke(episode.Id);
@@ -602,16 +634,73 @@ namespace PokeLab.Overworld
 
             if (!runner.Play(sequence, gameObject))
             {
-                Debug.LogWarning($"[Episode] DialogueRunner refused '{sequenceId}' — it is already " +
-                                 "playing something. The beat was skipped rather than queued, " +
-                                 "because two conversations at once is the race this runner exists " +
-                                 "to prevent.", this);
-                Destroy(sequence);
-                yield break;
+                // Play refuses for two reasons and only one of them is worth waiting on. A
+                // sequence with no lines in it will be just as empty in three minutes' time.
+                if (!runner.IsPlaying)
+                {
+                    Debug.LogWarning($"[Episode] '{sequenceId}' resolved to a sequence with no lines, " +
+                                     "so the beat had nothing to say and was skipped.", this);
+                    Destroy(sequence);
+                    yield break;
+                }
+
+                // Queued, not dropped.
+                //
+                // The refusal is correct — two conversations at once is the race the runner
+                // exists to prevent — but skipping is the wrong answer to it. A beat is the
+                // only copy of a scene: 'gate_wait_for_kes' is the one place the player is
+                // told where to go next, and losing it because an NPC happened to be talking
+                // on the frame the trigger fired is a hole in the act with no way back into
+                // it. Waiting keeps the invariant (still one conversation at a time) and
+                // costs a second.
+                yield return WaitForRunnerFree(runner, sequenceId);
+
+                // The conversation we waited on restores the control state it captured when
+                // it began, which was before this episode took it away. Put the cutscene
+                // freeze back before the next line goes up, or the player has their legs for
+                // the length of a beat that is holding the camera on somebody else.
+                if (_controlHeld) SetControl(false);
+
+                if (!runner.Play(sequence, gameObject))
+                {
+                    Debug.LogError($"[Episode] '{sequenceId}' still could not start after waiting " +
+                                   $"{_dialogueBeatTimeoutSeconds:0}s for the DialogueRunner. The " +
+                                   "episode's completion flag is being left unset so the beat is " +
+                                   "offered again rather than lost.", this);
+                    _beatLost = true;
+                    Destroy(sequence);
+                    yield break;
+                }
             }
 
             yield return WaitForDialogue(runner, sequenceId);
             Destroy(sequence);
+        }
+
+        /// <summary>
+        /// Holds until the runner has nothing on screen, or the ceiling runs out.
+        ///
+        /// Unscaled, because the conversation being waited on may itself be running behind a
+        /// transition that has held time at zero. The whole conversation ahead of this one is
+        /// allowed to finish at the player's own pace — it is somebody else's scene and
+        /// cutting it off to get at ours would be the same bug pointed the other way.
+        /// </summary>
+        private IEnumerator WaitForRunnerFree(DialogueRunner runner, string sequenceId)
+        {
+            var waited = 0f;
+            var warned = false;
+
+            while (runner.IsPlaying && waited < _dialogueBeatTimeoutSeconds)
+            {
+                if (!warned && waited > 1f)
+                {
+                    warned = true;
+                    Debug.Log($"[Episode] '{sequenceId}' is waiting for the conversation already on " +
+                              $"screen ('{runner.CurrentSequenceId}') to finish.", this);
+                }
+                waited += Time.unscaledDeltaTime;
+                yield return null;
+            }
         }
 
         /// <summary>

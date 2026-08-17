@@ -24,6 +24,29 @@ namespace PokeLab.Overworld
         /// <summary>Default IV spread when a creature is rolled rather than restored.</summary>
         private const int MaxIv = 31;
 
+        /// <summary>Highest level, matching the battle side's own cap.</summary>
+        private const int MaxLevel = 100;
+
+        /// <summary>
+        /// Total experience to reach a level on the medium-fast curve.
+        ///
+        /// The same n³ the battle side's StatMath uses, restated rather than referenced:
+        /// PokeLab.Overworld sees only PokeLab.Core, and one cube is a cheaper duplication
+        /// than an assembly reference from the overworld into the engine. It has to agree,
+        /// though, and it did not: a creature built here started on zero experience whatever
+        /// its level, so the starter came out of the lab at level 5 needing 216 experience for
+        /// its next level instead of the 91 the engine intends — two and a half times the
+        /// grind, and an experience bar that draws a negative fraction because
+        /// <c>Experience - ExperienceForLevel(Level)</c> is below zero for its whole first
+        /// level.
+        /// </summary>
+        private static int ExperienceForLevel(int level)
+        {
+            if (level <= 1) return 0;
+            var capped = Mathf.Min(level, MaxLevel);
+            return capped * capped * capped;
+        }
+
         /// <summary>
         /// Builds a creature at a level, deriving IVs from the supplied seed so a wild creature
         /// generated from an encounter seed is reproducible.
@@ -31,10 +54,15 @@ namespace PokeLab.Overworld
         public static CreatureInstance Create(int speciesId, int level, int seed)
         {
             var rng = new DeterministicRandom(seed);
+            var clamped = Mathf.Clamp(level, 1, MaxLevel);
             var creature = new CreatureInstance
             {
                 SpeciesId = speciesId,
-                Level = Mathf.Max(1, level),
+                Level = clamped,
+                // Without this a creature is born owing its own level's worth of experience.
+                // The engine levels up on Experience >= ExperienceForLevel(Level + 1), so a
+                // level 5 starter on zero has to earn a level 6's total from scratch.
+                Experience = ExperienceForLevel(clamped),
                 Nickname = null,
                 Ivs = new int[StatKinds.BaseCount],
                 Stats = new int[StatKinds.BaseCount],
@@ -49,7 +77,7 @@ namespace PokeLab.Overworld
             creature.InstanceId = CreatureIds.Derive(speciesId, creature.Level, seed, 0);
 
             ApplyStats(creature);
-            ApplyAbility(creature);
+            ApplyAbility(creature, ref rng);
             ApplyMoves(creature);
             creature.CurrentHp = creature.MaxHp;
             return creature;
@@ -66,6 +94,7 @@ namespace PokeLab.Overworld
 
             var baseStats = ResolveBaseStats(creature.SpeciesId);
             var level = Mathf.Max(1, creature.Level);
+            var previousMax = creature.MaxHp;
 
             // Standard main-series formulae with EVs held at zero. The battle worker may refine
             // this; keeping it here means the overworld can build a party before that lands.
@@ -79,7 +108,17 @@ namespace PokeLab.Overworld
                 creature.Stats[stat] = Mathf.Max(1, value);
             }
 
-            creature.CurrentHp = Mathf.Clamp(creature.CurrentHp <= 0 ? hp : creature.CurrentHp, 0, hp);
+            // Damage taken is carried across rather than washed out, which is the battle
+            // factory's rule and has to be this one too: recomputing stats is something a level
+            // up, a save restore and a late-arriving species dex all do, and none of them is a
+            // heal. The old line read `CurrentHp <= 0 ? hp : CurrentHp` and so revived every
+            // fainted party member the moment anything touched their stats — a full-party wipe
+            // undone by the dex finishing its load, and no potion spent. A creature that gains
+            // max HP keeps the gain, which is the one adjustment a level up genuinely earns.
+            if (previousMax > 0 && hp > previousMax && creature.CurrentHp > 0)
+                creature.CurrentHp += hp - previousMax;
+
+            creature.CurrentHp = Mathf.Clamp(creature.CurrentHp, 0, hp);
         }
 
         private static int[] ResolveBaseStats(int speciesId)
@@ -102,12 +141,23 @@ namespace PokeLab.Overworld
             return new[] { 45, 49, 49, 49, 49, 45 };
         }
 
-        private static void ApplyAbility(CreatureInstance creature)
+        /// <summary>
+        /// Picks one of the species' abilities.
+        ///
+        /// Rolled rather than always taken from slot zero, matching the battle factory: hidden
+        /// abilities are not modelled here either, so every listed ability is equally likely,
+        /// and a route full of the same species all sharing one ability is a difference the
+        /// player can see. The draw comes off the creature's own seeded stream, so it stays
+        /// reproducible.
+        /// </summary>
+        private static void ApplyAbility(CreatureInstance creature, ref DeterministicRandom rng)
         {
             if (!string.IsNullOrEmpty(creature.AbilityId)) return;
             if (!ServiceHub.TryGet<ISpeciesRegistry>(out var registry)) return;
             if (!registry.TryGet(creature.SpeciesId, out var species)) return;
-            if (species.Abilities != null && species.Abilities.Length > 0) creature.AbilityId = species.Abilities[0];
+            if (species.Abilities == null || species.Abilities.Length == 0) return;
+
+            creature.AbilityId = species.Abilities[rng.Range(0, species.Abilities.Length)] ?? string.Empty;
         }
 
         private static void ApplyMoves(CreatureInstance creature)

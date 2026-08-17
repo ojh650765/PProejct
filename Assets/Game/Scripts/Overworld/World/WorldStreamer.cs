@@ -100,20 +100,25 @@ namespace PokeLab.Overworld.World
         {
             // Every playable scene stands alone, so each carries a GameBoot, an EventSystem,
             // a camera, a player rig and its own scene links. Unity runs all of their Awakes
-            // *during* the additive load, before this component can strip anything — so
-            // stripping was never going to be the fix, and this was switched off until each
-            // system could refuse to be the second instance in its own Awake.
+            // *during* the additive load, so a duplicate always gets its Awake — no hook in
+            // the engine sits earlier than that for a scene being integrated, and a load held
+            // at allowSceneActivation cannot be inspected at all. Each system therefore has to
+            // refuse to be the second instance in its own Awake, and every one that mattered
+            // now does: GameBoot records which instance owns the services rather than letting
+            // any copy tear them down; DialogueRunner, EncounterDirector, DayNightCycle and
+            // WeatherDirector all stand down as duplicates, as ZoneDirector already did; the
+            // screen wipe rebuilds its bars instead of writing to destroyed ones; and
+            // LevelTransition refuses to load a scene that is already loaded or is the one it
+            // is standing in.
             //
-            // That is now true of every one that mattered: GameBoot records which instance
-            // owns the services rather than letting any copy tear them down; DialogueRunner,
-            // EncounterDirector, DayNightCycle and WeatherDirector all stand down as
-            // duplicates, as ZoneDirector already did; the screen wipe rebuilds its bars
-            // instead of writing to destroyed ones; and LevelTransition refuses to load a
-            // scene that is already loaded or is the one it is standing in.
-            //
-            // StripDuplicateHosts still runs, for the objects that own nothing shared but
-            // would be visible twice — the second player, the second camera. It runs in the
-            // frame the load completes, before anything renders.
+            // Stripping is the other half, and it used to run a frame too late — in the
+            // coroutine, when the operation reported itself done, which is after Start and
+            // after a full Update on everything the band brought with it. That is the window
+            // the two-event-systems warning comes out of, and the window in which the second
+            // WorldStreamer runs its own Start and claims the bands back. sceneLoaded is the
+            // first callback after integration and before any of that, so the strip happens
+            // there and the coroutine's call is left as a second pass for anything that
+            // arrived by another route.
             if (!_enabled) return;
 
             var active = SceneManager.GetActiveScene().name;
@@ -133,6 +138,12 @@ namespace PokeLab.Overworld.World
 
             if (!isBand) return;
 
+            // Subscribed here rather than in OnEnable, and that placement is the guard: a
+            // duplicate streamer arriving with a band is stripped during sceneLoaded, which
+            // runs before its Start, so it never subscribes and never gets a vote on what to
+            // strip.
+            SceneManager.sceneLoaded += OnSceneLoaded;
+
             // Claimed up front, before a single load begins, so a door can refuse from the
             // first frame rather than from whenever the load happens to finish.
             foreach (var band in _bands)
@@ -145,6 +156,35 @@ namespace PokeLab.Overworld.World
 
             if (_preloadAll) StartCoroutine(PreloadAll());
             else StartCoroutine(Watch());
+        }
+
+        private void OnDestroy() => SceneManager.sceneLoaded -= OnSceneLoaded;
+
+        /// <summary>
+        /// Strips a band the instant it has finished integrating.
+        ///
+        /// This is the earliest point managed code can touch an additively loaded scene: the
+        /// objects exist and have had their Awake, and nothing has had a Start or an Update
+        /// yet. A duplicate EventSystem complains from its Update, a duplicate WorldStreamer
+        /// re-claims both bands from its Start, and a duplicate camera renders on the frame
+        /// after — all of which happen after this, and none of which happen to an object that
+        /// is already gone by then.
+        ///
+        /// Only additive loads, and only the bands. A Single load is a door: its incoming
+        /// scene is the whole world rather than a neighbour to be trimmed, and stripping the
+        /// hosts out of it would take the player's own rig with them.
+        /// </summary>
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (!_enabled || mode != LoadSceneMode.Additive) return;
+            if (scene.name == gameObject.scene.name) return;
+
+            foreach (var band in _bands)
+            {
+                if (band == null || band.scene != scene.name) continue;
+                StripDuplicateHosts(scene.name);
+                return;
+            }
         }
 
         /// <summary>
@@ -224,6 +264,9 @@ namespace PokeLab.Overworld.World
             var op = SceneManager.LoadSceneAsync(scene, LoadSceneMode.Additive);
             while (op != null && !op.isDone) yield return null;
 
+            // Second pass. OnSceneLoaded has almost certainly already done this; it is kept
+            // because it costs one iteration over a handful of roots and it is the only cover
+            // for a band that arrived without this streamer having been the one to ask.
             StripDuplicateHosts(scene);
             Streamed.Add(scene);
             _busy.Remove(scene);

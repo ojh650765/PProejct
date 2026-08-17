@@ -126,6 +126,12 @@ namespace PokeLab.Overworld
                 return;
             }
             _instance = this;
+
+            // The overworld's side of ITrainerRegistry, put up by whichever overworld system
+            // wakes first. Here as well as on TrainerController because a scene can reach a
+            // trainer battle — an episode's Battle beat, a debug jump — before any trainer
+            // component has ever enabled.
+            OverworldTrainerRegistry.EnsureRegistered();
         }
 
         private void OnDestroy()
@@ -282,7 +288,8 @@ namespace PokeLab.Overworld
             Commit(request);
         }
 
-        private void Commit(EncounterRequest request)
+        /// <summary>Hands the request to the flow. False when there was nobody to hand it to.</summary>
+        private bool Commit(EncounterRequest request)
         {
             OverworldEvents.RaiseEncounterCommitted(request);
 
@@ -290,19 +297,39 @@ namespace PokeLab.Overworld
             {
                 Debug.LogWarning("[EncounterDirector] No IGameFlow registered; encounter dropped.", this);
                 Abort();
-                return;
+                return false;
             }
 
             flow.RequestEncounter(request, ApplyResult);
+            return true;
         }
 
+        /// <summary>
+        /// Gives up on an encounter that cannot be staged, and tells whoever asked for it.
+        ///
+        /// The notification is the part that matters. This used to drop <c>_pendingTrainer</c>
+        /// on the floor, and a trainer has no other way to learn that the fight it was waiting
+        /// for is not coming: <see cref="TrainerController.NotifyBattleResolved"/> is what
+        /// clears its engagement and unfreezes the player, so a silent abort left a trainer
+        /// that could never be challenged again and a freeze that only lifted by accident.
+        /// A roamer is the same story one step down — left mid-telegraph, squared up at a
+        /// battle that never began.
+        /// </summary>
         private void Abort()
         {
-            _sequenceRunning = false;
+            var trainer = _pendingTrainer;
+            var roamer = _pendingRoamer;
             _pendingRoamer = null;
             _pendingTrainer = null;
+
+            _sequenceRunning = false;
             SetPlayerFrozen(false);
             _immunityTimer = _postEncounterImmunity;
+
+            // After the state is clear, so a handler that immediately asks for another
+            // encounter is not refused by the one it is recovering from.
+            if (roamer != null) roamer.Retreat();
+            if (trainer != null) trainer.NotifyBattleResolved(BattleOutcome.Fled);
         }
 
         /// <summary>
@@ -423,10 +450,25 @@ namespace PokeLab.Overworld
             return true;
         }
 
-        /// <summary>Starts a trainer battle. The party is resolved battle-side from the trainer id.</summary>
-        public void TriggerTrainerEncounter(TrainerController trainer)
+        /// <summary>
+        /// Starts a trainer battle. The party is resolved battle-side from the trainer id.
+        ///
+        /// A refusal is answered rather than swallowed, for the same reason
+        /// <see cref="TriggerStagedEncounter"/> returns a bool: the trainer has already frozen
+        /// the player, walked over and spoken by the time it gets here, and it is waiting on
+        /// <see cref="TrainerController.NotifyBattleResolved"/> to undo all of that. A silent
+        /// return — which is what a challenge landing on top of a wild telegraph got — leaves
+        /// it engaged forever and the player's control in someone else's hands.
+        /// </summary>
+        /// <returns>False when no battle was started; the trainer has already been told.</returns>
+        public bool TriggerTrainerEncounter(TrainerController trainer)
         {
-            if (trainer == null || _sequenceRunning) return;
+            if (trainer == null) return false;
+            if (_sequenceRunning)
+            {
+                trainer.NotifyBattleResolved(BattleOutcome.Fled);
+                return false;
+            }
 
             _pendingTrainer = trainer;
             var zone = _zoneDirector != null ? _zoneDirector.ActiveZone : null;
@@ -449,7 +491,9 @@ namespace PokeLab.Overworld
             // one, so a second pause would read as a hitch.
             _sequenceRunning = true;
             SetPlayerFrozen(true);
-            Commit(request);
+            // Abort already answered the trainer if the hand-off failed, so the caller only
+            // needs to know that no battle is coming.
+            return Commit(request);
         }
 
         /// <summary>Clears accumulated pressure. Called on load and after a warp.</summary>

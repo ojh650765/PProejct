@@ -114,6 +114,13 @@ namespace PokeLab.Overworld
         /// <summary>
         /// Starts a conversation. <paramref name="onComplete"/> receives the sequence id, which is
         /// how a trainer knows its intro finished and it may start the battle.
+        ///
+        /// False means one of two things, and callers have to tell them apart. With
+        /// <see cref="IsPlaying"/> false the sequence was empty and there was nothing to say;
+        /// with it true this runner is busy, and the only correct response is to wait for it
+        /// and ask again. Reading the second as "skip this line" is how a scripted beat gets
+        /// dropped — permanently, because the scene that owned it has already moved on — and
+        /// it is the reason this refusal is not a silent no.
         /// </summary>
         public bool Play(DialogueSequence sequence, GameObject speaker, Action<string> onComplete = null)
         {

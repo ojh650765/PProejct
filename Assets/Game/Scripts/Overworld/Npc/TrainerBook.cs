@@ -44,6 +44,16 @@ namespace PokeLab.Overworld
 
         public int Count => _rows.Count;
 
+        /// <summary>
+        /// Whether the table describes this trainer, under either handle.
+        ///
+        /// Exists so a caller that has two candidate keys — a serialized id and the scene
+        /// object's name — can pick the one that will resolve instead of calling
+        /// <see cref="Build"/> twice and collecting a warning for the miss.
+        /// </summary>
+        public bool Knows(string trainerIdOrObjectName) =>
+            !string.IsNullOrEmpty(trainerIdOrObjectName) && _rows.ContainsKey(trainerIdOrObjectName);
+
         private static TrainerBook Load()
         {
             var book = new TrainerBook();
@@ -134,6 +144,14 @@ namespace PokeLab.Overworld
         /// One row, named field-for-field after TrainerDefinition's own serialized fields so
         /// FromJsonOverwrite can do the work. The dialogue members are strings here and
         /// object references there, which is the one place the shapes diverge.
+        ///
+        /// Field-for-field is a requirement rather than a description, and it was not being
+        /// met: <c>_party</c> was missing, and JsonUtility drops a member it has no field for
+        /// without a word. Every party in the table therefore parsed to nothing, the
+        /// definition kept its empty default, and the battle side fell through to its "the
+        /// table is still being authored" placeholder roster for trainers whose rosters had
+        /// been authored months earlier. A row here that is not a field there is silence, not
+        /// an error — so anything added to the JSON has to be added here too.
         /// </summary>
         [Serializable]
         private sealed class TrainerRow
@@ -143,6 +161,7 @@ namespace PokeLab.Overworld
             public string _trainerClass;
             public string npcId;
             public string sceneObject;
+            public List<TrainerPartyMember> _party;
             public int _prizeMoney;
             public int _partySeed;
             public string _preBattle;

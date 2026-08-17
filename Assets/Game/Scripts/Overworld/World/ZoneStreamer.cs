@@ -38,6 +38,20 @@ namespace PokeLab.Overworld
         [SerializeField] private bool _streamingEnabled = true;
 
         private readonly HashSet<WorldZone> _shouldBeLoaded = new HashSet<WorldZone>();
+
+        /// <summary>
+        /// Last known extent of each zone's trigger volumes, in world space.
+        ///
+        /// The volumes deregister themselves when their content root is switched off, which is
+        /// to say that the geometry a zone's distance is measured from disappears at exactly
+        /// the moment the zone is unloaded. Distance then fell back to the zone pivot, and a
+        /// route whose pivot is a hundred metres from the end you are standing at could never
+        /// come back within the load radius — its volumes were off, so it could not regain
+        /// active or neighbour status either, and the area was simply gone for the rest of the
+        /// session. Remembering where it was is what breaks that circle.
+        /// </summary>
+        private readonly Dictionary<WorldZone, Bounds> _extents = new Dictionary<WorldZone, Bounds>();
+
         private float _timer;
 
         private void Start()
@@ -88,6 +102,10 @@ namespace PokeLab.Overworld
                 var zone = _zones[i];
                 if (zone == null || zone.ContentRoot == null) continue;
 
+                // Taken every pass while the volumes are still live, because the pass that
+                // unloads the zone is the last one that can see them.
+                RememberExtent(zone);
+
                 var currentlyLoaded = zone.ContentRoot.activeSelf;
                 if (_shouldBeLoaded.Contains(zone))
                 {
@@ -103,7 +121,89 @@ namespace PokeLab.Overworld
             }
         }
 
-        private static float DistanceTo(WorldZone zone, Vector3 point)
+        /// <summary>Records the zone's volume extent while there is still one to record.</summary>
+        private void RememberExtent(WorldZone zone)
+        {
+            var found = false;
+            var extent = new Bounds();
+
+            for (var i = 0; i < zone.Volumes.Count; i++)
+            {
+                var volume = zone.Volumes[i];
+                if (volume == null) continue;
+                var collider = volume.GetComponent<Collider>();
+                // A disabled collider reports an empty box at the origin, which would poison
+                // the cache with a shape the zone has never had.
+                if (collider == null || !collider.enabled || !collider.gameObject.activeInHierarchy) continue;
+
+                if (!found) { extent = collider.bounds; found = true; }
+                else extent.Encapsulate(collider.bounds);
+            }
+
+            if (found)
+            {
+                _extents[zone] = extent;
+                return;
+            }
+
+            // Nothing live to measure and nothing remembered — a zone whose content root was
+            // already off when the streamer started, which is the case the live reading can
+            // never reach. Derived from the collider shapes and their transforms instead,
+            // which are readable on a disabled object even though bounds is not.
+            if (!_extents.ContainsKey(zone) && TryComputeStaticExtent(zone, out var authored))
+                _extents[zone] = authored;
+        }
+
+        /// <summary>Volume extent taken from collider geometry rather than from live bounds.</summary>
+        private static bool TryComputeStaticExtent(WorldZone zone, out Bounds extent)
+        {
+            extent = new Bounds();
+            var found = false;
+
+            foreach (var volume in zone.GetComponentsInChildren<ZoneVolume>(true))
+            {
+                if (volume == null) continue;
+                Bounds one;
+
+                switch (volume.GetComponent<Collider>())
+                {
+                    case BoxCollider box:
+                        one = BoxBounds(box);
+                        break;
+                    case SphereCollider sphere:
+                        var scale = sphere.transform.lossyScale;
+                        var radius = sphere.radius * Mathf.Max(Mathf.Abs(scale.x),
+                            Mathf.Max(Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
+                        one = new Bounds(sphere.transform.TransformPoint(sphere.center),
+                            Vector3.one * (radius * 2f));
+                        break;
+                    default:
+                        continue;
+                }
+
+                if (!found) { extent = one; found = true; }
+                else extent.Encapsulate(one);
+            }
+
+            return found;
+        }
+
+        private static Bounds BoxBounds(BoxCollider box)
+        {
+            var half = box.size * 0.5f;
+            var bounds = new Bounds(box.transform.TransformPoint(box.center), Vector3.zero);
+            for (var corner = 0; corner < 8; corner++)
+            {
+                var local = box.center + new Vector3(
+                    (corner & 1) == 0 ? -half.x : half.x,
+                    (corner & 2) == 0 ? -half.y : half.y,
+                    (corner & 4) == 0 ? -half.z : half.z);
+                bounds.Encapsulate(box.transform.TransformPoint(local));
+            }
+            return bounds;
+        }
+
+        private float DistanceTo(WorldZone zone, Vector3 point)
         {
             // Distance to the nearest volume surface, not to the zone's pivot: a long route's
             // pivot can be a hundred metres from the end you are standing at.
@@ -117,7 +217,16 @@ namespace PokeLab.Overworld
                 var distance = Vector3.Distance(collider.bounds.ClosestPoint(point), point);
                 if (distance < best) best = distance;
             }
-            return best == float.MaxValue ? Vector3.Distance(zone.transform.position, point) : best;
+            if (best < float.MaxValue) return best;
+
+            // Unloaded, so its volumes have deregistered. The remembered extent is coarser
+            // than the volumes were — one box around all of them rather than the nearest face
+            // of the nearest — and coarse in the safe direction: it can only bring a zone back
+            // early, never leave it stranded.
+            if (_extents.TryGetValue(zone, out var extent))
+                return Vector3.Distance(extent.ClosestPoint(point), point);
+
+            return Vector3.Distance(zone.transform.position, point);
         }
 
         /// <summary>Loads everything and stops streaming. Used by the debug rig and by editor tooling.</summary>

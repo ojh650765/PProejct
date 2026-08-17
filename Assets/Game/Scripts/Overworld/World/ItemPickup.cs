@@ -28,6 +28,11 @@ namespace PokeLab.Overworld
         [SerializeField] private string _itemId = FieldItems.PokeBall;
         [Min(1)][SerializeField] private int _count = 1;
 
+        [Header("Identity")]
+        [Tooltip("Stable key for the taken-flag. Leave blank and one is derived from the scene, "
+                 + "the object's name and where it stands.")]
+        [SerializeField] private string _pickupId;
+
         [Header("Prompt")]
         [SerializeField] private string _prompt = "Pick up";
 
@@ -50,11 +55,49 @@ namespace PokeLab.Overworld
             set => _count = Mathf.Max(1, value);
         }
 
-        private string TakenFlagKey => "item_taken_" + name;
+        private string _stableId;
+
+        private string TakenFlagKey => "item_taken_" + StableId;
+
+        /// <summary>
+        /// What the taken-flag is keyed on.
+        ///
+        /// The object's name is not enough and never was. The generated layout emits several
+        /// balls called <c>Item_PokeBall</c>, one per place there is an item, and the town and
+        /// the field are separate scenes emitting the same names — so taking one ball set a
+        /// flag that hid every other ball in the world, permanently and across the save.
+        ///
+        /// Scene, name and position instead. Position is the part that separates two of the
+        /// same thing, and it is stable across a rebuild for the reason the whole level is:
+        /// it comes out of the layout file, and an item that moves in the layout is a
+        /// different item anyway. Rounded to a decimetre so a float that re-serialises one
+        /// ulp off does not hand the player a second Poké Ball.
+        /// </summary>
+        private string StableId
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(_pickupId)) return _pickupId;
+                return _stableId ??= BuildStableId();
+            }
+        }
+
+        private string BuildStableId()
+        {
+            var position = transform.position;
+            return string.Format("{0}/{1}@{2},{3},{4}",
+                gameObject.scene.name, name,
+                Mathf.RoundToInt(position.x * 10f),
+                Mathf.RoundToInt(position.y * 10f),
+                Mathf.RoundToInt(position.z * 10f));
+        }
 
         public string InteractionPrompt => _prompt;
 
         public bool CanInteract(GameObject instigator) => !string.IsNullOrEmpty(_itemId);
+
+        /// <summary>Taken before anything can move the object, so the key never shifts under it.</summary>
+        private void Awake() => _stableId = BuildStableId();
 
         private void Start()
         {

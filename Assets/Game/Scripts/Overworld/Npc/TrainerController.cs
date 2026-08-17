@@ -23,6 +23,11 @@ namespace PokeLab.Overworld
         [Header("Data")]
         [SerializeField] private TrainerDefinition _definition;
 
+        [Tooltip("Row to look up in trainers.json. Written by the level builder; the object's "
+                 + "own name is used when it is blank. This is the only part of a generated "
+                 + "trainer that survives the scene file — see EnsureDefinition.")]
+        [SerializeField] private string _trainerId;
+
         [Header("Sight")]
         [Tooltip("How far down the route the trainer watches.")]
         [SerializeField] private float _sightRange = 12f;
@@ -75,14 +80,17 @@ namespace PokeLab.Overworld
         private bool _hasSpeedParam;
 
         /// <summary>Id written into <see cref="EncounterRequest.TrainerId"/>.</summary>
-        public string TrainerId => _definition != null ? _definition.TrainerId : name;
+        public string TrainerId => _definition != null ? _definition.TrainerId : AuthoredId;
 
         public TrainerDefinition Definition => _definition;
+
+        /// <summary>The id as the scene carries it, before any table lookup.</summary>
+        private string AuthoredId => string.IsNullOrEmpty(_trainerId) ? name : _trainerId;
 
         /// <summary>True once the player has beaten them at least once.</summary>
         public bool IsDefeated => Profile != null && Profile.GetFlagBool(DefeatFlagKey);
 
-        private string DefeatFlagKey => _definition != null ? _definition.DefeatFlag : "trainer_defeated_" + name;
+        private string DefeatFlagKey => _definition != null ? _definition.DefeatFlag : "trainer_defeated_" + AuthoredId;
 
         private PlayerProfile Profile =>
             ServiceHub.TryGet<IPlayerProfile>(out var profile) ? profile as PlayerProfile : null;
@@ -129,25 +137,52 @@ namespace PokeLab.Overworld
         /// </summary>
         public void Configure(string trainerId, float sightRange, float sightHalfAngle)
         {
-            // The id is the object's name when no definition is assigned — see TrainerId
-            // above — so naming it is how the layout's trainerId reaches
-            // EncounterRequest. A definition asset, once one exists, wins over this.
-            // Built from the trainer table when nothing was authored, which on a generated
-            // level is always. Without a definition CanInteract is false and the trainer
-            // cannot be challenged at all — they stand there with a sight cone and no fight
-            // behind it.
-            if (_definition == null && !string.IsNullOrEmpty(trainerId))
-                _definition = TrainerBook.Shared?.Build(trainerId);
-            if (_definition == null && !string.IsNullOrEmpty(name))
-                _definition = TrainerBook.Shared?.Build(name);
-
-            if (!string.IsNullOrEmpty(trainerId) && _definition == null) gameObject.name = trainerId;
+            // Only the id is stored, because only the id survives.
+            //
+            // This used to build the definition here, and it could not work: Configure runs
+            // in the editor from the level builder, the definition it builds is
+            // HideAndDontSave — correctly, a runtime copy of a row still being edited must
+            // never be written into a scene file — and a reference to an unsaved object
+            // serializes as null. So every generated trainer came up in a build with
+            // _definition null, which Update, CanInteract and the OnEnable registration all
+            // read as "not a trainer": a person with a sight cone that never fires, no
+            // prompt, and no entry in the registry the battle side asks. A plain string does
+            // serialize, so the scene carries the id and EnsureDefinition turns it back into
+            // data on the way up.
+            if (!string.IsNullOrEmpty(trainerId)) _trainerId = trainerId;
             if (sightRange > 0f) _sightRange = sightRange;
             if (sightHalfAngle > 0f) _sightHalfAngle = sightHalfAngle;
         }
 
+        /// <summary>
+        /// Turns the serialized id back into a definition.
+        ///
+        /// Tried against the table under the authored id and then under the object's name,
+        /// because the table indexes rows both ways and the level names trainers by where
+        /// they stand. The row is looked for before it is built so a miss costs one warning
+        /// from here rather than two from the book.
+        /// </summary>
+        private void EnsureDefinition()
+        {
+            if (_definition != null) return;
+
+            var book = TrainerBook.Shared;
+            if (book != null)
+            {
+                if (book.Knows(_trainerId)) _definition = book.Build(_trainerId);
+                else if (book.Knows(name)) _definition = book.Build(name);
+            }
+            if (_definition != null) return;
+
+            Debug.LogWarning($"[Trainers] '{AuthoredId}' has no row in the trainer table, so they " +
+                             "field a generic party and say nothing. Add them to trainers.json to " +
+                             "give them a roster, a prize and their lines.", this);
+            _definition = TrainerDefinition.CreatePlaceholder(AuthoredId, name);
+        }
+
         private void Awake()
         {
+            EnsureDefinition();
             _agent = GetComponent<NavMeshAgent>();
             _restRotation = transform.rotation;
             _restPosition = transform.position;
@@ -162,7 +197,21 @@ namespace PokeLab.Overworld
             }
         }
 
-        private void OnEnable() => TrainerRegistry.Register(_definition);
+        /// <summary>
+        /// Publishes this trainer to whoever will need to build their party.
+        ///
+        /// The definition is resolved again here and not only in Awake, because a trainer in a
+        /// streamed-out zone is disabled rather than destroyed and has to be back in the
+        /// registry when its content root comes on again. Registering the bridge from here as
+        /// well costs nothing and means a scene with a single trainer in it still answers the
+        /// battle layer.
+        /// </summary>
+        private void OnEnable()
+        {
+            EnsureDefinition();
+            TrainerRegistry.Register(_definition);
+            OverworldTrainerRegistry.EnsureRegistered();
+        }
 
         private void Start()
         {
@@ -186,6 +235,7 @@ namespace PokeLab.Overworld
             if (_definition == null || _playerTransform == null) return;
             if (IsDefeated) return; // a beaten trainer no longer ambushes; they can still be talked to
             if (StandsDown) return;
+            if (WorldIsBusy()) return;
             if (!IsActiveNow()) return;
 
             if (CanSeePlayer())
@@ -197,6 +247,33 @@ namespace PokeLab.Overworld
             {
                 _confirmTimer = 0f;
             }
+        }
+
+        /// <summary>
+        /// Whether the world is already in the middle of something a challenge must not land
+        /// on top of.
+        ///
+        /// The sight cone is the one entry point nobody chose to take, so it is the one that
+        /// has to check. Without this a trainer notices the player mid-telegraph and freezes
+        /// them for an approach walk that plays over a grass rustle, or over another
+        /// character's conversation, or over an open menu — and because the two freezes are
+        /// separate, the player's control comes back when whichever finishes second says so.
+        ///
+        /// <c>Mode != Exploring</c> covers the menu, the battle, both transitions, dialogue
+        /// and the cutscene the flow now pushes for door travel. The other two tests are for
+        /// the beats that run *without* pushing a mode: a dialogue played straight through
+        /// <see cref="DialogueRunner"/> by an NPC, and the encounter director's telegraph,
+        /// which deliberately holds the player before the flow has been asked for anything.
+        /// </summary>
+        private bool WorldIsBusy()
+        {
+            if (ServiceHub.TryGet<IGameFlow>(out var flow) && flow.Mode != GameMode.Exploring) return true;
+
+            var dialogue = _dialogueRunner != null ? _dialogueRunner : DialogueRunner.Instance;
+            if (dialogue != null && dialogue.IsPlaying) return true;
+
+            var director = EncounterDirector.Instance;
+            return director != null && director.SequenceRunning;
         }
 
         private bool IsActiveNow()
@@ -256,7 +333,7 @@ namespace PokeLab.Overworld
         {
             if (_definition == null || !_definition.AllowsRematch) return false;
             var profile = Profile;
-            if (profile == null || _clock == null) return _definition.AllowsRematch;
+            if (profile == null) return _definition.AllowsRematch;
 
             var lastHour = profile.GetFlagInt(_definition.LastDefeatHourFlag, int.MinValue);
             if (lastHour == int.MinValue) return true;
@@ -266,14 +343,30 @@ namespace PokeLab.Overworld
             return elapsed >= _definition.RematchCooldownHours;
         }
 
+        /// <summary>Real seconds in one in-game day. Matches <c>DayNightCycle._dayLengthSeconds</c>.</summary>
+        private const float RealSecondsPerInGameDay = 1200f;
+
+        /// <summary>
+        /// Play time expressed as in-game hours, monotonically and across days.
+        ///
+        /// One clock, not two. This used to be <c>Hour + PlayTimeSeconds / 3600 * 24</c>, which
+        /// added an in-game hour-of-day to a count of real hours scaled by 24 — two different
+        /// units summed, and neither of them the one the cooldown is written in. Against the
+        /// default twenty-minute day a "24 in-game hour" rematch cooldown wanted 24 minutes of
+        /// play instead of 20, and the wrapping hour-of-day term made it drift by up to a day
+        /// depending on what time of day the trainer was beaten.
+        ///
+        /// The clock itself cannot be the source: <see cref="DayNightCycle.Hour"/> wraps at
+        /// midnight, so a difference across one is negative. Play time is the only monotone
+        /// quantity the profile keeps, and the day length is what converts it — a constant
+        /// here because the cycle does not publish one, so a project that lengthens its day
+        /// has to change this with it.
+        /// </summary>
         private int TotalHours()
         {
-            if (_clock == null) return 0;
-            // Play time gives a monotonically increasing hour count; the clock alone wraps daily
-            // and would make a cooldown expire the moment midnight passed.
             var profile = Profile;
-            var playHours = profile != null ? profile.PlayTimeSeconds / 3600f : 0f;
-            return Mathf.FloorToInt(_clock.Hour + playHours * 24f);
+            if (profile == null) return 0;
+            return Mathf.FloorToInt(profile.PlayTimeSeconds * (24f / RealSecondsPerInGameDay));
         }
 
         private IEnumerator RunChallenge(bool isRematch)
@@ -308,15 +401,22 @@ namespace PokeLab.Overworld
             _battleStarting.Invoke(TrainerId);
 
             var director = EncounterDirector.Instance;
-            if (director != null)
-            {
-                director.TriggerTrainerEncounter(this);
-            }
-            else
+            if (director == null)
             {
                 Debug.LogWarning("[TrainerController] No EncounterDirector; challenge abandoned.", this);
                 NotifyBattleResolved(BattleOutcome.Fled);
+                yield break;
             }
+
+            // The answer always arrives through NotifyBattleResolved, whether the battle was
+            // fought, aborted or refused outright — so there is exactly one path that clears
+            // the engagement and gives the player back their legs. A refusal that returned in
+            // silence left this trainer with _sequenceRunning stuck true forever: a statue who
+            // could never be fought or talked to again, whose input freeze was lifted only as
+            // a side effect of whatever encounter had been running instead.
+            if (!director.TriggerTrainerEncounter(this))
+                Debug.LogWarning($"[TrainerController] The EncounterDirector refused '{TrainerId}'; " +
+                                 "the challenge was stood down and the player released.", this);
         }
 
         private IEnumerator ApproachPlayer()
@@ -374,9 +474,12 @@ namespace PokeLab.Overworld
                 profile.SetFlagInt(_definition.LastDefeatHourFlag, TotalHours());
             }
 
-            var closing = outcome == BattleOutcome.PlayerVictory
-                ? _definition?.OnDefeat
-                : _definition?.OnPlayerDefeat;
+            // Only a decided fight gets a closing line. Fled is what a refusal and an aborted
+            // hand-off report, and answering one of those with the trainer's victory speech
+            // tells the player they lost a battle that never happened.
+            var closing = outcome == BattleOutcome.PlayerVictory ? _definition?.OnDefeat
+                        : outcome == BattleOutcome.PlayerDefeat ? _definition?.OnPlayerDefeat
+                        : null;
 
             if (closing != null && _dialogueRunner != null && !_dialogueRunner.IsPlaying)
                 _dialogueRunner.Play(closing, gameObject, _ => ReturnToPost());
