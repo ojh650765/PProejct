@@ -1,4 +1,5 @@
 using System;
+using PokeLab.Core;
 using UnityEngine;
 
 namespace PokeLab.Overworld
@@ -89,6 +90,11 @@ namespace PokeLab.Overworld
         [SerializeField] private float _slopeLimit = 48f;
         [SerializeField] private float _slideAcceleration = 14f;
         [SerializeField] private float _maxSlideSpeed = 9f;
+        [Tooltip("Seconds a slide may cover no ground before the player gets the controls " +
+                 "back. A real slide moves, so this never interrupts one; a slide jammed " +
+                 "against a wall at the foot of the slope is not a slide and must not hold " +
+                 "the player there.")]
+        [SerializeField] private float _slideStallSeconds = 0.35f;
 
         [Header("Step-up")]
         [SerializeField] private bool _stepAssistEnabled = true;
@@ -109,6 +115,23 @@ namespace PokeLab.Overworld
 
         /// <summary>How far above a candidate a water surface still means "under the water".</summary>
         private const float WaterHeadroom = 8f;
+
+        /// <summary>
+        /// How far below the player a step down still counts as a way out. Generous, because
+        /// walking off a bank always works; a real drop is caught by the fall recovery.
+        /// </summary>
+        private const float EscapeDropAllowance = 1.5f;
+
+        /// <summary>Metres per second below which a slide counts as having stopped sliding.</summary>
+        private const float SlideStallSpeed = 0.5f;
+
+        /// <summary>
+        /// Multiplier on the search radius for the second sweep, used only when the first has
+        /// failed. Somewhere out over the middle of a lake the nearest dry ground is nowhere
+        /// near a rescue's usual few metres, and refusing to look further would leave the
+        /// player standing on water with the log explaining that nothing was close enough.
+        /// </summary>
+        private const float WideSearchMultiplier = 6f;
 
         /// <summary>
         /// How much narrower than the real capsule the overlap queries are.
@@ -136,6 +159,9 @@ namespace PokeLab.Overworld
         private float _windowTimer;
         private float _embeddedTimer;
         private bool _reportedEmbedding;
+        private bool _reportedNoGround;
+        private bool _groundIsWater;
+        private float _slideStallTimer;
         private int _waterMask;
         private CharacterController _controller;
         private Vector3 _horizontalVelocity;
@@ -284,7 +310,28 @@ namespace PokeLab.Overworld
             var wantsMove = desired.sqrMagnitude > 0.0001f;
 
             // Sliding down a too-steep face takes control away and adds gravity along the slope.
-            if (IsGrounded && Vector3.Angle(_groundNormal, Vector3.up) > _slopeLimit)
+            //
+            // For as long as it is actually a slide. Taking control away is only fair while the
+            // player is being carried somewhere: it says "you lost your footing", and losing
+            // your footing ends, one way or another. Where it does not end is at the bottom,
+            // against something — and the lake shore is exactly that shape, a face past the
+            // climb limit with a wall at the foot of it. The slide runs into the wall, covers
+            // no ground, and keeps discarding input every frame forever. The player is left
+            // holding a direction on a shelf they could easily walk off, watching nothing
+            // happen, which is the "못움직여" in the report and is not a slide by any reading.
+            //
+            // So the slide has to be producing motion to keep its claim on the controls. When
+            // it stops producing any, the footing is not lost, it is simply steep here, and the
+            // player gets to walk again.
+            // Measured as a speed rather than as metres in a frame, so the test does not mean
+            // something different at 30 fps than it does at 144. Half a metre a second is well
+            // under anything a slide settles at and well over anything a jammed one produces:
+            // the slide passes it a twenty-fifth of a second after it starts.
+            var steep = IsGrounded && Vector3.Angle(_groundNormal, Vector3.up) > _slopeLimit;
+            if (!steep || DistanceThisFrame > dt * SlideStallSpeed) _slideStallTimer = 0f;
+            else _slideStallTimer += dt;
+
+            if (steep && _slideStallTimer < _slideStallSeconds)
             {
                 var slideDir = Vector3.ProjectOnPlane(Vector3.down, _groundNormal).normalized;
                 _horizontalVelocity += slideDir * (_slideAcceleration * dt);
@@ -498,12 +545,21 @@ namespace PokeLab.Overworld
         /// on purpose, and after a second and a half they were hauled back up it — on
         /// perfectly ordinary ground, over and over. Height is simply not the question.
         ///
-        /// Being unable to leave is. Three things have to hold at once: the player is asking
-        /// to move, they are on the ground, and they have covered almost nothing in the last
-        /// <see cref="_stuckSeconds"/>. Only then is it worth the cost of looking, and the
-        /// looking is what decides: inside solid geometry, or no direction that leads out.
-        /// Pushing into a wall satisfies the first three and fails both of the last two — the
-        /// world behind you is open — so leaning on a fence stays exactly as legal as it was.
+        /// Being unable to leave is. Two things have to hold: the player is on the ground, and
+        /// they have covered almost nothing in the last <see cref="_stuckSeconds"/>. Only then
+        /// is it worth the cost of looking, and the looking is what decides: standing on water,
+        /// inside solid geometry, or no direction that leads out. Pushing into a wall reaches
+        /// the looking and fails all three of those — the world behind you is open — so leaning
+        /// on a fence stays exactly as legal as it was.
+        ///
+        /// It used to require the player to be asking to move, and that was the hole the last
+        /// report fell through. Walking into the shoreline opens a prompt box, the box turns
+        /// input off, and "is the player asking to move" is false for as long as the box is up
+        /// — so the one moment the player is most likely to be stuck is the one moment this
+        /// stopped watching. Standing still is not evidence of being fine, and the expensive
+        /// part is behind a window that idling satisfies anyway. What the input check was
+        /// really protecting is a scene that is moving the character itself, and
+        /// <see cref="PlayerOwnsCharacter"/> says that directly.
         /// </summary>
         private void RecoverFromPit(float dt)
         {
@@ -517,10 +573,7 @@ namespace PokeLab.Overworld
                 _hasFreePosition = true;
             }
 
-            var wants = !_motionFrozen && _input != null && _input.InputEnabled
-                        && _input.Move.sqrMagnitude > 0.04f;
-
-            if (!wants || !IsGrounded || Traversal == TraversalState.Water)
+            if (!PlayerOwnsCharacter || !IsGrounded || Traversal == TraversalState.Water)
             {
                 _windowTimer = 0f;
                 _windowStart = transform.position;
@@ -538,6 +591,7 @@ namespace PokeLab.Overworld
                 // along a fence all land here, and not one of them is a trap.
                 _windowTimer = 0f;
                 _windowStart = transform.position;
+                _reportedNoGround = false;
                 return;
             }
 
@@ -545,8 +599,20 @@ namespace PokeLab.Overworld
             _windowTimer = 0f;
             _windowStart = transform.position;
 
+            // Standing on the lake is its own trap and does not look like any of the others.
+            // Nothing is overlapping, the surface is flat and reads as perfectly good walkable
+            // ground, and there may well be a way out in the sense of somewhere to put a foot —
+            // it is simply that the player must not be there, and the wall that exists to keep
+            // them out cannot help once they are already past it. A save written out over the
+            // water reopens exactly there, so this cannot assume they walked in through a gap.
+            var onWater = _groundIsWater && !SurfCapability.CanSurf();
+
             var embedded = OverlapAt(transform.position, CapsuleInset) > 0;
-            if (!embedded && HasWayOut()) return;
+            if (!onWater && !embedded && HasWayOut()) return;
+
+            var reason = onWater ? "standing on water with no way to cross it"
+                : embedded ? "inside solid geometry"
+                : "in a hole with nothing they could climb to";
 
             Vector3 destination;
             if (TryFindStandingPosition(transform.position, out var nearby))
@@ -559,16 +625,23 @@ namespace PokeLab.Overworld
             }
             else
             {
-                Debug.LogWarning($"[Player] Stuck at {transform.position} with no way out and " +
-                                 $"nowhere clear within {_escapeSearchRadius:F1} m to be put. " +
-                                 "Holding R still works; the level has a trap here that is " +
-                                 "wider than the search.");
+                // Once per episode of being stuck, not once every window: it is retried
+                // regardless, because the wall that closed may yet open.
+                if (_reportedNoGround) return;
+                _reportedNoGround = true;
+                Debug.LogWarning($"[Player] Stuck at {transform.position}, {reason}, and there " +
+                                 "is no ground they could stand on within " +
+                                 $"{_escapeSearchRadius * WideSearchMultiplier:F0} m of them. " +
+                                 "Nothing was moved. Holding R still works; the level has a trap " +
+                                 "here that is wider than the search.");
                 return;
             }
 
-            Debug.LogWarning($"[Player] Stuck at {transform.position} for {_stuckSeconds:F1}s " +
-                             $"with no way out, and was lifted to {destination}. If this " +
-                             "happens twice in the same place the scatter has left a trap there.");
+            _reportedNoGround = false;
+
+            Debug.LogWarning($"[Player] Stuck at {transform.position} for {_stuckSeconds:F1}s, " +
+                             $"{reason}, and was lifted to {destination}. If this happens twice " +
+                             "in the same place the level has a trap there.");
             Warp(destination, transform.rotation);
         }
 
@@ -636,6 +709,12 @@ namespace PokeLab.Overworld
             if (_embeddedTimer < _embeddedSeconds) return;
             _embeddedTimer = 0f;
 
+            // The exact push above runs whatever is happening, because it is small and being
+            // inside a wall is never right. Moving the player somewhere else is a bigger claim,
+            // and during a cutscene the character is where a shot wants it — so that half waits
+            // until the player owns the character again, which includes while a box is open.
+            if (!PlayerOwnsCharacter) return;
+
             if (!TryFindStandingPosition(transform.position, out var clear))
             {
                 // Said once and then kept quiet, but still retried: the search runs again every
@@ -662,6 +741,15 @@ namespace PokeLab.Overworld
         /// eight directions open; a hole answers no in all of them, because that is what a hole
         /// is. Clear air alone is not enough — the far side of a crevice is clear too — so each
         /// direction also has to end somewhere the player could stand.
+        ///
+        /// And somewhere they could stand is not the same as somewhere they could *get to*,
+        /// which is the correction. The first version of this asked only whether there was
+        /// walkable ground a stride away, and accepted it anywhere within two and a half metres
+        /// of vertical — so the bank of the lake, a metre up a face far past the climb limit,
+        /// counted as a way out. The player stood on a ledge at the waterline with the basin
+        /// dropping away on one side and that bank on the other three, and this function
+        /// cheerfully reported four ways out of a place with none. Ground you cannot climb to
+        /// is scenery, not an exit.
         /// </summary>
         private bool HasWayOut()
         {
@@ -686,7 +774,15 @@ namespace PokeLab.Overworld
                 && blocked.distance < _escapeProbeDistance)
                 return false;
 
-            return TryStandAt(transform.position + heading * _escapeProbeDistance, out _);
+            if (!TryStandAt(transform.position + heading * _escapeProbeDistance, out var landing))
+                return false;
+
+            // Up only as far as the step assist can lift, because that is the entire climb this
+            // game has — there is no jump. Down is allowed much further: stepping off a bank is
+            // always available and always works, and being strict about it would call the top of
+            // every slope a trap.
+            var rise = landing.y - FootHeight(transform.position);
+            return rise <= _maxStepHeight && rise >= -EscapeDropAllowance;
         }
 
         /// <summary>
@@ -700,15 +796,26 @@ namespace PokeLab.Overworld
         /// </summary>
         private bool TryFindStandingPosition(Vector3 around, out Vector3 result)
         {
+            // Near first, and only then far. Two sweeps rather than one wide one because the
+            // near sweep is what almost every rescue needs and it must stay cheap, while the
+            // far sweep exists for the case where the player is standing somewhere with no dry
+            // land for twenty metres — out on the lake — and a rescue that gives up at three
+            // and a half would leave them there.
+            if (SweepForStandingPosition(around, _escapeSearchRadius, 0.7f, out result)) return true;
+            return SweepForStandingPosition(around, _escapeSearchRadius * WideSearchMultiplier,
+                1.6f, out result);
+        }
+
+        private bool SweepForStandingPosition(Vector3 around, float radius, float ringSpacing, out Vector3 result)
+        {
             const int Spokes = 12;
-            const float RingSpacing = 0.7f;
 
             result = around;
-            var rings = Mathf.Max(1, Mathf.CeilToInt(_escapeSearchRadius / RingSpacing));
+            var rings = Mathf.Max(1, Mathf.CeilToInt(radius / ringSpacing));
 
             for (var ring = 0; ring <= rings; ring++)
             {
-                var reach = ring * (_escapeSearchRadius / rings);
+                var reach = ring * (radius / rings);
                 var spokes = ring == 0 ? 1 : Spokes;
                 // Rotated half a spoke further each ring, so successive rings do not line up
                 // and leave the same wedge of the world unsampled all the way out.
@@ -863,6 +970,7 @@ namespace PokeLab.Overworld
                 distance, _groundMask, QueryTriggerInteraction.Ignore);
             var nearest = float.PositiveInfinity;
             var normal = Vector3.up;
+            var onWater = false;
             for (var i = 0; i < count; i++)
             {
                 var candidate = _groundHits[i];
@@ -872,11 +980,17 @@ namespace PokeLab.Overworld
                 if (candidate.distance >= nearest) continue;
                 nearest = candidate.distance;
                 normal = candidate.normal;
+                // Noted rather than filtered out. Dropping the water from the mask would let
+                // the player fall through the lake into the basin under it, which is a worse
+                // answer than standing on it; what is wanted is to know that the thing holding
+                // them up is water, so the recovery can treat it as a place to be got out of.
+                onWater = _waterMask != 0 && (_waterMask & (1 << candidate.collider.gameObject.layer)) != 0;
             }
 
             if (!float.IsPositiveInfinity(nearest))
             {
                 _groundNormal = normal;
+                _groundIsWater = onWater;
                 _timeSinceGrounded = 0f;
             }
             else if (_controller.isGrounded)
@@ -884,11 +998,13 @@ namespace PokeLab.Overworld
                 // Fall back to the controller flag: a sphere cast misses thin ledges the capsule
                 // is genuinely resting on.
                 _groundNormal = Vector3.up;
+                _groundIsWater = false;
                 _timeSinceGrounded = 0f;
             }
             else
             {
                 _groundNormal = Vector3.up;
+                _groundIsWater = false;
                 _timeSinceGrounded += Time.deltaTime;
             }
         }
@@ -914,6 +1030,43 @@ namespace PokeLab.Overworld
 
         /// <summary>True while motion is externally frozen.</summary>
         public bool IsMotionFrozen => _motionFrozen;
+
+        /// <summary>
+        /// Whether the player is the one driving the character right now.
+        ///
+        /// Deliberately not <see cref="OverworldInputReader.InputEnabled"/>. That flag is
+        /// cleared by anything at all that wants the character to hold still, and a one-line
+        /// prompt box is one of those things — walking into the shoreline opens a box, the box
+        /// clears the flag, and every safety net that asked "is the player trying to move"
+        /// silently switched itself off at exactly the moment the player was standing against
+        /// a wall wondering why they could not move. Being unable to get out of a hole is not
+        /// less true because there is a box on the screen.
+        ///
+        /// A cutscene, a battle, an encounter intro or a scene transition is the opposite case
+        /// and the one the flag was really guarding: something else is moving the character,
+        /// and a rescue in the middle of one strands the scene rather than the player. The
+        /// mode says which of the two is happening, and unlike the flag it is not a shared
+        /// switch that four unrelated systems write to.
+        ///
+        /// No flow service means no reason to think the player is not in control, and locking
+        /// the rescues out on a missing service is the failure this whole file exists to stop.
+        /// </summary>
+        public static bool PlayerOwnsCharacter
+        {
+            get
+            {
+                if (!ServiceHub.TryGet<IGameFlow>(out var flow) || flow == null) return true;
+                switch (flow.Mode)
+                {
+                    case GameMode.Exploring:
+                    case GameMode.Dialogue:
+                    case GameMode.Menu:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        }
 
         /// <summary>
         /// Freezes motion without disabling the component, so the animator keeps ticking and the

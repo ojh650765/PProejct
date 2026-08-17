@@ -1,4 +1,3 @@
-using PokeLab.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -39,21 +38,27 @@ namespace PokeLab.Overworld
         private string[] _anchorNames = { "PlayerSpawn", "Spawn_FromField", "Spawn_FromTown" };
 
         private PlayerLocomotion _player;
-        private OverworldInputReader _input;
         private float _held;
 
         private void Awake()
         {
             _player = GetComponent<PlayerLocomotion>();
-            _input = FindFirstObjectByType<OverworldInputReader>();
         }
 
         private void Update()
         {
-            // Only while the player actually has control. During a cutscene the character is
-            // being moved by a script, and a rescue in the middle of that would strand the
-            // scene rather than the player.
-            if (_input == null || !_input.InputEnabled) { _held = 0f; return; }
+            // Only while the player actually owns the character. During a cutscene it is being
+            // moved by a script, and a rescue in the middle of that would strand the scene
+            // rather than the player.
+            //
+            // This used to ask the input reader whether input was on, and that made the escape
+            // unreachable at precisely the moment it was needed. Walking into the shoreline
+            // opens a prompt box; the box turns input off; the last resort turned itself off
+            // with it. So the player was against the water, unable to move, holding the key
+            // that exists for exactly that situation, and nothing happened. A box on the screen
+            // is not a scene taking the character away, and only the second of those is a
+            // reason to refuse.
+            if (!PlayerLocomotion.PlayerOwnsCharacter) { _held = 0f; return; }
 
             var keyboard = Keyboard.current;
             var pad = Gamepad.current;
