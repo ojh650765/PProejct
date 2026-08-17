@@ -332,6 +332,51 @@ namespace PokeLab.Battle.Tests
                 Assert.That(result.CapturedCreature, Is.Not.Null, "A capture must hand the creature back.");
         }
 
+        /// <summary>
+        /// The dex only learns what the player actually saw. A trainer's reserve that
+        /// never entered the field must not be reported — the stage used to hand the whole
+        /// opposing party to the overworld, which let a battle abandoned after one turn
+        /// fill in entries for creatures the player never laid eyes on.
+        /// </summary>
+        [Test]
+        public void SpeciesSeen_OnlyReportsScoutedOpponents()
+        {
+            RegisterDataLayer();
+            ServiceHub.Register<ITrainerRegistry>(new ReserveTrainers(_species, _moves));
+            ServiceHub.Register<IPlayerProfile>(new StubProfile(
+                CreatureFactory.Create(TestData.Machop, 40, 1, _species, _moves, perfectIvs: true)));
+
+            var stage = new BattleStage();
+            stage.BattleStaged += _ => { };
+
+            // A Rookie never pivots, so the lead cannot dodge its scripted knockout by
+            // switching out on the first turn and putting the reserve in front instead.
+            stage.TrainerDifficulty = AiDifficulty.Rookie;
+
+            EncounterResult result = null;
+            stage.BeginEncounter(new EncounterRequest
+            {
+                Kind = BattleKind.Trainer,
+                TrainerId = "reserve-holder",
+                Weather = Weather.Clear,
+                Seed = 4242,
+            }, r => result = r);
+
+            // One turn: the level 40 Machop knocks out the level 5 lead. The reserve is
+            // sent out as its replacement but has not yet acted when the battle is torn
+            // down, so the player has met the lead and only glimpsed the reserve's entry.
+            stage.SubmitAction(BattleAction.UseMove(BattleSide.Player, 0));
+            Assert.That(stage.IsBattleActive, Is.True, "The reserve should keep the battle alive.");
+
+            stage.Abort("scouting test teardown");
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.SpeciesSeen, Does.Contain(TestData.Rattata),
+                "The lead fainted in front of the player and must be reported.");
+            Assert.That(result.SpeciesSeen, Does.Not.Contain(TestData.Pidgey),
+                "The reserve never showed the player anything and must not be reported.");
+        }
+
         // ---- Stubs -------------------------------------------------------------------
 
         private sealed class StubProfile : IPlayerProfile
@@ -388,6 +433,37 @@ namespace PokeLab.Battle.Tests
                 {
                     CreatureFactory.Create(TestData.Geodude, 12 + levelOffset, 1, _species, _moves),
                     CreatureFactory.Create(TestData.Machop, 12 + levelOffset, 2, _species, _moves),
+                };
+            }
+        }
+
+        /// <summary>
+        /// A frail lead in front of a reserve, for the scouting test: the lead falls in one
+        /// hit and the reserve enters but never gets to act. Deliberately species with no
+        /// survive-lethal abilities, so the one-turn knockout cannot be saved by a Sturdy.
+        /// </summary>
+        private sealed class ReserveTrainers : ITrainerRegistry
+        {
+            private readonly FakeSpeciesRegistry _species;
+            private readonly FakeMoveRegistry _moves;
+
+            public ReserveTrainers(FakeSpeciesRegistry species, FakeMoveRegistry moves)
+            {
+                _species = species; _moves = moves;
+            }
+
+            public bool TryGetProfile(string trainerId, out TrainerProfile profile)
+            {
+                profile = new TrainerProfile { TrainerId = trainerId, DisplayName = "Reserve Holder", Reward = 100 };
+                return true;
+            }
+
+            public IReadOnlyList<CreatureInstance> BuildParty(string trainerId, int levelOffset = 0)
+            {
+                return new List<CreatureInstance>
+                {
+                    CreatureFactory.Create(TestData.Rattata, 5, 1, _species, _moves),
+                    CreatureFactory.Create(TestData.Pidgey, 5, 2, _species, _moves),
                 };
             }
         }
