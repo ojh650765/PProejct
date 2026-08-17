@@ -34,8 +34,11 @@ namespace PokeLab.Overworld
                  "still up — which should not happen, and is worth hearing if it does.")]
         [SerializeField] private string _unexpectedKey = "water.blocked_unexpected";
 
+        private readonly Collider[] _overlaps = new Collider[16];
         private Collider _collider;
+        private CharacterController _player;
         private float _nextSpeakTime;
+        private bool _reportedDeferral;
 
         private void Awake()
         {
@@ -48,8 +51,64 @@ namespace PokeLab.Overworld
             // Polled rather than driven by an event because the party can change from a
             // catch, a faint, a swap or a heal, and there is no single signal for "the party
             // changed" that all four raise.
-            var canSurf = SurfCapability.CanSurf();
-            if (_collider.enabled == canSurf) _collider.enabled = !canSurf;
+            var wanted = !SurfCapability.CanSurf();
+            if (_collider.enabled == wanted) return;
+
+            // Raising the wall through the player is the one thing this must never do. A
+            // CharacterController cannot leave a solid it is already inside — there is no
+            // depenetration pass, only a sweep that refuses — so the party fainting its only
+            // swimmer while the player is out over the water would close a wall around them
+            // and leave them unable to move in any direction at all. Waiting costs nothing:
+            // the wall goes up on the first frame they are clear of it, and until then they
+            // are on the water, which is the state the wall is there to end rather than to
+            // punish.
+            if (wanted && StandingInTheWall()) return;
+
+            _collider.enabled = wanted;
+            _reportedDeferral = false;
+        }
+
+        /// <summary>
+        /// Whether the player's capsule is inside the curtain as it stands.
+        ///
+        /// The collider has to be enabled to be asked, because a disabled one is not in the
+        /// physics scene and no query will report it, so it is switched on for the length of
+        /// the query and switched back. The alternative is its bounding box, and the bounding
+        /// box of a wall that follows a lake shore is the whole lake — which would hold the
+        /// wall down every time the player walked near the water, which is every time it
+        /// matters.
+        /// </summary>
+        private bool StandingInTheWall()
+        {
+            if (_player == null)
+            {
+                var found = GameObject.FindGameObjectWithTag(OverworldNames.PlayerTag);
+                _player = found != null ? found.GetComponentInParent<CharacterController>() : null;
+                if (_player == null) return false;
+            }
+
+            // Off the controller's own centre, which on this rig is most of a metre above the
+            // transform: the transform sits at the player's feet and the capsule does not.
+            var spine = Mathf.Max(0f, _player.height * 0.5f - _player.radius);
+            var centre = _player.transform.position + _player.transform.rotation * _player.center;
+            var bottom = centre - Vector3.up * spine;
+            var top = centre + Vector3.up * spine;
+
+            _collider.enabled = true;
+            var count = Physics.OverlapCapsuleNonAlloc(bottom, top, _player.radius, _overlaps,
+                ~0, QueryTriggerInteraction.Ignore);
+            var inside = false;
+            for (var i = 0; i < count && !inside; i++) inside = _overlaps[i] == _collider;
+            _collider.enabled = false;
+
+            if (inside && !_reportedDeferral)
+            {
+                _reportedDeferral = true;
+                Debug.Log($"[WaterEdge] Held '{name}' down: the player is standing in it, and " +
+                          "closing it around them would wedge them there. It goes up as soon " +
+                          "as they are clear.", this);
+            }
+            return inside;
         }
 
         /// <summary>Called by the player when they bump into this wall.</summary>

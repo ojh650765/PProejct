@@ -63,14 +63,26 @@ namespace PokeLab.Overworld
                  "Falling out of the world has to be recoverable however the level is built.")]
         [SerializeField] private float _fallRecoveryDrop = 12f;
 
-        [Tooltip("Seconds of asking to move and not moving, while standing lower than the " +
-                 "ground last walked on, before the player is lifted out. This is the pit " +
-                 "case: grounded, alive, and walled in by slopes past the climb limit.")]
+        [Header("Getting unstuck")]
+        [Tooltip("Seconds of asking to move and going nowhere before the player is examined " +
+                 "for being trapped. Long enough that leaning on a fence is not a rescue.")]
         [SerializeField] private float _stuckSeconds = 1.6f;
 
-        [Tooltip("How far below the last freely-walked ground counts as being down a hole. " +
-                 "Above this the player is just pushing on a wall, which is allowed.")]
-        [SerializeField] private float _stuckDepth = 0.6f;
+        [Tooltip("Planar metres inside that window that count as going somewhere. Walking " +
+                 "downhill covers this in a few frames; the floor of a hole does not.")]
+        [SerializeField] private float _stuckTravel = 0.4f;
+
+        [Tooltip("How far a direction has to be clear before it counts as a way out. About a " +
+                 "stride: any shorter and the lip of the hole reads as an exit.")]
+        [SerializeField] private float _escapeProbeDistance = 0.9f;
+
+        [Tooltip("Furthest the search for standing ground looks when the player has to be put " +
+                 "somewhere legal. Deliberately short, so a rescue is a step and not a journey.")]
+        [SerializeField] private float _escapeSearchRadius = 3.5f;
+
+        [Tooltip("Seconds the capsule may sit inside solid geometry before it is moved out. " +
+                 "Not zero, because a single frame of overlap is a normal contact artefact.")]
+        [SerializeField] private float _embeddedSeconds = 0.3f;
 
         [Header("Slopes")]
         [Tooltip("Above this angle the player slides instead of walking. Matches CharacterController.slopeLimit.")]
@@ -93,12 +105,38 @@ namespace PokeLab.Overworld
         [Tooltip("Y the capsule is held at while surfing. Set by the water body on entry.")]
         [SerializeField] private float _waterBuoyancyDamping = 8f;
 
+        private const string WaterLayerName = "Water";
+
+        /// <summary>How far above a candidate a water surface still means "under the water".</summary>
+        private const float WaterHeadroom = 8f;
+
+        /// <summary>
+        /// How much narrower than the real capsule the overlap queries are.
+        ///
+        /// One skin width, and it has to be exactly that. Unity lets a controller sink into
+        /// what it leans on by its skin width, so a query at the full radius would report every
+        /// wall the player is touching as something they are buried in; a query narrower than
+        /// that would miss a zero-thickness curtain the capsule has settled almost on top of,
+        /// which is the case this whole apparatus exists for.
+        ///
+        /// The same figure answers both questions asked of it — "is the capsule buried in
+        /// something" and "would the capsule fit here" — and that is deliberate. Using one
+        /// number for both is what guarantees that a spot the search accepts cannot be reported
+        /// as buried the next frame, so a rescue can never land somewhere that asks for another.
+        /// </summary>
+        private float CapsuleInset => _controller.skinWidth;
+
         private readonly RaycastHit[] _groundHits = new RaycastHit[8];
+        private readonly Collider[] _overlaps = new Collider[16];
         private Vector3 _lastGroundedPosition;
         private bool _hasGroundedPosition;
         private Vector3 _lastFreePosition;
         private bool _hasFreePosition;
-        private float _stuckTimer;
+        private Vector3 _windowStart;
+        private float _windowTimer;
+        private float _embeddedTimer;
+        private bool _reportedEmbedding;
+        private int _waterMask;
         private CharacterController _controller;
         private Vector3 _horizontalVelocity;
         private float _verticalVelocity;
@@ -164,7 +202,15 @@ namespace PokeLab.Overworld
             if (_input == null) _input = GetComponent<OverworldInputReader>();
             if (_visualRoot != null) _lastVisualLocalPosition = _visualRoot.localPosition;
 
+            // Resolved by name rather than exposed as a mask, because a rescue that put the
+            // player down in the lake would be undoing the wall that keeps them out of it, and
+            // that is not a decision to leave to whoever last touched the Inspector. A project
+            // without the layer simply gets no water test, which is the old behaviour.
+            var water = LayerMask.NameToLayer(WaterLayerName);
+            _waterMask = water >= 0 ? 1 << water : 0;
+
             _previousPosition = transform.position;
+            _windowStart = transform.position;
         }
 
         private void Update()
@@ -173,6 +219,9 @@ namespace PokeLab.Overworld
             if (dt <= 0f) return;
 
             ProbeGround();
+            // Before anything reads the position: a capsule inside a solid cannot move, so
+            // every test below it would be measuring a player who is not where they should be.
+            ResolveOverlap(dt);
             RecoverFromFall();
             RecoverFromPit(dt);
 
@@ -325,6 +374,15 @@ namespace PokeLab.Overworld
         /// Probes for a ledge in front of the capsule and queues a lift. Doing this ourselves
         /// rather than raising <c>CharacterController.stepOffset</c> means we control the rate,
         /// which is what stops the classic instant teleport onto a kerb.
+        ///
+        /// Both the probe and the rise are measured off <see cref="CharacterController.center"/>
+        /// rather than off the transform. The two are not the same on this rig — the capsule is
+        /// centred 0.85 m up and the transform sits at the feet — and taking the transform for
+        /// the middle of the capsule put the probe below the ground the player was standing on
+        /// and read every rise as most of a metre taller than it is. Nothing ever qualified, so
+        /// the only step the player had was <c>stepOffset</c>, which <c>Awake</c> deliberately
+        /// clamps to a tenth of a metre on the understanding that this code does the rest. A
+        /// ten-centimetre climb limit is enough on its own to make a shallow dip a pit.
         /// </summary>
         private void UpdateStepAssist(float dt)
         {
@@ -337,12 +395,13 @@ namespace PokeLab.Overworld
             if (_pendingStepUp <= 0f && IsGrounded && (_collisionFlags & CollisionFlags.Sides) != 0 && Speed > 0.3f)
             {
                 var dir = _horizontalVelocity.normalized;
-                var feet = transform.position - Vector3.up * (_controller.height * 0.5f - _controller.radius);
-                var probeOrigin = feet + Vector3.up * (_maxStepHeight + 0.05f) + dir * _stepProbeDistance;
+                var feetY = FootHeight(transform.position);
+                var probeOrigin = new Vector3(transform.position.x, feetY + _maxStepHeight + 0.05f, transform.position.z)
+                                  + dir * _stepProbeDistance;
 
                 if (Physics.Raycast(probeOrigin, Vector3.down, out var hit, _maxStepHeight + 0.15f, _groundMask, QueryTriggerInteraction.Ignore))
                 {
-                    var rise = hit.point.y - (transform.position.y - _controller.height * 0.5f);
+                    var rise = hit.point.y - feetY;
                     var walkable = Vector3.Angle(hit.normal, Vector3.up) <= _slopeLimit;
                     if (walkable && rise > _minStepHeight && rise <= _maxStepHeight)
                     {
@@ -431,56 +490,363 @@ namespace PokeLab.Overworld
         /// generated, so holes like that are not authored and cannot be reviewed away — a
         /// dip between two rocks the scatter happened to place is enough.
         ///
-        /// Two conditions together, and both are needed. Asking to move and not moving is
-        /// also what pushing into a wall looks like, and that is legitimate; standing lower
-        /// than the ground last walked freely is what makes it a hole rather than a wall.
+        /// What makes it a hole is measured by asking, and that is the change. The test used
+        /// to be "standing lower than the ground last walked freely", with the remembered
+        /// ground allowed to descend five centimetres at a time so it would not follow the
+        /// player down. Walking briskly down to the shore descends faster than that, so the
+        /// anchor stayed up the hill, the player was measured against a point they had left
+        /// on purpose, and after a second and a half they were hauled back up it — on
+        /// perfectly ordinary ground, over and over. Height is simply not the question.
+        ///
+        /// Being unable to leave is. Three things have to hold at once: the player is asking
+        /// to move, they are on the ground, and they have covered almost nothing in the last
+        /// <see cref="_stuckSeconds"/>. Only then is it worth the cost of looking, and the
+        /// looking is what decides: inside solid geometry, or no direction that leads out.
+        /// Pushing into a wall satisfies the first three and fails both of the last two — the
+        /// world behind you is open — so leaning on a fence stays exactly as legal as it was.
         /// </summary>
         private void RecoverFromPit(float dt)
         {
-            var wants = _input != null && _input.InputEnabled && _input.Move.sqrMagnitude > 0.04f;
-
-            if (IsGrounded && Speed > 0.5f)
+            if (IsGrounded && Speed > 0.5f && Traversal != TraversalState.Water)
             {
-                // Only remembered while the player is somewhere they could also have left
-                // from. A ravine floor is walkable along its length, so a plain "I moved
-                // freely here" anchor follows the player down into it and then measures the
-                // bottom against the bottom — you can pace a trap for as long as you like and
-                // never satisfy a test for being in one. Requiring the anchor to be no lower
-                // than the one before it keeps the memory on the way in rather than at the
-                // bottom.
-                if (!_hasFreePosition || transform.position.y >= _lastFreePosition.y - 0.05f)
-                {
-                    _lastFreePosition = transform.position;
-                    _hasFreePosition = true;
-                }
-                _stuckTimer = 0f;
+                // Kept for one purpose: somewhere to put the player if the search below finds
+                // nowhere at all. There is no height rule on it any more, because the height
+                // rule existed to make this position safe to *compare against*, and nothing
+                // compares against it now.
+                _lastFreePosition = transform.position;
+                _hasFreePosition = true;
+            }
+
+            var wants = !_motionFrozen && _input != null && _input.InputEnabled
+                        && _input.Move.sqrMagnitude > 0.04f;
+
+            if (!wants || !IsGrounded || Traversal == TraversalState.Water)
+            {
+                _windowTimer = 0f;
+                _windowStart = transform.position;
                 return;
             }
 
-            if (!IsGrounded || !_hasFreePosition)
+            if (_windowTimer <= 0f) _windowStart = transform.position;
+            _windowTimer += dt;
+
+            var travelled = transform.position - _windowStart;
+            travelled.y = 0f;
+            if (travelled.magnitude >= _stuckTravel)
             {
-                _stuckTimer = 0f;
+                // Going somewhere. Downhill, along the floor of a gully, or scraping sideways
+                // along a fence all land here, and not one of them is a trap.
+                _windowTimer = 0f;
+                _windowStart = transform.position;
                 return;
             }
 
-            if (transform.position.y > _lastFreePosition.y - _stuckDepth)
+            if (_windowTimer < _stuckSeconds) return;
+            _windowTimer = 0f;
+            _windowStart = transform.position;
+
+            var embedded = OverlapAt(transform.position, CapsuleInset) > 0;
+            if (!embedded && HasWayOut()) return;
+
+            Vector3 destination;
+            if (TryFindStandingPosition(transform.position, out var nearby))
             {
-                // Level with where they were walking: this is a wall, and walls are allowed.
-                _stuckTimer = 0f;
+                destination = nearby;
+            }
+            else if (_hasFreePosition && OverlapAt(_lastFreePosition, CapsuleInset) == 0)
+            {
+                destination = _lastFreePosition;
+            }
+            else
+            {
+                Debug.LogWarning($"[Player] Stuck at {transform.position} with no way out and " +
+                                 $"nowhere clear within {_escapeSearchRadius:F1} m to be put. " +
+                                 "Holding R still works; the level has a trap here that is " +
+                                 "wider than the search.");
                 return;
             }
-
-            // Counted whether or not they are pushing at a wall. Down in a gully there is
-            // nothing to push against — the player walks about freely and is still trapped —
-            // so requiring input against an obstacle was itself part of why this never fired.
-            _stuckTimer += wants ? dt : dt * 0.35f;
-            if (_stuckTimer < _stuckSeconds) return;
 
             Debug.LogWarning($"[Player] Stuck at {transform.position} for {_stuckSeconds:F1}s " +
-                             "in a hole with no way out, and was lifted back to " +
-                             $"{_lastFreePosition}. The scatter has left a trap there.");
-            Warp(_lastFreePosition, transform.rotation);
-            _stuckTimer = 0f;
+                             $"with no way out, and was lifted to {destination}. If this " +
+                             "happens twice in the same place the scatter has left a trap there.");
+            Warp(destination, transform.rotation);
+        }
+
+        /// <summary>
+        /// Pushes the capsule out of anything it is standing inside.
+        ///
+        /// A <see cref="CharacterController"/> has no depenetration pass of its own. It sweeps
+        /// its capsule when asked to move and refuses the move when the sweep is blocked, so a
+        /// capsule that is *already* inside a solid is not pushed out — it simply has nowhere
+        /// it is allowed to go, in any direction, forever. That is reachable without the player
+        /// doing anything wrong: the shoreline wall is toggled from a polled party check and
+        /// can come up around them, a warp can land on a marker the generator has since grown a
+        /// rock over, and the scatter never asks where the player is standing.
+        ///
+        /// <c>Physics.ComputePenetration</c> is the exact answer and covers the boxes, spheres,
+        /// capsules and convex hulls the props are built from. It does not support a non-convex
+        /// mesh collider, and the shoreline is exactly that: a double-sided curtain with no
+        /// volume at all, which is also the shape that pins a capsule hardest, because every
+        /// triangle has a twin facing the other way and the controller is held from both sides
+        /// at once. So when the exact push cannot resolve it, the search takes over and puts
+        /// the player on the nearest ground they could have walked to.
+        /// </summary>
+        private void ResolveOverlap(float dt)
+        {
+            var count = OverlapAt(transform.position, CapsuleInset);
+            if (count == 0)
+            {
+                _embeddedTimer = 0f;
+                _reportedEmbedding = false;
+                return;
+            }
+
+            var push = Vector3.zero;
+            for (var i = 0; i < count; i++)
+            {
+                var other = _overlaps[i];
+                if (other == null) continue;
+                // Asked only where it can answer. A non-convex mesh has no inside for a
+                // penetration depth to be measured against, so PhysX declines, and the
+                // shoreline curtain is the whole reason this method has a fallback at all.
+                if (other is MeshCollider mesh && !mesh.convex) continue;
+                if (!Physics.ComputePenetration(
+                        _controller, transform.position, transform.rotation,
+                        other, other.transform.position, other.transform.rotation,
+                        out var direction, out var distance)) continue;
+                push += direction * distance;
+            }
+
+            if (push.sqrMagnitude > 0.000001f)
+            {
+                // Clamped because the pushes are summed and two walls meeting at a corner will
+                // each ask for the whole way out. A hair of overshoot on top, so the next
+                // frame's query does not find the same contact and push a second time.
+                var far = Vector3.ClampMagnitude(push, 1f);
+                SetPositionImmediate(transform.position + far + far.normalized * 0.01f);
+                if (OverlapAt(transform.position, CapsuleInset) == 0)
+                {
+                    _embeddedTimer = 0f;
+                    _reportedEmbedding = false;
+                    return;
+                }
+            }
+
+            _embeddedTimer += dt;
+            if (_embeddedTimer < _embeddedSeconds) return;
+            _embeddedTimer = 0f;
+
+            if (!TryFindStandingPosition(transform.position, out var clear))
+            {
+                // Said once and then kept quiet, but still retried: the search runs again every
+                // few tenths of a second because the thing that closed around the player may be
+                // about to open, and a console filling up helps nobody read the frame it did.
+                if (_reportedEmbedding) return;
+                _reportedEmbedding = true;
+                Debug.LogWarning($"[Player] Inside solid geometry at {transform.position} and " +
+                                 $"nothing within {_escapeSearchRadius:F1} m is clear enough to " +
+                                 "stand on. Holding R is the way out of this one.");
+                return;
+            }
+
+            Debug.LogWarning($"[Player] Was inside solid geometry at {transform.position} — " +
+                             "which a CharacterController cannot leave on its own — and was " +
+                             $"moved to {clear}.");
+            Warp(clear, transform.rotation);
+        }
+
+        /// <summary>
+        /// True when there is at least one direction the player could actually walk out of.
+        ///
+        /// This is the whole difference between a hole and a wall. A wall leaves seven of the
+        /// eight directions open; a hole answers no in all of them, because that is what a hole
+        /// is. Clear air alone is not enough — the far side of a crevice is clear too — so each
+        /// direction also has to end somewhere the player could stand.
+        /// </summary>
+        private bool HasWayOut()
+        {
+            const int Directions = 8;
+            for (var i = 0; i < Directions; i++)
+            {
+                var heading = Quaternion.Euler(0f, i * (360f / Directions), 0f) * Vector3.forward;
+                if (CanWalkOut(heading)) return true;
+            }
+            return false;
+        }
+
+        private bool CanWalkOut(Vector3 heading)
+        {
+            // Swept from the height a step-up would carry the capsule to, so a kerb the step
+            // assist can climb is not mistaken for a wall.
+            GetCapsule(transform.position + Vector3.up * (_maxStepHeight + 0.02f),
+                       CapsuleInset, out var bottom, out var top, out var radius);
+
+            if (Physics.CapsuleCast(bottom, top, radius, heading, out var blocked, _escapeProbeDistance,
+                    _groundMask, QueryTriggerInteraction.Ignore)
+                && blocked.distance < _escapeProbeDistance)
+                return false;
+
+            return TryStandAt(transform.position + heading * _escapeProbeDistance, out _);
+        }
+
+        /// <summary>
+        /// The nearest place around <paramref name="around"/> the player could legally be
+        /// standing, searched outward in rings.
+        ///
+        /// Nearest rather than safest, on purpose. Being moved somewhere you did not walk is
+        /// what reads as the game glitching, so a rescue that sets you on the lip of the hole
+        /// you were in costs the player a step, while one that returns you to the top of the
+        /// hill undoes a minute of walking and will happen again the moment you walk back down.
+        /// </summary>
+        private bool TryFindStandingPosition(Vector3 around, out Vector3 result)
+        {
+            const int Spokes = 12;
+            const float RingSpacing = 0.7f;
+
+            result = around;
+            var rings = Mathf.Max(1, Mathf.CeilToInt(_escapeSearchRadius / RingSpacing));
+
+            for (var ring = 0; ring <= rings; ring++)
+            {
+                var reach = ring * (_escapeSearchRadius / rings);
+                var spokes = ring == 0 ? 1 : Spokes;
+                // Rotated half a spoke further each ring, so successive rings do not line up
+                // and leave the same wedge of the world unsampled all the way out.
+                var bias = ring * (180f / Spokes);
+
+                var bestDistance = float.MaxValue;
+                var found = false;
+
+                for (var i = 0; i < spokes; i++)
+                {
+                    var heading = Quaternion.Euler(0f, bias + i * (360f / spokes), 0f) * Vector3.forward;
+                    if (!TryStandAt(around + heading * reach, out var candidate)) continue;
+
+                    // Within a ring, the closest in three dimensions: two spots the same
+                    // distance away across the ground are not the same rescue if one of them
+                    // is two metres up a bank.
+                    var offset = (candidate - around).sqrMagnitude;
+                    if (offset >= bestDistance) continue;
+                    bestDistance = offset;
+                    result = candidate;
+                    found = true;
+                }
+
+                if (found) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Whether the column through <paramref name="column"/> has ground in it the player
+        /// could stand on, and where.
+        ///
+        /// Four tests, and all four are needed: something is under it, that something is
+        /// walkable rather than a cliff face, it is not the water, and the capsule fits there
+        /// without being inside anything. The last is the one the old recovery skipped, which
+        /// is how it could answer being wedged in the shoreline by putting the player back
+        /// inside it every time.
+        /// </summary>
+        private bool TryStandAt(Vector3 column, out Vector3 standing)
+        {
+            // Up far enough to find the rim of a hole the player is at the bottom of, down
+            // only a little, because a rescue that drops the player a long way is a fall.
+            const float Lift = 2.5f;
+            const float Drop = 1.2f;
+
+            standing = column;
+
+            var from = column + Vector3.up * Lift;
+            if (!Physics.Raycast(from, Vector3.down, out var hit, Lift + Drop, _groundMask,
+                    QueryTriggerInteraction.Ignore)) return false;
+            if (Vector3.Angle(hit.normal, Vector3.up) > _slopeLimit) return false;
+
+            var candidate = hit.point + Vector3.up * 0.02f;
+
+            // Never into the water. A shoreline wall exists so that a step is not taken at all,
+            // and a rescue that answered being wedged in one by setting the player down on the
+            // wet side of it would be undoing the wall to get past the wall. Asked twice
+            // because the water surfaces are solid colliders today and may be triggers
+            // tomorrow: the first test catches standing on the surface, the second catches
+            // standing under it on the bed once a ray can pass through.
+            if (_waterMask != 0 && Traversal != TraversalState.Water)
+            {
+                if ((_waterMask & (1 << hit.collider.gameObject.layer)) != 0) return false;
+                if (Physics.Raycast(candidate, Vector3.up, WaterHeadroom, _waterMask,
+                        QueryTriggerInteraction.Collide)) return false;
+            }
+
+            if (OverlapAt(candidate, CapsuleInset) > 0) return false;
+
+            standing = candidate;
+            return true;
+        }
+
+        /// <summary>
+        /// Colliders the capsule is inside if it stands at <paramref name="footPosition"/>,
+        /// left in <see cref="_overlaps"/> and counted. See <see cref="CapsuleInset"/> for why
+        /// every caller passes that and nothing else.
+        /// </summary>
+        private int OverlapAt(Vector3 footPosition, float inset)
+        {
+            GetCapsule(footPosition, inset, out var bottom, out var top, out var radius);
+            var found = Physics.OverlapCapsuleNonAlloc(bottom, top, radius, _overlaps,
+                _groundMask, QueryTriggerInteraction.Ignore);
+
+            var kept = 0;
+            for (var i = 0; i < found; i++)
+            {
+                var candidate = _overlaps[i];
+                if (candidate == null) continue;
+                // The player's own controller is a collider on this very object, and every
+                // query finds it first.
+                if (candidate.transform.IsChildOf(transform)) continue;
+                _overlaps[kept++] = candidate;
+            }
+            return kept;
+        }
+
+        /// <summary>
+        /// The controller's capsule in world space, as the two sphere centres and a radius.
+        /// Taken from <see cref="CharacterController.center"/> because the transform is at the
+        /// player's feet and the capsule is not.
+        /// </summary>
+        private void GetCapsule(Vector3 footPosition, float inset, out Vector3 bottom, out Vector3 top, out float radius)
+        {
+            radius = Mathf.Max(0.02f, _controller.radius - inset);
+            var centre = footPosition + transform.rotation * _controller.center;
+            var spine = Mathf.Max(0f, _controller.height * 0.5f - _controller.radius);
+            bottom = centre - Vector3.up * spine;
+            top = centre + Vector3.up * spine;
+        }
+
+        /// <summary>World Y of the sole of the capsule when it stands at the given position.</summary>
+        private float FootHeight(Vector3 footPosition)
+        {
+            GetCapsule(footPosition, 0f, out var bottom, out _, out var radius);
+            return bottom.y - radius;
+        }
+
+        /// <summary>
+        /// Moves the capsule without touching velocity, and republishes it to the physics scene.
+        ///
+        /// The controller has to be disabled around the write or its internal cache reasserts
+        /// the old position on the next Move, and the project runs with automatic transform
+        /// syncing off, so a query made later in the same frame would otherwise still be asking
+        /// about where the player used to be.
+        /// </summary>
+        private void SetPositionImmediate(Vector3 position)
+        {
+            var wasEnabled = _controller.enabled;
+            _controller.enabled = false;
+            transform.position = position;
+            _controller.enabled = wasEnabled;
+            Physics.SyncTransforms();
+
+            // Not distance the player walked, so the stride and the encounter pressure it
+            // feeds must not see it.
+            _previousPosition = position;
         }
 
         private void ProbeGround()
@@ -566,15 +932,66 @@ namespace PokeLab.Overworld
         }
 
         /// <summary>
+        /// The nearest position around <paramref name="desired"/> the capsule can legally stand,
+        /// or <paramref name="desired"/> unchanged when it is already clear.
+        ///
+        /// False means nothing within the search radius works, and the honest response to that
+        /// is to leave the player where they are: moving them anyway only swaps one trap for
+        /// another, and at least the one they are in is the one they can see.
+        /// </summary>
+        public bool TryResolveStandingPosition(Vector3 desired, out Vector3 resolved)
+        {
+            resolved = desired;
+            if (_controller == null) _controller = GetComponent<CharacterController>();
+            if (_controller == null) return true;
+            if (OverlapAt(desired, CapsuleInset) == 0) return true;
+            return TryFindStandingPosition(desired, out resolved);
+        }
+
+        /// <summary>
         /// Repositions the player exactly. The controller has to be disabled around the write or
         /// its internal transform cache reasserts the old position on the next Move.
+        ///
+        /// "Exactly" stops at the edge of solid geometry. Every caller that places the player —
+        /// an arrival marker, a battle return, a cutscene mark, the water turning them back —
+        /// is stating where they should be, not asserting that a capsule fits there, and a
+        /// capsule that does not fit is a capsule that cannot move again. Checking it here
+        /// rather than in each of them means none of them has to know that.
         /// </summary>
         public void Warp(Vector3 position, Quaternion rotation, bool preserveVelocity = false)
         {
+            if (_controller == null) _controller = GetComponent<CharacterController>();
+
+            if (_controller != null && OverlapAt(position, CapsuleInset) > 0)
+            {
+                if (TryFindStandingPosition(position, out var clear))
+                {
+                    Debug.LogWarning($"[Player] Asked to be placed at {position}, which is " +
+                                     $"inside something solid, and was put at {clear} instead.");
+                    position = clear;
+                }
+                else
+                {
+                    Debug.LogWarning($"[Player] Placed at {position}, which is inside something " +
+                                     "solid, with nowhere clear nearby to put them instead. " +
+                                     "Holding R will move them to a spawn marker.");
+                }
+            }
+
             var wasEnabled = _controller.enabled;
             _controller.enabled = false;
             transform.SetPositionAndRotation(position, rotation);
             _controller.enabled = wasEnabled;
+            // Queries later in the frame — the ground probe, the next overlap test — read the
+            // physics scene, and this project has automatic transform syncing switched off.
+            Physics.SyncTransforms();
+
+            // The player has just been put somewhere; whatever they were failing to do at the
+            // old position is no longer being asked about, and leaving the clocks running would
+            // let a rescue land and immediately count towards the next one.
+            _windowTimer = 0f;
+            _windowStart = position;
+            _embeddedTimer = 0f;
 
             _previousPosition = position;
             _visualYOffset = 0f;
