@@ -49,7 +49,7 @@ parallel structure. Polished prose is the tell.
 |---|---|---|
 | **린든** (professor, 71) | 하게체, unhurried, does not stop mid-thought because someone arrived | `흠… 또 멈췄군.` `미안하네만 지금 적어 놔야 해서.` `가지게. 한번 정한 녀석은 안 바뀌어.` |
 | **케스** (rival, teenager) | 반말, always in a hurry, explains nothing, exclaims | `야, 호수 갈 거니까 따라와.` `늦으면 벌금 100만원이다!?` `어… 어느 걸로 할 거야?` |
-| **브람** (gate) | 해체/하게체, apologetic, passing on a message rather than enforcing a rule | `어? 벌써 나가려고?` `얘기부터 듣고 오게. 길이야 안 없어지니까.` |
+| **브람** (gate) | 해체/하게체, apologetic, passing on a message rather than enforcing a rule | `어? 벌써 나가려고?` `아 참, 아까 케스가 자네 찾던데.` `얘기부터 듣고 오게.` |
 
 Linden explains too much if you let him. Kes explains nothing — that is what makes following
 him the player's own idea rather than an instruction.

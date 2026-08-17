@@ -1334,8 +1334,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Lab way, he went. Go and hear him out first — the road keeps.",
-          "TextKo": "연구소 쪽으로 갔어. 얼굴부터 보고 오게. 길이야 안 없어지니까."
+          "Text": "Off to the square, he went. Go and hear him out first.",
+          "TextKo": "광장 쪽으로 갔어. 얘기부터 듣고 오게."
         }
       ]
     },
@@ -1556,8 +1556,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Go and hear him out. The road'll still be there.",
-          "TextKo": "얘기부터 듣고 오게. 길이야 안 없어지니까."
+          "Text": "Go and hear him out.",
+          "TextKo": "얘기부터 듣고 오게."
         }
       ]
     },
