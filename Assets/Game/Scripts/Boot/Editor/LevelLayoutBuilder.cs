@@ -322,6 +322,11 @@ namespace PokeLab.Boot.Editor
             var material = AssetDatabase.LoadAssetAtPath<Material>(WaterMaterial);
             var parent = ResolveParent(root, parents, "Terrain/Water");
 
+            // Gathered once for the whole layout rather than per body, because a crossing is
+            // authored against the water it spans and not against a particular record: the
+            // stepping stones are called Lake_SteppingStones_01 and sit on the stream.
+            var crossings = CollectCrossings(layout);
+
             foreach (var body in layout.water ?? Array.Empty<WaterSurface>())
             {
                 var mesh = new Mesh { name = body.name };
@@ -351,8 +356,22 @@ namespace PokeLab.Boot.Editor
                 var renderer = go.AddComponent<MeshRenderer>();
                 if (material != null) renderer.sharedMaterial = material;
 
-                // A trigger, not a solid: the surf/fishing triggers read it and the player
-                // is stopped by the bank, which is terrain, not by the water itself.
+                // Solid, and the comment that used to sit here claiming otherwise — "a
+                // trigger, not a solid ... the player is stopped by the bank, which is
+                // terrain" — was wrong on both halves. Nothing ever set isTrigger, so this
+                // has always been collision the player can be caught by, and the bank is not
+                // what stops them: the curtain below is.
+                //
+                // It stays solid because it cannot be anything else. A MeshCollider has to be
+                // convex to be a trigger, and the convex hull of a meandering stream ribbon
+                // is a slab covering every field it winds through, while the lake's hull
+                // bridges its own bays. Either would be a water trigger over dry land.
+                //
+                // With the waterline walled that is no longer a trap: nothing reaches this
+                // surface until the party can surf, and once it can, riding along the top of
+                // the water is exactly what surfing looks like. WaterBody, when it is finally
+                // put on these, will want a trigger and will have to bring its own — a box or
+                // a convex proxy, not this mesh.
                 var collider = go.AddComponent<MeshCollider>();
                 collider.sharedMesh = mesh;
                 collider.convex = false;
@@ -360,18 +379,36 @@ namespace PokeLab.Boot.Editor
                 go.isStatic = true;
                 SetLayer(go, "Water");
 
-                BuildShoreline(body, mesh, go.transform);
+                BuildShoreline(body, mesh, go.transform, crossings);
             }
         }
 
         /// <summary>
-        /// Raises a wall along the waterline that the player cannot walk through.
+        /// Raises a wall along the waterline that the player cannot walk through, and leaves
+        /// a gap in it wherever there is something authored to cross on.
         ///
         /// The lake used to be open, and a player with no way across simply waded to the
         /// middle of it and fell out of the world. Turning them back after the fact was the
         /// first repair and is the wrong shape: they have already stepped into the lake and
         /// been moved by something they did not do. The series never lets the step happen,
         /// so neither does this.
+        ///
+        /// Flowing water used to be exempt from all of that, on the reasoning that a stream
+        /// is crossed rather than kept out of and that walling it would close the route's only
+        /// gate. What the exemption actually produced was a player standing in the stream a
+        /// metre below the bank, unable to climb out, over and over — so the exemption is
+        /// gone and every body of water is walled. The worry behind it was the right worry
+        /// and it is answered here rather than dodged: the curtain is cut where a crossing
+        /// meets the water, so a bridge deck stays walkable and the rest of both banks is a
+        /// wall. The hole comes from the crossing's own footprint, so moving or re-authoring
+        /// one moves its gap with it and a regenerated level needs no second edit here — and
+        /// a crossing that turns out not to reach both banks is reported rather than honoured,
+        /// because half a gate is only a way into the water.
+        ///
+        /// The wall is not a permanent rule, and that is the other half of what the water
+        /// teaches: it carries <see cref="WaterEdge"/>, which takes it away entirely once the
+        /// party holds a Pokémon that can carry the player over. Closed until it is earned,
+        /// then open everywhere at once.
         ///
         /// The wall is derived from the water mesh's own boundary — the edges belonging to
         /// exactly one triangle — rather than from the shore polygon, because the two are
@@ -380,41 +417,62 @@ namespace PokeLab.Boot.Editor
         /// and hundreds of colliders to stop the player entering water they should not be
         /// in is a poor trade.
         /// </summary>
-        private static void BuildShoreline(WaterSurface body, Mesh surface, Transform parent)
+        private static void BuildShoreline(WaterSurface body, Mesh surface, Transform parent,
+            List<Crossing> crossings)
         {
             const float WallHeight = 3f;
             const float Skirt = 1.5f;
-
-            // Still water only. A stream is crossed, not kept out of: walling its boundary
-            // runs a 3 m barrier along both banks and straight across the bridge deck and
-            // the stepping stones, closing the route's only gate. The emitter has to cut
-            // holes in the ribbon to work around that, which leaves the water visibly
-            // interrupted at exactly the two places the player looks at it closely.
-            //
-            // The kind field has been on this record since the schema was written and
-            // nothing read it.
-            if (string.Equals(body.kind, "flowing", StringComparison.OrdinalIgnoreCase))
-                return;
 
             var triangles = surface.triangles;
             var vertices = surface.vertices;
 
             // An edge shared by two triangles is interior; one used once is the outline.
-            var seen = new Dictionary<long, int>(triangles.Length);
+            var seen = new Dictionary<long, EdgeUse>(triangles.Length);
             for (var i = 0; i < triangles.Length; i += 3)
             {
-                AddEdge(seen, triangles[i], triangles[i + 1]);
-                AddEdge(seen, triangles[i + 1], triangles[i + 2]);
-                AddEdge(seen, triangles[i + 2], triangles[i]);
+                AddEdge(seen, triangles[i],     triangles[i + 1], triangles[i + 2]);
+                AddEdge(seen, triangles[i + 1], triangles[i + 2], triangles[i]);
+                AddEdge(seen, triangles[i + 2], triangles[i],     triangles[i + 1]);
+            }
+
+            // Two passes over the outline, and the first one cuts nothing.
+            //
+            // A hole is only worth having if the crossing that asks for it reaches both banks.
+            // One that lands on the near bank and stops is not a way over — it is an opening
+            // in the wall that leads into the water and back out nowhere, which is precisely
+            // the trap being closed here. So the first pass only tallies, by which end of each
+            // crossing the overlap fell on, and the second honours the crossings that came out
+            // with both ends and runs the curtain straight past the rest.
+            var openedNear = new int[crossings.Count];
+            var openedFar = new int[crossings.Count];
+            var boundaryEdges = 0;
+            foreach (var pair in seen)
+            {
+                if (pair.Value.Count != 1) continue;
+                boundaryEdges++;
+                TallyCrossings(crossings,
+                               vertices[(int)(pair.Key >> 32)],
+                               vertices[(int)(pair.Key & 0xFFFFFFFF)],
+                               openedNear, openedFar);
+            }
+
+            var gates = new bool[crossings.Count];
+            var gateCount = 0;
+            for (var i = 0; i < crossings.Count; i++)
+            {
+                gates[i] = openedNear[i] > 0 && openedFar[i] > 0;
+                if (gates[i]) gateCount++;
             }
 
             var wallVerts = new List<Vector3>();
             var wallTris = new List<int>();
             foreach (var pair in seen)
             {
-                if (pair.Value != 1) continue;
+                if (pair.Value.Count != 1) continue;
                 var a = vertices[(int)(pair.Key >> 32)];
                 var b = vertices[(int)(pair.Key & 0xFFFFFFFF)];
+
+                if (OpenedByGate(crossings, gates, a, b)) continue;
 
                 var baseIndex = wallVerts.Count;
                 wallVerts.Add(a + Vector3.down * Skirt);
@@ -422,19 +480,61 @@ namespace PokeLab.Boot.Editor
                 wallVerts.Add(a + Vector3.up * WallHeight);
                 wallVerts.Add(b + Vector3.up * WallHeight);
 
-                // Both windings, so the curtain stops the player from either side. A
-                // one-sided collider lets anything that starts on the wrong side walk out
-                // through it, and a cutscene or a warp can put the player on either.
-                wallTris.AddRange(new[] { baseIndex, baseIndex + 2, baseIndex + 1,
-                                          baseIndex + 2, baseIndex + 3, baseIndex + 1,
-                                          baseIndex + 1, baseIndex + 2, baseIndex,
-                                          baseIndex + 1, baseIndex + 3, baseIndex + 2 });
+                // Faced outward, away from the water, and one-sided.
+                //
+                // This used to carry both windings so that the curtain stopped anything from
+                // either side, and that is the thing to avoid rather than the thing to want:
+                // PhysX gives a non-convex mesh collider one-sided contacts, so a double-faced
+                // wall pins a body that has somehow got into the water instead of letting it
+                // push out. Standing in the stream unable to climb out is the exact complaint
+                // this change answers, and there is now a great deal more curtain to be caught
+                // by. Faced outward the wall stops the player on the bank — the only side they
+                // can ever walk at it from — and anything a warp or a lapsed surf leaves in the
+                // water walks out through the back.
+                //
+                // Which way is out is local evidence, not a guess: the edge belongs to exactly
+                // one triangle, and that triangle's third corner is water, so out is the side
+                // that corner is not on.
+                var span = b - a;
+                var lean = Vector3.Dot(new Vector3(span.z, 0f, -span.x).normalized,
+                                       (a + b) * 0.5f - vertices[pair.Value.Opposite]);
+
+                if (lean > EdgeSideEpsilon)
+                    wallTris.AddRange(new[] { baseIndex, baseIndex + 2, baseIndex + 1,
+                                              baseIndex + 2, baseIndex + 3, baseIndex + 1 });
+                else if (lean < -EdgeSideEpsilon)
+                    wallTris.AddRange(new[] { baseIndex + 1, baseIndex + 2, baseIndex,
+                                              baseIndex + 1, baseIndex + 3, baseIndex + 2 });
+                else
+                    // The third corner sits on the edge's own line, so the triangle is a
+                    // sliver with no side to report. Both windings there: a handful of
+                    // double-faced quads cost nothing, and one quad facing into the lake is a
+                    // hole in the wall.
+                    wallTris.AddRange(new[] { baseIndex, baseIndex + 2, baseIndex + 1,
+                                              baseIndex + 2, baseIndex + 3, baseIndex + 1,
+                                              baseIndex + 1, baseIndex + 2, baseIndex,
+                                              baseIndex + 1, baseIndex + 3, baseIndex + 2 });
             }
 
-            if (wallVerts.Count == 0)
+            if (boundaryEdges == 0)
             {
                 Debug.LogWarning($"[Level] {body.name} has no boundary edges, so no shoreline " +
                                  "was built and the player can walk straight into it.");
+                return;
+            }
+
+            ReportCrossings(body, vertices, crossings, openedNear, openedFar,
+                            gateCount, boundaryEdges, wallVerts.Count / 4);
+
+            if (wallVerts.Count == 0)
+            {
+                // Every single edge fell inside a gate's footprint. That is not a gate in a
+                // wall, it is no wall, and it means a crossing has been authored far larger
+                // than the water it spans.
+                Debug.LogWarning($"[Level] Every one of {body.name}'s {boundaryEdges} boundary " +
+                                 "edge(s) sits inside a crossing's footprint, so no shoreline " +
+                                 "was built at all and the player can walk straight into it. " +
+                                 "A crossing is measuring far wider than the water it spans.");
                 return;
             }
 
@@ -455,15 +555,348 @@ namespace PokeLab.Boot.Editor
             SetLayer(wall, "Environment");
         }
 
-        private static void AddEdge(Dictionary<long, int> seen, int a, int b)
+        /// <summary>
+        /// How many triangles claimed an edge, and the corner of the last one that did not
+        /// touch it.
+        ///
+        /// The count is what says whether the edge is on the outline. The third corner is what
+        /// says which side of it the water lies on, and it is kept per edge rather than taken
+        /// from the mesh's overall winding because the key below deliberately throws that
+        /// winding away — and because a stream is a ribbon whose two banks run in opposite
+        /// directions, so exactly half of its boundary would come out facing the wrong way if
+        /// one global answer were assumed.
+        /// </summary>
+        private struct EdgeUse
+        {
+            public int Count;
+            public int Opposite;
+        }
+
+        /// <summary>
+        /// How far off the edge's own line the water-side corner has to be, in metres, before
+        /// its direction is trusted to face the curtain. Below this the triangle is a sliver
+        /// and both windings are emitted instead; the tightest one in the field's two bodies
+        /// measures 1.3 mm.
+        /// </summary>
+        private const float EdgeSideEpsilon = 0.001f;
+
+        private static void AddEdge(Dictionary<long, EdgeUse> seen, int a, int b, int opposite)
         {
             // Keyed on the ordered pair so the two triangles sharing an edge land on the
             // same key whichever way round each of them wound it.
             var lo = Mathf.Min(a, b);
             var hi = Mathf.Max(a, b);
             var key = ((long)lo << 32) | (uint)hi;
-            seen[key] = seen.TryGetValue(key, out var count) ? count + 1 : 1;
+
+            seen.TryGetValue(key, out var use);
+            use.Count++;
+            use.Opposite = opposite;
+            seen[key] = use;
         }
+
+        // --- ways across the water --------------------------------------------------------
+
+        /// <summary>
+        /// How far past a crossing's own geometry its hole in the shoreline reaches, in metres.
+        ///
+        /// Some margin is needed or the curtain closes on the deck: the wall stands at the
+        /// waterline and a boundary edge that ends a hand's breadth outside the bridge still
+        /// rises three metres through the plank the player is walking on. Kept small on
+        /// purpose, because every centimetre of it is open waterline beside the crossing that
+        /// the player could step into — at this value the gap either side of a deck is
+        /// narrower than the player capsule, so there is nothing to fall through.
+        /// </summary>
+        private const float CrossingMarginMetres = 0.5f;
+
+        /// <summary>
+        /// What counts as a way over the water.
+        ///
+        /// Matched on substrings of the asset path *and* the placement name rather than on an
+        /// exact list of either. The prefab is the stable half — the kit ships one bridge and
+        /// one set of stepping stones — while the placement name drifts and lies: the layout's
+        /// stones are called <c>Lake_SteppingStones_01</c> and parented under Lakeside while
+        /// standing in the stream. Checking both means a renamed placement of a crossing asset
+        /// and a new crossing asset with an honest name are each still recognised.
+        ///
+        /// Deliberately not a coordinate check. Two objects happen to fit the water today;
+        /// wiring their positions in here would mean a regenerated level silently loses its
+        /// gates, which is the failure this file exists to prevent.
+        /// </summary>
+        private static readonly string[] CrossingTokens = { "bridge", "stepping" };
+
+        /// <summary>
+        /// One authored way across, reduced to the flat footprint it occupies.
+        ///
+        /// Held in the crossing's own space — the authored rotation undone, the authored scale
+        /// already folded into the extents — so testing a point is a rotation and two
+        /// comparisons rather than eight transformed corners per edge.
+        /// </summary>
+        private readonly struct Crossing
+        {
+            public readonly string Name;
+            private readonly Vector3 _centre;
+            private readonly Quaternion _rotation;
+            private readonly Vector2 _min;
+            private readonly Vector2 _max;
+            private readonly bool _travelAlongX;
+
+            public Crossing(string name, Vector3 centre, Quaternion rotation,
+                            Vector2 min, Vector2 max)
+            {
+                Name = name;
+                _centre = centre;
+                _rotation = rotation;
+                _min = min;
+                _max = max;
+                // The long axis is the way you walk. Nothing in the kit is a square crossing,
+                // and a bridge is nine metres by one and a half for the obvious reason.
+                _travelAlongX = _max.x - _min.x >= _max.y - _min.y;
+            }
+
+            private Vector2 ToLocal(Vector3 world)
+            {
+                var d = Quaternion.Inverse(_rotation) * (world - _centre);
+                return new Vector2(d.x, d.z);
+            }
+
+            /// <summary>Whether this footprint covers a point on the plan.</summary>
+            public bool Covers(Vector3 world)
+            {
+                var p = ToLocal(world);
+                return p.x >= _min.x && p.x <= _max.x && p.y >= _min.y && p.y <= _max.y;
+            }
+
+            /// <summary>
+            /// Whether the segment a→b passes through this footprint, and if so how far along
+            /// the crossing's own walking axis the overlap sits — negative at one end, positive
+            /// at the other.
+            ///
+            /// A segment test rather than "is either end inside", because the water's boundary
+            /// edges are not uniformly short: the stream's run up to 3.4 m, which is longer
+            /// than a bridge deck is wide, and an edge that steps clean over the deck with both
+            /// its ends on dry footprint-free ground would leave a wall standing across it.
+            /// </summary>
+            public bool TryClip(Vector3 a, Vector3 b, out float travel)
+            {
+                travel = 0f;
+                var pa = ToLocal(a);
+                var pb = ToLocal(b);
+
+                var enter = 0f;
+                var exit = 1f;
+                if (!Slab(pa.x, pb.x - pa.x, _min.x, _max.x, ref enter, ref exit)) return false;
+                if (!Slab(pa.y, pb.y - pa.y, _min.y, _max.y, ref enter, ref exit)) return false;
+
+                var mid = Vector2.Lerp(pa, pb, (enter + exit) * 0.5f);
+                travel = _travelAlongX
+                    ? mid.x - (_min.x + _max.x) * 0.5f
+                    : mid.y - (_min.y + _max.y) * 0.5f;
+                return true;
+            }
+
+            private static bool Slab(float origin, float delta, float lo, float hi,
+                                     ref float enter, ref float exit)
+            {
+                if (Mathf.Abs(delta) < 1e-6f) return origin >= lo && origin <= hi;
+
+                var near = (lo - origin) / delta;
+                var far = (hi - origin) / delta;
+                if (near > far) { var swap = near; near = far; far = swap; }
+
+                enter = Mathf.Max(enter, near);
+                exit = Mathf.Min(exit, far);
+                return enter <= exit;
+            }
+        }
+
+        /// <summary>
+        /// Finds every authored way across the water and measures it.
+        ///
+        /// The footprint is taken from the prefab's own mesh bounds put through the authored
+        /// position, rotation and scale, because that is the honest answer to "where is this
+        /// thing": a fixed radius would be a number chosen to fit the two objects that exist
+        /// today and would be wrong the first time the emitter moves one or the kit gains a
+        /// longer bridge.
+        /// </summary>
+        private static List<Crossing> CollectCrossings(Layout layout)
+        {
+            var found = new List<Crossing>();
+
+            foreach (var entry in layout.objects ?? Array.Empty<Placement>())
+            {
+                if (entry == null || !IsCrossing(entry)) continue;
+
+                var asset = AssetDatabase.LoadAssetAtPath<GameObject>(entry.prefab);
+                if (asset == null || !TryAssetBounds(asset, out var bounds))
+                {
+                    Debug.LogWarning($"[Level] '{entry.name}' reads as a way across the water " +
+                                     $"but '{entry.prefab}' has no mesh to measure, so no hole " +
+                                     "is cut for it and the shoreline may run straight across " +
+                                     "the deck.");
+                    continue;
+                }
+
+                // Scale folded in here and not at test time; min/max are re-derived after it
+                // because a negative scale swaps which corner is which.
+                var scale = ToVector(entry.scale, Vector3.one);
+                var lo = Vector3.Scale(bounds.min, scale);
+                var hi = Vector3.Scale(bounds.max, scale);
+                var margin = Vector2.one * CrossingMarginMetres;
+
+                found.Add(new Crossing(
+                    entry.name,
+                    ToVector(entry.position),
+                    Quaternion.Euler(ToVector(entry.rotation)),
+                    new Vector2(Mathf.Min(lo.x, hi.x), Mathf.Min(lo.z, hi.z)) - margin,
+                    new Vector2(Mathf.Max(lo.x, hi.x), Mathf.Max(lo.z, hi.z)) + margin));
+            }
+
+            return found;
+        }
+
+        private static bool IsCrossing(Placement entry)
+        {
+            foreach (var token in CrossingTokens)
+                if (Mentions(entry.prefab, token) || Mentions(entry.name, token)) return true;
+            return false;
+        }
+
+        private static bool Mentions(string value, string token) =>
+            !string.IsNullOrEmpty(value) &&
+            value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
+
+        /// <summary>
+        /// The extent of an imported model's geometry, in the asset's own root space.
+        ///
+        /// Read off the shared meshes rather than off <c>Renderer.bounds</c>, because a prefab
+        /// asset has never been through a frame: its renderers have no evaluated world bounds
+        /// to ask for, and the number that comes back is whatever the importer last left there.
+        /// </summary>
+        private static bool TryAssetBounds(GameObject asset, out Bounds bounds)
+        {
+            bounds = default;
+            var any = false;
+            var toRoot = asset.transform.worldToLocalMatrix;
+
+            foreach (var filter in asset.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var mesh = filter.sharedMesh;
+                if (mesh == null) continue;
+
+                var toAsset = toRoot * filter.transform.localToWorldMatrix;
+                foreach (var corner in Corners(mesh.bounds))
+                {
+                    var point = toAsset.MultiplyPoint3x4(corner);
+                    if (!any) { bounds = new Bounds(point, Vector3.zero); any = true; }
+                    else bounds.Encapsulate(point);
+                }
+            }
+
+            return any;
+        }
+
+        /// <summary>
+        /// Records which end of which crossing this stretch of shoreline falls under.
+        ///
+        /// Every crossing is tested; there is no early exit on the first match, because the
+        /// point of the pass is the tallies and not the answer. A crossing with hits at both
+        /// ends spans the water and has earned its hole; one with hits at a single end stops
+        /// short of the far bank and must not get one.
+        /// </summary>
+        private static void TallyCrossings(List<Crossing> crossings, Vector3 a, Vector3 b,
+            int[] openedNear, int[] openedFar)
+        {
+            for (var i = 0; i < crossings.Count; i++)
+            {
+                if (!crossings[i].TryClip(a, b, out var travel)) continue;
+                if (travel < 0f) openedNear[i]++; else openedFar[i]++;
+            }
+        }
+
+        /// <summary>Whether a crossing that reaches both banks covers this stretch.</summary>
+        private static bool OpenedByGate(List<Crossing> crossings, bool[] gates,
+            Vector3 a, Vector3 b)
+        {
+            for (var i = 0; i < crossings.Count; i++)
+                if (gates[i] && crossings[i].TryClip(a, b, out _)) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Says, at build time, whether the water that was just walled can still be got over.
+        ///
+        /// This exists because the failure it looks for is invisible from the editor and
+        /// expensive from the game: a shoreline that closed the one route across the stream
+        /// looks exactly like a shoreline that did not, and the first thing that notices is a
+        /// player walking the route with nowhere to go. Anything found here is a warning and
+        /// never a hard stop — a build that refuses to finish leaves no scene to go and look
+        /// at, which is worse than a build that finishes and says what is wrong with it.
+        ///
+        /// Only crossings standing over *this* body are its business. The field authors two
+        /// and both of them are on the stream, so charging the lake with the stones' problems
+        /// would be a warning about the wrong water.
+        /// </summary>
+        private static void ReportCrossings(WaterSurface body, Vector3[] vertices,
+            List<Crossing> crossings, int[] openedNear, int[] openedFar,
+            int gates, int boundaryEdges, int walledEdges)
+        {
+            for (var i = 0; i < crossings.Count; i++)
+            {
+                var crossing = crossings[i];
+                var near = openedNear[i];
+                var far = openedFar[i];
+
+                if (!StandsOver(crossing, vertices)) continue;
+
+                if (near + far == 0)
+                {
+                    Debug.LogWarning($"[Level] '{crossing.Name}' stands over {body.name} and " +
+                                     "reaches neither bank, so the shoreline runs unbroken past " +
+                                     "both ends of it and it crosses nothing. Lengthen it or " +
+                                     "move it in the emitter.");
+                }
+                else if (near == 0 || far == 0)
+                {
+                    Debug.LogWarning($"[Level] '{crossing.Name}' reaches only one bank of " +
+                                     $"{body.name} — it falls short of the far one by more than " +
+                                     $"the {CrossingMarginMetres} m margin — so no hole was cut " +
+                                     "for it and the shoreline runs past on both sides. It is " +
+                                     "scenery until it is lengthened or moved in the emitter; " +
+                                     "opening the near bank alone would only be a way into the " +
+                                     "water with no way back out of it.");
+                }
+            }
+
+            if (gates == 0 && IsFlowing(body))
+            {
+                Debug.LogWarning($"[Level] {body.name} is flowing water — the kind the route is " +
+                                 "meant to cross — and nothing cut a gate in its shoreline, so " +
+                                 "it is walled bank to bank and only a Pokémon that can surf " +
+                                 "gets past. If that is not intended, its crossings are " +
+                                 "misplaced or missing from the layout.");
+                return;
+            }
+
+            Debug.Log($"[Level] {body.name}: shoreline raised along {walledEdges} of " +
+                      $"{boundaryEdges} boundary edge(s); {gates} crossing(s) left open.");
+        }
+
+        /// <summary>Whether a crossing's footprint has any of this body's water under it.</summary>
+        private static bool StandsOver(Crossing crossing, Vector3[] vertices)
+        {
+            foreach (var vertex in vertices)
+                if (crossing.Covers(vertex)) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Whether this is water that runs. The distinction no longer decides whether to wall
+        /// a body — everything is walled — but it still decides how loudly a sealed one is
+        /// reported: a lake with no way over it is a lake, and a stream with no way over it is
+        /// a route with a hole in it.
+        /// </summary>
+        private static bool IsFlowing(WaterSurface body) =>
+            string.Equals(body.kind, "flowing", StringComparison.OrdinalIgnoreCase);
 
         // --- scattered detail ------------------------------------------------------------
 
