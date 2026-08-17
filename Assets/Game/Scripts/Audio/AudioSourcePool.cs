@@ -117,13 +117,17 @@ namespace PokeLab.Audio
 
         private static void Reset(AudioSource src)
         {
+            // Only rewound when there is something to rewind. Setting `time` on a source
+            // holding no clip is ignored and Unity says so every time, which a pool that
+            // resets each voice on creation and on return turns into a steady drip of
+            // warnings about nothing. Stop() has already rewound anything that was playing.
+            if (src.clip != null) src.time = 0f;
             src.clip = null;
             src.loop = false;
             src.volume = 1f;
             src.pitch = 1f;
             src.panStereo = 0f;
             src.spatialBlend = 0f;
-            src.time = 0f;
             src.transform.localPosition = Vector3.zero;
         }
 

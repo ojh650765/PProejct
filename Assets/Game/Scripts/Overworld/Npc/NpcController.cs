@@ -180,7 +180,6 @@ namespace PokeLab.Overworld
             // enable, before any of our code has had a chance to put it somewhere better. The
             // snap below already knew how to fix the position; it simply always ran too late to
             // stop the error, and an agent that failed to create stays broken for the session.
-            var wasEnabled = _agent.enabled;
             _agent.enabled = false;
             _agent.speed = _walkSpeed;
             _rng = new DeterministicRandom(DeterministicRandom.HashString(_npcId));
@@ -193,12 +192,24 @@ namespace PokeLab.Overworld
             CacheAnimatorParams();
 
             SnapToNavMesh();
-            _agent.enabled = wasEnabled;
+
+            // Turned on, not restored.
+            //
+            // The level builder saves every authored agent switched off precisely so that
+            // enabling one at a bad position cannot fail, and its log says this component
+            // "places and enables them" — but this restored the saved state instead, which
+            // is off. Every authored NPC therefore ran the whole session with a dead agent,
+            // reported itself as not being on the navmesh, and stood still; the message
+            // blamed a stale bake, so the bake was rebuilt and nothing changed.
+            //
+            // SnapToNavMesh switches it back off where there is genuinely no mesh to stand
+            // on — an interior, the battle arena — so this is safe to do unconditionally.
+            _agent.enabled = true;
 
             // Sampled again with the agent live, because Warp is the only thing that tells an
             // enabled agent where it is; moving the transform under a disabled one is what
             // makes the enable succeed, and this is what makes it agree afterwards.
-            if (wasEnabled) SnapToNavMesh();
+            SnapToNavMesh();
         }
 
         /// <summary>
