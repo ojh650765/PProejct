@@ -236,8 +236,48 @@ namespace PokeLab.Overworld
                 if (collider.gameObject.layer == LayerMask.NameToLayer("Ground")) continue;
 
                 foreach (var renderer in collider.GetComponentsInChildren<Renderer>())
-                    if (renderer != null) _blocking.Add(renderer);
+                    if (renderer != null && CanFade(renderer)) _blocking.Add(renderer);
             }
+        }
+
+        /// <summary>
+        /// Whether this renderer is the kind of thing that should give way.
+        ///
+        /// Architecture is. Vegetation and people are not, and letting them through is what the
+        /// stuck-translucency reports were actually looking at. A grass or foliage batch is one
+        /// renderer covering a large part of the frame; putting it on the transparent queue with
+        /// depth writing off makes it sort against everything else by distance to a single
+        /// origin, so it stops being leaves and becomes a flat sheet of green laid over the
+        /// shot. Billboards are worse: they are already alpha-clipped by their own shader, so a
+        /// transparent clone gains nothing and loses the depth they rely on to sit in the world,
+        /// and a half-dissolved NPC standing in a cutscene reads as a rendering fault.
+        ///
+        /// The camera stands still through the long scenes — the starter choice, the ambush —
+        /// so anything caught here stays caught for as long as the shot lasts. That is why this
+        /// has to be a rule about what may fade rather than a timeout.
+        /// </summary>
+        private static bool CanFade(Renderer renderer)
+        {
+            if (renderer is SpriteRenderer || renderer is ParticleSystemRenderer) return false;
+
+            var materials = renderer.sharedMaterials;
+            for (var i = 0; i < materials.Length; i++)
+            {
+                var material = materials[i];
+                if (material == null) continue;
+
+                // The project builds its billboard materials at runtime and names them with a
+                // leading '~'; the shader check catches the authored ones alongside them.
+                if (material.name.Length > 0 && material.name[0] == '~') return false;
+                if (material.name.IndexOf("Foliage", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return false;
+
+                var shader = material.shader;
+                if (shader != null && shader.name.IndexOf("Billboard", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return false;
+            }
+
+            return true;
         }
 
         private void Drive(float dt)
