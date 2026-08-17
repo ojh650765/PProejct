@@ -2052,6 +2052,687 @@
           "TextKo": "연구소로 오게. 그 녀석도 데리고 오고."
         }
       ]
+    },
+    {
+      "SequenceId": "yng_pre",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.PreBattle for trainer_route_01 (Milo, Youngster). Korean written first, per the register: a kid quoting a rule his brother taught him, all momentum. Played after the exclamation and the approach walk, so it opens mid-motion like riv_pre does.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_route_01",
+          "SpeakerName": "Milo",
+          "SpeakerNameKo": "마일로",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_youngster",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Ah! We locked eyes!",
+          "TextKo": "앗! 눈 마주쳤다!"
+        },
+        {
+          "SpeakerId": "trainer_route_01",
+          "SpeakerName": "Milo",
+          "SpeakerNameKo": "마일로",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_youngster",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "My brother says if you lock eyes on the road, that's a battle. That's the rule.",
+          "TextKo": "우리 형이 그랬어. 길에서 눈 마주치면 그건 배틀이라고."
+        },
+        {
+          "SpeakerId": "trainer_route_01",
+          "SpeakerName": "Milo",
+          "SpeakerNameKo": "마일로",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_youngster",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Here I come! I mean it!",
+          "TextKo": "간다? 진짜 간다?"
+        }
+      ]
+    },
+    {
+      "SequenceId": "yng_lost",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.OnDefeat -- the player won.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_route_01",
+          "SpeakerName": "Milo",
+          "SpeakerNameKo": "마일로",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_youngster",
+          "Tone": 3,
+          "ToneName": "Worried",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Aw… I lost…",
+          "TextKo": "아… 졌다…"
+        },
+        {
+          "SpeakerId": "trainer_route_01",
+          "SpeakerName": "Milo",
+          "SpeakerNameKo": "마일로",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_youngster",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Don't tell my brother. Okay? Promise?",
+          "TextKo": "형한테는 비밀이다? 알았지?"
+        }
+      ]
+    },
+    {
+      "SequenceId": "yng_won",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.OnPlayerDefeat -- the player lost. Ends by pointing at town, same as riv_won: a losing player is a player who needs directions, not commentary.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_route_01",
+          "SpeakerName": "Milo",
+          "SpeakerNameKo": "마일로",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_youngster",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "I won! That counts, right!?",
+          "TextKo": "이겼다! 나 이긴 거 맞지!?"
+        },
+        {
+          "SpeakerId": "trainer_route_01",
+          "SpeakerName": "Milo",
+          "SpeakerNameKo": "마일로",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_youngster",
+          "Tone": 1,
+          "ToneName": "Friendly",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Heh. Go rest up in town. I'll still be here.",
+          "TextKo": "헤헤. 마을 가서 쉬고 와. 나 계속 여기 있으니까."
+        }
+      ]
+    },
+    {
+      "SequenceId": "yng_idle",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.AfterDefeat -- talking to him again once he is beaten.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_route_01",
+          "SpeakerName": "Milo",
+          "SpeakerNameKo": "마일로",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_youngster",
+          "Tone": 1,
+          "ToneName": "Friendly",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Turns out you shouldn't lock eyes with just anybody…",
+          "TextKo": "눈은 아무한테나 마주치는 게 아니더라…"
+        }
+      ]
+    },
+    {
+      "SequenceId": "las_pre",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.PreBattle for trainer_route_02 (Pia, Lass). Matter-of-fact where Milo is loud; her stretch of road is a fact, not a boast.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_route_02",
+          "SpeakerName": "Pia",
+          "SpeakerNameKo": "피아",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_lass",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Hold it. This part of the road is mine.",
+          "TextKo": "잠깐. 여기부터는 내 구역인데."
+        },
+        {
+          "SpeakerId": "trainer_route_02",
+          "SpeakerName": "Pia",
+          "SpeakerNameKo": "피아",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_lass",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "No toll. A battle instead.",
+          "TextKo": "통행료는 안 받아. 대신 배틀이야."
+        }
+      ]
+    },
+    {
+      "SequenceId": "las_lost",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.OnDefeat -- the player won.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_route_02",
+          "SpeakerName": "Pia",
+          "SpeakerNameKo": "피아",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_lass",
+          "Tone": 3,
+          "ToneName": "Worried",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Ugh… I went easy on you today.",
+          "TextKo": "으… 오늘은 봐준 거야."
+        },
+        {
+          "SpeakerId": "trainer_route_02",
+          "SpeakerName": "Pia",
+          "SpeakerNameKo": "피아",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_lass",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Next time I won't. Really.",
+          "TextKo": "다음엔 안 봐줘. 진짜로."
+        }
+      ]
+    },
+    {
+      "SequenceId": "las_won",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.OnPlayerDefeat -- the player lost.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_route_02",
+          "SpeakerName": "Pia",
+          "SpeakerNameKo": "피아",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_lass",
+          "Tone": 1,
+          "ToneName": "Friendly",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "See? Told you. My stretch of road.",
+          "TextKo": "그것 봐. 내 구역이라니까."
+        },
+        {
+          "SpeakerId": "trainer_route_02",
+          "SpeakerName": "Pia",
+          "SpeakerNameKo": "피아",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_lass",
+          "Tone": 1,
+          "ToneName": "Friendly",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Go heal up in town. I'll wait right here.",
+          "TextKo": "마을에서 회복하고 와. 여기 서서 기다려 줄게."
+        }
+      ]
+    },
+    {
+      "SequenceId": "las_idle",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.AfterDefeat. Points down the road at the fisherman, the way Sela points at Kes -- a beaten trainer's idle line is free signage.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_route_02",
+          "SpeakerName": "Pia",
+          "SpeakerNameKo": "피아",
+          "SpeakerSubtitle": "Aster Field",
+          "SpeakerSubtitleKo": "아스터 들판",
+          "PortraitKey": "route_lass",
+          "Tone": 1,
+          "ToneName": "Friendly",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Been down to the lake yet? There's a fisherman. He's… kind of strong.",
+          "TextKo": "호수 쪽도 가 봤어? 낚시하는 아저씨 있는데… 좀 세."
+        }
+      ]
+    },
+    {
+      "SequenceId": "fsh_pre",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.PreBattle for trainer_lake_01 (Remo, Fisherman). He was mid-cast when the player clumped up the shore; the battle is the bill for the fish that got away. Adult talking down to a kid: loose 반말, no hurry in it.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_lake_01",
+          "SpeakerName": "Remo",
+          "SpeakerNameKo": "레모",
+          "SpeakerSubtitle": "Lakeside",
+          "SpeakerSubtitleKo": "호숫가",
+          "PortraitKey": "lake_fisher",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Shh. …Ah. Gone. Again.",
+          "TextKo": "쉿. …아, 갔다. 또 갔어."
+        },
+        {
+          "SpeakerId": "trainer_lake_01",
+          "SpeakerName": "Remo",
+          "SpeakerNameKo": "레모",
+          "SpeakerSubtitle": "Lakeside",
+          "SpeakerSubtitleKo": "호숫가",
+          "PortraitKey": "lake_fisher",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "That was your footsteps. Take responsibility.",
+          "TextKo": "네 발소리 때문이야. 책임져."
+        },
+        {
+          "SpeakerId": "trainer_lake_01",
+          "SpeakerName": "Remo",
+          "SpeakerNameKo": "레모",
+          "SpeakerSubtitle": "Lakeside",
+          "SpeakerSubtitleKo": "호숫가",
+          "PortraitKey": "lake_fisher",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Forget the rod. We'll settle it with these.",
+          "TextKo": "낚싯대 말고 이걸로 하자."
+        }
+      ]
+    },
+    {
+      "SequenceId": "fsh_lost",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.OnDefeat -- the player won. 손맛 is angler's slang for the pull on the line; giving it to the player is the nicest thing he can say.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_lake_01",
+          "SpeakerName": "Remo",
+          "SpeakerNameKo": "레모",
+          "SpeakerSubtitle": "Lakeside",
+          "SpeakerSubtitleKo": "호숫가",
+          "PortraitKey": "lake_fisher",
+          "Tone": 1,
+          "ToneName": "Friendly",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Hah. Good pull on you. Better than the fish, lately.",
+          "TextKo": "허, 손맛 좋네. 요즘 물고기보다 낫다."
+        },
+        {
+          "SpeakerId": "trainer_lake_01",
+          "SpeakerName": "Remo",
+          "SpeakerNameKo": "레모",
+          "SpeakerSubtitle": "Lakeside",
+          "SpeakerSubtitleKo": "호숫가",
+          "PortraitKey": "lake_fisher",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Go on. I'll sit a while longer.",
+          "TextKo": "가 봐. 난 마저 앉아 있을 테니."
+        }
+      ]
+    },
+    {
+      "SequenceId": "fsh_won",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.OnPlayerDefeat -- the player lost.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_lake_01",
+          "SpeakerName": "Remo",
+          "SpeakerNameKo": "레모",
+          "SpeakerSubtitle": "Lakeside",
+          "SpeakerSubtitleKo": "호숫가",
+          "PortraitKey": "lake_fisher",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "It's a big one!",
+          "TextKo": "월척이다!"
+        },
+        {
+          "SpeakerId": "trainer_lake_01",
+          "SpeakerName": "Remo",
+          "SpeakerNameKo": "레모",
+          "SpeakerSubtitle": "Lakeside",
+          "SpeakerSubtitleKo": "호숫가",
+          "PortraitKey": "lake_fisher",
+          "Tone": 1,
+          "ToneName": "Friendly",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "…Kidding. Go rest up in town, eh.",
+          "TextKo": "…농담이야. 마을 가서 쉬고 와라."
+        }
+      ]
+    },
+    {
+      "SequenceId": "fsh_idle",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.AfterDefeat. His idle line is the lake anomaly seen from a deckchair -- no numbers, because a fisherman does not measure, he notices.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_lake_01",
+          "SpeakerName": "Remo",
+          "SpeakerNameKo": "레모",
+          "SpeakerSubtitle": "Lakeside",
+          "SpeakerSubtitleKo": "호숫가",
+          "PortraitKey": "lake_fisher",
+          "Tone": 3,
+          "ToneName": "Worried",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "No bites lately. Not since the water came up.",
+          "TextKo": "요즘 통 입질이 없어. 물이 오르고 나서부터 쭉."
+        }
+      ]
+    },
+    {
+      "SequenceId": "hik_pre",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.PreBattle for trainer_cave_01 (Holt, Hiker). 하게체 and hearty -- the one adult in the slice who is delighted to see a child somewhere dangerous.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_cave_01",
+          "SpeakerName": "Holt",
+          "SpeakerNameKo": "홀트",
+          "SpeakerSubtitle": "Aster Cave",
+          "SpeakerSubtitleKo": "아스터 동굴",
+          "PortraitKey": "cave_hiker",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Ho! Climbed all the way up here, did you!",
+          "TextKo": "허어! 이런 데까지 올라왔는가!"
+        },
+        {
+          "SpeakerId": "trainer_cave_01",
+          "SpeakerName": "Holt",
+          "SpeakerNameKo": "홀트",
+          "SpeakerSubtitle": "Aster Cave",
+          "SpeakerSubtitleKo": "아스터 동굴",
+          "PortraitKey": "cave_hiker",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Up here, a battle is how we say hello.",
+          "TextKo": "산에서는 인사 대신 배틀이라네."
+        },
+        {
+          "SpeakerId": "trainer_cave_01",
+          "SpeakerName": "Holt",
+          "SpeakerNameKo": "홀트",
+          "SpeakerSubtitle": "Aster Cave",
+          "SpeakerSubtitleKo": "아스터 동굴",
+          "PortraitKey": "cave_hiker",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Now then — have at you!",
+          "TextKo": "자, 받아 보게!"
+        }
+      ]
+    },
+    {
+      "SequenceId": "hik_lost",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.OnDefeat -- the player won. He enjoys losing more than most people enjoy winning.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_cave_01",
+          "SpeakerName": "Holt",
+          "SpeakerNameKo": "홀트",
+          "SpeakerSubtitle": "Aster Cave",
+          "SpeakerSubtitleKo": "아스터 동굴",
+          "PortraitKey": "cave_hiker",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Wahaha! A clean loss, that!",
+          "TextKo": "으하하! 시원하게 졌군!"
+        },
+        {
+          "SpeakerId": "trainer_cave_01",
+          "SpeakerName": "Holt",
+          "SpeakerNameKo": "홀트",
+          "SpeakerSubtitle": "Aster Cave",
+          "SpeakerSubtitleKo": "아스터 동굴",
+          "PortraitKey": "cave_hiker",
+          "Tone": 1,
+          "ToneName": "Friendly",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Arms like those will climb anything. On you go.",
+          "TextKo": "그 팔심이면 어디든 오르겠어. 가 보게."
+        }
+      ]
+    },
+    {
+      "SequenceId": "hik_won",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.OnPlayerDefeat -- the player lost.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_cave_01",
+          "SpeakerName": "Holt",
+          "SpeakerNameKo": "홀트",
+          "SpeakerSubtitle": "Aster Cave",
+          "SpeakerSubtitleKo": "아스터 동굴",
+          "PortraitKey": "cave_hiker",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Legs not seasoned yet, eh!",
+          "TextKo": "아직 다리가 덜 여물었구먼!"
+        },
+        {
+          "SpeakerId": "trainer_cave_01",
+          "SpeakerName": "Holt",
+          "SpeakerNameKo": "홀트",
+          "SpeakerSubtitle": "Aster Cave",
+          "SpeakerSubtitleKo": "아스터 동굴",
+          "PortraitKey": "cave_hiker",
+          "Tone": 1,
+          "ToneName": "Friendly",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Go down and rest. The mountain won't run off.",
+          "TextKo": "마을 내려가서 쉬고 오게. 산은 안 도망가네."
+        }
+      ]
+    },
+    {
+      "SequenceId": "hik_idle",
+      "PlaysOnlyOnce": false,
+      "Note": "TrainerDefinition.AfterDefeat.",
+      "Lines": [
+        {
+          "SpeakerId": "trainer_cave_01",
+          "SpeakerName": "Holt",
+          "SpeakerNameKo": "홀트",
+          "SpeakerSubtitle": "Aster Cave",
+          "SpeakerSubtitleKo": "아스터 동굴",
+          "PortraitKey": "cave_hiker",
+          "Tone": 1,
+          "ToneName": "Friendly",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Dark in this cave at high noon. I like that about it. Haha.",
+          "TextKo": "이 굴은 한낮에도 컴컴해서 좋아. 하하."
+        }
+      ]
+    },
+    {
+      "SequenceId": "whiteout",
+      "PlaysOnlyOnce": false,
+      "Note": "Played by EncounterDirector after a PlayerDefeat, when the recovery warp found an anchor. Narration, so every speaker field is empty -- the box drops the name plate, and the classic 전멸 beat has never had a speaker. It thinks out loud rather than reporting ('주머니가 가벼워진 것 같다', not '소지금이 절반이 되었다') and quotes no number, because the actual amount is game state this file must not invent.",
+      "Lines": [
+        {
+          "SpeakerId": "",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "SpeakerSubtitle": "",
+          "SpeakerSubtitleKo": "",
+          "PortraitKey": "",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Everything went dark…",
+          "TextKo": "눈앞이 캄캄해졌다…"
+        },
+        {
+          "SpeakerId": "",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "SpeakerSubtitle": "",
+          "SpeakerSubtitleKo": "",
+          "PortraitKey": "",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "You come to somewhere familiar. Your pockets feel a little lighter…",
+          "TextKo": "정신을 차려 보니 익숙한 곳이었다. 주머니가 조금 가벼워진 것 같다…"
+        },
+        {
+          "SpeakerId": "",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "SpeakerSubtitle": "",
+          "SpeakerSubtitleKo": "",
+          "PortraitKey": "",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Your Pokémon have their strength back, somehow.",
+          "TextKo": "포켓몬들은 어느새 기운을 되찾았다."
+        }
+      ]
+    },
+    {
+      "SequenceId": "whiteout_in_place",
+      "PlaysOnlyOnce": false,
+      "Note": "The degraded twin of 'whiteout', for when no recovery anchor exists in the loaded scenes and the player was healed where they fell. Same beat, minus the claim of having been moved -- narration that says 'somewhere familiar' while the player stands in the same grass is a lie the box tells with a straight face.",
+      "Lines": [
+        {
+          "SpeakerId": "",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "SpeakerSubtitle": "",
+          "SpeakerSubtitleKo": "",
+          "PortraitKey": "",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Everything went dark…",
+          "TextKo": "눈앞이 캄캄해졌다…"
+        },
+        {
+          "SpeakerId": "",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "SpeakerSubtitle": "",
+          "SpeakerSubtitleKo": "",
+          "PortraitKey": "",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Somehow you pull yourself together. Your pockets feel a little lighter…",
+          "TextKo": "간신히 정신을 차렸다. 주머니가 조금 가벼워진 것 같다…"
+        },
+        {
+          "SpeakerId": "",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "SpeakerSubtitle": "",
+          "SpeakerSubtitleKo": "",
+          "PortraitKey": "",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Your Pokémon have their strength back, somehow.",
+          "TextKo": "포켓몬들은 어느새 기운을 되찾았다."
+        }
+      ]
     }
   ]
 }

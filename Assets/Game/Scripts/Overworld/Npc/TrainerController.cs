@@ -148,6 +148,18 @@ namespace PokeLab.Overworld
 
         private void Awake()
         {
+            // The definition does not reliably survive the trip through the scene file. The
+            // build-time Configure creates it with HideAndDontSave — the flag that keeps a
+            // runtime object OUT of the saved scene — so a scene that has been saved and
+            // reloaded (or built) can wake up with the serialized field empty and a trainer
+            // who cannot be challenged, whose party the battle side cannot resolve, and whose
+            // dialogue never plays. Re-resolving from the table here makes the definition a
+            // runtime fact rather than an editor-time one: the builder names each trainer
+            // either by its layout name (which the table indexes through the row's
+            // sceneObject) or, when the build-time lookup failed, by the trainer id itself,
+            // so this object's own name reaches the row by either handle.
+            if (_definition == null) _definition = TrainerBook.Shared?.Build(name);
+
             _agent = GetComponent<NavMeshAgent>();
             _restRotation = transform.rotation;
             _restPosition = transform.position;

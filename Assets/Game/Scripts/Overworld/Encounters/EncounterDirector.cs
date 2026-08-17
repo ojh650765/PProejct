@@ -364,6 +364,178 @@ namespace PokeLab.Overworld
             _sequenceRunning = false;
             _immunityTimer = _postEncounterImmunity;
             SetPlayerFrozen(false);
+
+            // Last, after the freeze is lifted, so the flow's restore is finished before
+            // anything here moves the player again — the return-point warp has already
+            // happened by the time this callback fires, so a second Warp on top of it is a
+            // deliberate override rather than a fight over the same transform. Playing the
+            // message after the unfreeze also matters: DialogueRunner snapshots the freeze
+            // state when it starts and restores it when it ends, so a message started while
+            // the director still held the player frozen would end by freezing them again.
+            if (result.Outcome == BattleOutcome.PlayerDefeat) ApplyWhiteout(profile);
+        }
+
+        // ---- Whiteout ---------------------------------------------------------------------
+
+        /// <summary>
+        /// The classic 전멸 handling, which this project had none of: the battle reported
+        /// PlayerDefeat, the flow put the player back where they were standing, and that was
+        /// the whole of it. The player was then in the field with an all-fainted party — and
+        /// every roamer touch after that covered the screen for a battle the stage refuses to
+        /// build (nothing healthy to send out), revealed it again, and left them standing
+        /// there, forever. Losing was not a setback; it was a soft lock.
+        ///
+        /// So this does what the genre has always done: half the money is gone, the party is
+        /// restored, and the player wakes up somewhere safe. Each step degrades independently
+        /// — the heal is the one that breaks the soft lock, so it is unconditional; the warp
+        /// needs an anchor that actually exists in the loaded scenes and heals in place when
+        /// there is none; the message needs a DialogueRunner that is not already speaking and
+        /// falls back to the log.
+        /// </summary>
+        private void ApplyWhiteout(IPlayerProfile profile)
+        {
+            var wallet = profile as PlayerProfile;
+            if (wallet == null)
+            {
+                Debug.LogWarning("[EncounterDirector] The player whited out but no PlayerProfile " +
+                                 "is registered, so there is no party to heal or money to drop. " +
+                                 "The next encounter will refuse for the same reason.", this);
+                return;
+            }
+
+            // Half the money, rounded in the player's favour, clamped by AddMoney itself.
+            var loss = wallet.Money / 2;
+            if (loss > 0) wallet.AddMoney(-loss);
+
+            // The heal is what makes losing survivable, so it comes before anything that
+            // could fail. Without it the fainted party re-triggers the refusal loop this
+            // method exists to end.
+            wallet.HealParty();
+
+            // A scripted scene owns the stage while it runs. The ambush battle is the one
+            // PlayerDefeat that can happen mid-episode, and warping the player to a recovery
+            // point in the middle of it would tear them out of a scene that is still holding
+            // their control and still has beats staged around where they stand. The heal and
+            // the money loss have already happened — those are profile state and bother no
+            // scene — but the body stays where the script put it, and the message is skipped
+            // because the episode's own lines are already speaking.
+            if (_episodeRunner == null) _episodeRunner = FindAnyObjectByType<EpisodeRunner>();
+            if (_episodeRunner != null && _episodeRunner.IsPlaying)
+            {
+                Debug.Log("[EncounterDirector] Whiteout during a scripted episode: money and " +
+                          "party were handled, the warp and message were left to the scene.", this);
+                return;
+            }
+
+            var warped = WarpToRecoveryPoint();
+            PlayWhiteoutMessage(warped);
+        }
+
+        /// <summary>The episode runner, found once and cached. Optional, like every dependency here.</summary>
+        private EpisodeRunner _episodeRunner;
+
+        /// <summary>
+        /// Moves the player to the best recovery point that exists in the loaded scenes, and
+        /// says whether it managed to.
+        ///
+        /// The anchors are looked up by name because that is the only channel this worker has
+        /// into the generated levels: no markers can be added to a scene from here, so the
+        /// candidates are all objects the level builders already create. In order:
+        ///
+        /// 1. A live <see cref="HealingMachine"/> — the genre's recovery point. Stood in front
+        ///    of, not on: the machine is a prop with a collider.
+        /// 2. "Anchor_HealingMachine" — the name slice_layout.json authors for the plaza
+        ///    machine. Nothing builds it today, so this is a forward binding that starts
+        ///    working the moment the level worker does.
+        /// 3. "PlayerSpawn" — built by LevelLayoutBuilder.BuildSpawn in every generated scene
+        ///    and by InteriorBuilder in every room, so it is the anchor that is reliably there.
+        ///
+        /// GameObject.Find only sees loaded scenes, which is exactly the constraint: the town
+        /// machine cannot be reached from the field, and warping across a scene load is a job
+        /// for the level-transition system, not for a battle-result handler. A whiteout in the
+        /// field therefore recovers at the field's own spawn (the town seam), which is the
+        /// honest same-scene reading of "carried back to safety". If nothing at all is found,
+        /// the caller heals in place and says so.
+        /// </summary>
+        private bool WarpToRecoveryPoint()
+        {
+            var player = _player != null
+                ? _player
+                : FindAnyObjectByType<PlayerLocomotion>();
+            if (player == null) return false;
+
+            Vector3 position;
+            Quaternion rotation;
+
+            var machine = FindAnyObjectByType<HealingMachine>();
+            if (machine != null)
+            {
+                // A pace in front of the machine, facing it — where a player who walked up to
+                // use it would stand.
+                position = machine.transform.position + machine.transform.forward * 1.2f;
+                rotation = Quaternion.LookRotation(-machine.transform.forward, Vector3.up);
+            }
+            else
+            {
+                var anchor = GameObject.Find("Anchor_HealingMachine");
+                if (anchor != null)
+                {
+                    position = anchor.transform.position + anchor.transform.forward * 1.2f;
+                    rotation = Quaternion.LookRotation(-anchor.transform.forward, Vector3.up);
+                }
+                else
+                {
+                    var spawn = GameObject.Find("PlayerSpawn");
+                    if (spawn == null)
+                    {
+                        Debug.LogWarning("[EncounterDirector] Whiteout: no HealingMachine, no " +
+                                         "Anchor_HealingMachine and no PlayerSpawn in the loaded " +
+                                         "scenes, so the player was healed where they fell.", this);
+                        return false;
+                    }
+                    position = spawn.transform.position;
+                    rotation = spawn.transform.rotation;
+                }
+            }
+
+            // Warp, never a transform write: the CharacterController caches its own position
+            // and writes it back over a bare assignment on the next move — the same reason
+            // GameFlowController.RestoreReturnPoint warps.
+            player.Warp(position, rotation);
+
+            // The pressure that produced the losing encounter belongs to the walk the player
+            // is no longer on, and the immunity window should start from the recovery point,
+            // not from the grass they were carried out of.
+            ResetPressure();
+            return true;
+        }
+
+        /// <summary>
+        /// Tells the player what just happened, through the same box everything else speaks
+        /// through. Non-blocking: a missing runner or a busy one (a trainer's own defeat line,
+        /// for instance, is already playing when a trainer loss whites the player out) drops
+        /// to a log line rather than queueing a second conversation.
+        /// </summary>
+        private void PlayWhiteoutMessage(bool warped)
+        {
+            var sequenceId = warped ? "whiteout" : "whiteout_in_place";
+            var runner = DialogueRunner.Instance != null
+                ? DialogueRunner.Instance
+                : FindAnyObjectByType<DialogueRunner>();
+
+            if (runner != null && !runner.IsPlaying)
+            {
+                var sequence = DialogueBook.Shared?.Build(sequenceId);
+                if (sequence != null)
+                {
+                    if (runner.Play(sequence, gameObject, _ => Destroy(sequence))) return;
+                    Destroy(sequence);
+                }
+            }
+
+            Debug.Log("[EncounterDirector] " + Loc.Pick(
+                "You whited out. Your Pokémon were healed and half your money is gone.",
+                "눈앞이 캄캄해졌다… 포켓몬은 회복되었고, 가진 돈의 절반을 잃었다."), this);
         }
 
         private void SetPlayerFrozen(bool frozen)
