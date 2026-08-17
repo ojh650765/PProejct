@@ -114,15 +114,15 @@ namespace PokeLab.Cinematics
         /// Its XZ is where the case is set down.
         /// </summary>
         public static StarterCaseStage Create(Vector3 ballLine, float groundY,
-            Vector3 professorPosition, Vector3 playerPosition)
+            Vector3 companionPosition, Vector3 playerPosition)
         {
             var go = new GameObject("~StarterCaseStage");
             var stage = go.AddComponent<StarterCaseStage>();
-            stage.Lay(ballLine, groundY, professorPosition, playerPosition);
+            stage.Lay(ballLine, groundY, companionPosition, playerPosition);
             return stage;
         }
 
-        private void Lay(Vector3 ballLine, float groundY, Vector3 professorPosition,
+        private void Lay(Vector3 ballLine, float groundY, Vector3 companionPosition,
             Vector3 playerPosition)
         {
             var ground = new Vector3(ballLine.x, groundY, ballLine.z);
@@ -132,13 +132,15 @@ namespace PokeLab.Cinematics
             //
             // The obvious placement — behind the player, looking the way the exploration
             // camera already looks — puts the player directly between the lens and the case
-            // at a metre and a half, so the shot is the back of someone's head. Linden and
-            // the player stand within about a metre of the case and roughly a right angle
-            // apart, so the bisector of the two of them, reversed, is the one direction with
-            // nobody in it, and it leaves them flanking the case in frame instead.
-            var toProfessor = Flat(professorPosition - ground);
+            // at a metre and a half, so the shot is the back of someone's head. The two of
+            // them stand within about a metre of the case and roughly a right angle apart, so
+            // the bisector of the two of them, reversed, is the one direction with nobody in
+            // it, and it leaves them flanking the case in frame instead. Handed the same point
+            // twice — one person, nobody with them — it degrades to the far side of the case
+            // from that person, which is the right shot for that.
+            var toCompanion = Flat(companionPosition - ground);
             var toPlayer = Flat(playerPosition - ground);
-            var away = -(toProfessor + toPlayer);
+            var away = -(toCompanion + toPlayer);
             _shotBack = away.sqrMagnitude > 1e-4f ? away.normalized : Vector3.forward;
 
             // Face the case out at the camera. Its own quad billboards, but the ball row is

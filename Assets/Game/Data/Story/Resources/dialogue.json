@@ -1817,7 +1817,7 @@
     {
       "SequenceId": "field_ambush",
       "PlaysOnlyOnce": true,
-      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. Both of them are cornered, not Kes alone. Cornering only Kes made the player a rescuer standing safely to one side; cornering both makes reaching into the bag the obvious thing rather than the brave thing, which matters because the player has no Pokémon yet and no reason to be brave.",
+      "Note": "SPLIT IN THREE, and not one word of it rewritten. The five lines were one beat, so the whole ambush played out over a bank with a single Rattata standing on it -- '양쪽이야! 우리 둘 다 둘러싸였어!' was spoken to an empty shore, which is the line this act is built around. Cut here, the encirclement can be staged between the yelp and the line that reacts to it: field_ambush (this) -> StageRing -> field_ambush_ringed -> CreatureApproach -> field_ambush_bag -> the choice. Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Both of them are cornered, not Kes alone. Cornering only Kes made the player a rescuer standing safely to one side; cornering both makes reaching into the bag the obvious thing rather than the brave thing, which matters because the player has no Pokémon yet and no reason to be brave.",
       "Lines": [
         {
           "SpeakerId": "",
@@ -1848,7 +1848,14 @@
           "Choices": [],
           "Text": "Wagh! P-Pokémon!? What — where did—!",
           "TextKo": "으왓! 포, 포켓몬!? 뭐야, 대체-!?"
-        },
+        }
+      ]
+    },
+    {
+      "SequenceId": "field_ambush_ringed",
+      "PlaysOnlyOnce": true,
+      "Note": "One line, and it is the only line in the act that has to be spoken with something on screen. The StageRing beat immediately above it in episodes.json puts the flock round the two of them; this is Kes noticing. Played before the ambusher closes, so the order the player reads is: one of them, then all of them, then the one that comes for you.",
+      "Lines": [
         {
           "SpeakerId": "npc_rival_01",
           "SpeakerName": "Kes",
@@ -1863,7 +1870,14 @@
           "Choices": [],
           "Text": "Both sides! They've got both of us!",
           "TextKo": "야, 양쪽이야! 우리 둘 다 둘러싸였어!"
-        },
+        }
+      ]
+    },
+    {
+      "SequenceId": "field_ambush_bag",
+      "PlaysOnlyOnce": true,
+      "Note": "The last thing said before the choice opens, and the only setup it gets. Kes is the one who says it, which is what keeps the professor out of the moment: the player is taking a ball out of somebody else's bag with the owner gone and the friend egging them on. Nothing speaks over the choice itself -- see StarterPresenter.",
+      "Lines": [
         {
           "SpeakerId": "npc_rival_01",
           "SpeakerName": "Kes",

@@ -32,9 +32,16 @@ namespace PokeLab.Boot
     /// widgets are UI, the stage is Cinematics and the art manifest is Overworld.People — and
     /// none of those four assemblies can see each other.
     ///
-    /// The dialogue-box list survives as the fallback. The episode plays op_choice_prompt
-    /// before this beat and op_choice_result after it, and neither is allowed to be left
-    /// hanging because a marker went missing in a scene rebuild.
+    /// The dialogue-box list survives as the fallback, because the staged version depends on
+    /// marks a scene rebuild creates and on art outside this file's control, and the beat in
+    /// front of it is the point of no return for the whole save.
+    ///
+    /// <b>Nobody speaks over the choice.</b> The act was rewritten so this happens on the lake
+    /// bank, out of a bag whose owner has walked off, with the player and their friend ringed
+    /// by the flock that came out of the grass — they are choosing in secret and at speed. The
+    /// professor's prompt that used to sit in the box with his name on it is gone with the
+    /// scene it belonged to; what is left is one speaker-less line, which is how this script
+    /// writes a thought.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class StarterPresenter : MonoBehaviour
@@ -42,19 +49,41 @@ namespace PokeLab.Boot
         [SerializeField] private StarterSelection _selection;
         [SerializeField] private DialogueView _view;
 
-        [Tooltip("String table keys. The text lives in strings.json so the moment reads in " +
-                 "the player's language and not in the one it was written in.")]
-        [SerializeField] private string _speakerKey = "starter.speaker";
+        [Tooltip("String table key for the line in the box while the player is choosing. The " +
+                 "text lives in strings.json so the moment reads in the player's language and " +
+                 "not in the one it was written in.")]
         [SerializeField] private string _promptKey = "starter.prompt";
+
+        // There is deliberately no speaker key beside the prompt. One used to point at
+        // 'starter.speaker', which is Linden's name, and putting a name plate on this moment
+        // is the one thing the scene cannot have — see the note on the class. The scenes still
+        // carry the old serialized value; Unity drops a property nothing declares.
 
         /// <summary>
         /// Marks authored in cast.json and instantiated into the scene by the level builder.
         /// Named rather than assigned because the scene is rebuilt constantly and any
         /// reference serialized here would be to a copy from two rebuilds ago.
+        ///
+        /// <see cref="CaseMark"/> belongs to the version of this scene that happened at the lab
+        /// door and is authored into Town; <see cref="BagProp"/> is where the choice happens
+        /// now. Both are listed because both may be loaded — see <see cref="BuildStage"/>.
         /// </summary>
         private const string CaseMark = "Look_Case";
-        private const string ProfessorMark = "Mark_Prof_Case";
-        private const string PlayerMark = "Mark_Player_GateStand";
+        private const string BagProp = "Prop_ProfessorBag";
+
+        /// <summary>Whoever is crouched over the bag with the player. The friend, not the professor.</summary>
+        private const string CompanionActor = "NPC_Rival";
+
+        /// <summary>Metres within which the companion counts as being at this choice.</summary>
+        private const float CompanionRange = 8f;
+
+        /// <summary>
+        /// Metres above the ground the three balls stand at — the lid of the case this stage
+        /// draws, which is 0.59 m tall at <see cref="StarterCaseStage.WorldSpriteScale"/>. The
+        /// same number cast.json authored Look_Case's height from, and it belongs to the drawn
+        /// case rather than to whatever object happens to mark the spot.
+        /// </summary>
+        private const float CaseLidHeightMetres = 0.53f;
 
         /// <summary>The line in op_professor_arrives that opens the case. Authored in cast.json.</summary>
         private const string CaseOpenSignal = "story.case_open";
@@ -185,10 +214,21 @@ namespace PokeLab.Boot
             BuildScreen(options);
             Select(0);
 
-            // Linden's line stays in the box underneath, because the episode's own dialogue
-            // opened this moment and will close it — the box is part of the composition, not
-            // a thing this replaces.
-            _view.Show(PokeLab.Core.Loc.Get(_speakerKey), PokeLab.Core.Loc.Get(_promptKey));
+            // Nobody is speaking over this, and that is the point of the moment.
+            //
+            // Linden's own prompt used to sit in the box with his name on it for the whole of
+            // the choice, left over from the version where he opened a case in front of the
+            // player and talked them through it. The act was rewritten so this happens on the
+            // lake bank, out of a bag that is not theirs, with its owner already gone — the
+            // player is choosing in secret and there is no one standing over them to narrate
+            // it. A name plate here is the professor watching, which is the one thing the
+            // scene cannot have.
+            //
+            // The box stays, because the card above it is laid out against the scrim and
+            // because the moment still wants a line; what goes in it is the player's own
+            // thought, with no speaker, the way every other piece of narration in the script
+            // is written.
+            _view.Show(string.Empty, PokeLab.Core.Loc.Get(_promptKey));
 
             var chosen = -1;
             while (chosen < 0)
@@ -221,60 +261,69 @@ namespace PokeLab.Boot
             // above it is presentation; this line is the game starting.
             if (chosen >= 0) _selection.Choose(chosen);
 
-            // The creature stays out of its ball while Linden says what he thinks of it —
-            // op_choice_result is about the animal standing in front of them, and cutting back
-            // to the exploration camera first would have him talking about something off
-            // screen. Bounded, because a dialogue that never ends must not strand the case in
-            // the world.
-            yield return WaitForResultDialogue(20f);
+            // The creature stays out of its ball for a moment, and then the case goes.
+            //
+            // This used to wait up to twenty seconds for 'op_choice_result' — Linden's read on
+            // the one you took. That sequence went with the version of the act he was present
+            // for and nothing has played it since, so the wait timed out in full every single
+            // time: a 1.35 m close-up on the case, held at priority 150, over the top of the
+            // wild battle the very next beat starts. There is no line here any more, so what
+            // the moment needs is a beat to look at what it got and then the camera back.
+            yield return new WaitForSeconds(TakenHoldSeconds);
             yield return _stage.Dismiss();
             _stage = null;
             _running = null;
         }
 
-        /// <summary>
-        /// Waits for the episode's reaction dialogue to finish.
-        ///
-        /// Keyed on the sequence id prefix rather than on any sequence ending, because the
-        /// runner resolves op_choice_result to op_choice_result_1 / _5 / _10 by species and
-        /// there is no single id to compare against.
-        /// </summary>
-        private IEnumerator WaitForResultDialogue(float timeout)
-        {
-            var runner = DialogueRunner.Instance != null
-                ? DialogueRunner.Instance
-                : FindFirstObjectByType<DialogueRunner>();
-            if (runner == null) yield break;
-
-            var done = false;
-            void OnEnded(string id)
-            {
-                if (id != null && id.StartsWith("op_choice_result", System.StringComparison.Ordinal))
-                    done = true;
-            }
-
-            runner.SequenceEnded += OnEnded;
-            var elapsed = 0f;
-            while (!done && elapsed < timeout)
-            {
-                elapsed += Time.deltaTime;
-                yield return null;
-            }
-            runner.SequenceEnded -= OnEnded;
-        }
+        /// <summary>Seconds the creature is looked at before the shot is handed back.</summary>
+        private const float TakenHoldSeconds = 1.6f;
 
         // --- The world -------------------------------------------------------------------------
 
-        /// <summary>First of <paramref name="names"/> that exists in a loaded scene.</summary>
-        private static GameObject FindMark(params string[] names)
+        /// <summary>
+        /// Whichever of <paramref name="names"/> exists and is nearest to
+        /// <paramref name="near"/>.
+        ///
+        /// Nearest rather than first, and the difference is the whole bug this replaced. Both
+        /// halves of the map are loaded at once — WorldStreamer preloads Town and Field and
+        /// never unloads either — so a name-ordered lookup happily returns the town's copy of a
+        /// mark while the beat is playing at the lake, a hundred metres away. Where the player
+        /// is standing is the only thing in the scene that knows which of two marks this run of
+        /// the scene means.
+        /// </summary>
+        private static GameObject FindNearestMark(Vector3 near, params string[] names)
         {
+            GameObject best = null;
+            var bestDistance = float.MaxValue;
+
             foreach (var name in names)
             {
                 if (string.IsNullOrEmpty(name)) continue;
                 var found = GameObject.Find(name);
-                if (found != null) return found;
+                if (found == null) continue;
+
+                var distance = (found.transform.position - near).sqrMagnitude;
+                if (distance >= bestDistance) continue;
+
+                best = found;
+                bestDistance = distance;
             }
-            return null;
+
+            return best;
+        }
+
+        /// <summary>Where the person doing the choosing is standing.</summary>
+        private static Vector3 ResolvePlayerPosition()
+        {
+            var locomotion = FindFirstObjectByType<PokeLab.Overworld.PlayerLocomotion>();
+            if (locomotion != null) return locomotion.transform.position;
+
+            var tagged = GameObject.FindGameObjectWithTag(PokeLab.Overworld.OverworldNames.PlayerTag);
+            if (tagged != null) return tagged.transform.position;
+
+            // No player at all is not a case worth staging for, but the camera at least knows
+            // roughly where the scene is, which keeps the nearest-mark test meaningful.
+            return Camera.main != null ? Camera.main.transform.position : Vector3.zero;
         }
 
         /// <summary>
@@ -283,41 +332,78 @@ namespace PokeLab.Boot
         /// </summary>
         private bool BuildStage()
         {
-            // Each mark is looked up with the field's equivalent behind it.
+            // The player, rather than a mark, is the fixed point of this whole method. Wherever
+            // the beat is playing, the person choosing is standing there.
             //
-            // These three name the lab doorway, and they are authored into Town and Overworld
-            // — which was right when the starter was handed over indoors. The story was
-            // restructured so the choice happens on the lake bank instead, out of the
-            // professor's own bag, and the marks did not move with it. In the field they
-            // resolve to nothing when Town is streamed out, and to a spot in the town square
-            // when it is not: either the case had nowhere to stand or it stood a hundred
-            // metres behind the player. Both look identical from the player's chair — the
-            // choice never appears.
-            var caseMark = FindMark(CaseMark, "Prop_ProfessorBag");
-            var professorMark = FindMark(ProfessorMark, "Mark_Prof_Return", "Mark_Rival_FieldPost");
-            var playerMark = FindMark(PlayerMark);
+            // The marks are not fixed points, because the map is two scenes held in one world
+            // space and both of them are loaded. 'Look_Case' is authored into Town for the
+            // version of this scene that happened at the lab door, and it was the first name
+            // tried — so at the lake it won, and the case, the three balls and the shot camera
+            // were all built in the town square behind the player. What that looks like from
+            // the player's chair is three labelled rings floating over nothing, which is
+            // exactly how it was reported.
+            var here = ResolvePlayerPosition();
 
-            // The player themselves, rather than a mark, is the last resort and the best one:
-            // wherever this beat is playing, the person choosing is standing there.
-            if (playerMark == null)
+            var caseMark = FindNearestMark(here, BagProp, CaseMark);
+            if (caseMark == null)
             {
-                var locomotion = FindFirstObjectByType<PokeLab.Overworld.PlayerLocomotion>();
-                if (locomotion != null) playerMark = locomotion.gameObject;
-            }
-
-            if (caseMark == null || professorMark == null || playerMark == null)
-            {
-                Debug.LogWarning($"[Starter] Neither '{CaseMark}' nor the field's bag is in any " +
-                                 "loaded scene, so the case has nowhere to stand. Their positions " +
-                                 "are in cast.json and LevelLayoutBuilder.BuildCast instantiates " +
-                                 "them; falling back to the dialogue list.", this);
+                Debug.LogWarning($"[Starter] Neither '{BagProp}' nor '{CaseMark}' is in any loaded " +
+                                 "scene, so the case has nowhere to stand. Their positions are in " +
+                                 "cast.json and LevelLayoutBuilder.BuildCast instantiates them; " +
+                                 "falling back to the dialogue list.", this);
                 return false;
             }
 
+            // The ground comes off the object, and the ball line comes off the ground.
+            //
+            // Both numbers used to be taken from marks — the case's own Y for the balls and
+            // the professor's mark for the ground — and the professor's mark is in the other
+            // band, so the ground came back as the town's height and the case stood three
+            // metres over the lake. The object standing here knows better: a drawn prop's
+            // bounds say exactly what it is sitting on, and an empty needs a trace.
+            //
+            // The lid height is not read from the prop, though, and that is deliberate. The
+            // balls stand in the briefcase this stage draws, not on top of whatever object
+            // marks the spot — the bag prop is a squashed crate 0.34 m tall standing in for a
+            // satchel, and putting the row on its top face buries it inside the drawn case.
+            // cast.json authored Look_Case at 0.53 m over the ground for precisely this
+            // reason: that is where the lid of a 0.59 m case is.
+            var mark = caseMark.transform.position;
+            var groundY = mark.y;
+            var ballY = mark.y;
+
+            var drawn = caseMark.GetComponentInChildren<Renderer>();
+            if (drawn != null)
+            {
+                var bounds = drawn.bounds;
+                mark = new Vector3(bounds.center.x, mark.y, bounds.center.z);
+                groundY = bounds.min.y;
+                ballY = groundY + CaseLidHeightMetres;
+            }
+            else
+            {
+                // An empty: its authored Y is already the ball line, and only the ground has
+                // to be found.
+                if (Physics.Raycast(mark + Vector3.up * 3f, Vector3.down, out var underfoot,
+                                    30f, ~0, QueryTriggerInteraction.Ignore))
+                    groundY = underfoot.point.y;
+                else groundY = mark.y - CaseLidHeightMetres;
+            }
+
+            var ballLine = new Vector3(mark.x, ballY, mark.z);
+
+            // The two flanking the case are the player and whoever came with them — not the
+            // professor. He is not at this choice any more: the bag is his and he has gone.
+            // With nobody else there the player is passed twice, which puts the camera on the
+            // far side of the case from them and is the right shot for one person alone.
+            var companion = GameObject.Find(CompanionActor);
+            var flank = companion != null
+                        && (companion.transform.position - here).sqrMagnitude < CompanionRange * CompanionRange
+                ? companion.transform.position
+                : here;
+
             var options = _selection.Options;
-            var stage = StarterCaseStage.Create(caseMark.transform.position,
-                professorMark.transform.position.y, professorMark.transform.position,
-                playerMark.transform.position);
+            var stage = StarterCaseStage.Create(ballLine, groundY, flank, here);
 
             var briefcase = PersonSpriteLibrary.Shared.Prop("briefcase");
             if (briefcase == null)
@@ -728,7 +814,9 @@ namespace PokeLab.Boot
             var labels = new string[options.Count];
             for (var i = 0; i < labels.Length; i++) labels[i] = options[i].DisplayName;
 
-            _view.ShowChoices(PokeLab.Core.Loc.Get(_speakerKey), PokeLab.Core.Loc.Get(_promptKey),
+            // Speaker-less here too. This is the same moment drawn worse, not a different one,
+            // and the professor is no more present in it.
+            _view.ShowChoices(string.Empty, PokeLab.Core.Loc.Get(_promptKey),
                 labels, index =>
                 {
                     _selection.Choose(index);

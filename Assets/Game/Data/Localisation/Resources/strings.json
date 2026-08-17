@@ -23,13 +23,8 @@
 
     {
       "key": "starter.prompt",
-      "en": "Three of them. Not one is a better choice than the others — only a different one. Take your time.",
-      "ko": "세 마리일세. 어느 쪽이 더 낫다는 건 없네. 다를 뿐이지. 천천히 고르게."
-    },
-    {
-      "key": "starter.speaker",
-      "en": "Linden",
-      "ko": "린든"
+      "en": "Three balls… which one.",
+      "ko": "볼이 셋… 어느 걸 집지."
     },
     {
       "key": "starter.blurb.1",

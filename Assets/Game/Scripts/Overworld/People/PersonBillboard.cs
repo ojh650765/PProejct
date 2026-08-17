@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace PokeLab.Overworld.People
 {
@@ -75,6 +76,8 @@ namespace PokeLab.Overworld.People
         private MaterialPropertyBlock _block;
         private Camera _camera;
         private Transform _motionSource;
+        private Transform _agentSource;
+        private NavMeshAgent _agent;
 
         private View _view = View.Front;
         private bool _mirror;
@@ -237,14 +240,61 @@ namespace PokeLab.Overworld.People
             delta.y = 0f;
 
             var dt = Mathf.Max(Time.deltaTime, 0.0001f);
-            // Smoothed, because a CharacterController's per-frame delta is noisy enough on
-            // slopes to rattle the clip between idle and walk while standing still.
-            _speed = Mathf.Lerp(_speed, delta.magnitude / dt, 1f - Mathf.Exp(-12f * dt));
+
+            // The agent's own speed wherever there is an agent to ask.
+            //
+            // A smoothed positional delta cannot tell walking from being moved, and this game
+            // moves people: a scripted walk that runs out of time or out of navmesh finishes
+            // with NavMeshAgent.Warp, which covers tens of metres in a single frame, and the
+            // smoothing then spent the best part of a second bleeding a phantom sprint back
+            // down. Worse at the other end — the tail never quite reaches zero, so a character
+            // an episode had parked on their mark stood there with the walk cycle still
+            // running. That is what Linden was doing on the bank after he had stopped. An
+            // agent reports exactly zero the moment it is stopped, which is the honest answer
+            // to the only question this asks.
+            var agent = ResolveAgent(source);
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                _speed = agent.velocity.magnitude;
+            }
+            else if (delta.magnitude <= MaxStepPerSecond * dt)
+            {
+                // Smoothed, because a CharacterController's per-frame delta is noisy enough on
+                // slopes to rattle the clip between idle and walk while standing still.
+                _speed = Mathf.Lerp(_speed, delta.magnitude / dt, 1f - Mathf.Exp(-12f * dt));
+            }
+            else
+            {
+                // Further than anybody can travel in one frame, so it was not travel. The
+                // sprite holds whatever it was doing across the jump rather than reading it as
+                // a sprint and facing whichever way the teleport happened to point.
+                delta = Vector3.zero;
+            }
 
             if (delta.sqrMagnitude > 1e-6f)
                 _facingYaw = Mathf.Atan2(delta.x, delta.z) * Mathf.Rad2Deg;
             else if (source != transform)
                 _facingYaw = source.eulerAngles.y;
+        }
+
+        /// <summary>
+        /// Metres per second above which a frame's movement is read as a teleport. Comfortably
+        /// over the player's own run, which is the fastest anything here travels under its own
+        /// legs.
+        /// </summary>
+        private const float MaxStepPerSecond = 12f;
+
+        /// <summary>
+        /// The agent driving this character, or null for the player and anyone walked by hand.
+        /// Cached against the source rather than looked up per frame, and re-resolved if the
+        /// motion source is ever changed.
+        /// </summary>
+        private NavMeshAgent ResolveAgent(Transform source)
+        {
+            if (ReferenceEquals(source, _agentSource)) return _agent;
+            _agentSource = source;
+            _agent = source != null ? source.GetComponent<NavMeshAgent>() : null;
+            return _agent;
         }
 
         private void FaceCamera()

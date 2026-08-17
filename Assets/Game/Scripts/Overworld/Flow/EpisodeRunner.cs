@@ -58,6 +58,34 @@ namespace PokeLab.Overworld
         /// `seconds` is a timeout, as with <see cref="MoveActor"/>.
         /// </summary>
         CreatureApproach = 15,
+        /// <summary>
+        /// Walk the actor named by `id` to the player's shoulder and block until they are
+        /// there. `seconds` is a timeout, as with <see cref="MoveActor"/>.
+        ///
+        /// Exists because the marks are authored in cast.json and the player is not anywhere
+        /// an author can point at: the companion who has to be standing beside them when the
+        /// grass moves has no mark to walk to, and inventing one would fix the shot to a spot
+        /// the player may not be standing on.
+        /// </summary>
+        MoveActorToPlayer = 16,
+        /// <summary>
+        /// Ring the player — and the actor named by `id`, when there is one — with wild
+        /// creatures, or take the ring away again when `value` is false.
+        ///
+        /// `target` is the game species id and falls back to the staged creature's own;
+        /// `amount` is how many; and `seconds` is the ring's radius in metres rather than any
+        /// kind of wait, because this beat does not wait for anything.
+        /// </summary>
+        StageRing = 17,
+        /// <summary>
+        /// Send an actor out of the scene toward the marker named by `target`, and stop
+        /// drawing them the moment the camera can no longer see them. `seconds` is a ceiling.
+        ///
+        /// `value` false leaves them drawn and standing on the mark instead of removing them,
+        /// which is how a walk the navmesh cannot carry — the town/field seam — is finished
+        /// off camera rather than in full view.
+        /// </summary>
+        ExitActor = 18,
     }
 
     [Serializable]
@@ -149,6 +177,10 @@ namespace PokeLab.Overworld
         [SerializeField] private float _arriveDistance = 0.35f;
         [Tooltip("Fallback walk timeout for a MoveActor beat that authored no seconds.")]
         [SerializeField] private float _defaultMoveTimeoutSeconds = 8f;
+        [Tooltip("Fallback ceiling on an ExitActor beat. Longer than a walk to a mark, because " +
+                 "the beat is not waiting on a mark — it is waiting for the actor to be out of " +
+                 "shot, and how long that takes depends on where the camera is pointing.")]
+        [SerializeField] private float _defaultExitTimeoutSeconds = 14f;
 
         [Header("Ceilings")]
         [Tooltip("Seconds a wipe may take before the beat gives up on it and forces the screen " +
@@ -353,7 +385,6 @@ namespace PokeLab.Overworld
                 // The alternative is a player who cannot move and no message saying why,
                 // which is the worst failure this system can have.
                 if (tookControl) SetControl(true);
-                ClearStagedCreature();
 
                 // Marked done only if it was actually done, the way StoryEncounter's _spoke
                 // guard does it.
@@ -382,13 +413,32 @@ namespace PokeLab.Overworld
                 // between. One such frame is enough for the StoryEncounter waiting on it to
                 // decide the scene is over and hand control back to the player halfway
                 // through what the script treats as one continuous act.
-                if (!string.IsNullOrEmpty(episode.NextEpisodeId)
-                    && !Play(episode.NextEpisodeId)
-                    && !AlreadyPlayed(episode.NextEpisodeId))
+                var handedOn = false;
+                if (!string.IsNullOrEmpty(episode.NextEpisodeId))
                 {
-                    Debug.LogWarning($"[Episode] '{episode.Id}' names '{episode.NextEpisodeId}' as " +
-                                     "what follows it and it would not start, so the act ends here " +
-                                     "with the player free and nothing left to walk towards.", this);
+                    handedOn = Play(episode.NextEpisodeId);
+                    if (!handedOn && !AlreadyPlayed(episode.NextEpisodeId))
+                        Debug.LogWarning($"[Episode] '{episode.Id}' names '{episode.NextEpisodeId}' " +
+                                         "as what follows it and it would not start, so the act ends " +
+                                         "here with the player free and nothing left to walk towards.",
+                                         this);
+                }
+
+                // The staging comes down after the hand-off, and it used to come down before it.
+                //
+                // Two episodes joined by NextEpisodeId are one scene split for authoring, and
+                // 'field_bag_left' is the case that proves the seam has to be invisible: it is
+                // the beat that stands the ambusher up in the grass, and 'field_ambush' — the
+                // half it hands to — is entirely about that creature. Cleared ahead of the
+                // hand-off, the creature was destroyed on the line before the episode that
+                // needs it started. So every run of the act logged "CreatureApproach with
+                // nothing staged", played no approach, fought no wild battle and opened the
+                // starter choice with nothing standing over it. The first half built the scene
+                // and the join threw it away.
+                if (!handedOn)
+                {
+                    ClearStagedCreature();
+                    ClearRing();
                 }
             }
         }
@@ -467,6 +517,18 @@ namespace PokeLab.Overworld
 
                 case EpisodeBeatKind.MoveActor:
                     yield return RunMoveActor(beat);
+                    break;
+
+                case EpisodeBeatKind.MoveActorToPlayer:
+                    yield return RunMoveActorToPlayer(beat);
+                    break;
+
+                case EpisodeBeatKind.ExitActor:
+                    yield return RunExitActor(beat);
+                    break;
+
+                case EpisodeBeatKind.StageRing:
+                    yield return RunStageRing(beat);
                     break;
 
                 case EpisodeBeatKind.AskName:
@@ -911,7 +973,10 @@ namespace PokeLab.Overworld
             }
 
             var timeout = beat.Seconds > 0.01f ? beat.Seconds : _defaultMoveTimeoutSeconds;
-            var body = actor.transform;
+
+            TakeActor(actor);
+            ShowActor(actor);
+
             // The marker's Y came off a path control point rather than the terrain, so it is
             // trusted for where to stand and not for how high to stand there.
             // The marker's own height, not the walker's.
@@ -920,32 +985,87 @@ namespace PokeLab.Overworld
             // a slope arrived at the height they set off from — Kes crossing the bank sank
             // into it on the way down and floated over it on the way up. The marker is seated
             // on the ground by the level builder, so its height is the right one to arrive at.
-            var destination = marker.position;
+            yield return WalkActorTo(actor, marker.position, timeout, beat.Id, beat.Target);
 
-            var agent = actor.GetComponent<NavMeshAgent>();
+            // `Value: false` is a departure rather than an arrival, and a man who has just
+            // said he is leaving must not turn round and look at you the moment he stops.
+            if (beat.Value) yield return FacePlayer(actor);
+        }
+
+        /// <summary>
+        /// Walks the actor named by the beat to wherever the player is standing.
+        ///
+        /// Not to the player's own position — walking into somebody leaves the two sprites
+        /// interpenetrating for the rest of the scene — but to a point at
+        /// <see cref="CompanionStandDistance"/> on the side they are coming from, so they
+        /// arrive beside the player rather than through them.
+        /// </summary>
+        private IEnumerator RunMoveActorToPlayer(EpisodeBeat beat)
+        {
+            var actor = FindActor(beat.Id);
+            if (actor == null)
+            {
+                Debug.LogWarning($"[Episode] MoveActorToPlayer: no actor '{beat.Id}' in the scene, " +
+                                 "so nobody came. The lines that follow are written for two people " +
+                                 "standing together and will play with one.", this);
+                yield break;
+            }
+
+            var player = FindActor(PlayerActorName);
+            if (player == null || player == actor) yield break;
+
+            TakeActor(actor);
+            ShowActor(actor);
+
+            var timeout = beat.Seconds > 0.01f ? beat.Seconds : _defaultMoveTimeoutSeconds;
+            yield return WalkActorTo(actor, ShoulderPoint(player.transform, actor.transform.position),
+                timeout, beat.Id, "the player's side");
+
+            if (beat.Value) yield return FacePlayer(actor);
+        }
+
+        /// <summary>
+        /// Walks an actor to a point and blocks until it gets there, snapping it onto the
+        /// point if it does not.
+        ///
+        /// The arrival test is the whole of this method's difficulty. Reaching the end of the
+        /// current path is not the same as reaching the destination: Town and Field bake
+        /// separate navmeshes with nothing linking them, so a walk across the seam comes back
+        /// <c>PathPartial</c>, the agent runs to the last metre of its own mesh and
+        /// <c>remainingDistance</c> falls to nothing there. Read as arrival — which is what
+        /// this did — the actor stops at the edge of the town, no warning is logged because
+        /// nothing timed out, and they stand there for the rest of the act. That is what
+        /// "친구가 이상한 위치에 정착함" looks like from the player's chair.
+        /// </summary>
+        private IEnumerator WalkActorTo(GameObject actor, Vector3 destination, float timeout,
+            string who, string where)
+        {
+            var body = actor.transform;
             var locomotion = actor.GetComponent<PlayerLocomotion>();
+            var agent = actor.GetComponent<NavMeshAgent>();
             var arrived = false;
+            var truncated = false;
             var elapsed = 0f;
 
             if (agent != null && agent.enabled && agent.isOnNavMesh)
             {
                 agent.isStopped = false;
                 agent.stoppingDistance = _arriveDistance;
-                agent.SetDestination(marker.position);
+                agent.SetDestination(destination);
 
                 while (elapsed < timeout)
                 {
                     elapsed += Time.deltaTime;
                     if (!agent.pathPending && agent.remainingDistance <= _arriveDistance)
                     {
-                        arrived = true;
+                        truncated = agent.pathStatus != NavMeshPathStatus.PathComplete;
+                        arrived = !truncated;
                         break;
                     }
                     yield return null;
                 }
 
-                agent.isStopped = true;
-                agent.ResetPath();
+                StopAgent(agent);
             }
             else
             {
@@ -973,15 +1093,308 @@ namespace PokeLab.Overworld
                 }
             }
 
-            if (!arrived)
+            if (arrived) yield break;
+
+            // Both failures end in the same snap and are worth telling apart, because they are
+            // fixed in different places: a timeout is a walk that needs longer, and a truncated
+            // path is a walk this scene cannot make at all and has to be played off camera.
+            if (truncated)
+                Debug.LogWarning($"[Episode] '{who}' walked as far as the navmesh reaches and stopped " +
+                                 $"{Flatten(destination - body.position).magnitude:0.0} m short of " +
+                                 $"'{where}', so the rest of it was a snap the player watched. Town " +
+                                 "and Field bake their own navmeshes and nothing links them; a beat " +
+                                 "that crosses the seam belongs in an ExitActor, which leaves the " +
+                                 "shot first.", this);
+            else
+                Debug.LogWarning($"[Episode] '{who}' did not reach '{where}' within {timeout:0.0}s " +
+                                 "and was snapped there. The scene needs them on that mark for the " +
+                                 "next beat to frame; give the beat more seconds rather than a " +
+                                 "shorter walk.", this);
+
+            PlaceActor(body, locomotion, destination, body.rotation);
+            StopAgent(agent);
+        }
+
+        /// <summary>
+        /// Sends an actor away and stops drawing them once nothing can see them.
+        ///
+        /// The marker is the direction they left in, not the end of the journey. Linden says
+        /// he is going back to write his notes up, and a man who walks eight metres and then
+        /// stands in frame for the rest of the scene has not gone anywhere — so the walk keeps
+        /// extending along the same bearing until the camera has lost him, and only then is he
+        /// taken off the screen. Nothing disappears in view, which is the one thing this must
+        /// not do; and nothing is left standing on the bank, which is the thing it is for.
+        /// </summary>
+        private IEnumerator RunExitActor(EpisodeBeat beat)
+        {
+            var actor = FindActor(beat.Id);
+            if (actor == null)
             {
-                Debug.LogWarning($"[Episode] '{beat.Id}' did not reach '{beat.Target}' within " +
-                                 $"{timeout:0.0}s and was snapped there. The scene needs them on " +
-                                 "that mark for the next beat to frame.", this);
-                PlaceActor(body, locomotion, destination, body.rotation);
+                Debug.LogWarning($"[Episode] ExitActor: no actor '{beat.Id}' in the scene, so " +
+                                 "nobody left. The beat is skipped.", this);
+                yield break;
             }
 
-            yield return FacePlayer(actor);
+            var marker = FindMarker(beat.Target);
+            if (marker == null)
+            {
+                Debug.LogWarning($"[Episode] ExitActor: no marker '{beat.Target}' in the scene, so " +
+                                 $"'{beat.Id}' has no direction to leave in and stayed where they " +
+                                 "are. The marker's world position is in cast.json.", this);
+                yield break;
+            }
+
+            TakeActor(actor);
+            ShowActor(actor);
+
+            var body = actor.transform;
+            var locomotion = actor.GetComponent<PlayerLocomotion>();
+            var agent = actor.GetComponent<NavMeshAgent>();
+            var renderers = actor.GetComponentsInChildren<Renderer>();
+
+            var heading = Flatten(marker.position - body.position);
+            if (heading.sqrMagnitude < 1e-4f) heading = Flatten(body.forward);
+            if (heading.sqrMagnitude < 1e-4f) heading = Vector3.forward;
+            heading = heading.normalized;
+
+            var destination = marker.position;
+            var timeout = beat.Seconds > 0.01f ? beat.Seconds : _defaultExitTimeoutSeconds;
+            var elapsed = 0f;
+            var gone = false;
+            var stranded = false;
+
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.isStopped = false;
+                // Zero, not the arrival tolerance: somebody leaving does not slow down and stop
+                // politely on a mark they are only passing through.
+                agent.stoppingDistance = 0f;
+                agent.SetDestination(destination);
+            }
+
+            while (elapsed < timeout)
+            {
+                elapsed += Time.deltaTime;
+
+                // Given a beat of grace before the test counts. On the frame the beat starts the
+                // camera may still be blending off whatever the last shot was, and an actor who
+                // is off screen for that one frame would be removed before taking a step.
+                if (elapsed > ExitGraceSeconds && IsOutOfShot(renderers))
+                {
+                    gone = true;
+                    break;
+                }
+
+                if (agent != null && agent.enabled && agent.isOnNavMesh)
+                {
+                    if (!agent.pathPending && agent.remainingDistance <= 0.6f)
+                    {
+                        var next = ExtendAlongMesh(destination, heading, ExitStrideMetres);
+                        if (next == destination) { stranded = true; break; }
+                        destination = next;
+                        agent.SetDestination(destination);
+                    }
+                }
+                else
+                {
+                    var step = Vector3.MoveTowards(body.position, destination,
+                        _actorWalkSpeed * Time.deltaTime);
+                    var facing = Flatten(destination - body.position);
+                    PlaceActor(body, locomotion, step,
+                        facing.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(facing) : body.rotation);
+
+                    if (Physics.Raycast(body.position + Vector3.up * 3f, Vector3.down,
+                                        out var underfoot, 30f, ~0, QueryTriggerInteraction.Ignore))
+                        body.position = new Vector3(body.position.x, underfoot.point.y, body.position.z);
+
+                    if (Flatten(destination - body.position).magnitude <= 0.4f)
+                        destination += heading * ExitStrideMetres;
+                }
+
+                yield return null;
+            }
+
+            StopAgent(agent);
+
+            if (!gone)
+            {
+                // Loud, because the alternative is the thing this beat exists to prevent: an
+                // actor removed, or parked, while the player is looking straight at them.
+                Debug.LogError($"[Episode] '{beat.Id}' was still in shot after {timeout:0.0}s of " +
+                               $"walking away toward '{beat.Target}'" +
+                               (stranded ? " and ran out of navmesh on the way" : "") +
+                               ". They are being taken off the screen in view of the player, which " +
+                               "reads as a bug. The mark needs to lead somewhere the camera cannot " +
+                               "follow, or the beat needs longer.", this);
+            }
+
+            // Set down on the mark whichever way this ended. It is verified ground with navmesh
+            // under it, where "however far along the bearing they got" is not; and for the actor
+            // who stays drawn this is the off-camera half of a walk the navmesh could not carry.
+            var landing = NavMesh.SamplePosition(marker.position, out var onMesh, 4f, NavMesh.AllAreas)
+                ? onMesh.position
+                : marker.position;
+            PlaceActor(body, locomotion, landing, body.rotation);
+            StopAgent(agent);
+
+            if (beat.Value) HideActor(actor, renderers);
+        }
+
+        /// <summary>Metres an exit walk reaches ahead of itself once it is past its mark.</summary>
+        private const float ExitStrideMetres = 8f;
+
+        /// <summary>Seconds before the out-of-shot test is believed. Covers a camera blend.</summary>
+        private const float ExitGraceSeconds = 0.4f;
+
+        /// <summary>Metres a companion stops short of the player. Just outside their capsule.</summary>
+        private const float CompanionStandDistance = 1.4f;
+
+        /// <summary>The player's object, by name. What <see cref="FacePlayer"/> has always used.</summary>
+        private const string PlayerActorName = "Player";
+
+        /// <summary>
+        /// A point beside the player on the side <paramref name="from"/> is approaching from,
+        /// on the navmesh where there is one to put it on.
+        /// </summary>
+        private static Vector3 ShoulderPoint(Transform player, Vector3 from)
+        {
+            var away = Flatten(from - player.position);
+            if (away.sqrMagnitude < 1e-4f) away = Flatten(-player.forward);
+            if (away.sqrMagnitude < 1e-4f) away = Vector3.forward;
+
+            var point = player.position + away.normalized * CompanionStandDistance;
+            return NavMesh.SamplePosition(point, out var hit, 2.5f, NavMesh.AllAreas) ? hit.position : point;
+        }
+
+        /// <summary>
+        /// The next point along a departure, or the point given back unchanged when the walk
+        /// has run out of ground to continue on.
+        /// </summary>
+        private static Vector3 ExtendAlongMesh(Vector3 from, Vector3 heading, float metres)
+        {
+            var probe = from + heading * metres;
+            return NavMesh.SamplePosition(probe, out var hit, metres, NavMesh.AllAreas)
+                ? hit.position
+                : from;
+        }
+
+        /// <summary>
+        /// Whether nothing drawn for this actor is inside the camera's frustum.
+        ///
+        /// No camera and nothing drawn both count as out of shot: in either case there is
+        /// nobody who could see the actor leave.
+        /// </summary>
+        private static bool IsOutOfShot(Renderer[] renderers)
+        {
+            var camera = Camera.main;
+            if (camera == null || renderers == null || renderers.Length == 0) return true;
+
+            var planes = GeometryUtility.CalculateFrustumPlanes(camera);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null || !renderers[i].enabled) continue;
+                if (GeometryUtility.TestPlanesAABB(planes, renderers[i].bounds)) return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Brings an agent to a genuine standstill.
+        ///
+        /// The velocity is cleared as well as the path, and that is not belt and braces: the
+        /// sprite layer reads the agent's own velocity to decide between the walk cycle and
+        /// the idle pose, so an agent that is coasting to a halt is a character still walking
+        /// on the spot. It is what left Linden animating a stride on a mark he had reached.
+        /// </summary>
+        private static void StopAgent(NavMeshAgent agent)
+        {
+            if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
+        }
+
+        // --- Actors the scene has taken over ---------------------------------------------------
+
+        /// <summary>What was switched off to take an actor off the screen, so it can go back on.</summary>
+        private sealed class DepartedActor
+        {
+            public Renderer[] Renderers;
+            public Collider[] Colliders;
+        }
+
+        private readonly Dictionary<GameObject, DepartedActor> _departed =
+            new Dictionary<GameObject, DepartedActor>();
+
+        /// <summary>
+        /// Takes an actor over, and does not give them back.
+        ///
+        /// A scripted walk and a daily routine are two things driving one NavMeshAgent, and
+        /// until now the routine won: <see cref="NpcController"/> picks a fresh destination
+        /// inside its waypoint's drift radius as soon as it believes it has arrived, so an
+        /// actor a beat had just put on a mark set off back toward the waypoint the layout
+        /// gave them. Kes' waypoint is the town square and the beat that moves him ends at
+        /// the lake, which is a fifty-metre correction with nothing to explain it.
+        ///
+        /// Never released, and cast.json already records why: "an actor ends a scene wherever
+        /// the last MoveActor left them". A later beat that wants them elsewhere says so; a
+        /// scene that says nothing about them wants them exactly where it left them.
+        /// </summary>
+        private static void TakeActor(GameObject actor)
+        {
+            var npc = actor != null ? actor.GetComponent<NpcController>() : null;
+            if (npc != null) npc.ScriptedHold = true;
+        }
+
+        /// <summary>Stops drawing an actor and takes them out of the player's way.</summary>
+        private void HideActor(GameObject actor, Renderer[] renderers)
+        {
+            if (actor == null || _departed.ContainsKey(actor)) return;
+
+            // Only what was switched on is recorded, and therefore only what was switched on is
+            // ever switched back. Restoring everything found would turn on a collider some
+            // other system had deliberately turned off, and the actor would come back subtly
+            // different from the one that left.
+            var record = new DepartedActor
+            {
+                Renderers = OnlyEnabled(renderers ?? actor.GetComponentsInChildren<Renderer>(),
+                    r => r.enabled),
+                Colliders = OnlyEnabled(actor.GetComponentsInChildren<Collider>(), c => c.enabled),
+            };
+
+            // The renderers and the colliders, not the GameObject. Everything that looks an
+            // actor up does it by name through GameObject.Find, which does not see an inactive
+            // object — so deactivating them would make the episode that brings them back
+            // report that they are not in the scene at all.
+            foreach (var part in record.Renderers) part.enabled = false;
+            foreach (var solid in record.Colliders) solid.enabled = false;
+
+            _departed[actor] = record;
+        }
+
+        private static T[] OnlyEnabled<T>(T[] parts, Func<T, bool> isOn) where T : Component
+        {
+            var kept = new List<T>(parts.Length);
+            for (var i = 0; i < parts.Length; i++)
+                if (parts[i] != null && isOn(parts[i])) kept.Add(parts[i]);
+            return kept.ToArray();
+        }
+
+        /// <summary>
+        /// Puts a departed actor back on the screen. Harmless on one that never left.
+        ///
+        /// Called at the top of every beat that moves somebody, because a beat that sends an
+        /// actor somewhere plainly wants them visible. The scene has to be framed away from
+        /// where they left from before that beat runs — see the CameraTo ordering in
+        /// 'field_professor_returns' — or the player watches them come back into existence.
+        /// </summary>
+        private void ShowActor(GameObject actor)
+        {
+            if (actor == null || !_departed.TryGetValue(actor, out var record)) return;
+            _departed.Remove(actor);
+
+            foreach (var part in record.Renderers) if (part != null) part.enabled = true;
+            foreach (var solid in record.Colliders) if (solid != null) solid.enabled = true;
         }
 
         /// <summary>
@@ -1017,7 +1430,7 @@ namespace PokeLab.Overworld
         /// <summary>Turns an actor to face the player on arrival. Talking to a shoulder reads as broken.</summary>
         private IEnumerator FacePlayer(GameObject actor)
         {
-            var player = FindActor("Player");
+            var player = FindActor(PlayerActorName);
             if (player == null || player == actor) yield break;
 
             var body = actor.transform;
@@ -1071,7 +1484,7 @@ namespace PokeLab.Overworld
                 yield break;
             }
 
-            var player = FindActor("Player");
+            var player = FindActor(PlayerActorName);
             var body = player != null ? player.transform : transform;
             var rng = new DeterministicRandom(DeterministicRandom.HashString(beat.Id ?? "battle"));
 
@@ -1182,13 +1595,24 @@ namespace PokeLab.Overworld
             // position is settled first, and where there is no navmesh within reach the agent
             // is not added at all: a creature that walks nowhere is better than one that
             // throws on every step.
-            if (!UnityEngine.AI.NavMesh.SamplePosition(host.transform.position, out var onMesh, 6f,
-                                                       UnityEngine.AI.NavMesh.AllAreas))
+            //
+            // The mark, and not wherever the new object happens to be. This sampled
+            // host.transform.position, and a GameObject that has just been constructed is at
+            // the world origin — which in this world is a point in mid-air between the town
+            // and the lake with no navmesh within a hundred metres of it. So every single run
+            // took the branch below, logged that there was no mesh near (0.0, 0.0, 0.0), and
+            // placed nothing: the ambusher never existed, CreatureApproach reported "nothing
+            // staged", and the battle the whole act builds to had no creature to fight. The
+            // mark was already resolved a few lines above and simply never used.
+            host.transform.position = stand;
+
+            if (!NavMesh.SamplePosition(stand, out var onMesh, 6f, NavMesh.AllAreas))
             {
-                Debug.LogWarning($"[Episode] No navmesh within 6 m of {host.transform.position}, so no agent " +
+                Debug.LogWarning($"[Episode] No navmesh within 6 m of {stand}, so no agent " +
                                  "was created, so the ambush has nothing to stage. The beat " +
                                  "ends here rather than holding the player's control for a " +
                                  "creature that will never arrive.");
+                Destroy(host);
                 yield break;
             }
             host.transform.position = onMesh.position;
@@ -1209,7 +1633,7 @@ namespace PokeLab.Overworld
 
             // Turned to face the player from the start. A creature standing side-on in the grass
             // reads as scenery; one looking at you reads as the thing the next line is about.
-            var player = FindActor("Player");
+            var player = FindActor(PlayerActorName);
             if (player != null)
             {
                 var facing = Flatten(player.transform.position - host.transform.position);
@@ -1235,7 +1659,7 @@ namespace PokeLab.Overworld
             var marker = FindMarker(markerName);
             if (marker != null) return marker.position;
 
-            var player = FindActor("Player");
+            var player = FindActor(PlayerActorName);
             var origin = player != null ? player.transform : transform;
             var guess = origin.position + Flatten(origin.forward).normalized * 6f;
 
@@ -1269,7 +1693,7 @@ namespace PokeLab.Overworld
                 yield break;
             }
 
-            var player = FindActor("Player");
+            var player = FindActor(PlayerActorName);
             if (player == null) yield break;
 
             var body = _staged.transform;
@@ -1401,6 +1825,217 @@ namespace PokeLab.Overworld
             if (_staged == null) return;
             Destroy(_staged.gameObject);
             _staged = null;
+        }
+
+        // --- The encirclement -------------------------------------------------------------------
+
+        /// <summary>The wild creatures currently standing round the player. Empty most of the time.</summary>
+        private readonly List<RoamingCreature> _ring = new List<RoamingCreature>();
+
+        /// <summary>Name every creature in the ring is given, so a capture can be read.</summary>
+        private const string RingCreatureName = "Actor_RingCreature";
+
+        /// <summary>Metres out the ring stands when the beat authored no radius.</summary>
+        private const float DefaultRingRadius = 4.5f;
+
+        /// <summary>
+        /// Puts a ring of wild creatures round the player and whoever is with them.
+        ///
+        /// The ambush's own line has said "양쪽이야! 우리 둘 다 둘러싸였어!" since the act was
+        /// written and nothing on screen ever agreed with it: one Rattata stood in the grass
+        /// and the two of them were cornered by it in dialogue only. This is what makes the
+        /// line true.
+        ///
+        /// <see cref="RoamingCreature"/> again, for the reasons set out on
+        /// <see cref="RunStageCreature"/> — it already resolves the Gen 5 sprite, already walks
+        /// on the same navmesh and is already held still by <c>ScriptedHold</c>, which is also
+        /// what stops one of these bumping into the player and opening a battle in the middle
+        /// of the choice. And <see cref="RoamingCreatureSpawner"/> again deliberately not: its
+        /// entire job is to keep creatures at least twenty-two metres away and out of view, it
+        /// is switched off for the length of the prologue, and what this beat needs is the
+        /// exact opposite of all of that.
+        ///
+        /// Deterministic, like everything else that places things in this world: the ring is
+        /// seeded off the beat rather than off Random, so the same scene stages the same
+        /// encirclement every time it is played and a capture can be compared with the last one.
+        /// </summary>
+        private IEnumerator RunStageRing(EpisodeBeat beat)
+        {
+            if (!beat.Value)
+            {
+                yield return ScatterRing();
+                yield break;
+            }
+
+            ClearRing();
+
+            var player = FindActor(PlayerActorName);
+            if (player == null)
+            {
+                Debug.LogWarning("[Episode] StageRing with no player in the scene, so there is " +
+                                 "nobody to surround. The beat is skipped.", this);
+                yield break;
+            }
+
+            // The centre is the pair, not the player. Ringing the player alone leaves the friend
+            // standing outside the circle watching it happen, which is the staging the line
+            // "우리 둘 다" exists to contradict.
+            var companion = string.IsNullOrEmpty(beat.Id) ? null : FindActor(beat.Id);
+            var centre = companion != null && companion != player
+                ? (player.transform.position + companion.transform.position) * 0.5f
+                : player.transform.position;
+
+            var speciesId = 0;
+            if (!string.IsNullOrEmpty(beat.Target)) int.TryParse(beat.Target, out speciesId);
+            // The staged ambusher's own species by default, because these are its flock: the
+            // creature that walks out of the ring at the player has to be one of the ones
+            // standing in it or the encirclement is scenery.
+            if (speciesId <= 0 && _staged != null) speciesId = _staged.SpeciesId;
+            if (speciesId <= 0)
+            {
+                Debug.LogWarning($"[Episode] StageRing: '{beat.Target}' is not a game species id " +
+                                 "and no creature is staged to borrow one from. Nothing was " +
+                                 "placed, so the pair are cornered in the dialogue only.", this);
+                yield break;
+            }
+
+            var level = _staged != null ? _staged.Level : 1;
+            var wanted = Mathf.Clamp(beat.Amount, 3, 12);
+            var radius = beat.Seconds > 0.5f ? beat.Seconds : DefaultRingRadius;
+
+            var rng = new DeterministicRandom(
+                DeterministicRandom.HashString("ring:" + beat.Id + ":" + speciesId + ":" + wanted));
+            var turn = rng.Range(0f, 360f);
+
+            for (var i = 0; i < wanted; i++)
+            {
+                // Spaced evenly and then knocked off it, because a ring of creatures at exact
+                // intervals is a fence. The jitter is small enough that the shape still reads
+                // as a circle closing in.
+                var bearing = (turn + i * (360f / wanted) + rng.Range(-14f, 14f)) * Mathf.Deg2Rad;
+                var reach = radius + rng.Range(-0.5f, 0.9f);
+                var wantedPoint = centre + new Vector3(Mathf.Sin(bearing), 0f, Mathf.Cos(bearing)) * reach;
+
+                if (!NavMesh.SamplePosition(wantedPoint, out var onMesh, 3f, NavMesh.AllAreas)) continue;
+
+                // A sample near the water or a cliff can be dragged back in on top of the pair.
+                // Better a gap in the ring than a Rattata standing inside the player.
+                if (Flatten(onMesh.position - centre).magnitude < radius * 0.55f) continue;
+
+                _ring.Add(BuildRingCreature(onMesh.position, centre, speciesId, level));
+            }
+
+            if (_ring.Count == 0)
+            {
+                Debug.LogWarning($"[Episode] StageRing found no navmesh anywhere on a {radius:0.0} m " +
+                                 $"ring around {centre}, so the pair are not surrounded by anything. " +
+                                 "Either the ring is out over the water or the bake does not reach " +
+                                 "this part of the bank.", this);
+                yield break;
+            }
+
+            if (_ring.Count < wanted)
+                Debug.Log($"[Episode] StageRing placed {_ring.Count} of {wanted}; the rest of the " +
+                          "ring had no walkable ground under it.", this);
+
+            yield break;
+        }
+
+        private RoamingCreature BuildRingCreature(Vector3 stand, Vector3 centre, int speciesId, int level)
+        {
+            var host = new GameObject(RingCreatureName);
+
+            var creatureLayer = LayerMask.NameToLayer(OverworldNames.LayerCreature);
+            if (creatureLayer >= 0) host.layer = creatureLayer;
+
+            // Settled before the agent exists, for the reason spelled out in RunStageCreature:
+            // an agent added at a position off the mesh fails to create and then throws on
+            // every call for the rest of its life.
+            host.transform.position = stand;
+
+            var agent = host.AddComponent<NavMeshAgent>();
+            agent.autoBraking = true;
+            agent.angularSpeed = 360f;
+            agent.acceleration = 12f;
+            agent.stoppingDistance = 0.35f;
+            agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
+
+            var creature = host.AddComponent<RoamingCreature>();
+            creature.Configure(speciesId, level, Temperament.Placid, stand);
+            // Held, and that is what makes a ring safe. Loose, every one of these has a contact
+            // radius that opens a battle, so a ring of them standing a few metres off a player
+            // who has no party yet is a ring of chances to start a fight mid-choice.
+            creature.ScriptedHold = true;
+
+            var facing = Flatten(centre - host.transform.position);
+            if (facing.sqrMagnitude > 1e-4f) host.transform.rotation = Quaternion.LookRotation(facing);
+
+            return creature;
+        }
+
+        /// <summary>
+        /// Breaks the ring by sending it outward and then removing it.
+        ///
+        /// A ring that blinks out is a ring that was never there. They are still held, so
+        /// nothing here can turn into a battle; the agents are simply pointed away and the
+        /// creatures are destroyed once they have had long enough to read as running off.
+        /// </summary>
+        private IEnumerator ScatterRing()
+        {
+            if (_ring.Count == 0) yield break;
+
+            var centre = Vector3.zero;
+            var counted = 0;
+            for (var i = 0; i < _ring.Count; i++)
+            {
+                if (_ring[i] == null) continue;
+                centre += _ring[i].transform.position;
+                counted++;
+            }
+            if (counted > 0) centre /= counted;
+
+            for (var i = 0; i < _ring.Count; i++)
+            {
+                var creature = _ring[i];
+                if (creature == null) continue;
+
+                var agent = creature.GetComponent<NavMeshAgent>();
+                if (agent == null || !agent.enabled || !agent.isOnNavMesh) continue;
+
+                var away = Flatten(creature.transform.position - centre);
+                if (away.sqrMagnitude < 1e-4f) away = Flatten(creature.transform.forward);
+                if (away.sqrMagnitude < 1e-4f) away = Vector3.forward;
+
+                var target = ExtendAlongMesh(creature.transform.position, away.normalized, 12f);
+                agent.speed = ScatterSpeed;
+                agent.isStopped = false;
+                agent.SetDestination(target);
+            }
+
+            yield return new WaitForSeconds(ScatterSeconds);
+            ClearRing();
+        }
+
+        /// <summary>Metres per second the flock breaks at. Above RoamingCreature's run threshold.</summary>
+        private const float ScatterSpeed = 4.6f;
+
+        /// <summary>Seconds the break is watched before the creatures are removed.</summary>
+        private const float ScatterSeconds = 1.2f;
+
+        /// <summary>
+        /// Removes the ring, on every path out of the episode.
+        ///
+        /// Unconditional and for the same reason <see cref="ClearStagedCreature"/> is: left
+        /// behind by a scene that was cut short, these are held wild creatures no spawner owns
+        /// and nothing will ever despawn, standing in a circle on an empty bank.
+        /// </summary>
+        private void ClearRing()
+        {
+            for (var i = 0; i < _ring.Count; i++)
+            {
+                if (_ring[i] != null) Destroy(_ring[i].gameObject);
+            }
+            _ring.Clear();
         }
 
         // --- Starter -------------------------------------------------------------------------

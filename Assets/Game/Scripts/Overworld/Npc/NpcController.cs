@@ -302,11 +302,54 @@ namespace PokeLab.Overworld
             if (entry >= 0) ApplyEntry(entry, warp: true);
         }
 
+        /// <summary>
+        /// Hands this character to whoever staged them, and takes their routine away.
+        ///
+        /// A scripted walk and a daily routine are two things driving one NavMeshAgent, and
+        /// without this the routine wins. <see cref="TickIdle"/> picks a fresh destination
+        /// inside the waypoint's drift radius the moment it believes it has arrived, so a
+        /// character an episode has just walked across town sets off back toward the waypoint
+        /// the layout gave them — and the layout's waypoint is where they started. Kes' is the
+        /// town square and the beat that moves him ends at the lake, so what the player saw
+        /// after the send-off was their friend quietly walking back to the square, or standing
+        /// wherever the correction had got to when they next looked.
+        ///
+        /// It is never lifted. cast.json already records the intent — "an actor ends a scene
+        /// wherever the last MoveActor left them" — and the scenes that want them somewhere
+        /// else say so with another beat.
+        /// </summary>
+        public bool ScriptedHold
+        {
+            get => _scriptedHold;
+            set
+            {
+                _scriptedHold = value;
+                if (!value || _agent == null || !_agent.enabled || !_agent.isOnNavMesh) return;
+                _agent.isStopped = true;
+                _agent.ResetPath();
+                // Cleared as well as stopped: the sprite layer reads the agent's velocity to
+                // choose between the walk cycle and the idle pose, so an agent coasting to a
+                // halt is a character still walking on the spot.
+                _agent.velocity = Vector3.zero;
+            }
+        }
+
+        private bool _scriptedHold;
+
         private void Update()
         {
             if (_talking)
             {
                 FacePlayer();
+                DriveAnimator();
+                return;
+            }
+
+            // A scene owns this character; their own schedule does not get a vote. See
+            // ScriptedHold. The animator still runs, because a held character being walked by
+            // a beat has to read as walking.
+            if (_scriptedHold)
+            {
                 DriveAnimator();
                 return;
             }
@@ -544,7 +587,9 @@ namespace PokeLab.Overworld
         private void OnDialogueFinished(string sequenceId)
         {
             _talking = false;
-            if (_agent.isOnNavMesh) _agent.isStopped = false;
+            // Not restarted while a scene has them: letting the agent go again here is how a
+            // held character resumes a path the hold had already cancelled.
+            if (!_scriptedHold && _agent.isOnNavMesh) _agent.isStopped = false;
 
             if (_builtDialogue != null)
             {
