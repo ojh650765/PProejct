@@ -62,6 +62,19 @@ namespace PokeLab.Overworld
             new Dictionary<Renderer, Material[]>();
         private readonly Dictionary<(Renderer, Material), Material> _ghosts =
             new Dictionary<(Renderer, Material), Material>();
+
+        /// <summary>
+        /// Every ghost we have made, back to the material it was cloned from.
+        ///
+        /// This is what makes the fault recoverable rather than merely rarer. If a renderer is
+        /// ever met while it is already wearing our clones and we have no record of its solid
+        /// set — a level rebuild between frames, a band streamed out mid-fade, anything that
+        /// empties the bookkeeping without restoring first — reading <c>sharedMaterials</c>
+        /// would file those clones as "solid" and the building could never be put back. Mapping
+        /// each clone to its source means the original is recoverable from the renderer itself.
+        /// </summary>
+        private readonly Dictionary<Material, Material> _ghostSource =
+            new Dictionary<Material, Material>();
         private readonly List<Renderer> _blocking = new List<Renderer>();
         private readonly List<Renderer> _finished = new List<Renderer>();
         private readonly List<Renderer> _stale = new List<Renderer>();
@@ -116,7 +129,29 @@ namespace PokeLab.Overworld
             }
 
             if (_camera == null) _camera = Camera.main;
-            if (_camera == null || _target == null) return;
+
+            // Re-resolved rather than trusted. Awake caught the follow target once, and a
+            // Single scene load destroys the player it pointed at — after which this is a
+            // reference to a dead object for the rest of the session.
+            if (_target == null)
+            {
+                var rig = GetComponent<OverworldCameraRig>();
+                if (rig != null) _target = rig.FollowTarget;
+            }
+
+            // Restored, not merely skipped.
+            //
+            // Losing the camera or the target is exactly when something is already ghosted:
+            // the player is being torn down for a scene load, or the brain has not picked a
+            // camera yet. Returning here used to jump over the whole of Drive — including the
+            // sweep that puts stale renderers back — so every wall that happened to be faded
+            // at that moment stayed glass for the rest of the session, and nothing left
+            // running had any record of what solid looked like.
+            if (_camera == null || _target == null)
+            {
+                ReleaseAll();
+                return;
+            }
 
             CollectBlockers();
             Drive(Time.deltaTime);
@@ -279,7 +314,7 @@ namespace PokeLab.Overworld
         {
             if (_solidMaterials.ContainsKey(renderer)) return;
 
-            var solid = renderer.sharedMaterials;
+            var solid = SolidSetOf(renderer);
             _solidMaterials[renderer] = solid;
 
             var ghosted = new Material[solid.Length];
@@ -307,10 +342,30 @@ namespace PokeLab.Overworld
                     ghost.SetFloat(ZWriteMode, 0f);
                     ghost.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
                     _ghosts[ghostKey] = ghost;
+                    _ghostSource[ghost] = source;
                 }
                 ghosted[i] = ghost;
             }
             renderer.sharedMaterials = ghosted;
+        }
+
+        /// <summary>
+        /// What this renderer looks like solid, with any of our clones mapped back to source.
+        ///
+        /// Reading <c>sharedMaterials</c> straight is only correct while the invariant holds.
+        /// This makes it correct unconditionally, so the record of solid can never be a
+        /// transparent clone of itself.
+        /// </summary>
+        private Material[] SolidSetOf(Renderer renderer)
+        {
+            var current = renderer.sharedMaterials;
+            for (var i = 0; i < current.Length; i++)
+            {
+                var material = current[i];
+                if (material == null) continue;
+                if (_ghostSource.TryGetValue(material, out var source)) current[i] = source;
+            }
+            return current;
         }
 
         private void MakeSolid(Renderer renderer)
@@ -340,6 +395,7 @@ namespace PokeLab.Overworld
             foreach (var ghost in _ghosts.Values)
                 if (ghost != null) Destroy(ghost);
             _ghosts.Clear();
+            _ghostSource.Clear();
 
             _faded.Clear();
         }
