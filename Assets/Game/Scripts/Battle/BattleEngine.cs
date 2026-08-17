@@ -1379,8 +1379,10 @@ namespace PokeLab.Battle
             // human, and the answer arrives as the Switch action of the next ResolveTurn
             // (the replacement turn). The battle stays InProgress because EvaluateOutcome
             // asks HasHealthyMember, never whether the active slot is standing. The
-            // opponent is unaffected — it falls through to the auto-pick below.
-            if (side == BattleSide.Player && DeferPlayerReplacement) return;
+            // opponent is unaffected — it falls through to the auto-pick below. False,
+            // because nobody arrived: there is no entry ability to hold back yet — the
+            // eventual replacement turn runs its own SendOut and fires it there.
+            if (side == BattleSide.Player && DeferPlayerReplacement) return false;
 
             // The AI always picks for itself. The player's forced switch is offered to an
             // IReplacementChooser when one is registered, so the UI can prompt instead of
