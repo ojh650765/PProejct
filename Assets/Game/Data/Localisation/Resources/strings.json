@@ -46,6 +46,26 @@
       "en": "Water — steady, and forgiving of mistakes.",
       "ko": "물. 무난하고 실수를 덮어 준다."
     },
+    {
+      "key": "starter.hint",
+      "en": "Press one and it asks again. No hurry.",
+      "ko": "누르면 한 번 더 묻는다. 천천히 봐도 된다."
+    },
+    {
+      "key": "starter.confirm",
+      "en": "Take {0}?",
+      "ko": "{0}(으)로 할까?"
+    },
+    {
+      "key": "starter.answer.yes",
+      "en": "Take {0}",
+      "ko": "{0}(으)로 한다"
+    },
+    {
+      "key": "starter.answer.no",
+      "en": "Look again",
+      "ko": "다시 본다"
+    },
 
     {
       "key": "pickup.found",
