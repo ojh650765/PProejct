@@ -63,10 +63,25 @@ namespace PokeLab.Boot
         {
             if (!Enabled)
             {
+                // The marker is a disk convention, and a web player has no disk to hold it.
+                //
+                // Emscripten's in-memory filesystem has no project folder and no Temp, so the
+                // probe that arms this stamp cannot have written anything a browser could read.
+                // Left in, this would run a File.Exists against a path that cannot exist on the
+                // first frame of every page load — silently false at best, and at worst an
+                // exception out of a RuntimeInitializeOnLoadMethod, which runs before any scene
+                // script and would fail the whole load rather than one debug overlay.
+                //
+                // Enabled is left alone rather than forced false: a web build has no console to
+                // set it from, but if something ever does, the stamp should still draw.
+#if UNITY_WEBGL && !UNITY_EDITOR
+                return;
+#else
                 var marker = System.IO.Path.Combine(
                     System.IO.Directory.GetCurrentDirectory(), "Temp", "pokelab_stamp.txt");
                 if (!System.IO.File.Exists(marker)) return;
                 Enabled = true;
+#endif
             }
 
             if (FindFirstObjectByType<CaptureStateStamp>() != null) return;

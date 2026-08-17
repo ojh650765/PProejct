@@ -111,8 +111,25 @@ namespace PokeLab.Intelligence
                 var chart = await ReadTextViaWebRequest(root, PokeLabData.Files.TypeChart);
                 var forest = await ReadBytesViaWebRequest(root, PokeLabData.Files.Forest);
                 var combats = await ReadBytesViaWebRequest(root, PokeLabData.Files.Combats);
+
+                // Parsed on the calling thread in a web player, because there is no other one.
+                //
+                // A WebGL build without threads support has no thread pool behind Task.Run.
+                // The work is never scheduled, so the task never completes, so the boot
+                // coroutine that yields on it yields forever — the game sits on a loading
+                // screen with an empty console and nothing to say it is stuck. Where IL2CPP
+                // throws instead, it throws from inside a task nobody observes, which is the
+                // same silence by a different route.
+                //
+                // Parsing the 4.5 MB forest inline costs a visible hitch on the loading
+                // screen. A hitch is a far better failure than a hang, and it is the only
+                // option this platform offers.
+#if UNITY_WEBGL && !UNITY_EDITOR
+                return PokeLabData.Parse(species, moves, chart, forest, combats);
+#else
                 // Parsing is pure CPU, so keep it off the main thread even on these platforms.
                 return await Task.Run(() => PokeLabData.Parse(species, moves, chart, forest, combats));
+#endif
             }
 
             return await Task.Run(() => ReadFrom(root));

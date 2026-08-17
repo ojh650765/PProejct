@@ -253,19 +253,42 @@ namespace PokeLab.Overworld
                                  $"{_episodes.Count} episode(s); check _bookPath on this component.", this);
         }
 
+        /// <summary>Name the book is looked up under once it is inside a Resources folder.</summary>
+        private const string BookResourceName = "episodes";
+
         private void LoadBook()
         {
             _episodes.Clear();
-            var path = Path.Combine(Directory.GetCurrentDirectory(), _bookPath);
-            if (!File.Exists(path))
+
+            // Resources first, disk second.
+            //
+            // This read the book off disk and nothing else, which works in the editor and
+            // cannot work in a player: a build has no project folder, so File.Exists is false,
+            // the warning fires into a console nobody is looking at, and a new game begins
+            // with the player standing in the plaza with no opening and nothing to do. Every
+            // other book in the game — dialogue, trainers, the string table — already reads
+            // this way, and the note in Loc.cs records fixing exactly this. This one was
+            // missed, and only a build would ever have shown it.
+            //
+            // The disk path is kept below because the editor edits that file directly and
+            // reloading it without a reimport is what makes a story rewrite quick.
+            var json = Resources.Load<TextAsset>(BookResourceName)?.text;
+
+            if (string.IsNullOrEmpty(json))
             {
-                Debug.LogWarning($"[Episode] No episode book at {_bookPath}. The opening will " +
-                                 "not play, and a new game will start with the player standing " +
-                                 "in the plaza with no party and nothing to do.", this);
-                return;
+                var path = Path.Combine(Directory.GetCurrentDirectory(), _bookPath);
+                if (!File.Exists(path))
+                {
+                    Debug.LogWarning($"[Episode] No episode book in Resources as " +
+                                     $"'{BookResourceName}' and none at {_bookPath}. The opening " +
+                                     "will not play, and a new game will start with the player " +
+                                     "standing in the plaza with no party and nothing to do.", this);
+                    return;
+                }
+                json = File.ReadAllText(path);
             }
 
-            var book = JsonUtility.FromJson<EpisodeBook>(File.ReadAllText(path));
+            var book = JsonUtility.FromJson<EpisodeBook>(json);
             foreach (var episode in book?.Episodes ?? new List<Episode>())
             {
                 if (string.IsNullOrEmpty(episode.Id)) continue;

@@ -127,9 +127,24 @@ namespace PokeLab.UI
         }
 
         /// <summary>
+        /// The shipped Korean face, relative to a Resources folder.
+        ///
+        /// Nanum Gothic Regular (SIL OFL 1.1), committed at
+        /// Assets/Game/Art/Fonts/ and turned into this asset by
+        /// PokeLab.UI.Editor.KoreanFontAssetBuilder. Loaded through <see cref="Resources"/>
+        /// because that is the only asset lookup a player has — AssetDatabase does not exist
+        /// outside the editor, and nothing else in the project references the asset, so
+        /// without the Resources folder it would simply not be in the build.
+        /// </summary>
+        public const string KoreanFontResourcePath = "Fonts/NanumGothic SDF";
+
+        /// <summary>
         /// Families tried, in order, when <see cref="EnsureFont"/> has to find one itself.
         /// Every entry must carry Hangul as well as Latin — the dialogue writes both, often
         /// in the same line.
+        ///
+        /// This is an editor-and-desktop convenience only; see <see cref="EnsureFont"/> for
+        /// why a browser can never satisfy it.
         /// </summary>
         private static readonly string[] FallbackFamilies =
         {
@@ -149,21 +164,41 @@ namespace PokeLab.UI
         ///
         /// TextMesh Pro's built-in default is Liberation Sans: Latin only. Every Korean
         /// character in a dialogue line renders as a missing-glyph box against it, and the
-        /// failure is silent — the layout is correct, the text is simply not there. Until the
-        /// integrator assigns a real font asset, this borrows an installed OS font as a
-        /// dynamic atlas, which costs no committed asset and no package dependency.
+        /// failure is silent — the layout is correct, the text is simply not there.
+        ///
+        /// The committed asset is tried first and is what any build gets. This used to go
+        /// straight to <see cref="TMP_FontAsset.CreateFontAsset(string,string,int)"/>, which
+        /// asks the operating system for an installed family. That works on Windows and
+        /// cannot work in a browser: WebGL has no OS font list, so every family returned
+        /// null, <see cref="Font"/> stayed null, and the shipped game rendered all 107
+        /// authored dialogue lines, the battle log and the menus as boxes. Borrowing an OS
+        /// font is kept below it only as a desktop-editor convenience.
         ///
         /// Returns whatever <see cref="Font"/> ends up as, including null when nothing
-        /// suitable is installed; callers should treat null as "Latin only" and say so
+        /// suitable is found; callers should treat null as "Latin only" and say so
         /// rather than assume it worked.
         /// </summary>
         public static TMP_FontAsset EnsureFont()
         {
+            // An integrator-assigned Font wins outright: that assignment is the documented
+            // contract of the public field and must not be second-guessed here.
             if (Font != null || _fontSearched) return Font;
             _fontSearched = true;
 
             try
             {
+                var shipped = Resources.Load<TMP_FontAsset>(KoreanFontResourcePath);
+                if (shipped != null)
+                {
+                    Font = shipped;
+                    return Font;
+                }
+
+                Debug.LogWarning("[UiType] No font asset at Resources/" + KoreanFontResourcePath
+                                 + ". In a player this is unrecoverable — the OS search below "
+                                 + "finds nothing on WebGL — and all Korean will render as "
+                                 + "boxes. Run PokeLab > UI > Rebuild Korean Font Asset.");
+
                 for (var i = 0; i < FallbackFamilies.Length; i++)
                 {
                     // CreateFontAsset resolves the family through the font engine and returns
@@ -182,7 +217,10 @@ namespace PokeLab.UI
                 Debug.LogWarning("[UiType] No Hangul-capable system font found among ["
                                  + string.Join(", ", FallbackFamilies)
                                  + "]. Korean text will render as missing-glyph boxes until a "
-                                 + "font asset is assigned to UiType.Font.");
+                                 + "font asset is assigned to UiType.Font. On WebGL this branch "
+                                 + "is always reached, because a browser exposes no OS fonts — "
+                                 + "the shipped asset at Resources/" + KoreanFontResourcePath
+                                 + " is the only thing that works there.");
             }
             catch (System.Exception e)
             {

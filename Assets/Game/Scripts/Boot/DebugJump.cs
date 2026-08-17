@@ -31,6 +31,20 @@ namespace PokeLab.Boot
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Install()
         {
+            // Compiled out of a web player, because there is no disk behind this path there.
+            //
+            // A browser build runs on Emscripten's in-memory filesystem: there is no project
+            // folder, no Temp, and no working directory in the sense this code means. The best
+            // case is that GetCurrentDirectory answers a virtual root and File.Exists answers
+            // false, and the door simply never opens — the worst case is that a stripped
+            // IL2CPP filesystem throws out of a RuntimeInitializeOnLoadMethod, which runs
+            // before any scene script and would take the whole page down on load with a
+            // stack trace nobody can read and no way to attach a debugger.
+            //
+            // Guarded at compile time rather than with an Application.platform check so the
+            // file I/O is not merely skipped but absent: this is a development door, and a
+            // published page is not somewhere it should be reachable at all.
+#if !UNITY_WEBGL || UNITY_EDITOR
             var path = Path.Combine(Directory.GetCurrentDirectory(), "Temp", RequestName);
             if (!File.Exists(path)) return;
 
@@ -52,6 +66,7 @@ namespace PokeLab.Boot
             var host = new GameObject("~DebugJump");
             DontDestroyOnLoad(host);
             host.AddComponent<DebugJump>().Begin(request);
+#endif
         }
 
         private string _request;
