@@ -413,7 +413,9 @@ namespace PokeLab.Battle.Tests
             Assert.That(result, Is.Not.Null);
             Assert.That(result.SpeciesSeen, Does.Contain(TestData.Rattata),
                 "The lead fainted in front of the player and must be reported.");
-            Assert.That(result.SpeciesSeen, Does.Not.Contain(TestData.Pidgey),
+            // Has.No.Member rather than Does.Not.Contain: Unity's bundled NUnit resolves
+            // the negated Contain to the substring overload only, which rejects an int.
+            Assert.That(result.SpeciesSeen, Has.No.Member(TestData.Pidgey),
                 "The reserve never showed the player anything and must not be reported.");
         }
 
