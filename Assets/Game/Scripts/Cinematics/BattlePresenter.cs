@@ -304,6 +304,23 @@ namespace PokeLab.Cinematics
         /// </summary>
         public event Action<BattleEvent> EventObserved;
 
+        /// <summary>
+        /// Every battle event, raised as its beat <b>opens</b>, in performance order.
+        ///
+        /// Two taps exist on purpose and they are not interchangeable.
+        /// <see cref="EventObserved"/> fires on arrival — a whole turn in one frame — because
+        /// it reports <i>state</i>, and the HUD's numbers must be true the moment they change.
+        /// This one fires when the pump actually starts performing the event, because it feeds
+        /// <i>sound and effects</i>: an impact cue scored on arrival would land seconds before
+        /// the lunge it belongs to, and a whole turn's worth of hits would play as one chord.
+        /// Audio and VFX listeners subscribe here; nothing that reads game state should.
+        ///
+        /// The one event that never reaches <see cref="Pump"/> — the
+        /// <see cref="MoveMissedEvent"/> a lookahead consumed inside the executed-move beat —
+        /// is raised from that beat instead, so this tap still sees every event exactly once.
+        /// </summary>
+        public event Action<BattleEvent> EventPerformed;
+
         // --- Queue -----------------------------------------------------------------------
 
         /// <inheritdoc />
@@ -412,6 +429,10 @@ namespace PokeLab.Cinematics
                 // than after it, so the result card is up for the celebration it belongs to
                 // instead of arriving once the camera has already left.
                 if (RevealsOutcome(evt)) EventObserved?.Invoke(evt);
+
+                // The performed tap. Beat-open rather than beat-close, so a cue fired by a
+                // listener lands with the wind-up of the thing it scores instead of trailing it.
+                EventPerformed?.Invoke(evt);
 
                 float startedAt = Time.unscaledTime;
                 yield return Perform(evt);
@@ -710,6 +731,9 @@ namespace PokeLab.Cinematics
                 // the pump does not stage it a second time; its floor has been more than
                 // covered by the beat just played.
                 ConsumePeeked(miss);
+                // Consumed events bypass Pump entirely, so the performed tap has to be raised
+                // here or the audio/VFX layers would simply never hear about the miss.
+                EventPerformed?.Invoke(miss);
                 yield return PlayMissBeat(miss);
             }
 
@@ -912,7 +936,12 @@ namespace PokeLab.Cinematics
                 yield break;
             }
 
-            Rig.Show(BattleShot.FieldPush);
+            // Hold the shot ContactMoment chose rather than always pushing in. ContactMoment
+            // deliberately spends the rig's zoom range only on a critical — a push on every
+            // ordinary hit flattens that escalation until a crit looks like any other landing.
+            // So the non-crit path stays on the focus pan the contact frame already cut to,
+            // and FieldPush (with the hitch below) is reserved for criticals.
+            Rig.Show(e.Critical ? BattleShot.FieldPush : BattleCameraRig.FocusOn(e.Target));
             Rig.PunchForDamage(e.Target, fraction, e.Critical, e.Effectiveness);
 
             CinematicHooks.Audio(EffectivenessCue(e.Effectiveness), target.transform.position);
@@ -1058,12 +1087,33 @@ namespace PokeLab.Cinematics
             Rig.Release();
         }
 
+        /// <summary>
+        /// An item taking effect. This used to be a bare 0.4s wait — technically a beat,
+        /// visually a freeze — so it borrows the stat-up language instead: a sparkle on the
+        /// creature the item was used on, a soft cue, and the swell gesture. The item's
+        /// mechanical result (a heal, a status cure) still gets its own beat from the event
+        /// the engine emits next, so this stays deliberately small.
+        /// </summary>
         private IEnumerator PlayItemUsed(ItemUsedEvent e)
         {
             Rig.SetRoles(e.Side, BattleStage.Opposite(e.Side));
             Rig.Show(BattleCameraRig.FocusOn(e.Side));
             CinematicHooks.HudBeat("item", 1f);
-            yield return CinematicRunner.Wait(0.4f);
+
+            CreatureView view = Stage.ViewOf(e.Side);
+            if (view != null)
+            {
+                CinematicHooks.Vfx(CinematicVfxKeys.StatUp, view.transform.position, Quaternion.identity);
+                CinematicHooks.Audio(CinematicAudioCues.Whoosh, view.transform.position);
+                yield return view.Motion.Swell(0.45f);
+            }
+            else
+            {
+                // No creature staged on that side — an item used from the bag before anything
+                // is on the field. Hold the old quiet beat rather than sparkling empty ground.
+                yield return CinematicRunner.Wait(0.4f);
+            }
+
             Rig.Release();
         }
 
@@ -1137,12 +1187,18 @@ namespace PokeLab.Cinematics
 
             // The player steps back into frame for the throw and leaves once the ball is down.
             // Always the player's side: a capture is the one throw that is never the opponent's.
+            // Guarded the same way PlaySentOut guards its thrower: a stage without player art
+            // must not NRE the whole capture set piece. Degraded, the ball simply appears at
+            // the mark's throwing height and flies — the shakes and the outcome, which are the
+            // beats that matter, are untouched.
             TrainerView thrower = Stage.TrainerViewOf(BattleSide.Player);
-            yield return thrower.Enter(timing.TrainerEnter);
+            bool thrown = thrower != null && thrower.HasArt;
+
+            if (thrown) yield return thrower.Enter(timing.TrainerEnter);
 
             yield return CinematicRunner.Wait(timing.CaptureThrowWindUp);
 
-            CinematicRunner.Fork(thrower.PlayThrow(timing.CaptureFlight * 0.9f));
+            if (thrown) CinematicRunner.Fork(thrower.PlayThrow(timing.CaptureFlight * 0.9f));
 
             var ball = BallActor.Spawn(ballPrefab, trainer.position + Vector3.up * 1.3f);
             yield return ball.Throw(target.BodyAnchor != null ? target.BodyAnchor.position : groundPoint + Vector3.up,
@@ -1156,7 +1212,7 @@ namespace PokeLab.Cinematics
 
             // The trainer goes before the shakes, not after. The shakes are the tense beat of the
             // whole battle and the frame has to be the ball and nothing else.
-            yield return thrower.Exit(timing.TrainerExit);
+            if (thrown) yield return thrower.Exit(timing.TrainerExit);
 
             // The loaded silence before the first shake.
             yield return CinematicRunner.Wait(timing.CaptureSettleHold);
