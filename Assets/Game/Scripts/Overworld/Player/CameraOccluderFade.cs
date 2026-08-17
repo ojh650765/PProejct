@@ -45,6 +45,11 @@ namespace PokeLab.Overworld
 
         [SerializeField] private LayerMask _mask = ~0;
 
+        [Tooltip("How far short of the player the probe stops. Anything level with them rather " +
+                 "than in front of them is not standing between them and the camera, however " +
+                 "close it is. Roughly the player's own width plus the probe radius.")]
+        [SerializeField] private float _clearanceAtTarget = 1.2f;
+
         [Header("Fade")]
         [Tooltip("How transparent a blocker becomes. 1 is invisible, which loses the sense " +
                  "of a building being there at all — it should read as glass, not as a gap.")]
@@ -221,8 +226,23 @@ namespace PokeLab.Overworld
             if (distance < 0.05f) return;
             direction /= distance;
 
+            // The probe stops short of the player instead of reaching them.
+            //
+            // A sphere this wide swept the whole way counts anything within its radius of the
+            // player as a blocker — so a wall the player is *standing against* is collected,
+            // every frame, for as long as they stand there. It is beside them, not between
+            // them and the camera, and it has nothing to do with seeing them; but the test
+            // cannot tell those apart, so the wall goes to glass and stays there. That is the
+            // "buildings just stay translucent" report, and it is a fault in what counts as
+            // being in the way rather than in the restoring.
+            //
+            // Ending the cast short of the player leaves the last stretch — the part that is
+            // level with them rather than in front of them — out of the question entirely.
+            var probeDistance = distance - _clearanceAtTarget;
+            if (probeDistance <= 0.05f) return;
+
             var count = Physics.SphereCastNonAlloc(from, _probeRadius, direction, _hits,
-                distance, _mask, QueryTriggerInteraction.Ignore);
+                probeDistance, _mask, QueryTriggerInteraction.Ignore);
 
             for (var i = 0; i < count; i++)
             {
