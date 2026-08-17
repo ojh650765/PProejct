@@ -108,6 +108,15 @@ namespace PokeLab.Core
         public int RemainingHp;
         public int MaxHp;
         public string SourceId;
+
+        /// <summary>
+        /// Instance id of the creature that was healed. Empty means the one on the field.
+        ///
+        /// A side alone cannot tell a benched party member from the creature standing on it,
+        /// so a presenter that trusts <see cref="Target"/> animates the wrong HP bar — for a
+        /// revive, a bar that fills for a creature still lying down.
+        /// </summary>
+        public string InstanceId;
     }
 
     public sealed class StatusChangedEvent : BattleEvent
@@ -116,6 +125,9 @@ namespace PokeLab.Core
         public StatusCondition Previous;
         public StatusCondition Current;
         public override float SuggestedDuration => 0.8f;
+
+        /// <summary>Instance id of the creature whose status changed. Empty means the one on the field.</summary>
+        public string InstanceId;
     }
 
     public sealed class VolatileChangedEvent : BattleEvent

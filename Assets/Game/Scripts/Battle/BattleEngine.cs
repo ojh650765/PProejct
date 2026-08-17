@@ -966,6 +966,7 @@ namespace PokeLab.Battle
                 RemainingHp = creature.CurrentHp,
                 MaxHp = creature.MaxHp,
                 SourceId = sourceId,
+                InstanceId = creature.InstanceId,
             });
         }
 
@@ -983,7 +984,13 @@ namespace PokeLab.Battle
                 return;
             }
 
-            Emit(new StatusChangedEvent { Target = side, Previous = previous, Current = StatusCondition.None });
+            Emit(new StatusChangedEvent
+            {
+                Target = side,
+                Previous = previous,
+                Current = StatusCondition.None,
+                InstanceId = creature.InstanceId,
+            });
         }
 
         private void AttemptRun(BattleSide side)
