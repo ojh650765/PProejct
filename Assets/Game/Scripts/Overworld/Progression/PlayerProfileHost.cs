@@ -8,6 +8,14 @@ namespace PokeLab.Overworld
     /// Owns the <see cref="PlayerProfile"/> lifetime: creates it, registers it with
     /// <see cref="ServiceHub"/>, loads the save, and writes it back.
     ///
+    /// Writing happens only when the player asks for it. This game used to save on a timer, on
+    /// focus loss, on quit and after a heal; all of that is gone by request, in favour of the
+    /// genre's report convention — the 리포트 entry in the menu is the game's one save, fronted
+    /// by <see cref="TrySaveGame"/>. The accepted trade is explicit: an interrupted session now
+    /// loses everything since the last report, and that is the classic deal rather than a bug.
+    /// The only other writers are editor-only debug affordances (the context menu below, the
+    /// debug console), which exist for developers and never fire on their own.
+    ///
     /// Registration happens in <c>Awake</c> at a very early execution order because every other
     /// overworld system resolves <see cref="IPlayerProfile"/> lazily and would otherwise race it.
     /// If the integrator's boot scene registers a profile first, this defers to it rather than
@@ -34,10 +42,6 @@ namespace PokeLab.Overworld
         [Header("Persistence")]
         [Tooltip("Load the save file at Awake. Turn off to always start a fresh session.")]
         [SerializeField] private bool _loadOnStart = true;
-        [Tooltip("Seconds between autosaves. 0 disables autosaving.")]
-        [SerializeField] private float _autosaveInterval = 120f;
-        [Tooltip("Save when the application loses focus or quits. Strongly recommended.")]
-        [SerializeField] private bool _saveOnQuit = true;
 
         [Header("World state")]
         [SerializeField] private PlayerLocomotion _player;
@@ -50,7 +54,6 @@ namespace PokeLab.Overworld
         [SerializeField] private bool _restorePosition = true;
 
         private PlayerProfile _profile;
-        private float _autosaveTimer;
 
         /// <summary>The host that currently owns the write side. See <see cref="OwnsWriteSide"/>.</summary>
         private static PlayerProfileHost _active;
@@ -60,7 +63,7 @@ namespace PokeLab.Overworld
         ///
         /// This is what stops every scene re-running the bootstrap. Start used to load or new
         /// unconditionally, so walking into a house rolled the live profile back to the last
-        /// autosave — or, with no file on disk yet, reset it outright mid-session — and a band
+        /// save on disk — or, with no file yet, reset it outright mid-session — and a band
         /// streamed in additively did the same a few frames after boot.
         /// </summary>
         private static bool _sessionBegun;
@@ -84,12 +87,12 @@ namespace PokeLab.Overworld
         public static bool SessionBegun => _sessionBegun;
 
         /// <summary>
-        /// Whether this host owns the write side — the play clock, the autosave timer, the file.
+        /// Whether this host owns the write side — the play clock and the save file.
         ///
         /// Claimed lazily rather than in Awake, because the slot has to be re-claimable. Every
         /// playable scene carries a host, so a door hands ownership from the outgoing scene's to the
         /// incoming one's, and the exact interleaving of teardown and Awake across a Single load is
-        /// not something to bet a session's autosaves on. Unity's <c>==</c> reads a destroyed
+        /// not something to bet a session's saves on. Unity's <c>==</c> reads a destroyed
         /// component as null, so the slot frees itself the moment its holder is gone.
         /// </summary>
         private bool OwnsWriteSide
@@ -180,20 +183,16 @@ namespace PokeLab.Overworld
         private void Update()
         {
             if (_profile == null) return;
-            // A duplicate host would double-count play time and race this one's autosave timer over
-            // the same profile. Only the owner runs the clock.
+            // A duplicate host would double-count play time over the same profile. Only the
+            // owner runs the clock.
             if (!OwnsWriteSide) return;
 
             _profile.PlayTimeSeconds += Time.deltaTime;
 
-            if (_autosaveInterval <= 0f) return;
-            _autosaveTimer += Time.deltaTime;
-            if (_autosaveTimer < _autosaveInterval) return;
-            _autosaveTimer = 0f;
-
-            if (!CanSaveNow()) return;
-
-            SaveGame();
+            // No autosave here, deliberately. The interval timer this loop used to run wrote
+            // the file behind the player's back every two minutes; saving is now only ever the
+            // menu's 리포트 action, so the player always knows exactly what their last record
+            // holds. See the class comment for the trade that buys.
         }
 
         /// <summary>
@@ -203,39 +202,38 @@ namespace PokeLab.Overworld
         /// because before that the profile is an empty default and writing it out is not a save but
         /// a deletion; and nothing is mid-encounter, where the player's world position is
         /// mid-transition and the party is being mutated by the battle engine.
+        ///
+        /// The menu is allowed a save because it is the one place saving happens from, so the
+        /// flow check reads "in the menu" as fine and refuses everything else — battle,
+        /// cutscene, dialogue. Public because the menu asks this question before it even starts
+        /// the save beat: a refusal should say "지금은 리포트를 기록할 수 없다!" to the
+        /// player's face rather than dress up as a disk error.
+        ///
+        /// There is deliberately no OnApplicationQuit / OnApplicationPause save behind this
+        /// guard any more. The quit and focus-loss writes are gone with the autosave timer:
+        /// saving is only ever the player's explicit report, and an interruption losing the
+        /// session since the last one is the accepted, classic trade.
         /// </summary>
-        private bool CanSaveNow()
+        public bool CanSaveNow()
         {
             if (_profile == null) return false;
             if (!OwnsWriteSide) return false;
             if (!_sessionBegun) return false;
             if (_encounters != null && _encounters.SequenceRunning) return false;
-            if (ServiceHub.TryGet<IGameFlow>(out var flow) && flow.Mode != GameMode.Exploring) return false;
+            if (ServiceHub.TryGet<IGameFlow>(out var flow)
+                && flow.Mode != GameMode.Exploring && flow.Mode != GameMode.Menu) return false;
             return true;
         }
 
-        private void OnApplicationPause(bool paused)
-        {
-            if (paused) SaveOnInterruption();
-        }
-
-        private void OnApplicationQuit() => SaveOnInterruption();
-
         /// <summary>
-        /// The quit and focus-loss save, with the guards the autosave path has always had and this
-        /// one had none of.
-        ///
-        /// It called <see cref="SaveGame"/> outright. During <c>BeginSession</c>'s wait for the
-        /// species registry — up to twenty seconds, and genuinely that long on the web, where the
-        /// dex arrives over HTTP — the profile is still an empty default with no party in it. So
-        /// switching browser tabs in that window wrote an empty party over a real save, and the file
-        /// on disk was gone by the time anybody noticed.
+        /// The menu's save: the guard, then the write. Returns false when the guard refuses or
+        /// the write fails, so the caller can tell the player honestly instead of claiming a
+        /// record that was never made. This is the game's only non-debug writer.
         /// </summary>
-        private void SaveOnInterruption()
+        public bool TrySaveGame()
         {
-            if (!_saveOnQuit) return;
-            if (!CanSaveNow()) return;
-            SaveGame();
+            if (!CanSaveNow()) return false;
+            return SaveGame();
         }
 
         /// <summary>Starts a fresh profile with the opening kit.</summary>
@@ -261,7 +259,7 @@ namespace PokeLab.Overworld
             }
 
             // Marked before the restore, not after: the position restore runs on its own coroutine
-            // and an interruption save that lands mid-restore must already see a begun session.
+            // and a save the player requests mid-restore must already see a begun session.
             _loadedFromSave = true;
             _sessionBegun = true;
 

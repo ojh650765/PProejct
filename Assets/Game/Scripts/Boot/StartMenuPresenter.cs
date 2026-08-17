@@ -17,7 +17,9 @@ namespace PokeLab.Boot
     /// no such button at all — the party, the bag, the dex and the save all existed as data
     /// with nothing to open them.
     ///
-    /// Each entry opens a real panel filled from the profile. Where a system genuinely has
+    /// Each entry opens a real panel filled from the profile — except 리포트, which performs
+    /// the save through the modal beat in <see cref="SaveDialogPresenter"/> and is the game's
+    /// only way to write the file. Where a system genuinely has
     /// nothing in it yet, the panel says which system and that it is empty, rather than
     /// showing a plausible-looking blank: an empty bag and a bag that failed to load must not
     /// look the same.
@@ -47,6 +49,7 @@ namespace PokeLab.Boot
         private DexView _dex;
         private GameObject _dexRoot;
         private bool _pushedMode;
+        private SaveDialogPresenter _saveDialog;
 
         private readonly List<StartMenuView.Entry> _entries = new List<StartMenuView.Entry>();
 
@@ -70,6 +73,11 @@ namespace PokeLab.Boot
 
         private void UpdateOpen(Keyboard keyboard)
         {
+            // The save dialog is modal: while the report is being written nothing behind it may
+            // react. Escape must not close the menu under the dialog, and Enter must not press
+            // the row that opened it a second time. Its own scrim swallows the mouse.
+            if (_saveDialog != null && _saveDialog.IsRunning) return;
+
             if (_detailOpen)
             {
                 // The dex is a list the player moves through, so it takes the arrows before it
@@ -133,7 +141,7 @@ namespace PokeLab.Boot
                 case 1: ShowDetail(Loc.Pick("Pokémon", "포켓몬"), Party()); break;
                 case 2: ShowDetail(Loc.Pick("Bag", "가방"), Bag()); break;
                 case 3: ShowDetail(TrainerName(), Card()); break;
-                case 4: ShowDetail(Loc.Pick("Report", "리포트"), Report()); break;
+                case 4: BeginReport(); break;
                 case 5: ShowDetail(Loc.Pick("Options", "설정"), Options()); break;
                 default: Close(); break;
             }
@@ -247,16 +255,40 @@ namespace PokeLab.Boot
             return text.ToString();
         }
 
-        private string Report()
+        /// <summary>
+        /// The 리포트 entry — the game's only save, since the autosave paths were removed.
+        ///
+        /// Still written on the spot rather than offered as a confirmation, because 리포트 in
+        /// the games is the act of saving, not a screen that asks whether you meant it. What
+        /// changed is that the act now has a body: the dialog with the throbber, so a save
+        /// looks like the small ceremony it is instead of a line of text that was already there.
+        ///
+        /// On success the whole menu closes and play resumes — that is what the games do; the
+        /// report is the last thing you do in the menu, not a detour inside it. On refusal or
+        /// failure the menu stays open, because the player was told nothing was written and
+        /// closing on them would look like it had been.
+        /// </summary>
+        private void BeginReport()
         {
-            if (_profileHost == null) return Missing("리포트");
+            if (_profileHost == null)
+            {
+                ShowDetail(Loc.Pick("Report", "리포트"), Missing("리포트"));
+                return;
+            }
 
-            // Written on the spot rather than offered as a confirmation, because 리포트 in the
-            // games is the act of saving, not a screen that asks whether you meant it.
-            var saved = _profileHost.SaveGame();
-            return saved
-                ? Loc.Pick("Saved.", "기록했다.")
-                : Loc.Pick("The report could not be written.", "기록하지 못했다.");
+            if (_saveDialog == null)
+            {
+                var go = new GameObject("SaveDialog", typeof(RectTransform));
+                go.transform.SetParent(transform, false);
+                _saveDialog = go.AddComponent<SaveDialogPresenter>();
+            }
+
+            // The guard and the write go over as separate delegates so the dialog can tell
+            // "not now" apart from "the write failed" — see SaveDialogPresenter.Run.
+            _saveDialog.Run(
+                _profileHost.CanSaveNow,
+                _profileHost.TrySaveGame,
+                saved => { if (saved && _open) Close(); });
         }
 
         private string Options()
