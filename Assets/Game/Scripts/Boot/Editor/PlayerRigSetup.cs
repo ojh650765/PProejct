@@ -75,6 +75,15 @@ namespace PokeLab.Boot.Editor
         {
             var repairs = 0;
 
+            // A rig built before the camera carried ears leaves the scene silent, and the
+            // repair path is the only way an existing scene gets them.
+            var mainCamera = Camera.main;
+            if (mainCamera != null && mainCamera.GetComponent<AudioListener>() == null)
+            {
+                mainCamera.gameObject.AddComponent<AudioListener>();
+                repairs++;
+            }
+
             foreach (var vcam in Object.FindObjectsByType<CinemachineCamera>(
                          FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
