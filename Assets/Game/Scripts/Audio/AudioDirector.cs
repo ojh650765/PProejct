@@ -116,6 +116,30 @@ namespace PokeLab.Audio
 
         private static AudioDirector _instance;
 
+        /// <summary>
+        /// Gives the scene ears if nobody else did.
+        ///
+        /// An <see cref="AudioListener"/> was never placed anywhere in the project — not in a
+        /// scene, not on a prefab, not in code — so Unity warned once about having none and
+        /// then played silence, which looks like every audio bug except the one it is. The
+        /// camera is where it belongs: positional sound is mixed relative to the view, and the
+        /// rig rebuild puts one there too, so this only has to cover scenes built before that.
+        /// </summary>
+        private static void EnsureListener()
+        {
+            if (FindFirstObjectByType<AudioListener>(FindObjectsInactive.Include) != null) return;
+
+            var camera = Camera.main;
+            if (camera == null)
+            {
+                Debug.LogWarning("[Audio] No AudioListener and no main camera to put one on, " +
+                                 "so this scene plays silently.");
+                return;
+            }
+
+            camera.gameObject.AddComponent<AudioListener>();
+        }
+
         private void Awake()
         {
             // First one wins, and any later arrival removes itself.
@@ -133,6 +157,7 @@ namespace PokeLab.Audio
             }
             _instance = this;
 
+            EnsureListener();
             ResolveGroups();
 
             _busVolume[AudioBus.Master] = masterVolume;

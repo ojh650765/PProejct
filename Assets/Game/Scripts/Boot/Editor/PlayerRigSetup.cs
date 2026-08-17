@@ -457,6 +457,12 @@ namespace PokeLab.Boot.Editor
             if (camera.GetComponent<CinemachineBrain>() == null)
                 camera.gameObject.AddComponent<CinemachineBrain>();
 
+            // Nothing in the project ever placed one, so every scene ran without ears: Unity
+            // says "there are no audio listeners in the scene" once and then plays nothing at
+            // all, which reads as an audio bug anywhere but here.
+            if (camera.GetComponent<AudioListener>() == null)
+                camera.gameObject.AddComponent<AudioListener>();
+
             // Without this the brain has nothing to blend and the camera keeps whatever
             // transform the scene left it at — which is exactly the top-down view.
             camera.transform.SetParent(null);
