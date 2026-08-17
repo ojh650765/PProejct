@@ -82,6 +82,7 @@ namespace PokeLab.Overworld
             new Dictionary<Material, Material>();
         private readonly List<Renderer> _blocking = new List<Renderer>();
         private readonly List<Renderer> _finished = new List<Renderer>();
+        private readonly List<Renderer> _fading = new List<Renderer>();
         private readonly List<Renderer> _stale = new List<Renderer>();
         private MaterialPropertyBlock _block;
         private Camera _camera;
@@ -221,44 +222,60 @@ namespace PokeLab.Overworld
 
             var from = _camera.transform.position;
             var to = _target.position;
-            var direction = to - from;
-            var distance = direction.magnitude;
-            if (distance < 0.05f) return;
-            direction /= distance;
 
-            // The probe stops short of the player instead of reaching them.
+            // Rays at the player, not a fat sphere swept past them.
             //
-            // A sphere this wide swept the whole way counts anything within its radius of the
-            // player as a blocker — so a wall the player is *standing against* is collected,
-            // every frame, for as long as they stand there. It is beside them, not between
-            // them and the camera, and it has nothing to do with seeing them; but the test
-            // cannot tell those apart, so the wall goes to glass and stays there. That is the
-            // "buildings just stay translucent" report, and it is a fault in what counts as
-            // being in the way rather than in the restoring.
+            // The sweep asked "does this lie near the line to the player", and near is not the
+            // question. A 0.55 m probe run the whole way collects whatever it brushes — a wall
+            // the player is standing against, a fence the boom has backed into, a lamp beside
+            // the path — none of which cover the player, all of which then sit at glass for as
+            // long as the geometry keeps being brushed. Measured in town it was holding six
+            // things transparent at once, one of them 8.5 m off the line and behind the player.
             //
-            // Ending the cast short of the player leaves the last stretch — the part that is
-            // level with them rather than in front of them — out of the question entirely.
-            var probeDistance = distance - _clearanceAtTarget;
-            if (probeDistance <= 0.05f) return;
-
-            var count = Physics.SphereCastNonAlloc(from, _probeRadius, direction, _hits,
-                probeDistance, _mask, QueryTriggerInteraction.Ignore);
-
-            for (var i = 0; i < count; i++)
+            // What the feature is actually for is "what is drawn over the character", and a ray
+            // from the eye to the character answers exactly that and nothing else. Several of
+            // them, up the player's height, so a pillar covering half of them still counts;
+            // each stopped short of the body so the ground they stand on and the wall they lean
+            // against are never in the answer.
+            for (var s = 0; s < SampleHeights.Length; s++)
             {
-                var collider = _hits[i].collider;
-                if (collider == null) continue;
+                var point = to + Vector3.up * SampleHeights[s];
+                var direction = point - from;
+                var distance = direction.magnitude;
+                if (distance < 0.05f) continue;
+                direction /= distance;
 
-                // Never the player, and never the ground. Fading the terrain the player is
-                // standing on would punch a hole in the world under their feet — the camera
-                // looks down at it, so it is always between the two.
-                if (collider.transform.root == _target.root) continue;
-                if (collider.gameObject.layer == LayerMask.NameToLayer("Ground")) continue;
+                var reach = distance - _clearanceAtTarget;
+                if (reach <= 0.05f) continue;
 
-                foreach (var renderer in collider.GetComponentsInChildren<Renderer>())
-                    if (renderer != null && CanFade(renderer)) _blocking.Add(renderer);
+                var count = Physics.RaycastNonAlloc(from, direction, _hits, reach, _mask,
+                    QueryTriggerInteraction.Ignore);
+
+                for (var i = 0; i < count; i++)
+                {
+                    var collider = _hits[i].collider;
+                    if (collider == null) continue;
+
+                    // Never the player, and never the ground. Fading the terrain the player is
+                    // standing on would punch a hole in the world under their feet — the camera
+                    // looks down at it, so it is always between the two.
+                    if (collider.transform.root == _target.root) continue;
+                    if (collider.gameObject.layer == LayerMask.NameToLayer("Ground")) continue;
+
+                    foreach (var renderer in collider.GetComponentsInChildren<Renderer>())
+                        if (renderer != null && CanFade(renderer) && !_blocking.Contains(renderer))
+                            _blocking.Add(renderer);
+                }
             }
         }
+
+        /// <summary>
+        /// Heights up the player the rays are aimed at, in metres from their feet.
+        ///
+        /// Three is enough to catch something covering only the head or only the legs, and few
+        /// enough that this stays three raycasts a frame rather than a shape query.
+        /// </summary>
+        private static readonly float[] SampleHeights = { 0.25f, 0.9f, 1.5f };
 
         /// <summary>
         /// Whether this renderer is the kind of thing that should give way.
@@ -310,19 +327,31 @@ namespace PokeLab.Overworld
                     : Mathf.MoveTowards(current, _fadeTo, dt / _fadeInSeconds * _fadeTo);
             }
 
+            // Walked over a copy of the keys so the fade can be written back.
+            //
+            // This read the amount out of the dictionary, decayed it into a local, drew with
+            // it — and dropped it, because a dictionary cannot be assigned to while it is
+            // being enumerated. Every frame started again from the stored value and threw one
+            // frame of fading out away, so the amount never came down, the renderer was never
+            // finished, MakeSolid was never called, and a wall that went to glass once stayed
+            // glass for the rest of the session. Walking about town simply added to the pile.
+            _fading.Clear();
+            foreach (var pair in _faded) _fading.Add(pair.Key);
+
             _finished.Clear();
-            foreach (var pair in _faded)
+            for (var index = 0; index < _fading.Count; index++)
             {
-                var renderer = pair.Key;
+                var renderer = _fading[index];
                 if (renderer == null) { _finished.Add(renderer); continue; }
 
-                var amount = pair.Value;
+                var amount = _faded[renderer];
                 if (!_blocking.Contains(renderer))
                 {
                     amount = _fadeOutSeconds <= 0f
                         ? 0f
                         : Mathf.MoveTowards(amount, 0f, dt / _fadeOutSeconds * _fadeTo);
                 }
+                _faded[renderer] = amount;
 
                 if (amount > 0.0001f) MakeGhost(renderer);
                 else MakeSolid(renderer);
