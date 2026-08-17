@@ -87,6 +87,11 @@ namespace PokeLab.UI
         private int _pendingMoveIndex = -1;
         private int _selected;
         private bool _committed;
+        // One per page, so a cross-fade is superseded by the next change to that same page
+        // rather than left to finish against the state it captured.
+        private TweenHandle _rootFade;
+        private TweenHandle _moveFade;
+        private TweenHandle _targetFade;
 
         /// <summary>Raised when the player commits a move, with its slot index.</summary>
         public Action<int> MoveChosen;
@@ -118,8 +123,20 @@ namespace PokeLab.UI
             ShowPage(BattleCommandPage.Root);
         }
 
-        /// <summary>Locks the panel while the engine resolves. No input is accepted.</summary>
-        public void Lock() => ShowPage(BattleCommandPage.Locked);
+        /// <summary>
+        /// Locks the panel while the engine resolves. No input is accepted.
+        ///
+        /// The lock is not a page the player navigated to, so it is neither remembered nor
+        /// left with somewhere to go back to. Pushing it on the stack activated the cancel
+        /// control, and the caption band carries no CanvasGroup — so Back stayed clickable
+        /// through the whole of the enemy's turn and walked the player straight back into a
+        /// live move list.
+        /// </summary>
+        public void Lock()
+        {
+            _history.Clear();
+            ShowPage(BattleCommandPage.Locked, false);
+        }
 
         /// <summary>
         /// Pushes new forecasts without disturbing navigation. The readout updates every time
@@ -143,6 +160,10 @@ namespace PokeLab.UI
         /// <summary>Back navigation. Returns false when already at the root page.</summary>
         public bool GoBack()
         {
+            // Refused once a decision is in, and while the panel is locked. This is reachable
+            // from the cancel control and from BattleHudView.GoBack, neither of which can see
+            // that the turn has already been committed.
+            if (_committed || _page == BattleCommandPage.Locked) return false;
             if (_history.Count == 0) return false;
             ShowPage(_history.Pop(), false);
             return true;
@@ -183,6 +204,14 @@ namespace PokeLab.UI
         private void Update()
         {
             if (_page == BattleCommandPage.Locked || _committed) return;
+
+            // Only while nothing is stacked on top of this panel. Choosing Party or Bag opens
+            // a screen over the battle and the root page stays behind it, so without this the
+            // arrows drove a cursor the player could not see and Enter re-fired the very entry
+            // that opened the screen they were standing in. The clearing of the EventSystem's
+            // selection below is inside the guard for the same reason: it would otherwise
+            // deselect that screen's own controls, and the name field, every frame.
+            if (!UiFocus.Owns(this)) return;
 
             // Unity's own UI navigation moves whatever GameObject the EventSystem has selected,
             // and clicking a pill selects it. Left alone, one mouse click would leave arrow
@@ -240,10 +269,23 @@ namespace PokeLab.UI
             }
         }
 
+        /// <summary>
+        /// The forecast for a move slot, or null when there is none.
+        ///
+        /// The analyser hands back a slot-aligned array and marks a slot it skipped with an
+        /// empty placeholder rather than shortening the array, so entry i is always move i.
+        /// An empty entry has to come back as null: a default forecast carries a zero type
+        /// multiplier, which the pill would print as "no effect" — a confident wrong verdict
+        /// on a move the model never evaluated. A real forecast always names a KO horizon,
+        /// even if that is <see cref="int.MaxValue"/> for a move that cannot get there.
+        /// </summary>
         private DamageForecast? ForecastFor(int index)
         {
             if (_forecasts == null || index < 0 || index >= _forecasts.Length) return null;
-            return _forecasts[index];
+            var forecast = _forecasts[index];
+            if (forecast.TurnsToKo == 0 && forecast.HitChance <= 0f &&
+                forecast.TypeMultiplier <= 0f && forecast.MaxFraction <= 0f) return null;
+            return forecast;
         }
 
         private void EnsureMoveButtons(int count)
@@ -256,6 +298,21 @@ namespace PokeLab.UI
                 Hover(button.gameObject, () => SelectEntryFor(index, BattleCommandPage.Moves));
                 _moveButtons.Add(button);
             }
+        }
+
+        /// <summary>
+        /// Runs a root-menu action, but only while the root menu is genuinely the player's.
+        ///
+        /// The move pills have always been gated on <c>_committed</c>; the root pills were not,
+        /// so Run could be fired in the gap between committing a move and the lock's cross-fade
+        /// dropping raycasts — or after BattleEndedEvent had already locked the panel, on a
+        /// pill still fading out. The page test is the same guard the hover handler uses: a
+        /// pill belonging to a page that is no longer showing must not act.
+        /// </summary>
+        private void TakeRootAction(Action action)
+        {
+            if (_committed || _page != BattleCommandPage.Root) return;
+            action?.Invoke();
         }
 
         private void OnMoveChosen(int index)
@@ -287,7 +344,11 @@ namespace PokeLab.UI
             // the lock's cross-fade has finished dropping raycasts.
             if (_committed) return;
             _committed = true;
-            ShowPage(BattleCommandPage.Locked);
+            // Through Lock rather than straight to the page, so committing also clears the back
+            // stack. Remembering the move list here left the cancel control lit through the
+            // resolution — refused, now, but a control that is visible and does nothing is its
+            // own small lie.
+            Lock();
             MoveChosen?.Invoke(moveIndex);
         }
 
@@ -442,9 +503,9 @@ namespace PokeLab.UI
             if (remember && _page != BattleCommandPage.Locked && _page != page) _history.Push(_page);
             _page = page;
 
-            Fade(_rootPage, page == BattleCommandPage.Root);
-            Fade(_movePage, page == BattleCommandPage.Moves);
-            Fade(_targetPage, page == BattleCommandPage.Targets);
+            Fade(ref _rootFade, _rootPage, page == BattleCommandPage.Root);
+            Fade(ref _moveFade, _movePage, page == BattleCommandPage.Moves);
+            Fade(ref _targetFade, _targetPage, page == BattleCommandPage.Targets);
 
             RebuildEntries();
 
@@ -496,14 +557,18 @@ namespace PokeLab.UI
         private static float Rows(int count, float rowHeight) =>
             count <= 0 ? 0f : count * rowHeight + (count - 1) * PillSpacing;
 
-        private static void Fade(CanvasGroup group, bool visible)
+        /// <summary>
+        /// Cross-fades one page. The handle is that page's own, so Fight → Back → Fight inside
+        /// the 0.12s hide kills it rather than letting it switch the move list off underneath a
+        /// panel that has already navigated back to it.
+        /// </summary>
+        private static void Fade(ref TweenHandle fade, CanvasGroup group, bool visible)
         {
             if (group == null) return;
-            if (visible) group.gameObject.SetActive(true);
             group.interactable = visible;
             group.blocksRaycasts = visible;
-            UiTween.Fade(group, visible ? 1f : 0f, visible ? 0.18f : 0.12f, visible ? Ease.OutCubic : Ease.InCubic,
-                0f, () => { if (!visible && group != null) group.gameObject.SetActive(false); });
+            UiTween.FadeActive(ref fade, group, visible, visible ? 0.18f : 0.12f,
+                visible ? Ease.OutCubic : Ease.InCubic);
         }
 
         // -------------------------------------------------------------------- build
@@ -581,19 +646,19 @@ namespace PokeLab.UI
             // all four, which is what a purpose-made set would have had to match anyway.
             panel._rootPills.Add(BuildPill(stack, Loc.Pick("Fight", "싸운다"),
                 UiTypeIcons.Get(ElementType.Fighting, 48), UiPalette.ScannerAmber, null,
-                () => panel.ShowPage(BattleCommandPage.Moves)));
+                () => panel.TakeRootAction(() => panel.ShowPage(BattleCommandPage.Moves))));
 
             panel._rootPills.Add(BuildPill(stack, Loc.Pick("Party", "포켓몬"),
                 UiTypeIcons.Get(ElementType.Normal, 48), UiPalette.Positive, null,
-                () => panel.PartyRequested?.Invoke()));
+                () => panel.TakeRootAction(() => panel.PartyRequested?.Invoke())));
 
             panel._rootPills.Add(BuildPill(stack, Loc.Pick("Bag", "가방"),
                 UiSprites.Bracket(48, 6), UiPalette.ScannerCyan, null,
-                () => panel.BagRequested?.Invoke()));
+                () => panel.TakeRootAction(() => panel.BagRequested?.Invoke())));
 
             panel._rootPills.Add(BuildPill(stack, Loc.Pick("Run", "도망친다"),
                 UiTypeIcons.Get(ElementType.Flying, 48), UiPalette.TextMuted, null,
-                () => panel.RunRequested?.Invoke()));
+                () => panel.TakeRootAction(() => panel.RunRequested?.Invoke())));
 
             for (var i = 0; i < panel._rootPills.Count; i++)
             {

@@ -23,6 +23,7 @@ namespace PokeLab.UI
         {
             UiTween.Reset();
             UiTween.MotionEnabled = true;
+            UiFocus.Reset();
             UiServices.Reset();
             UiSprites.Reset();
             UiTypeIcons.Reset();

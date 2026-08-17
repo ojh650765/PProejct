@@ -55,6 +55,7 @@ namespace PokeLab.UI
         private string _boundInstanceId;
         private int _lastHp = -1;
         private StatusCondition _lastStatus = StatusCondition.None;
+        private TweenHandle _visibilityFade;
 
         /// <summary>Instance currently displayed, or null.</summary>
         public string BoundInstanceId => _boundInstanceId;
@@ -137,7 +138,12 @@ namespace PokeLab.UI
 
             // Low-health pulse on the player's own bar only — a nagging red flash on the
             // opponent's plate would read as encouragement rather than warning.
-            if (_side == BattleSide.Player && _lastHp >= 0 && creature.CurrentHp < _lastHp && fraction <= 0.25f)
+            //
+            // Never on an immediate bind, which is also every first bind of a new creature.
+            // _lastHp then belongs to whoever was out before, and comparing across the two
+            // makes sending out an already-hurt reserve look like it was just struck.
+            if (!immediate && _side == BattleSide.Player && _lastHp >= 0 &&
+                creature.CurrentHp < _lastHp && fraction <= 0.25f)
             {
                 UiTween.Punch(_rect != null ? _rect : transform, 0.04f, 0.35f);
             }
@@ -191,13 +197,13 @@ namespace PokeLab.UI
             if (_group == null) return;
             if (immediate)
             {
+                UiTween.Kill(ref _visibilityFade);
                 _group.alpha = visible ? 1f : 0f;
                 gameObject.SetActive(visible);
                 return;
             }
-            if (visible) gameObject.SetActive(true);
-            UiTween.Fade(_group, visible ? 1f : 0f, 0.25f, visible ? Ease.OutCubic : Ease.InCubic, 0f,
-                () => { if (!visible && this != null) gameObject.SetActive(false); });
+            UiTween.FadeActive(ref _visibilityFade, _group, visible, 0.25f,
+                visible ? Ease.OutCubic : Ease.InCubic);
         }
 
         private void PlayEnter()
@@ -209,7 +215,7 @@ namespace PokeLab.UI
             var from = target + new Vector2(_side == BattleSide.Player ? -90f : 90f, 0f);
             _rect.anchoredPosition = from;
             UiTween.AnchoredMove(_rect, target, 0.45f, Ease.OutCubic);
-            UiTween.Fade(_group, 1f, 0.3f);
+            UiTween.FadeActive(ref _visibilityFade, _group, true, 0.3f);
         }
 
         /// <summary>

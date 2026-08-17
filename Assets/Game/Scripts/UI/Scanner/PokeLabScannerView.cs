@@ -88,6 +88,14 @@ namespace PokeLab.UI
         private bool _built;
         private float _liveDotTime;
 
+        // Everything SetMode starts, held so the next call can kill it. The device is raised
+        // and lowered by a held key, so a mode change landing inside the previous change's
+        // animation is ordinary play rather than an edge case.
+        private TweenHandle _visibilityFade;
+        private TweenHandle _slide;
+        private TweenHandle _deferredRender;
+        private Vector2 _restingPosition;
+
         /// <summary>Current presentation mode.</summary>
         public ScannerMode Mode => _mode;
 
@@ -136,12 +144,20 @@ namespace PokeLab.UI
             var previous = _mode;
             _mode = mode;
 
+            UiTween.Kill(ref _deferredRender);
+
             if (mode == ScannerMode.Hidden)
             {
                 _audio?.PlayPowerDown();
                 if (_screen != null) _screen.PlayShutdown();
-                UiTween.Fade(_rootGroup, 0f, 0.22f, Ease.InCubic, 0f, () =>
+                UiTween.Kill(ref _visibilityFade);
+                _visibilityFade = UiTween.Fade(_rootGroup, 0f, 0.22f, Ease.InCubic, 0f, () =>
                 {
+                    // Re-read rather than captured. This fade used to be untracked, so raising
+                    // the device again inside its 0.22s left the screen switched off while
+                    // _mode said Overworld and IsRaised said true — and BindScout, seeing a
+                    // mode that was not Hidden, had nothing to recover from.
+                    if (_mode != ScannerMode.Hidden) return;
                     if (_rootGroup != null) { _rootGroup.interactable = false; _rootGroup.blocksRaycasts = false; }
                     if (_rootRect != null) _rootRect.gameObject.SetActive(false);
                 });
@@ -151,6 +167,7 @@ namespace PokeLab.UI
                 return;
             }
 
+            UiTween.Kill(ref _visibilityFade);
             if (_rootRect != null) _rootRect.gameObject.SetActive(true);
             ApplyModeLayout(mode);
 
@@ -163,20 +180,37 @@ namespace PokeLab.UI
             // Slide in from the side it lives on, so the device has a physical origin.
             if (_rootRect != null)
             {
-                var target = _rootRect.anchoredPosition;
-                _rootRect.anchoredPosition = target + new Vector2(0f, mode == ScannerMode.Overworld ? -70f : 0f)
-                                                    + new Vector2(mode == ScannerMode.Docked ? 60f : 0f, 0f);
-                UiTween.AnchoredMove(_rootRect, target, 0.42f, Ease.OutCubic);
+                // The resting position is read only when no slide is running. Killing one
+                // mid-flight leaves the rect part-way home, and adopting that as the new
+                // target would walk the panel a little further off its corner on every raise
+                // the player made during the previous raise.
+                if (_slide == null || !_slide.IsAlive) _restingPosition = _rootRect.anchoredPosition;
+                UiTween.Kill(ref _slide);
+
+                _rootRect.anchoredPosition = _restingPosition
+                    + new Vector2(0f, mode == ScannerMode.Overworld ? -70f : 0f)
+                    + new Vector2(mode == ScannerMode.Docked ? 60f : 0f, 0f);
+                _slide = UiTween.AnchoredMove(_rootRect, _restingPosition, 0.42f, Ease.OutCubic);
             }
 
-            UiTween.Fade(_rootGroup, 1f, 0.24f);
+            _visibilityFade = UiTween.Fade(_rootGroup, 1f, 0.24f);
 
             if (previous == ScannerMode.Hidden)
             {
                 _audio?.PlayBoot();
                 if (_screen != null) _screen.PlayBoot(() => _booted = true);
                 else _booted = true;
-                if (_lastReadout != null) UiTween.Delay(0.75f, () => RenderReadout(_lastReadout, false));
+                // Tracked, and it re-checks on arrival: lowering the device inside this delay
+                // used to leave it to paint a readout under a deactivated root, which also
+                // re-activated the recommendation box behind a screen that was off.
+                if (_lastReadout != null)
+                {
+                    _deferredRender = UiTween.Delay(0.75f, () =>
+                    {
+                        if (_mode == ScannerMode.Hidden || _lastReadout == null) return;
+                        RenderReadout(_lastReadout, false);
+                    });
+                }
             }
             else
             {
@@ -193,6 +227,12 @@ namespace PokeLab.UI
         /// <summary>Sets the mode with no animation. Used at Awake and on scene load.</summary>
         public void SetModeImmediate(ScannerMode mode)
         {
+            // Immediate means immediate: nothing the animated path started may still be in
+            // flight to undo it a fraction of a second later.
+            UiTween.Kill(ref _visibilityFade);
+            UiTween.Kill(ref _slide);
+            UiTween.Kill(ref _deferredRender);
+
             _mode = mode;
             var visible = mode != ScannerMode.Hidden;
             if (_rootRect != null) _rootRect.gameObject.SetActive(visible);
@@ -202,7 +242,14 @@ namespace PokeLab.UI
                 _rootGroup.interactable = mode == ScannerMode.Docked;
                 _rootGroup.blocksRaycasts = mode == ScannerMode.Docked;
             }
-            if (visible) ApplyModeLayout(mode);
+            if (visible)
+            {
+                ApplyModeLayout(mode);
+                // The screen has its own power state, and nothing but the boot sequence lights
+                // it. Skipping this after a shutdown left a correctly positioned, correctly
+                // bound scanner drawing on dark glass.
+                _screen?.ShowImmediate();
+            }
             _booted = visible;
             if (_liveDot != null) _liveDot.enabled = mode == ScannerMode.Docked;
         }
@@ -253,6 +300,9 @@ namespace PokeLab.UI
                 if (_gauge != null) { _gauge.Bind(0.5f, 0f, false); _gauge.SetCaption("no signal"); }
                 _confidence?.Bind(false, "Target not resolved");
                 _evidence?.ShowEmpty("Move closer to complete the scan.");
+                // Cleared with the rest of it. Left alone, the previous target's type sentence
+                // sat under an unresolved scan and read as a statement about this one.
+                BindTypeSummary(null, null);
                 BindWarnings(null);
                 BindHeadToHead(null);
                 BindMatchupChips(null);

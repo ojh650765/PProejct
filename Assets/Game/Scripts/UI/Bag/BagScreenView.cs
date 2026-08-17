@@ -58,6 +58,7 @@ namespace PokeLab.UI
         private BagCategory _category = BagCategory.Balls;
         private string _selectedItemId;
         private bool _built;
+        private TweenHandle _openFade;
 
         /// <summary>Raised with the item id when the player confirms a use.</summary>
         public Action<string> ItemUsed;
@@ -174,6 +175,10 @@ namespace PokeLab.UI
         private void SetOpen(bool open, bool immediate = false)
         {
             IsOpen = open;
+            // The keyboard belongs to whatever is on top. In battle the command panel is still
+            // alive behind this screen, and it polls the same arrows and Enter.
+            if (open) UiFocus.Claim(this);
+            else UiFocus.Release(this);
             if (_group == null) return;
             if (open) gameObject.SetActive(true);
             _group.interactable = open;
@@ -181,12 +186,13 @@ namespace PokeLab.UI
 
             if (immediate)
             {
+                UiTween.Kill(ref _openFade);
                 _group.alpha = open ? 1f : 0f;
                 gameObject.SetActive(open);
                 return;
             }
-            UiTween.Fade(_group, open ? 1f : 0f, open ? 0.22f : 0.16f, open ? Ease.OutCubic : Ease.InCubic, 0f,
-                () => { if (!open && this != null) gameObject.SetActive(false); });
+            UiTween.FadeActive(ref _openFade, _group, open, open ? 0.22f : 0.16f,
+                open ? Ease.OutCubic : Ease.InCubic);
         }
 
         private void EnsureRows(int count)

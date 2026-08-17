@@ -33,6 +33,7 @@ namespace PokeLab.UI
         private readonly List<CreatureInstance> _order = new List<CreatureInstance>(6);
         private int _selected = -1;
         private bool _built;
+        private TweenHandle _openFade;
 
         /// <summary>Raised with the new party order after a drag. Indices refer to the original list.</summary>
         public Action<IReadOnlyList<int>> OrderChanged;
@@ -114,6 +115,18 @@ namespace PokeLab.UI
         private void SetOpen(bool open, bool immediate = false)
         {
             IsOpen = open;
+            // A drag in flight ends when the screen does, and it ends here rather than when the
+            // fade finally deactivates the row — the lifted row is parented to the drag layer
+            // above both columns, so letting it ride the close out means watching it fade out
+            // over there and finding it there again on the next open.
+            if (!open)
+            {
+                for (var i = 0; i < _slots.Count; i++) _slots[i].CancelDrag();
+            }
+            // The keyboard belongs to whatever is on top. In battle the command panel is still
+            // alive behind this screen, and it polls the same arrows and Enter.
+            if (open) UiFocus.Claim(this);
+            else UiFocus.Release(this);
             if (_group == null) return;
             if (open) gameObject.SetActive(true);
             _group.interactable = open;
@@ -121,13 +134,14 @@ namespace PokeLab.UI
 
             if (immediate)
             {
+                UiTween.Kill(ref _openFade);
                 _group.alpha = open ? 1f : 0f;
                 gameObject.SetActive(open);
                 return;
             }
 
-            UiTween.Fade(_group, open ? 1f : 0f, open ? 0.22f : 0.16f, open ? Ease.OutCubic : Ease.InCubic, 0f,
-                () => { if (!open && this != null) gameObject.SetActive(false); });
+            UiTween.FadeActive(ref _openFade, _group, open, open ? 0.22f : 0.16f,
+                open ? Ease.OutCubic : Ease.InCubic);
         }
 
         private void EnsureSlots(int count)

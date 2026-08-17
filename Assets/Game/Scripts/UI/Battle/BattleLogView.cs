@@ -86,6 +86,12 @@ namespace PokeLab.UI
 
             // Strip rich-text tags from the count so a coloured line does not appear to
             // stall while the typewriter walks through markup.
+            //
+            // Reparsed first: GetParsedText reads the mesh TMP last built, so straight after
+            // SetText it measures the line this slot was showing before rather than the one
+            // being revealed — and this slot is recycled, so that is some line from three
+            // events ago.
+            line.ForceMeshUpdate(true);
             var visibleCount = Mathf.Max(1, line.GetParsedText().Length);
             var pace = _pending.Count >= _catchUpThreshold ? _secondsPerCharacter * 0.4f : _secondsPerCharacter;
             var duration = Mathf.Clamp(visibleCount * pace, 0.12f, 1.4f);

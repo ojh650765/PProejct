@@ -41,6 +41,29 @@ namespace PokeLab.UI
         private TweenHandle _sweepTween;
         private TweenHandle _alertTween;
         private TweenHandle _flickerTween;
+        private TweenHandle _contentTween;
+        private TweenHandle _backlightTween;
+        private TweenHandle _glassTween;
+        private TweenHandle _substrateTween;
+        private TweenHandle _shutdownTween;
+
+        // The content layer's alpha is a product, not a value two tweens take turns writing.
+        //
+        // The boot fade owns _contentAlpha and the flicker owns _flickerScale, and only
+        // ApplyContentAlpha touches the CanvasGroup. Written directly, whichever of the two
+        // ran last each frame won: the flicker, which assumed a base of 1, painted the readout
+        // fully lit from the first frame of the boot — so the content was up before the
+        // calibration sweep instead of resolving out of it — and an interrupted boot left the
+        // shutdown and the boot fade pulling the same alpha in opposite directions.
+        private float _contentAlpha = 1f;
+        private float _flickerScale = 1f;
+
+        /// <summary>Backlight alpha when the device is powered on.</summary>
+        private const float BacklightLit = 0.10f;
+
+        private Color _glassLit;
+        private Color _substrateLit;
+        private bool _litCaptured;
 
         /// <summary>Parent for everything the readout draws. Never touch the effect layers directly.</summary>
         public RectTransform ContentRoot => _contentRoot;
@@ -77,50 +100,123 @@ namespace PokeLab.UI
         /// </summary>
         public void PlayBoot(System.Action onComplete = null)
         {
-            if (_contentGroup != null) _contentGroup.alpha = 0f;
+            CaptureLitColours();
+            KillPowerTweens();
+
+            _contentAlpha = 0f;
+            _flickerScale = 1f;
+            ApplyContentAlpha();
 
             if (_glass != null)
             {
-                var glassTarget = _glass.color;
-                var dark = glassTarget.WithAlpha(0f);
+                var dark = _glassLit.WithAlpha(0f);
                 _glass.color = dark;
-                UiTween.Color(dark, glassTarget, 0.28f, c => { if (_glass != null) _glass.color = c; }, Ease.OutExpo);
+                _glassTween = UiTween.Color(dark, _glassLit, 0.28f,
+                    c => { if (_glass != null) _glass.color = c; }, Ease.OutExpo);
             }
 
             if (_substrate != null)
             {
-                var target = _substrate.color;
-                _substrate.color = target.WithAlpha(0f);
-                UiTween.Color(target.WithAlpha(0f), target, 0.5f,
+                var dark = _substrateLit.WithAlpha(0f);
+                _substrate.color = dark;
+                _substrateTween = UiTween.Color(dark, _substrateLit, 0.5f,
                     c => { if (_substrate != null) _substrate.color = c; }, Ease.OutCubic, 0.20f);
             }
 
             _backlightBase = 0f;
-            UiTween.Float(0f, 0.10f, 0.6f, v => _backlightBase = v, Ease.OutCubic, 0.12f);
+            _backlightTween = UiTween.Float(0f, BacklightLit, 0.6f, v => _backlightBase = v, Ease.OutCubic, 0.12f);
 
             // Two sweeps: the first is the calibration pass, the second lands with the content.
             PlaySweep(0.55f, 0.18f);
             PlaySweep(0.40f, 0.62f);
 
-            UiTween.Fade(_contentGroup, 1f, 0.35f, Ease.OutCubic, 0.72f, onComplete);
+            _contentTween = UiTween.Float(0f, 1f, 0.35f,
+                v => { _contentAlpha = v; ApplyContentAlpha(); }, Ease.OutCubic, 0.72f, true, onComplete);
             PlayFlicker(0.9f);
         }
 
         /// <summary>Powers the screen down. Used when the player lowers the handheld.</summary>
         public void PlayShutdown(System.Action onComplete = null)
         {
-            UiTween.Fade(_contentGroup, 0f, 0.16f, Ease.InCubic);
-            UiTween.Float(_backlightBase, 0f, 0.24f, v => _backlightBase = v, Ease.InCubic, 0.08f);
+            CaptureLitColours();
+            KillPowerTweens();
+
+            _contentTween = UiTween.Float(_contentAlpha, 0f, 0.16f,
+                v => { _contentAlpha = v; ApplyContentAlpha(); }, Ease.InCubic);
+            _backlightTween = UiTween.Float(_backlightBase, 0f, 0.24f, v => _backlightBase = v, Ease.InCubic, 0.08f);
             if (_glass != null)
             {
                 var from = _glass.color;
-                UiTween.Color(from, from.WithAlpha(0f), 0.28f,
+                _glassTween = UiTween.Color(from, from.WithAlpha(0f), 0.28f,
                     c => { if (_glass != null) _glass.color = c; }, Ease.InCubic, 0.1f, true, onComplete);
             }
             else
             {
-                UiTween.Delay(0.3f, onComplete);
+                _shutdownTween = UiTween.Delay(0.3f, onComplete);
             }
+        }
+
+        /// <summary>
+        /// Drops everything the power-on and power-off sequences drive.
+        ///
+        /// Both write the same four things — content alpha, backlight, glass and substrate —
+        /// and the device is raised and lowered by a held key, so an interrupted boot is
+        /// ordinary play. Whichever sequence starts last is the one that means anything.
+        /// </summary>
+        private void KillPowerTweens()
+        {
+            UiTween.Kill(ref _contentTween);
+            UiTween.Kill(ref _backlightTween);
+            UiTween.Kill(ref _glassTween);
+            UiTween.Kill(ref _substrateTween);
+            UiTween.Kill(ref _shutdownTween);
+            UiTween.Kill(ref _flickerTween);
+            _flickerScale = 1f;
+        }
+
+        /// <summary>The single writer for the content layer's alpha.</summary>
+        private void ApplyContentAlpha()
+        {
+            if (_contentGroup != null) _contentGroup.alpha = Mathf.Clamp01(_contentAlpha * _flickerScale);
+        }
+
+        /// <summary>
+        /// Remembers what "powered on" looks like, once.
+        ///
+        /// Both sequences used to read their own target straight off the graphic. A shutdown
+        /// leaves the glass at zero alpha, so that zero became the next boot's target and the
+        /// device came back permanently transparent after the first time the player lowered
+        /// it; an interrupted boot did the same thing one step earlier with the substrate.
+        /// The lit colours are a property of the design, so they are taken before anything has
+        /// had a chance to animate them.
+        /// </summary>
+        private void CaptureLitColours()
+        {
+            if (_litCaptured) return;
+            _litCaptured = true;
+            if (_glass != null) _glassLit = _glass.color;
+            if (_substrate != null) _substrateLit = _substrate.color;
+        }
+
+        /// <summary>
+        /// Puts the screen straight into its powered-on state, for callers that set the mode
+        /// with no animation. Only the boot sequence ever lights the glass, so without this a
+        /// screen left dark by a shutdown would stay dark through an immediate re-show.
+        /// </summary>
+        public void ShowImmediate()
+        {
+            CaptureLitColours();
+            KillPowerTweens();
+            UiTween.Kill(ref _sweepTween);
+            UiTween.Kill(ref _alertTween);
+
+            _contentAlpha = 1f;
+            ApplyContentAlpha();
+            _backlightBase = BacklightLit;
+            if (_glass != null) _glass.color = _glassLit;
+            if (_substrate != null) _substrate.color = _substrateLit;
+            if (_sweep != null) _sweep.color = UiPalette.ScannerCyan.WithAlpha(0f);
+            if (_alertWash != null) _alertWash.color = Color.clear;
         }
 
         /// <summary>
@@ -176,17 +272,21 @@ namespace PokeLab.UI
         {
             if (_contentGroup == null) return;
             UiTween.Kill(ref _flickerTween);
-            var baseAlpha = 1f;
+            // A multiplier on whatever the content layer is currently worth, not an absolute
+            // alpha. Boot runs this over the top of the content fade-in, and a hardcoded base
+            // of 1 meant the flicker itself lit the readout from the first frame — the
+            // calibration sweep then crossed a screen that had already resolved.
             _flickerTween = UiTween.Run(duration, t =>
             {
-                if (_contentGroup == null) return;
                 // Decaying square-ish noise. Value-noise on t keeps it deterministic per run.
                 var decay = 1f - t;
                 var noise = Mathf.PerlinNoise(t * 34f, 0.5f);
-                _contentGroup.alpha = baseAlpha - decay * decay * (noise > 0.55f ? 0.35f : 0.04f);
+                _flickerScale = 1f - decay * decay * (noise > 0.55f ? 0.35f : 0.04f);
+                ApplyContentAlpha();
             }, Ease.Linear, 0f, true, () =>
             {
-                if (_contentGroup != null) _contentGroup.alpha = baseAlpha;
+                _flickerScale = 1f;
+                ApplyContentAlpha();
             });
         }
 

@@ -116,6 +116,7 @@ namespace PokeLab.UI
         private readonly List<Button> _choiceButtons = new List<Button>(4);
         private TweenHandle _typing;
         private TweenHandle _caret;
+        private TweenHandle _openFade;
         private Action _onAdvance;
 
         /// <summary>Backgrounds of the live choice rows, so the selected one can be lit.</summary>
@@ -375,8 +376,14 @@ namespace PokeLab.UI
             _revealing = true;
             SetCaretVisible(false);
 
-            var visible = Mathf.Max(1, _body.GetParsedText().Length);
+            // Reparsed now rather than at the next canvas render. GetParsedText reads the mesh
+            // TMP last built, so called straight after SetText it hands back the *previous*
+            // line — the first line of a session measured as empty and revealed instantly, and
+            // every line after it typed at the length and punctuation of the one before.
+            _body.ForceMeshUpdate(true);
+
             var parsed = _body.GetParsedText();
+            var visible = Mathf.Max(1, parsed.Length);
 
             // Duration is padded for punctuation so the eased walk below lands in the right
             // place; the per-character mapping then reproduces the pauses.
@@ -543,6 +550,9 @@ namespace PokeLab.UI
         {
             if (_pendingChoices == null || _choiceButtons.Count == 0) return;
             if (PokeLab.Core.TextEntry.IsTyping) return;
+            // Not while something is stacked above the conversation — a menu opened over it
+            // answers its own keys, and this list must not take the same press.
+            if (!UiFocus.Owns(this)) return;
 
             var keyboard = UnityEngine.InputSystem.Keyboard.current;
             var pad = UnityEngine.InputSystem.Gamepad.current;
@@ -595,6 +605,11 @@ namespace PokeLab.UI
             var arriving = open && !IsOpen;
 
             IsOpen = open;
+            // A conversation is the topmost thing on screen while it is up, and it reads the
+            // same confirm key the battle's command panel does.
+            if (open) UiFocus.Claim(this);
+            else UiFocus.Release(this);
+
             if (_group == null) return;
             if (open) gameObject.SetActive(true);
             _group.interactable = open;
@@ -602,6 +617,7 @@ namespace PokeLab.UI
 
             if (immediate)
             {
+                UiTween.Kill(ref _openFade);
                 _group.alpha = open ? 1f : 0f;
                 gameObject.SetActive(open);
                 return;
@@ -624,8 +640,14 @@ namespace PokeLab.UI
             // makes every advance flicker.
             if (open && !arriving) return;
 
-            UiTween.Fade(_group, open ? 1f : 0f, open ? 0.2f : 0.16f, open ? Ease.OutCubic : Ease.InCubic, 0f,
-                () => { if (!open && this != null) gameObject.SetActive(false); });
+            // Tracked, so a Show inside the close fade's window kills it. The closure used to
+            // capture the state of the call that started it and switch the overlay off
+            // unconditionally — so a conversation reopened within a sixth of a second rendered
+            // its line and was then deactivated by the previous line's fade, taking Update, the
+            // click catcher and the caret with it. IsOpen stayed true, the presenter went on
+            // waiting for an advance that nothing could deliver, and the game stopped.
+            UiTween.FadeActive(ref _openFade, _group, open, open ? 0.2f : 0.16f,
+                open ? Ease.OutCubic : Ease.InCubic);
         }
 
         private void RefreshAutoVisual()

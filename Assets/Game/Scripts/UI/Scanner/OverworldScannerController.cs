@@ -50,6 +50,9 @@ namespace PokeLab.UI
 
         private IPokeLabScanTarget _target;
         private IPokeLabScanTarget _scoutedTarget;
+        // Cached alongside the target, because an encounter zone re-rolls its species while
+        // the reticle is still locked to it and the reference alone would not notice.
+        private int _scoutedSpeciesId = -1;
         private float _lostAt = -99f;
         private bool _raised;
         private bool _togglePending;
@@ -126,6 +129,7 @@ namespace PokeLab.UI
             _reticle?.SetVisible(true);
             _scanner?.SetMode(ScannerMode.Overworld);
             _scoutedTarget = null;
+            _scoutedSpeciesId = -1;
         }
 
         /// <summary>Lowers the device and powers the screen down.</summary>
@@ -135,6 +139,7 @@ namespace PokeLab.UI
             _raised = false;
             _target = null;
             _scoutedTarget = null;
+            _scoutedSpeciesId = -1;
             _reticle?.SetLocked(false);
             _reticle?.SetVisible(false);
             _scanner?.SetMode(ScannerMode.Hidden);
@@ -145,6 +150,17 @@ namespace PokeLab.UI
         {
             var camera = _aimCamera != null ? _aimCamera : Camera.main;
             if (camera == null) return;
+
+            // A locked creature can be destroyed while the grace period is still holding the
+            // lock. Dropped here rather than left to the timer, because everything downstream
+            // reads the target's transform: the reticle threw on the first destroyed frame and
+            // took the rest of this method with it, so the clear below never ran either and the
+            // exception repeated for as long as the scanner stayed up.
+            if (_target != null && !ScanTargets.IsAlive(_target))
+            {
+                _target = null;
+                _lostAt = -99f;
+            }
 
             var origin = camera.transform.position;
             var direction = camera.transform.forward;
@@ -176,14 +192,20 @@ namespace PokeLab.UI
 
             UpdateReticle(camera);
 
-            if (_target != null && !ReferenceEquals(_target, _scoutedTarget))
+            // Re-scouted on a change of species as well as a change of object: an encounter
+            // zone rolls a different spawn per approach, and a cache keyed on the reference
+            // alone kept showing the reading for whatever it used to be.
+            if (_target != null &&
+                (!ReferenceEquals(_target, _scoutedTarget) || _target.SpeciesId != _scoutedSpeciesId))
             {
                 _scoutedTarget = _target;
+                _scoutedSpeciesId = _target.SpeciesId;
                 RequestScout(_target);
             }
             else if (_target == null && _scoutedTarget != null)
             {
                 _scoutedTarget = null;
+                _scoutedSpeciesId = -1;
                 _scanner?.BindScout(null, 0, false);
             }
         }
@@ -192,13 +214,16 @@ namespace PokeLab.UI
         {
             if (_reticle == null) return;
 
-            var anchor = _target?.LockAnchor;
+            // Re-checked rather than trusting the field: this is the one place that dereferences
+            // the target, so it is the one place a destroyed tag would throw from.
+            var target = ScanTargets.IsAlive(_target) ? _target : null;
+            var anchor = target?.LockAnchor;
             var screenPoint = anchor != null
                 ? (Vector2)camera.WorldToScreenPoint(anchor.position)
                 : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
 
             _reticle.SetScreenPosition(screenPoint, _canvasCamera, _canvasRect);
-            _reticle.SetLocked(_target != null, _target != null ? CaptionFor(_target) : "SCANNING");
+            _reticle.SetLocked(target != null, target != null ? CaptionFor(target) : "SCANNING");
         }
 
         private static string CaptionFor(IPokeLabScanTarget target)

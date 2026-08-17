@@ -185,6 +185,47 @@ namespace PokeLab.UI
         }
 
         /// <summary>
+        /// Puts an unfinished drag back where it started.
+        ///
+        /// Unity delivers no OnEndDrag when the dragged object is switched off, and closing the
+        /// party screen mid-drag does exactly that. Everything OnEndDrag would have undone then
+        /// stayed undone: the row remained parented to the drag layer, floating over both
+        /// columns the next time the screen opened; the placeholder was left in the list as a
+        /// permanent gap; and <c>_dragging</c> stayed true, so the row ignored every click it
+        /// was ever given afterwards. Refresh rebinds the data but never re-parents, so nothing
+        /// downstream recovered from it either.
+        ///
+        /// Cancelled rather than committed: a reorder the player did not finish is not a
+        /// reorder, and reporting one from a screen that is closing would move the party under
+        /// whoever opens it next.
+        /// </summary>
+        public void CancelDrag()
+        {
+            if (!_dragging) return;
+            _dragging = false;
+
+            if (_placeholder != null)
+            {
+                Destroy(_placeholder.gameObject);
+                _placeholder = null;
+            }
+
+            if (_rect != null && _listParent != null)
+            {
+                _rect.SetParent(_listParent, false);
+                // Back to the index it started from rather than to wherever the placeholder had
+                // drifted. Refresh rebinds rows by index and never re-sorts the siblings, so a
+                // row put back in the wrong place stays in the wrong place.
+                _rect.SetSiblingIndex(Mathf.Max(0, _index));
+                _rect.localScale = Vector3.one;
+            }
+            if (_group != null) _group.blocksRaycasts = true;
+        }
+
+        /// <summary>The row going away is the one interruption a drag never hears about.</summary>
+        private void OnDisable() => CancelDrag();
+
+        /// <summary>
         /// Walks the siblings and moves the placeholder to wherever the dragged row's centre
         /// currently sits. Comparing world-space y is stable regardless of canvas scale.
         /// </summary>

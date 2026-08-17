@@ -35,6 +35,7 @@ namespace PokeLab.UI
 
         private readonly TypeBadge[] _typeBadges = new TypeBadge[2];
         private readonly List<MoveListRow> _moveRows = new List<MoveListRow>(4);
+        private TweenHandle _visibilityFade;
 
         /// <summary>Binds a live creature — the party screen's path.</summary>
         public void Bind(CreatureInstance creature, bool immediate = false)
@@ -151,9 +152,10 @@ namespace PokeLab.UI
         public void SetVisible(bool visible)
         {
             if (_group == null) return;
-            if (visible) gameObject.SetActive(true);
-            UiTween.Fade(_group, visible ? 1f : 0f, 0.2f, Ease.OutCubic, 0f,
-                () => { if (!visible && this != null) gameObject.SetActive(false); });
+            // Tracked: the card is retargeted every time the selection moves, and an arrow key
+            // held down through the 0.2s fade would otherwise hide a card that has already
+            // rebound to the next creature.
+            UiTween.FadeActive(ref _visibilityFade, _group, visible, 0.2f);
         }
 
         private void EnsureTypeBadges()

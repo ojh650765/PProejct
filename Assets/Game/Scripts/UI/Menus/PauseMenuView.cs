@@ -41,6 +41,12 @@ namespace PokeLab.UI
         private readonly Stack<PauseMenuPage> _history = new Stack<PauseMenuPage>(4);
         private PauseMenuPage _page = PauseMenuPage.Root;
         private bool _built;
+        private TweenHandle _openFade;
+        // One per page, so a cross-fade is always killed by the next one to touch that page
+        // rather than by whichever page happened to change last.
+        private TweenHandle _rootFade;
+        private TweenHandle _optionsFade;
+        private TweenHandle _saveFade;
 
         /// <summary>Raised when the player resumes.</summary>
         public Action Resumed;
@@ -96,9 +102,9 @@ namespace PokeLab.UI
             if (remember && _page != page) _history.Push(_page);
             _page = page;
 
-            SetPageVisible(_rootPage, page == PauseMenuPage.Root);
-            SetPageVisible(_optionsPage, page == PauseMenuPage.Options);
-            SetPageVisible(_savePage, page == PauseMenuPage.Save);
+            SetPageVisible(ref _rootFade, _rootPage, page == PauseMenuPage.Root);
+            SetPageVisible(ref _optionsFade, _optionsPage, page == PauseMenuPage.Options);
+            SetPageVisible(ref _saveFade, _savePage, page == PauseMenuPage.Save);
 
             if (_title != null)
             {
@@ -111,20 +117,26 @@ namespace PokeLab.UI
             }
         }
 
-        private static void SetPageVisible(RectTransform page, bool visible)
+        /// <summary>
+        /// Cross-fades one page of the menu. The handle is the page's own, so Options → Back →
+        /// Options inside the 0.12s fade kills the hide instead of letting it switch the root
+        /// page off again behind a menu that has already navigated away from it.
+        /// </summary>
+        private static void SetPageVisible(ref TweenHandle fade, RectTransform page, bool visible)
         {
             if (page == null) return;
             var group = UiBuilder.Group(page);
-            if (visible) page.gameObject.SetActive(true);
             group.interactable = visible;
             group.blocksRaycasts = visible;
-            UiTween.Fade(group, visible ? 1f : 0f, visible ? 0.18f : 0.12f, Ease.OutCubic, 0f,
-                () => { if (!visible && page != null) page.gameObject.SetActive(false); });
+            UiTween.FadeActive(ref fade, group, visible, visible ? 0.18f : 0.12f);
         }
 
         private void SetOpen(bool open, bool immediate = false)
         {
             IsOpen = open;
+            // The keyboard belongs to whatever is on top; anything underneath stops reading it.
+            if (open) UiFocus.Claim(this);
+            else UiFocus.Release(this);
             if (_group == null) return;
             if (open) gameObject.SetActive(true);
             _group.interactable = open;
@@ -132,6 +144,7 @@ namespace PokeLab.UI
 
             if (immediate)
             {
+                UiTween.Kill(ref _openFade);
                 _group.alpha = open ? 1f : 0f;
                 gameObject.SetActive(open);
                 return;
@@ -143,8 +156,8 @@ namespace PokeLab.UI
                 UiTween.Scale(_panel, Vector3.one, 0.3f, Ease.OutBack);
             }
 
-            UiTween.Fade(_group, open ? 1f : 0f, open ? 0.2f : 0.15f, open ? Ease.OutCubic : Ease.InCubic, 0f,
-                () => { if (!open && this != null) gameObject.SetActive(false); });
+            UiTween.FadeActive(ref _openFade, _group, open, open ? 0.2f : 0.15f,
+                open ? Ease.OutCubic : Ease.InCubic);
         }
 
         // -------------------------------------------------------------------- build

@@ -91,10 +91,29 @@ namespace PokeLab.Boot
 
         private void OnLine(DialogueLine line)
         {
+            if (_view == null) return;
+
             // DialogueLine is a struct, so there is no null to test — an unset line arrives
             // as a default one with no text, and drawing that is an empty box the player
             // has to dismiss.
-            if (_view == null || string.IsNullOrEmpty(line.Text)) return;
+            if (string.IsNullOrEmpty(line.Text))
+            {
+                // Except when it carries choices, which is the one shape of this that cannot be
+                // walked away from. By the time the line reaches here the runner has already put
+                // itself into awaiting-a-choice and refuses an interact-advance, so dropping it
+                // leaves the player frozen with Dialogue mode pushed, input taken, and nothing
+                // on screen to answer — no error, no way out.
+                //
+                // No authored line does this today. It is drawn anyway rather than guarded
+                // against, because an unlabelled question is ugly and a locked game is not, and
+                // it is logged as an error because the line itself is a data fault that wants
+                // fixing in the book rather than absorbing here.
+                if (line.Choices == null || line.Choices.Length == 0) return;
+
+                Debug.LogError($"[Dialogue] Choice line in sequence '{_runner?.CurrentSequenceId}' " +
+                               $"from '{line.SpeakerId}' has no text. Showing its options against an " +
+                               "empty prompt so the conversation can still be answered.", this);
+            }
 
             // The runner owns advancing — it is what the interact button is wired to, and it
             // is what knows whether the sequence has more lines. The view is told what to

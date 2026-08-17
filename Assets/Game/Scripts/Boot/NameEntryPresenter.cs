@@ -121,6 +121,20 @@ namespace PokeLab.Boot
             if (_scrim != null) _scrim.SetActive(false);
         }
 
+        /// <summary>
+        /// Gives the typing claim back if this component goes away while the prompt is up.
+        ///
+        /// Close is only ever reached from Update, so being disabled or destroyed mid-prompt —
+        /// a scene unload, the host object being torn down — left TextEntry.IsTyping true with
+        /// nobody left to clear it. Everything that defers to it then defers forever: the space
+        /// bar never advances another conversation, which is precisely the stuck state the
+        /// capture stamp warns about.
+        /// </summary>
+        private void OnDisable()
+        {
+            if (_open) Close();
+        }
+
         private void Confirm()
         {
             // First answer wins, and there is always a second.

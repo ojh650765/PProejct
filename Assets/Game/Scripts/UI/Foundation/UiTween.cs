@@ -101,9 +101,18 @@ namespace PokeLab.UI
 
             if (!MotionEnabled || duration <= 0f)
             {
-                // Reduced-motion path: land on the final value this frame, still fire completion.
-                handle.Complete();
-                return handle;
+                // Reduced motion removes motion, not time. A tween with nothing scheduled in
+                // front of it lands on its final value this frame; one that was asked to happen
+                // *later* still happens later, because the delay is pacing rather than
+                // animation. The overlay director builds a banner's hold, a result card's hold
+                // and the whole capture beat out of Delay, and collapsing those made the outcome
+                // of a battle appear and vanish inside a single frame.
+                if (handle.Delay <= 0f)
+                {
+                    handle.Complete();
+                    return handle;
+                }
+                handle.Duration = 0.0001f;
             }
 
             EnsureRunner();
@@ -172,6 +181,40 @@ namespace PokeLab.UI
         public static TweenHandle Delay(float seconds, Action action)
         {
             return Run(0.0001f, _ => { }, Ease.Linear, seconds, true, action);
+        }
+
+        /// <summary>
+        /// Fades a <see cref="CanvasGroup"/> and switches its GameObject off once it has
+        /// finished fading out. The one shape every open/close in this UI is built from.
+        ///
+        /// The caller's handle is taken by reference and killed on entry, because the case
+        /// that matters is the reversal. A close fade still running when the same surface is
+        /// shown again would otherwise finish against the state it captured when it started
+        /// and deactivate an object that is now logically open — visible state contradicting
+        /// <c>IsOpen</c> with nothing left to correct it, which is how a conversation or a
+        /// battle HUD ends up invisible mid-scene. Superseding the tween a new call replaces
+        /// is what keeps the two in step, so every caller here holds a handle rather than
+        /// firing and forgetting.
+        /// </summary>
+        public static TweenHandle FadeActive(ref TweenHandle handle, CanvasGroup group, bool visible,
+            float duration, Ease ease = Ease.OutCubic, Action onComplete = null)
+        {
+            Kill(ref handle);
+            if (group == null)
+            {
+                onComplete?.Invoke();
+                return null;
+            }
+
+            var target = group.gameObject;
+            if (visible) target.SetActive(true);
+
+            handle = Fade(group, visible ? 1f : 0f, duration, ease, 0f, () =>
+            {
+                if (!visible && target != null) target.SetActive(false);
+                onComplete?.Invoke();
+            });
+            return handle;
         }
 
         /// <summary>Kills a handle and nulls the caller's reference in one call.</summary>

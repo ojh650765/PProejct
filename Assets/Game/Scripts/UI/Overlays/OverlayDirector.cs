@@ -45,6 +45,25 @@ namespace PokeLab.UI
         private TweenHandle _cardTween;
         private TweenHandle _captureTween;
 
+        // The exit halves. Each overlay is a hold followed by a move-and-fade, and only the
+        // hold used to be held onto — so a card interrupted during its exit went on fading
+        // itself to nothing and switching itself off, over the top of the card that replaced
+        // it. A VICTORY shown while a level-up was still leaving was invisible for its whole
+        // hold and then "finished".
+        private TweenHandle _bannerExit;
+        private TweenHandle _bannerExitMove;
+        private TweenHandle _cardExit;
+        private TweenHandle _cardExitScale;
+        private TweenHandle _captureExit;
+        private TweenHandle _captureHold;
+
+        // Whoever is still waiting to be told the last one finished. A Kill on the hold threw
+        // the previous caller's callback away with it, and a presenter that never hears back
+        // from a banner it is waiting on does not start the battle.
+        private Action _bannerDone;
+        private Action _cardDone;
+        private Action _captureDone;
+
         // ------------------------------------------------------------------- veil
 
         /// <summary>
@@ -130,8 +149,16 @@ namespace PokeLab.UI
             if (_bannerTitle != null) { _bannerTitle.SetText(title ?? string.Empty); _bannerTitle.color = accent; }
             if (_bannerSubtitle != null) _bannerSubtitle.SetText(subtitle ?? string.Empty);
 
+            // Everything the previous banner still had running, and the caller it still owed a
+            // callback to. The callback is handed over rather than dropped: the presenter that
+            // asked for it is waiting on it whether or not its banner got to finish. It is
+            // fired at the bottom of this method, after the new banner is fully built, so a
+            // caller that answers by asking for another one replaces this one cleanly.
+            var superseded = _bannerDone;
+            _bannerDone = onComplete;
+            KillBanner();
+
             _bannerGroup.gameObject.SetActive(true);
-            UiTween.Kill(ref _bannerTween);
 
             var centre = Vector2.zero;
             _bannerRect.anchoredPosition = centre + new Vector2(-160f, 0f);
@@ -142,13 +169,29 @@ namespace PokeLab.UI
 
             _bannerTween = UiTween.Delay(hold, () =>
             {
-                if (_bannerRect != null) UiTween.AnchoredMove(_bannerRect, centre + new Vector2(160f, 0f), 0.4f, Ease.InCubic);
-                UiTween.Fade(_bannerGroup, 0f, 0.3f, Ease.InCubic, 0.05f, () =>
+                if (_bannerRect != null)
+                {
+                    _bannerExitMove = UiTween.AnchoredMove(_bannerRect, centre + new Vector2(160f, 0f),
+                        0.4f, Ease.InCubic);
+                }
+                _bannerExit = UiTween.Fade(_bannerGroup, 0f, 0.3f, Ease.InCubic, 0.05f, () =>
                 {
                     if (_bannerGroup != null) _bannerGroup.gameObject.SetActive(false);
-                    onComplete?.Invoke();
+                    var done = _bannerDone;
+                    _bannerDone = null;
+                    done?.Invoke();
                 });
             });
+
+            superseded?.Invoke();
+        }
+
+        /// <summary>Drops the banner's hold and its exit, leaving the callback for the caller.</summary>
+        private void KillBanner()
+        {
+            UiTween.Kill(ref _bannerTween);
+            UiTween.Kill(ref _bannerExit);
+            UiTween.Kill(ref _bannerExitMove);
         }
 
         // ---------------------------------------------------------------- capture
@@ -161,9 +204,12 @@ namespace PokeLab.UI
         {
             if (_captureGroup == null || _captureBall == null) { onComplete?.Invoke(); return; }
 
+            var superseded = _captureDone;
+            _captureDone = onComplete;
+            KillCapture();
+
             _captureGroup.gameObject.SetActive(true);
             _captureGroup.alpha = 1f;
-            UiTween.Kill(ref _captureTween);
 
             if (_captureLabel != null)
             {
@@ -196,15 +242,27 @@ namespace PokeLab.UI
                     if (succeeded) UiTween.Scale(_captureBall, Vector3.one * 1.25f, 0.35f, Ease.OutBack);
                     else UiTween.Punch(_captureBall, 0.3f, 0.4f);
                 }
-                UiTween.Delay(0.9f, () =>
+                _captureHold = UiTween.Delay(0.9f, () =>
                 {
-                    UiTween.Fade(_captureGroup, 0f, 0.3f, Ease.InCubic, 0f, () =>
+                    _captureExit = UiTween.Fade(_captureGroup, 0f, 0.3f, Ease.InCubic, 0f, () =>
                     {
                         if (_captureGroup != null) _captureGroup.gameObject.SetActive(false);
-                        onComplete?.Invoke();
+                        var done = _captureDone;
+                        _captureDone = null;
+                        done?.Invoke();
                     });
                 });
             });
+
+            superseded?.Invoke();
+        }
+
+        /// <summary>Drops the whole capture beat, leaving the callback for the caller.</summary>
+        private void KillCapture()
+        {
+            UiTween.Kill(ref _captureTween);
+            UiTween.Kill(ref _captureHold);
+            UiTween.Kill(ref _captureExit);
         }
 
         // ------------------------------------------------------------------- cards
@@ -249,8 +307,14 @@ namespace PokeLab.UI
             if (_cardBody != null) _cardBody.SetText(body ?? string.Empty);
             if (_cardAccent != null) _cardAccent.color = accent;
 
+            // The exit is killed as well as the hold, or the level-up card still leaving would
+            // fade the VICTORY card that replaced it to nothing and switch it off — the card
+            // invisible for its entire hold and the battle's result never shown.
+            var superseded = _cardDone;
+            _cardDone = onComplete;
+            KillCard();
+
             _cardGroup.gameObject.SetActive(true);
-            UiTween.Kill(ref _cardTween);
 
             _cardGroup.alpha = 0f;
             _cardRect.localScale = Vector3.one * 0.86f;
@@ -259,13 +323,25 @@ namespace PokeLab.UI
 
             _cardTween = UiTween.Delay(hold, () =>
             {
-                UiTween.Scale(_cardRect, Vector3.one * 0.96f, 0.3f, Ease.InCubic);
-                UiTween.Fade(_cardGroup, 0f, 0.3f, Ease.InCubic, 0f, () =>
+                _cardExitScale = UiTween.Scale(_cardRect, Vector3.one * 0.96f, 0.3f, Ease.InCubic);
+                _cardExit = UiTween.Fade(_cardGroup, 0f, 0.3f, Ease.InCubic, 0f, () =>
                 {
                     if (_cardGroup != null) _cardGroup.gameObject.SetActive(false);
-                    onComplete?.Invoke();
+                    var done = _cardDone;
+                    _cardDone = null;
+                    done?.Invoke();
                 });
             });
+
+            superseded?.Invoke();
+        }
+
+        /// <summary>Drops the card's hold and its exit, leaving the callback for the caller.</summary>
+        private void KillCard()
+        {
+            UiTween.Kill(ref _cardTween);
+            UiTween.Kill(ref _cardExit);
+            UiTween.Kill(ref _cardExitScale);
         }
 
         // -------------------------------------------------------------------- build

@@ -89,6 +89,11 @@ namespace PokeLab.UI
                 if (_koDial != null) _koDial.fillAmount = target;
             }
 
+            // A rebind supersedes whatever the row was doing, including a PlayExit fade whose
+            // completion would otherwise deactivate a row now carrying live data — a threat
+            // that cleared and came straight back vanished from the list until the next
+            // readout rebuilt it.
+            UiTween.Kill(ref _lifecycleTween);
             gameObject.SetActive(true);
 
             if (isNew)

@@ -41,6 +41,7 @@ namespace PokeLab.UI
         private CreatureInstance _playerActive;
         private CreatureInstance _opponentActive;
         private bool _built;
+        private TweenHandle _visibilityFade;
 
         /// <summary>Raised when the player commits a move, with its slot index.</summary>
         public Action<int> MoveChosen;
@@ -78,7 +79,10 @@ namespace PokeLab.UI
             {
                 _group.interactable = true;
                 _group.blocksRaycasts = true;
-                UiTween.Fade(_group, 1f, 0.3f);
+                // Through the tracked fade, because the outgoing one has to die here: a Hide
+                // still running when the next battle stages itself would otherwise switch the
+                // whole HUD off a quarter of a second into the fight.
+                UiTween.FadeActive(ref _visibilityFade, _group, true, 0.3f);
             }
             _scanner?.SetMode(ScannerMode.Docked);
         }
@@ -91,10 +95,7 @@ namespace PokeLab.UI
             if (_group == null) return;
             _group.interactable = false;
             _group.blocksRaycasts = false;
-            UiTween.Fade(_group, 0f, 0.25f, Ease.InCubic, 0f, () =>
-            {
-                if (this != null) gameObject.SetActive(false);
-            });
+            UiTween.FadeActive(ref _visibilityFade, _group, false, 0.25f, Ease.InCubic);
         }
 
         /// <summary>

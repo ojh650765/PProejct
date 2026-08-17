@@ -167,6 +167,44 @@ namespace PokeLab.UI
             UiTween.Punch(transform, 0.06f, 0.3f);
         }
 
+        /// <summary>
+        /// Emits the choice, against the party as it stands rather than as the readout that
+        /// drew this row found it.
+        ///
+        /// A party index is a position, not an identity, and the panel rebinds its rows on
+        /// every recalculation — so a click landing on a row built from an older readout could
+        /// send out whoever has since moved into that slot. Re-resolving by instance id makes
+        /// the row mean the creature it names, and a creature no longer in the party emits
+        /// nothing at all rather than a switch to a stranger.
+        /// </summary>
+        public void Choose()
+        {
+            if (!_bound || !gameObject.activeInHierarchy) return;
+
+            var party = UiServices.Profile?.Party;
+            // No profile registered yet — during integration the bind is all there is to go on.
+            if (party == null)
+            {
+                if (PartyIndex >= 0) Chosen?.Invoke(PartyIndex);
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(InstanceId))
+            {
+                for (var i = 0; i < party.Count; i++)
+                {
+                    if (party[i] != null && party[i].InstanceId == InstanceId)
+                    {
+                        Chosen?.Invoke(i);
+                        return;
+                    }
+                }
+                return;
+            }
+
+            if (PartyIndex >= 0 && PartyIndex < party.Count) Chosen?.Invoke(PartyIndex);
+        }
+
         /// <summary>Hides the row for reuse.</summary>
         public void HideImmediate()
         {
@@ -258,10 +296,7 @@ namespace PokeLab.UI
             if (interactive)
             {
                 UiButtonMotion.Attach(root, 10);
-                UiBuilder.Button("Choose", root, row._background, () =>
-                {
-                    if (row.PartyIndex >= 0) row.Chosen?.Invoke(row.PartyIndex);
-                });
+                UiBuilder.Button("Choose", root, row._background, row.Choose);
             }
 
             root.gameObject.SetActive(false);

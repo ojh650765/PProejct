@@ -35,6 +35,28 @@ namespace PokeLab.UI
         Transform LockAnchor { get; }
     }
 
+    /// <summary>Helpers for holding a scan target across frames.</summary>
+    public static class ScanTargets
+    {
+        /// <summary>
+        /// True when a target is still really there.
+        ///
+        /// A held <see cref="IPokeLabScanTarget"/> is an interface reference, and an interface
+        /// reference does not go through Unity's destroyed-object check: a despawned creature's
+        /// tag keeps comparing non-null while every member that touches its transform throws.
+        /// The scanner holds a lock for a third of a second after it stops seeing something,
+        /// which is exactly long enough for a creature to be destroyed underneath it, so the
+        /// cast back to <see cref="UnityEngine.Object"/> — where <c>==</c> does consult the
+        /// native side — is what a caller needs before reading anything off one.
+        /// </summary>
+        public static bool IsAlive(IPokeLabScanTarget target)
+        {
+            if (target == null) return false;
+            // A non-Unity implementation — a test double — has no destroyed state to consult.
+            return !(target is UnityEngine.Object unityObject) || unityObject != null;
+        }
+    }
+
     /// <summary>
     /// The concrete tag the integrator attaches to scannable world objects.
     ///

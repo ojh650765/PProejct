@@ -68,7 +68,13 @@ namespace PokeLab.Boot
 
             // Narration, so no speaker: nobody is talking, the game is telling you what
             // happened. The box hides its name plate when the name is empty.
-            view.Show(string.Empty, Line(itemId, count));
+            //
+            // The advance callback is what dismisses it, and it is not optional. The box closes
+            // through this or through an explicit Close, and nothing else was going to call
+            // either: DialoguePresenter only closes what the runner opened, and the view will
+            // not even arm AUTO without a handler. Passed nothing, the line sat there for good,
+            // over the battle HUD it outranks, with every press doing nothing.
+            view.Show(string.Empty, Line(itemId, count), null, () => { if (view != null) view.Close(); });
         }
 
         private static string Line(string itemId, int count)

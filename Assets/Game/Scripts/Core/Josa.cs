@@ -38,16 +38,25 @@ namespace PokeLab.Core
             var c = word[index];
             if (c >= HangulStart && c <= HangulEnd) return (c - HangulStart) % FinalCount != 0;
 
-            // Latin and digits: judged by how the syllable is read in Korean. These are the
-            // endings that are pronounced with a final consonant — "Pikachu" is not one of
-            // them, "Sandshrew"'s 'w' is not either, but "Charmander"'s 'r' is.
+            // Latin and digits: judged by how the word is *read* in Korean, not by whether the
+            // last letter is a consonant in English. What matters is whether the final syllable
+            // of the Korean reading closes on a 받침.
+            //
+            // The endings that do are ㄹ, ㅁ, ㄴ and the voiceless stops written as a final
+            // consonant: Bill 빌, Sam 샘, Ken 켄, Eric 에릭, Cat 캣.
+            //
+            // The ones that do not are the endings Korean opens back out into a vowel. Word-final
+            // -r is read 어 — Charmander is 차만더, not 차만덜 — and -s is 스, and -x is likewise
+            // 스; the voiced stops -b and -d take 브 and 드. All of those take 가/는/를, and this
+            // table used to claim the opposite for every one of them. The comment that used to
+            // sit here offered Charmander as the example of a final consonant, which is the same
+            // mistake stated out loud.
             if (char.IsDigit(c))
                 return c == '0' || c == '1' || c == '3' || c == '6' || c == '7' || c == '8';
 
             switch (char.ToLowerInvariant(c))
             {
-                case 'l': case 'm': case 'n': case 'r': case 'g': case 'k':
-                case 'b': case 'p': case 't': case 'd': case 'c': case 'x': case 's':
+                case 'l': case 'm': case 'n': case 'g': case 'k': case 't': case 'c':
                     return true;
                 default:
                     return false;
@@ -80,6 +89,13 @@ namespace PokeLab.Core
                 var final = (c - HangulStart) % FinalCount;
                 return final == 0 || final == 8 ? "로" : "으로";
             }
+
+            // The same ㄹ exception, one alphabet along. A Latin name ending in -l is read as
+            // exactly that ㄹ — Bill is 빌 — so it takes 로 for the same reason 빌 does. Falling
+            // through to the general test gave "Bill으로", which is the one thing this whole
+            // method exists to avoid.
+            if (char.ToLowerInvariant(c) == 'l') return "로";
+
             return HasFinalConsonant(word) ? "으로" : "로";
         }
 
