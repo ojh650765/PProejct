@@ -77,6 +77,22 @@ namespace PokeLab.Battle
         /// <summary>The opponent's decision policy. Swap or retune it without touching the engine.</summary>
         public BattleAi Ai { get; set; }
 
+        /// <summary>
+        /// When true, the engine does NOT auto-replace the player's fainted active at the
+        /// end of a turn: the battle stays <see cref="BattleOutcome.InProgress"/> (the
+        /// outcome check keys on the whole party's health, not the active slot) and the
+        /// next <see cref="ResolveTurn"/> becomes a free replacement turn that accepts only
+        /// a Switch — see <see cref="ResolveReplacementTurn"/>.
+        ///
+        /// The battle UI sets this when a human is present to answer, so the choice can be
+        /// an ordinary asynchronous prompt instead of the synchronous-wait contortions
+        /// <see cref="IReplacementChooser"/> demands. Default false, which preserves the
+        /// headless behaviour byte-for-byte: auto-replace via the registered chooser or the
+        /// first healthy member, exactly as every existing test and AutoPlay path expects.
+        /// The opponent's side always auto-replaces regardless of this flag.
+        /// </summary>
+        public bool DeferPlayerReplacement { get; set; }
+
         /// <summary>Seeded generator for this battle. Null until <see cref="Begin"/> is called.</summary>
         public BattleRandom Random => _rng;
 
@@ -217,6 +233,17 @@ namespace PokeLab.Battle
             }
 
             if (_state.Outcome != BattleOutcome.InProgress) return _stream.ToArray();
+
+            // A deferred replacement is settled BEFORE anything else a turn does: before
+            // the turn counter moves, and crucially before the AI is asked for an action —
+            // the AI must never be consulted while the player's active is fainted, because
+            // its scoring reads the active slot and assumes something is standing there.
+            if (DeferPlayerReplacement && IsAwaitingPlayerReplacement())
+            {
+                ResolveReplacementTurn(playerAction);
+                EvaluateOutcome();
+                return _stream.ToArray();
+            }
 
             _state.TurnNumber++;
             _hasMovedThisTurn[0] = false;
@@ -866,6 +893,13 @@ namespace PokeLab.Battle
             }
         }
 
+        /// <summary>
+        /// One attempt to flee a wild battle, on the Gen-1 formula: F = speed * 128 /
+        /// blockerSpeed + 30 per prior attempt, escape guaranteed at F >= 256 and rolled on
+        /// a 0-255 draw below that. A past bug replaced the >= 256 cap with `% 256`, so the
+        /// fastest runners had the worst odds — see the comment at the factor computation.
+        /// The guaranteed branch draws nothing from the RNG; the rolled branch draws once.
+        /// </summary>
         private void AttemptRun(BattleSide side)
         {
             if (_state.Kind == BattleKind.Trainer)
@@ -887,9 +921,29 @@ namespace PokeLab.Battle
 
             var ownSpeed = runner?.Stats[(int)StatKind.Speed] ?? 1;
             var foeSpeed = Math.Max(1, blocker?.Stats[(int)StatKind.Speed] ?? 1);
-            var odds = (ownSpeed * 128 / foeSpeed + 30 * _runAttempts) % 256;
 
-            if (_rng.Next(256) < odds)
+            // The Gen-1 escape factor F = ownSpeed * 128 / foeSpeed + 30 * attempts. The
+            // reference rule is that F of 256 or more escapes unconditionally; only below
+            // that is a 0-255 roll measured against it. This used to be written with `% 256`
+            // in place of the cap, which inverted the formula at its best: a runner twice as
+            // fast as its blocker wrapped from 286 to 30 — worse odds than an equal-speed
+            // matchup — and every extra attempt could wrap it again.
+            var escapeFactor = ownSpeed * 128 / foeSpeed + 30 * _runAttempts;
+
+            if (escapeFactor > 255)
+            {
+                // Guaranteed escape consumes NO draw, deliberately. CaptureMath burns its
+                // four draws on a guaranteed ball because a failed throw of the same turn
+                // would leave later rolls behind it; a guaranteed escape has no "later" —
+                // the battle ends right here, so there is no subsequent roll to keep
+                // aligned, and the outcome is decidable without randomness. The ability
+                // path above (GuaranteesEscape) already set that precedent.
+                Emit(new MessageEvent { Text = "Got away safely!" });
+                FinishBattle(BattleOutcome.Fled, 0);
+                return;
+            }
+
+            if (_rng.Next(256) < escapeFactor)
             {
                 Emit(new MessageEvent { Text = "Got away safely!" });
                 FinishBattle(BattleOutcome.Fled, 0);
@@ -927,6 +981,11 @@ namespace PokeLab.Battle
 
             Emit(new CaptureAttemptEvent
             {
+                // Stated rather than left to the field's default: the choreography aims
+                // the throw at this side, and an engine that one day allows capturing
+                // something on the player's side must say so here, not rely on every
+                // presenter's assumption staying accidentally true.
+                Target = BattleSide.Opponent,
                 BallId = ballId,
                 Shakes = result.Shakes,
                 Succeeded = result.Succeeded,
@@ -1088,12 +1147,22 @@ namespace PokeLab.Battle
             if (side == BattleSide.Opponent) AwardExperience(creature);
         }
 
+        /// <summary>
+        /// Splits the defeated creature's experience across every player creature that was
+        /// on the field against it and is still standing. The set itself is maintained by
+        /// <see cref="SendOut"/> — accumulated on player send-outs, wiped when the
+        /// opponent's active changes — so this method only reads it. It used to both patch
+        /// the set (adding the current active at award time) and wipe it afterwards, which
+        /// papered over the send-out bookkeeping clearing on the wrong side's switches;
+        /// with the lifecycle in one place, the count that divides the award and the loop
+        /// that pays it are guaranteed to see the same creatures, because both apply the
+        /// same filter (non-null, not fainted, in the set) to the same party pass.
+        /// </summary>
         private void AwardExperience(CreatureInstance defeated)
         {
             if (!TryGetSpecies(defeated.SpeciesId, out var species)) return;
 
             var playerSide = _state.PlayerSide;
-            playerSide.Participants.Add(playerSide.Active?.InstanceId ?? string.Empty);
 
             var participants = 0;
             for (var i = 0; i < playerSide.Party.Count; i++)
@@ -1102,6 +1171,8 @@ namespace PokeLab.Battle
                 if (member != null && !member.IsFainted && playerSide.Participants.Contains(member.InstanceId))
                     participants++;
             }
+
+            if (participants == 0) return;
 
             var award = StatMath.ExperienceFromDefeat(
                 species.BaseExperience, defeated.Level, participants, _state.Kind == BattleKind.Trainer);
@@ -1114,11 +1185,6 @@ namespace PokeLab.Battle
                 if (!playerSide.Participants.Contains(member.InstanceId)) continue;
                 GrantExperience(member, award);
             }
-
-            // The slate is wiped for the next opponent, so a creature that never faced it
-            // does not quietly keep collecting.
-            playerSide.Participants.Clear();
-            if (playerSide.Active != null) playerSide.Participants.Add(playerSide.Active.InstanceId);
         }
 
         private void GrantExperience(CreatureInstance member, int amount)
@@ -1164,6 +1230,13 @@ namespace PokeLab.Battle
             var active = state.Active;
             if (active != null && !active.IsFainted) return;
             if (!state.HasHealthyMember) return;
+
+            // Under deferral the player's slot is left empty on purpose: the UI will ask a
+            // human, and the answer arrives as the Switch action of the next ResolveTurn
+            // (the replacement turn). The battle stays InProgress because EvaluateOutcome
+            // asks HasHealthyMember, never whether the active slot is standing. The
+            // opponent is unaffected — it falls through to the auto-pick below.
+            if (side == BattleSide.Player && DeferPlayerReplacement) return;
 
             // The AI always picks for itself. The player's forced switch is offered to an
             // IReplacementChooser when one is registered, so the UI can prompt instead of
@@ -1220,6 +1293,65 @@ namespace PokeLab.Battle
             }
 
             return _legalReplacements.Contains(chosen) ? chosen : fallback;
+        }
+
+        /// <summary>
+        /// True while the player's active slot holds a fainted creature that a healthy
+        /// bench member could replace — the state a deferred replacement leaves behind.
+        /// </summary>
+        private bool IsAwaitingPlayerReplacement()
+        {
+            var side = _state.PlayerSide;
+            var active = side.Active;
+            return active != null && active.IsFainted && side.HasHealthyMember;
+        }
+
+        /// <summary>
+        /// The free turn that settles a deferred replacement. Only the player's action
+        /// resolves, and only as a switch: the opponent takes no action, no end-of-turn
+        /// upkeep runs, and <see cref="BattleState.TurnNumber"/> does NOT advance — the
+        /// turn counter counts full exchanges, and weather chip, burn ticks and bad-poison
+        /// escalation are all keyed to it, so counting this interjection as a turn would
+        /// make deferring strictly worse for the player than the auto-replace path, which
+        /// also charges nothing for the forced send-out. Events emitted here carry the
+        /// turn of the faint they answer, which is also where a presenter shows them.
+        ///
+        /// The action is validated, not trusted. Anything that is not a legal switch — a
+        /// Move from a confused driver, a switch to a fainted member, an out-of-range
+        /// index — degrades to the first healthy member behind a warning message, because
+        /// the alternative is a battle stranded InProgress with nothing on the field. The
+        /// engine stays safe even if a stage driver mistakenly asks <see cref="BattleAi"/>
+        /// for this turn and forwards a Move.
+        ///
+        /// RNG: the switch itself draws nothing. The incoming creature's entry ability
+        /// fires exactly as on any send-out, which is a new (deterministic) code path that
+        /// exists only behind <see cref="DeferPlayerReplacement"/>; with the flag off this
+        /// method is unreachable and no existing draw order changes.
+        /// </summary>
+        private void ResolveReplacementTurn(BattleAction playerAction)
+        {
+            var state = _state.PlayerSide;
+
+            var index = -1;
+            if (playerAction.Type == BattleAction.Kind.Switch &&
+                playerAction.PartyIndex >= 0 && playerAction.PartyIndex < state.Party.Count &&
+                playerAction.PartyIndex != state.ActiveIndex)
+            {
+                var chosen = state.Party[playerAction.PartyIndex];
+                if (chosen != null && !chosen.IsFainted) index = playerAction.PartyIndex;
+            }
+
+            if (index < 0)
+            {
+                index = state.FirstHealthyIndex();
+                if (index < 0) return; // No bench after all; EvaluateOutcome will close the battle.
+                Emit(new MessageEvent { Text = $"{Name(state.Party[index])} was sent out instead!" });
+            }
+
+            state.ActiveIndex = index;
+            state.ResetOnSwitch();
+            SendOut(BattleSide.Player, index, true);
+            FireEntryAbility(BattleSide.Player);
         }
 
         private void EvaluateOutcome()
@@ -1519,10 +1651,38 @@ namespace PokeLab.Battle
             // The player always knows its own team; the opponent must earn its entry.
             if (side == BattleSide.Player) _state.MarkScouted(creature.SpeciesId);
 
+            // Participation lifecycle. The classic rule: every player creature that has
+            // been on the field against the CURRENT opponent creature splits its
+            // experience. So the set ACCUMULATES on player send-outs — a creature that
+            // fought and pivoted out has still earned its share — and is wiped only when
+            // the opponent's active changes, because that is the moment the "current
+            // opponent" everyone was participating against stops existing. This used to
+            // clear on every PLAYER send-out, which paid only whoever happened to be out
+            // at the KO and stiffed everything that softened the target up first.
+            //
+            // Every path onto the field funnels through here — Begin's leads, SwitchTo,
+            // ReplaceFainted and the deferred replacement turn — so this is the single
+            // place the bookkeeping has to be right:
+            //  * Begin: the opponent lead is sent out first, seeding a fresh set with the
+            //    player's chosen lead; the player's own send-out then re-adds it (a set,
+            //    so no double-count).
+            //  * Player SwitchTo / ReplaceFainted: the incoming creature joins the set.
+            //  * Opponent SwitchTo / ReplaceFainted: new opponent, new slate — only the
+            //    player creature standing there right now has faced it. A fainted or
+            //    empty player slot seeds nothing; the eventual replacement adds itself.
+            // AwardExperience (opponent faint) runs before the opponent's replacement is
+            // sent out, so the set is always read before it is wiped.
             if (side == BattleSide.Player)
             {
-                state.Participants.Clear();
                 state.Participants.Add(creature.InstanceId);
+            }
+            else
+            {
+                var playerSide = _state.PlayerSide;
+                playerSide.Participants.Clear();
+                var playerActive = playerSide.Active;
+                if (playerActive != null && !playerActive.IsFainted)
+                    playerSide.Participants.Add(playerActive.InstanceId);
             }
 
             Emit(new CreatureSentOutEvent { Side = side, Creature = creature, IsReplacement = isReplacement });
@@ -1569,7 +1729,12 @@ namespace PokeLab.Battle
 
             // Bag contents live in IPlayerProfile, which the engine deliberately does not
             // reference, so item actions are offered by the UI rather than enumerated here.
-            if (side == BattleSide.Player && _state.Kind == BattleKind.Wild)
+            //
+            // A fainted active gets switches ONLY. Under a deferred replacement the next
+            // turn accepts nothing but a switch, so offering Capture or Run here would
+            // advertise actions the replacement turn will refuse; without deferral the slot
+            // is refilled before anyone is asked, so the guard costs the old paths nothing.
+            if (side == BattleSide.Player && _state.Kind == BattleKind.Wild && !active.IsFainted)
             {
                 _legalScratch.Add(BattleAction.Capture(side, ItemCatalog.PokeBallId));
                 _legalScratch.Add(BattleAction.Run(side));
