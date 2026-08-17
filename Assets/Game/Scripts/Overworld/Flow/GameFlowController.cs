@@ -83,6 +83,8 @@ namespace PokeLab.Overworld
         private Quaternion _returnRotation;
         private bool _hasReturnPoint;
         private Coroutine _encounterRoutine;
+        private bool _encounterActive;
+        private int _encounterGeneration;
         private EncounterResult _pendingResult;
         private bool _resultReceived;
 
@@ -91,12 +93,35 @@ namespace PokeLab.Overworld
         public event Action<GameMode, GameMode> ModeChanged;
 
         /// <summary>True from the moment an encounter is requested until the player has control back.</summary>
-        public bool IsInEncounterSequence => _encounterRoutine != null;
+        public bool IsInEncounterSequence => _encounterActive;
+
+        /// <summary>
+        /// The controller that owns the hub slot. First one alive wins, and Unity reads a destroyed
+        /// component as null, so the slot frees itself the moment the scene holding it is gone.
+        /// </summary>
+        private static GameFlowController _instance;
 
         private void Awake()
         {
-            if (_registerWithServiceHub && !ServiceHub.Has<IGameFlow>())
-                ServiceHub.Register<IGameFlow>(this);
+            // The owner registers unconditionally; a duplicate stands down without touching the hub.
+            //
+            // The guard here used to be `!ServiceHub.Has<IGameFlow>()`, and nothing ever gave the
+            // slot back, while the hub outlives every scene because the boot object is
+            // DontDestroyOnLoad. So walking through a door — a LoadSceneMode.Single load — left the
+            // hub holding the controller from the scene that had just been torn down. The next
+            // encounter called StartCoroutine on a destroyed component and threw, *after* the player
+            // had already been frozen for it, and every encounter from then on was refused.
+            //
+            // Registering unconditionally is only half of it: every playable scene carries a
+            // controller so it can be opened on its own, so a band streamed in additively brings one
+            // too, and that one must not take the slot off the controller wired to the live player.
+            // This is the shape ScreenCoverHost already uses, minus the self-destruct — other
+            // components hold serialized references to a flow controller, and a duplicate that
+            // simply stays quiet is a smaller change than one that vanishes.
+            if (_instance != null && _instance != this) return;
+            _instance = this;
+
+            if (_registerWithServiceHub) ServiceHub.Register<IGameFlow>(this);
         }
 
         private void Start()
@@ -125,8 +150,16 @@ namespace PokeLab.Overworld
             // Deliberately does not call ServiceHub.Reset: that clears every worker's registration,
             // and tearing down one component must not deregister the whole game. The integrator's
             // boot scene owns the play-mode-exit reset.
+            //
+            // The instance overload is the point: by the time an outgoing scene's controller is
+            // destroyed the incoming one may already have claimed the slot, and a duplicate from a
+            // streamed band never held it at all. Either of them clearing it outright would leave
+            // the game with no flow.
+            if (_instance == this) _instance = null;
+            if (_registerWithServiceHub) ServiceHub.Unregister<IGameFlow>(this);
+
             if (_encounterRoutine != null) StopCoroutine(_encounterRoutine);
-            _encounterRoutine = null;
+            ReleaseEncounterLatch();
         }
 
         // ---- Mode stack ------------------------------------------------------------------
@@ -175,7 +208,7 @@ namespace PokeLab.Overworld
                 return;
             }
 
-            if (_encounterRoutine != null)
+            if (_encounterActive)
             {
                 // A second encounter mid-transition would leave two sequences racing for the
                 // player's freeze state. Refuse cleanly rather than interleaving.
@@ -184,8 +217,40 @@ namespace PokeLab.Overworld
                 return;
             }
 
-            _encounterRoutine = StartCoroutine(RunEncounter(request, onResolved));
+            // The latch is a flag the routine owns, not the coroutine handle it used to be.
+            //
+            // StartCoroutine runs the body up to its first yield before it returns, and the
+            // refusal path below has no yield at all — so the routine finished inside this call
+            // and the *finished* handle was then assigned as the latch. Nothing ever cleared it,
+            // and every later encounter was refused for the lifetime of the scene. Setting the
+            // flag first and only keeping the handle while the flag still stands means a
+            // synchronous completion cannot resurrect a routine that has already ended.
+            _encounterActive = true;
+            var generation = ++_encounterGeneration;
+            var routine = StartCoroutine(RunEncounter(request, onResolved, generation));
+            // The generation test covers the reentrant case: a callback that asks for another
+            // encounter has already claimed the latch and recorded the handle of the sequence that
+            // is genuinely running, and the handle in hand here is the finished one.
+            if (_encounterActive && _encounterGeneration == generation) _encounterRoutine = routine;
         }
+
+        /// <summary>
+        /// Hands the encounter latch back on behalf of one run.
+        ///
+        /// Generation-scoped so a finished sequence cannot release a latch that a newer one has
+        /// since taken — which is exactly what a callback firing during teardown would otherwise do.
+        /// Idempotent, and called from every exit a sequence has, including the ones that never
+        /// yield.
+        /// </summary>
+        private void ReleaseEncounterLatch(int generation)
+        {
+            if (_encounterGeneration != generation) return;
+            _encounterActive = false;
+            _encounterRoutine = null;
+        }
+
+        /// <summary>Drops the latch whoever is holding it. Teardown only.</summary>
+        private void ReleaseEncounterLatch() => ReleaseEncounterLatch(_encounterGeneration);
 
         /// <summary>
         /// Whether an encounter can actually be staged, asked before anything is committed.
@@ -207,87 +272,142 @@ namespace PokeLab.Overworld
             }
 
             if (ServiceHub.TryGet<IPlayerProfile>(out var profile) && profile != null
-                && (profile.Party == null || profile.Party.Count == 0))
+                && !HasAnythingToSendOut(profile))
             {
-                Debug.LogWarning("[GameFlow] The player has no Pokémon, so there is nothing to " +
-                                 "send out. The encounter was refused; whatever asked for it " +
-                                 "should be gated on the party instead.", this);
+                Debug.LogWarning("[GameFlow] The player has nothing left that can fight, so there " +
+                                 "is nothing to send out. The encounter was refused; whatever " +
+                                 "asked for it should be gated on the party instead.", this);
                 return false;
             }
 
             return true;
         }
 
-        private IEnumerator RunEncounter(EncounterRequest request, Action<EncounterResult> onResolved)
+        /// <summary>
+        /// Whether anything in the party could actually be sent out.
+        ///
+        /// Counting the party was not enough. After a wipe the party is six fainted creatures,
+        /// which is not empty — so this guard passed, the sequence covered the screen and froze the
+        /// player, and the battle stage then refused the encounter outright the moment it was
+        /// asked. Every step through grass played a full transition to a battle that could never
+        /// happen. Nothing heals or relocates the player after a whiteout yet; this at least stops
+        /// the phantom transition from starting.
+        /// </summary>
+        private static bool HasAnythingToSendOut(IPlayerProfile profile)
         {
-            // 1. Take control away and remember exactly where the player was, before anything
-            //    else can move them. This snapshot is what makes the return frame-accurate.
-            CaptureReturnPoint();
-            FreezePlayer(true);
-            SetMode(GameMode.EncounterIntro);
+            var party = profile.Party;
+            if (party == null) return false;
+            for (var i = 0; i < party.Count; i++)
+                if (party[i] != null && !party[i].IsFainted) return true;
+            return false;
+        }
 
-            // 2. Refuse before covering, not after.
-            //
-            // The cover used to go up first and the battle was staged behind it, so anything
-            // that stopped the stage being built left the player looking at a half-finished
-            // wipe with no battle behind it and no way back — the transition had already
-            // committed to a thing that then did not happen. Whatever is wrong, doing nothing
-            // is a recoverable outcome and a stuck curtain is not.
-            if (!CanStage(request))
+        private IEnumerator RunEncounter(EncounterRequest request, Action<EncounterResult> onResolved,
+            int generation)
+        {
+            // The whole body sits in a try/finally so the latch comes back on every exit there is:
+            // the refusal below, an exception from a bridge call, and a StopCoroutine from
+            // OnDestroy. A latch that leaks means every encounter for the rest of the session is
+            // refused, which is a worse outcome than anything the body can fail at.
+            try
             {
-                FreezePlayer(false);
+                // 1. Take control away and remember exactly where the player was, before anything
+                //    else can move them. This snapshot is what makes the return frame-accurate.
+                CaptureReturnPoint();
+                FreezePlayer(true);
+                SetMode(GameMode.EncounterIntro);
+
+                // 2. Refuse before covering, not after.
+                //
+                // The cover used to go up first and the battle was staged behind it, so anything
+                // that stopped the stage being built left the player looking at a half-finished
+                // wipe with no battle behind it and no way back — the transition had already
+                // committed to a thing that then did not happen. Whatever is wrong, doing nothing
+                // is a recoverable outcome and a stuck curtain is not.
+                if (!CanStage(request))
+                {
+                    FreezePlayer(false);
+                    SetMode(GameMode.Exploring);
+                    // Released before the callback on this path as well: a handler that reacts to
+                    // a refusal by asking for something else must not meet our own latch.
+                    ReleaseEncounterLatch(generation);
+                    onResolved?.Invoke(new EncounterResult { Outcome = BattleOutcome.Fled });
+                    yield break;
+                }
+
+                // 3. Ask the cinematics layer to cover the screen. We do not touch the camera.
+                yield return PlayTransition(director => director.TryInvoke(
+                    nameof(ITransitionDirector.PlayEncounterIntro), request, (Action)OnStageReady));
+
+                // 4. Stage the battle behind the cover.
+                SetMode(GameMode.Battle);
+                _resultReceived = false;
+                _pendingResult = null;
+
+                var staged = _battleStage.IsValid && _battleStage.TryInvoke(
+                    "BeginEncounter", request, (Action<EncounterResult>)OnBattleResolved);
+
+                if (!staged) yield return RunDegradedBattle(request);
+
+                // 5. Wait for the battle. Bounded, so a battle layer that never answers cannot strand
+                //    the player in a frozen overworld.
+                var elapsed = 0f;
+                while (!_resultReceived && elapsed < _battleTimeout)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+
+                if (!_resultReceived) AbandonBattle();
+
+                var result = _pendingResult ?? new EncounterResult { Outcome = BattleOutcome.Fled };
+
+                // 6. Outro, restore, reveal — in that order, so the reposition happens under cover.
+                SetMode(GameMode.BattleOutro);
+                yield return PlayTransition(director => director.TryInvoke(
+                    nameof(ITransitionDirector.PlayBattleOutro), result, (Action)OnStageReady));
+
+                RestoreReturnPoint();
                 SetMode(GameMode.Exploring);
-                onResolved?.Invoke(new EncounterResult { Outcome = BattleOutcome.Fled });
-                yield break;
+
+                yield return PlayTransition(director => director.TryInvoke(
+                    nameof(ITransitionDirector.PlayReveal), (Action)OnStageReady));
+
+                FreezePlayer(false);
+                ReleaseEncounterLatch(generation);
+
+                // Invoked last so the progression handler sees a settled world and a live player.
+                onResolved?.Invoke(result);
             }
-
-            // 3. Ask the cinematics layer to cover the screen. We do not touch the camera.
-            yield return PlayTransition(director => director.TryInvoke(
-                nameof(ITransitionDirector.PlayEncounterIntro), request, (Action)OnStageReady));
-
-            // 4. Stage the battle behind the cover.
-            SetMode(GameMode.Battle);
-            _resultReceived = false;
-            _pendingResult = null;
-
-            var staged = _battleStage.IsValid && _battleStage.TryInvoke(
-                "BeginEncounter", request, (Action<EncounterResult>)OnBattleResolved);
-
-            if (!staged) yield return RunDegradedBattle(request);
-
-            // 5. Wait for the battle. Bounded, so a battle layer that never answers cannot strand
-            //    the player in a frozen overworld.
-            var elapsed = 0f;
-            while (!_resultReceived && elapsed < _battleTimeout)
+            finally
             {
-                elapsed += Time.unscaledDeltaTime;
-                yield return null;
+                ReleaseEncounterLatch(generation);
             }
+        }
 
-            if (!_resultReceived)
+        /// <summary>
+        /// Gives up on a battle that has run past the flow's timeout.
+        ///
+        /// Fabricating a flee and walking away is not enough on its own: the stage still believes a
+        /// battle is running, and a stage that believes that refuses the next encounter outright —
+        /// which then evaporates, after the screen has been covered and the player frozen for it.
+        /// So the stage is told first, and given the chance to answer through the callback it was
+        /// handed. Only if it still says nothing is a result invented here.
+        /// </summary>
+        private void AbandonBattle()
+        {
+            if (_battleStage.IsValid)
+                _battleStage.TryInvoke("Abort", "The flow's battle timeout expired.");
+
+            if (_resultReceived)
             {
-                Debug.LogError("[GameFlow] Battle never reported a result; treating it as a flee.", this);
-                _pendingResult = new EncounterResult { Outcome = BattleOutcome.Fled };
+                Debug.LogError("[GameFlow] Battle ran past its timeout; the stage was told to abort "
+                               + "and reported its own result.", this);
+                return;
             }
 
-            var result = _pendingResult ?? new EncounterResult { Outcome = BattleOutcome.Fled };
-
-            // 6. Outro, restore, reveal — in that order, so the reposition happens under cover.
-            SetMode(GameMode.BattleOutro);
-            yield return PlayTransition(director => director.TryInvoke(
-                nameof(ITransitionDirector.PlayBattleOutro), result, (Action)OnStageReady));
-
-            RestoreReturnPoint();
-            SetMode(GameMode.Exploring);
-
-            yield return PlayTransition(director => director.TryInvoke(
-                nameof(ITransitionDirector.PlayReveal), (Action)OnStageReady));
-
-            FreezePlayer(false);
-            _encounterRoutine = null;
-
-            // Invoked last so the progression handler sees a settled world and a live player.
-            onResolved?.Invoke(result);
+            Debug.LogError("[GameFlow] Battle never reported a result; treating it as a flee.", this);
+            _pendingResult = new EncounterResult { Outcome = BattleOutcome.Fled };
         }
 
         /// <summary>
@@ -365,7 +485,22 @@ namespace PokeLab.Overworld
         /// </summary>
         public void ReturnToOverworld()
         {
-            if (_encounterRoutine != null) return; // the running sequence already owns the return
+            if (_encounterActive) return; // the running sequence already owns the return
+
+            // Nothing to come back from, so there is nothing to do.
+            //
+            // The return point was captured and never cleared, so a stray call — and this is a
+            // public entry point the battle layer may reach for at any time — warped the player to
+            // wherever the last battle happened to start, minutes after it ended, and set the mode
+            // straight to Exploring over whatever a menu or a conversation had pushed.
+            if (!_hasReturnPoint)
+            {
+                Debug.LogWarning("[GameFlow] ReturnToOverworld was called with no encounter to "
+                                 + "return from; ignored rather than warping the player to a "
+                                 + "return point that has already been used.", this);
+                return;
+            }
+
             StartCoroutine(RunStandaloneReturn());
         }
 
@@ -396,11 +531,16 @@ namespace PokeLab.Overworld
         /// Puts the player back exactly where they were. Warping is the only correct way to do
         /// this — writing the transform directly leaves the CharacterController's internal cache
         /// holding the old position and it snaps back on the next move.
+        ///
+        /// The point is consumed here rather than left standing. It describes one encounter, and
+        /// once that encounter has been returned from it describes a place the player has since
+        /// walked away from.
         /// </summary>
         private void RestoreReturnPoint()
         {
-            if (!_hasReturnPoint || _player == null) return;
-            _player.Warp(_returnPosition, _returnRotation);
+            if (!_hasReturnPoint) return;
+            _hasReturnPoint = false;
+            if (_player != null) _player.Warp(_returnPosition, _returnRotation);
         }
 
         private void FreezePlayer(bool frozen)

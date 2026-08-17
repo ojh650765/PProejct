@@ -21,16 +21,41 @@ namespace PokeLab.Core
             Services[typeof(T)] = service;
         }
 
+        /// <summary>
+        /// Drops the registration for <typeparamref name="T"/>.
+        ///
+        /// The hub had no way to give a service back, which mattered because it outlives every
+        /// scene — the boot object is <c>DontDestroyOnLoad</c>. A scene-owned service registered
+        /// itself once and then stayed on the hub as a destroyed object after the next load, and
+        /// the first caller to resolve it threw from somewhere unrelated.
+        /// </summary>
+        public static void Unregister<T>() where T : class => Services.Remove(typeof(T));
+
+        /// <summary>
+        /// Drops the registration only while it is still <paramref name="instance"/>.
+        ///
+        /// This is the overload a component's <c>OnDestroy</c> wants. A duplicate arriving with an
+        /// additively streamed scene and then stripping itself must not deregister the live
+        /// service, and neither must the outgoing scene's copy once the incoming one has already
+        /// claimed the slot.
+        /// </summary>
+        public static void Unregister<T>(T instance) where T : class
+        {
+            if (instance == null) return;
+            if (Services.TryGetValue(typeof(T), out var stored) && ReferenceEquals(stored, instance))
+                Services.Remove(typeof(T));
+        }
+
         public static T Get<T>() where T : class
         {
-            if (Services.TryGetValue(typeof(T), out var service)) return (T)service;
+            if (TryGet<T>(out var service)) return service;
             throw new InvalidOperationException(
                 $"No {typeof(T).Name} registered. Boot order problem: register it before anything resolves it.");
         }
 
         public static bool TryGet<T>(out T service) where T : class
         {
-            if (Services.TryGetValue(typeof(T), out var found))
+            if (Services.TryGetValue(typeof(T), out var found) && IsAlive(found))
             {
                 service = (T)found;
                 return true;
@@ -39,7 +64,19 @@ namespace PokeLab.Core
             return false;
         }
 
-        public static bool Has<T>() where T : class => Services.ContainsKey(typeof(T));
+        public static bool Has<T>() where T : class => TryGet<T>(out _);
+
+        /// <summary>
+        /// Whether a stored service is still usable.
+        ///
+        /// A destroyed <see cref="UnityEngine.Object"/> is not a null reference — it is a live
+        /// managed wrapper around a native object that has gone — so the dictionary happily hands
+        /// it back and the caller gets a MissingReferenceException on first use, a long way from
+        /// the scene load that caused it. Treating one as absent turns that into the ordinary
+        /// "nothing registered" path every caller already handles.
+        /// </summary>
+        private static bool IsAlive(object service) =>
+            service != null && !(service is UnityEngine.Object unityObject && unityObject == null);
 
         /// <summary>Clears everything. Called on play mode exit so domain reload stays clean.</summary>
         public static void Reset() => Services.Clear();

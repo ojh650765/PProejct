@@ -174,14 +174,34 @@ namespace PokeLab.Overworld
             var dialogue = DialogueRunner.Instance;
             if (dialogue != null && dialogue.IsPlaying) return;
 
-            StartCoroutine(Travel());
+            StartCoroutine(Travel(other));
         }
 
-        private IEnumerator Travel()
+        private IEnumerator Travel(Collider traveller)
         {
             _travelling = true;
 
             Destination(out var destination, out var arrivalSpawn);
+
+            // The player is committed the moment the screen starts going dark, so their control
+            // goes with it and the grass closes behind them for the whole fade and load.
+            //
+            // Neither happened. A step taken into a patch during the fade could still build enough
+            // pressure to commit an encounter, and the load then tore the flow controller out from
+            // under a sequence that had already frozen the player and covered the screen for a
+            // battle in a world that no longer existed.
+            //
+            // Resolved off the collider that walked in rather than from serialized fields: doors are
+            // placed by the level builder, in every scene, and a field it would have to fill on each
+            // of them is a field that ends up empty on one of them.
+            var locomotion = traveller != null ? traveller.GetComponentInParent<PlayerLocomotion>() : null;
+            if (locomotion == null) locomotion = FindFirstObjectByType<PlayerLocomotion>();
+            var input = FindFirstObjectByType<OverworldInputReader>();
+
+            if (locomotion != null) locomotion.SetMotionFrozen(true);
+            if (input != null) input.InputEnabled = false;
+
+            var gated = GateEncounters(true);
 
             // A static rather than a field on the profile: IPlayerProfile is part of the
             // frozen Core contract and this does not warrant widening it. The value has
@@ -209,8 +229,8 @@ namespace PokeLab.Overworld
             // since it was written; nothing outside its own assembly could reach it until
             // IScreenCover existed.
             var covered = false;
-            if (PokeLab.Core.ServiceHub.TryGet<PokeLab.Core.IScreenCover>(out var cover)
-                && cover != null)
+            PokeLab.Core.ServiceHub.TryGet<PokeLab.Core.IScreenCover>(out var cover);
+            if (cover != null)
             {
                 var done = false;
                 cover.Cover(_fadeOutSeconds, () => done = true);
@@ -235,7 +255,11 @@ namespace PokeLab.Overworld
                 Debug.LogError(
                     $"[LevelTransition] Scene '{destination}' is not in the build settings, so " +
                     "walking into this door does nothing. Add it under File > Build Settings.", this);
-                _travelling = false;
+
+                // Every failure path lifts the cover it put up. This one returned with the screen
+                // still black over a game that was still running, so the door that did nothing did
+                // it behind a curtain the player had no way to get out from under.
+                Abandon(cover, covered, gated, locomotion, input);
                 yield break;
             }
 
@@ -250,6 +274,13 @@ namespace PokeLab.Overworld
             var load = SceneManager.LoadSceneAsync(destination, LoadSceneMode.Single);
             while (load != null && !load.isDone) yield return null;
 
+            // The lock comes off on the far side if anything it was put on survived the load. A rig
+            // rebuilt with the scene reads as null here and this costs nothing; a persistent one
+            // would otherwise stand frozen in the new world with no input, which is the same
+            // stranding this method exists to avoid.
+            if (locomotion != null) locomotion.SetMotionFrozen(false);
+            if (input != null) input.InputEnabled = true;
+
             // Uncovered on the far side. The cover host is registered fresh by the scene that
             // just loaded, so this is resolved again rather than reusing the one from the
             // scene that has since been torn down.
@@ -261,6 +292,41 @@ namespace PokeLab.Overworld
             {
                 arrival.Reveal(_fadeInSeconds, null);
             }
+        }
+
+        /// <summary>
+        /// Puts back everything <see cref="Travel"/> took, for a journey that is not going to happen.
+        /// The order matters only in that the reveal comes last: the player should be looking at a
+        /// world they can already move in by the time they can see it.
+        /// </summary>
+        private void Abandon(PokeLab.Core.IScreenCover cover, bool covered, bool gated,
+            PlayerLocomotion locomotion, OverworldInputReader input)
+        {
+            if (gated) GateEncounters(false);
+            if (locomotion != null) locomotion.SetMotionFrozen(false);
+            if (input != null) input.InputEnabled = true;
+            _travelling = false;
+
+            if (covered && cover != null) cover.Reveal(_fadeInSeconds, null);
+        }
+
+        /// <summary>
+        /// Closes the grass off for the duration of the travel by pushing a mode that is not
+        /// Exploring.
+        ///
+        /// One push covers every way into a battle, because they all ask the same question:
+        /// EncounterDirector's pressure model, a roamer walked into, and a trainer's line of sight
+        /// each refuse unless the flow is exploring. Returns false when there was no flow to ask, so
+        /// the caller knows not to pop one that was never pushed.
+        /// </summary>
+        private static bool GateEncounters(bool gated)
+        {
+            if (!PokeLab.Core.ServiceHub.TryGet<PokeLab.Core.IGameFlow>(out var flow) || flow == null)
+                return false;
+
+            if (gated) flow.PushMode(PokeLab.Core.GameMode.Cutscene);
+            else flow.PopMode();
+            return true;
         }
     }
 }

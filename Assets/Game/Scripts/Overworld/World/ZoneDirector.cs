@@ -78,7 +78,17 @@ namespace PokeLab.Overworld
 
         private void OnDestroy()
         {
-            if (_instance == this) _instance = null;
+            // Only the owning instance may touch the shared list.
+            //
+            // The duplicate above destroys itself in Awake, and its OnDestroy used to clear
+            // ActiveVolumes on the way out — erasing the primary director's record of every volume
+            // the player was standing in. The next Reevaluate then found nothing and fell back to
+            // the default zone, so a player standing in a cave got the route's encounter table, the
+            // route's ambience, and the route's biome id written into their save. A band streaming
+            // in beside the town was enough to cause it.
+            if (_instance != this) return;
+
+            _instance = null;
             ActiveVolumes.Clear();
         }
 

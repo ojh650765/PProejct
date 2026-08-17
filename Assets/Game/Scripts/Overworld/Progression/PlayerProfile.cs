@@ -197,6 +197,19 @@ namespace PokeLab.Overworld
 
         private bool IsValidPartyIndex(int index) => index >= 0 && index < _party.Count;
 
+        /// <summary>
+        /// Appends to storage if there is room, without the dex marking and change notification
+        /// <see cref="SendToStorage"/> carries — the restore path is rebuilding state that was
+        /// already recorded, and raising per-creature during it would have the UI rebind a hundred
+        /// times against a half-loaded profile.
+        /// </summary>
+        private bool TryStore(CreatureInstance creature)
+        {
+            if (creature == null || _storage.Count >= MaxStorageSize) return false;
+            _storage.Add(creature);
+            return true;
+        }
+
         // ---- Items -----------------------------------------------------------------------
 
         public void AddItem(string itemId, int count)
@@ -307,14 +320,48 @@ namespace PokeLab.Overworld
             Money = Mathf.Max(0, money);
 
             _party.Clear();
-            if (party != null)
-                for (var i = 0; i < party.Count && _party.Count < MaxPartySize; i++)
-                    if (party[i] != null) _party.Add(party[i]);
-
             _storage.Clear();
+
+            // An over-full party is demoted, not truncated.
+            //
+            // Six is fixed by the genre, but the seventh creature in a file is still one the player
+            // caught, and both of these loops used to stop at their cap and say nothing. The loss
+            // became permanent one autosave later, when the shortened lists were written back over
+            // the file that still held them. Storage is where an over-full party puts a creature
+            // everywhere else in the game, so it is where it goes here.
+            var demoted = 0;
+            if (party != null)
+            {
+                for (var i = 0; i < party.Count; i++)
+                {
+                    if (party[i] == null) continue;
+                    if (_party.Count < MaxPartySize) _party.Add(party[i]);
+                    else if (TryStore(party[i])) demoted++;
+                }
+            }
+
+            var dropped = 0;
             if (storage != null)
-                for (var i = 0; i < storage.Count && _storage.Count < MaxStorageSize; i++)
-                    if (storage[i] != null) _storage.Add(storage[i]);
+            {
+                for (var i = 0; i < storage.Count; i++)
+                {
+                    if (storage[i] == null) continue;
+                    if (!TryStore(storage[i])) dropped++;
+                }
+            }
+
+            if (demoted > 0)
+                Debug.LogWarning($"[Profile] The save held {demoted} party member(s) past the " +
+                                 $"{MaxPartySize}-slot party; they were moved to storage rather " +
+                                 "than dropped.");
+
+            // Storage is the bound that keeps a save file from growing without limit, so there is
+            // genuinely nowhere left to put anything past it. Said as loudly as possible, because
+            // the next save makes it permanent and nothing else in the game will ever mention it.
+            if (dropped > 0)
+                Debug.LogError($"[Profile] The save held {dropped} creature(s) past the " +
+                               $"{MaxStorageSize}-slot storage cap and there is nowhere to put " +
+                               "them. They will be gone from the file the next time it is written.");
 
             _seen.Clear();
             if (seen != null) foreach (var id in seen) _seen.Add(id);

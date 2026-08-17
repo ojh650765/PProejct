@@ -32,6 +32,8 @@ namespace PokeLab.Boot
         [SerializeField] private WipeStyle _style = WipeStyle.Fade;
 
         private Coroutine _running;
+        private Coroutine _wipe;
+        private Action _pending;
 
         public bool IsCovered => _overlay != null && _overlay.IsCovered;
 
@@ -57,6 +59,12 @@ namespace PokeLab.Boot
         private void OnDestroy()
         {
             if (_instance == this) _instance = null;
+
+            // A caller blocked on a cover when the scene is torn down is a caller blocked for ever.
+            // Resolving on the way out is the same promise the supersede path keeps.
+            var pending = _pending;
+            _pending = null;
+            pending?.Invoke();
         }
 
         public void Cover(float seconds, Action onComplete) => Run(true, seconds, onComplete);
@@ -75,36 +83,83 @@ namespace PokeLab.Boot
                 return;
             }
 
-            if (_running != null) StopCoroutine(_running);
-            _running = StartCoroutine(Play(cover, seconds, onComplete));
+            Supersede();
+
+            _pending = onComplete;
+            _running = StartCoroutine(Play(cover, seconds));
         }
 
-        private IEnumerator Play(bool cover, float seconds, Action onComplete)
+        /// <summary>
+        /// Stands the in-flight request down and resolves its caller.
+        ///
+        /// A superseded request is not a cancelled one. Its caller is blocked on the callback — a
+        /// door holds the player frozen until the screen is covered — and this used to StopCoroutine
+        /// the play and drop that callback on the floor, which is the one thing
+        /// <see cref="IScreenCover"/> promises never happens. Telling them the state was reached is
+        /// true enough: the newer request owns the screen from here, and it is taking it somewhere.
+        /// </summary>
+        private void Supersede()
+        {
+            if (_wipe != null)
+            {
+                StopCoroutine(_wipe);
+                _wipe = null;
+            }
+            if (_running != null)
+            {
+                StopCoroutine(_running);
+                _running = null;
+            }
+
+            var superseded = _pending;
+            _pending = null;
+            superseded?.Invoke();
+        }
+
+        private IEnumerator Play(bool cover, float seconds)
         {
             var wipe = cover
                 ? _overlay.CoverIn(Mathf.Max(0.01f, seconds), _style)
                 : _overlay.CoverOut(Mathf.Max(0.01f, seconds), _style);
 
-            // Bounded, and the screen is forced to the state that was asked for on overrun.
-            // A stalled wipe that is simply abandoned leaves a black pane over a playable
-            // game, which is the worst of both.
-            var elapsed = 0f;
-            var budget = Mathf.Max(1f, seconds * 4f);
-            while (elapsed < budget && wipe.MoveNext())
-            {
-                elapsed += Time.unscaledDeltaTime;
-                yield return wipe.Current;
-            }
+            // Two coroutines rather than one, because the budget below has to be real.
+            //
+            // The wipe yields a single nested enumerator and Unity is the thing that drives it, so
+            // stepping it by hand here — which is what this did — called MoveNext twice for an
+            // entire wipe. The budget accumulated two frames of unscaled delta against a one-second
+            // floor and could not trip however long the wipe stalled, so the guard the comment
+            // describes was not there at all. Handing the wipe to Unity and watching the clock
+            // instead is what makes the bound the thing it claims to be.
+            var finished = false;
+            _wipe = StartCoroutine(RunWipe(wipe, () => finished = true));
 
-            if (elapsed >= budget)
+            var budget = Mathf.Max(1f, seconds * 4f);
+            var deadline = Time.realtimeSinceStartup + budget;
+            while (!finished && Time.realtimeSinceStartup < deadline) yield return null;
+
+            if (!finished)
             {
+                // Forced to the state that was asked for rather than simply abandoned: a stalled
+                // wipe left alone leaves a black pane over a playable game, which is the worst of
+                // both.
+                if (_wipe != null) StopCoroutine(_wipe);
                 Debug.LogWarning($"[Cover] The wipe did not finish within {budget:F1}s; forcing " +
                                  "the screen to the state that was asked for.", this);
                 _overlay.SetCoverage(cover ? 1f : 0f, Color.black);
             }
 
+            _wipe = null;
             _running = null;
-            onComplete?.Invoke();
+
+            var done = _pending;
+            _pending = null;
+            done?.Invoke();
+        }
+
+        private static IEnumerator RunWipe(IEnumerator wipe, Action onFinished)
+        {
+            yield return wipe;
+            onFinished();
         }
     }
 }

@@ -58,17 +58,27 @@ namespace PokeLab.Boot
         /// </summary>
         private System.Collections.IEnumerator InitialiseDataThenServices()
         {
+            var sw = Stopwatch.StartNew();
+
             var task = PokeLabBootstrap.InitializeAsync();
             while (!task.IsCompleted) yield return null;
 
             if (task.IsFaulted)
             {
-                UnityEngine.Debug.LogError("[Boot] The Poké Lab data could not be loaded: " +
-                                           task.Exception?.GetBaseException().Message +
-                                           " Every creature will be built from estimated stats.", this);
+                Debug.LogError("[Boot] The Poké Lab data could not be loaded: " +
+                               task.Exception?.GetBaseException().Message +
+                               " Every creature will be built from estimated stats.", this);
             }
 
-            InitializeServices();
+            sw.Stop();
+
+            // Straight into the tail rather than back through InitializeServices.
+            //
+            // Re-entering there is what broke the web build: it decided all over again whether to
+            // start a load, and a fetch that faulted leaves IsInitialized false — so it would start
+            // another one, and another. Calling the tail directly makes this the only path that
+            // reaches it on the web, exactly once.
+            FinishBoot(sw.ElapsedMilliseconds);
         }
 
         private void InitializeServices()
@@ -88,14 +98,39 @@ namespace PokeLab.Boot
             // costs the boot scene a few frames without a loading screen, which is a great deal
             // better than a game running on invented data.
 #if UNITY_WEBGL && !UNITY_EDITOR
-            if (!PokeLabBootstrap.IsInitialized) StartCoroutine(InitialiseDataThenServices());
-            return;
+            // The coroutine reaches the tail, once the fetches land.
+            //
+            // This used to `return` here unconditionally, with the tail inside this same method — so
+            // on the web the tail was simply unreachable. Nothing verified the registrations,
+            // ServicesReady stayed false for the entire session, and
+            // RoamerBillboardArtFactory.RegisterIfNothingElseHas never fired from its only call
+            // site: every roaming creature in the deployed build was invisible, because of one
+            // early return.
+            if (!PokeLabBootstrap.IsInitialized)
+            {
+                StartCoroutine(InitialiseDataThenServices());
+                return;
+            }
 #else
             if (!PokeLabBootstrap.IsInitialized) PokeLabBootstrap.InitializeNow();
+#endif
 
             sw.Stop();
+            FinishBoot(sw.ElapsedMilliseconds);
+        }
 
-#endif
+        /// <summary>
+        /// Verifies what registered and finishes the boot.
+        ///
+        /// Split out because two paths reach it — the desktop one falls straight through, the web one
+        /// is called back into it from its coroutine — and it must run exactly once per boot: the
+        /// roamer art factory is registered here and nowhere else, and a second registration pass
+        /// would replace a factory a live roamer is already holding.
+        /// </summary>
+        private void FinishBoot(long elapsedMs)
+        {
+            if (ServicesReady) return;
+
             var ok = ServiceHub.Has<ISpeciesRegistry>()
                      && ServiceHub.Has<IMoveRegistry>()
                      && ServiceHub.Has<ITypeChart>()
@@ -119,7 +154,7 @@ namespace PokeLab.Boot
             if (_logTimings)
             {
                 var species = ServiceHub.Get<ISpeciesRegistry>();
-                Debug.Log($"[GameBoot] Services ready in {sw.ElapsedMilliseconds} ms — {species.Count} species loaded.");
+                Debug.Log($"[GameBoot] Services ready in {elapsedMs} ms — {species.Count} species loaded.");
             }
         }
 
