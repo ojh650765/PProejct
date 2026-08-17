@@ -143,6 +143,21 @@ namespace PokeLab.Overworld
             public string _trainerClass;
             public string npcId;
             public string sceneObject;
+
+            /// <summary>
+            /// The authored party, in <see cref="TrainerPartyMember"/> shape.
+            ///
+            /// This field is the whole reason the row type must mirror the definition
+            /// exactly: JsonUtility drops any JSON member the target type has no field for,
+            /// silently, on BOTH hops — file into row, then row back into the definition via
+            /// FromJsonOverwrite. The table carried "_party" from the day it was authored and
+            /// this class did not declare it, so every generated trainer's party was
+            /// discarded one layer short of the battle and the rival fought with whatever
+            /// fallback the battle stage invented. Same scar as Episode.NextEpisodeId, one
+            /// file over.
+            /// </summary>
+            public TrainerPartyMember[] _party;
+
             public int _prizeMoney;
             public int _partySeed;
             public string _preBattle;

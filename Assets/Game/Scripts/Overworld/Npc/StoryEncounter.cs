@@ -218,24 +218,81 @@ namespace PokeLab.Overworld
             }
         }
 
+        /// <summary>Metres short of the player the approach stops at. Walking into the player's
+        /// own capsule leaves two characters interpenetrating for the whole conversation.</summary>
+        private const float ApproachStopDistance = 1.6f;
+
+        /// <summary>
+        /// Walks the character toward the player for the approach window.
+        ///
+        /// Through the NavMeshAgent when there is a usable one, and that is not a preference,
+        /// it is the only version that works: a live agent keeps its own nextPosition and
+        /// writes it back over the transform on the frame after any direct assignment — the
+        /// exact failure EpisodeRunner.PlaceActor documents — so the old transform-only walk
+        /// rubber-banded on every character that can path. The rival is a TrainerController,
+        /// which <em>requires</em> an agent, so the one approach this component exists for
+        /// (Kes closing on the player) moved a step and snapped back, every frame, for the
+        /// whole window. The transform fallback stays for a character with no agent or one
+        /// standing off the mesh, where a direct write is the only thing that moves them at
+        /// all. No snap at the end on either path — the beat speaks from wherever the walk
+        /// got to, which is why there is no agent.Warp here.
+        /// </summary>
         private IEnumerator Approach()
         {
             if (_approachSeconds <= 0f || _player == null) yield break;
 
-            var elapsed = 0f;
-            while (elapsed < _approachSeconds)
+            var agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+            var useAgent = agent != null && agent.enabled && agent.isOnNavMesh;
+
+            // The agent's cruising settings belong to whoever owns it day-to-day — a trainer's
+            // challenge walk, an NPC's schedule — so they are restored when the beat is done.
+            var restoreSpeed = 0f;
+            var restoreStop = 0f;
+            if (useAgent)
             {
-                var toPlayer = _player.position - transform.position;
-                toPlayer.y = 0f;
+                restoreSpeed = agent.speed;
+                restoreStop = agent.stoppingDistance;
+                agent.speed = _approachSpeed;
+                agent.stoppingDistance = ApproachStopDistance;
+                agent.isStopped = false;
+            }
 
-                // Stop short. Walking into the player's own capsule leaves two characters
-                // interpenetrating for the whole conversation.
-                if (toPlayer.magnitude <= 1.6f) yield break;
+            try
+            {
+                var elapsed = 0f;
+                while (elapsed < _approachSeconds)
+                {
+                    var toPlayer = _player.position - transform.position;
+                    toPlayer.y = 0f;
 
-                transform.position += toPlayer.normalized * (_approachSpeed * Time.deltaTime);
-                transform.rotation = Quaternion.LookRotation(toPlayer.normalized, Vector3.up);
-                elapsed += Time.deltaTime;
-                yield return null;
+                    // Stop short — see ApproachStopDistance.
+                    if (toPlayer.magnitude <= ApproachStopDistance) yield break;
+
+                    if (useAgent)
+                    {
+                        // The destination chases the player, who may still be drifting to a
+                        // stop; the agent turns itself, so nothing here touches the rotation.
+                        agent.SetDestination(_player.position);
+                    }
+                    else
+                    {
+                        transform.position += toPlayer.normalized * (_approachSpeed * Time.deltaTime);
+                        transform.rotation = Quaternion.LookRotation(toPlayer.normalized, Vector3.up);
+                    }
+
+                    elapsed += Time.deltaTime;
+                    yield return null;
+                }
+            }
+            finally
+            {
+                if (useAgent && agent != null && agent.enabled && agent.isOnNavMesh)
+                {
+                    agent.isStopped = true;
+                    agent.ResetPath();
+                    agent.speed = restoreSpeed;
+                    agent.stoppingDistance = restoreStop;
+                }
             }
         }
 
@@ -256,6 +313,16 @@ namespace PokeLab.Overworld
                 if (runner != null && runner.Play(_episodeId))
                 {
                     while (runner.IsPlaying) yield return null;
+
+                    // Started is not the same as happened. The runner only sets an episode's
+                    // completion flag when its beats genuinely ran to the end — an exception
+                    // mid-scene leaves it unset — so a flag still unset here means the scene
+                    // was cut short after Play() accepted it. Saying "did not happen" lets
+                    // Run() re-offer the beat (bounded by the refusal cap) instead of retiring
+                    // it on the strength of having tried, which is the same reasoning _spoke
+                    // exists for on the refusal path. Only testable when this beat has a flag
+                    // to test; the trigger table always gives it the episode's own.
+                    if (!string.IsNullOrEmpty(_completionFlag) && !AlreadySeen()) _spoke = false;
                     yield break;
                 }
                 Debug.LogWarning($"[Story] Episode '{_episodeId}' could not be played for " +

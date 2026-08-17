@@ -15,6 +15,25 @@ namespace PokeLab.Overworld
         public string Nickname;
         [Tooltip("Optional held item id.")]
         public string HeldItemId;
+
+        /// <summary>
+        /// This slot is the counter to the player's chosen starter, resolved at build time
+        /// rather than authored.
+        ///
+        /// The rival's party cannot be a fixed species: which creature he holds is a
+        /// consequence of the player's own choice — the type that beats it — and that choice
+        /// does not exist when trainers.json is written. The table has carried a slot marked
+        /// this way since it was authored, and nothing read the mark: the slot's placeholder
+        /// SpeciesId of 0 was skipped by <see cref="TrainerDefinition.BuildParty"/>, the party
+        /// came out empty, and the battle stage's own fallback invented a two-creature fight
+        /// in place of the authored one-on-one. The species itself is written to the profile
+        /// by StarterSelection.Commit under <see cref="TrainerDefinition.StarterCounterSpeciesFlag"/>,
+        /// which is the only place the choice is durable — it survives a save, where the
+        /// StarterSelection component does not.
+        /// </summary>
+        [Tooltip("Resolve this slot from the player's starter choice (the counter species) " +
+                 "instead of SpeciesId. SpeciesId is then a placeholder and stays 0.")]
+        public bool FromStarterCounter;
     }
 
     /// <summary>
@@ -97,6 +116,20 @@ namespace PokeLab.Overworld
             _rematchIntro = rematchIntro;
         }
 
+        /// <summary>
+        /// Profile flag holding the game species id of the counter to the player's starter.
+        ///
+        /// Written by StarterSelection.Commit at the moment the choice becomes irreversible,
+        /// read by <see cref="BuildParty"/> whenever a slot is marked
+        /// <see cref="TrainerPartyMember.FromStarterCounter"/>. It is a flag rather than a
+        /// reference to the StarterSelection component because the party may be built long
+        /// after the opening — on a later session entirely — and the flag table is the one
+        /// piece of that moment a save carries. Prefixed "story." so InitialiseNewGame's flag
+        /// wipe (which preserves exactly that prefix) cannot eat it, though in practice it is
+        /// written after the wipe anyway.
+        /// </summary>
+        public const string StarterCounterSpeciesFlag = "story.starter_counter_species";
+
         /// <summary>Flag key recording that this trainer has been beaten.</summary>
         public string DefeatFlag => "trainer_defeated_" + _trainerId;
 
@@ -117,17 +150,49 @@ namespace PokeLab.Overworld
             for (var i = 0; i < _party.Count; i++)
             {
                 var member = _party[i];
-                if (member.SpeciesId <= 0) continue;
+
+                var speciesId = member.SpeciesId;
+                if (member.FromStarterCounter)
+                {
+                    // Resolved here, at build time, and not when the row was loaded: the
+                    // trainer table is parsed the first time anyone looks at a trainer, which
+                    // on a fresh game is before the starter has been chosen. The flag is the
+                    // moment-of-battle truth.
+                    var counter = ResolveStarterCounterSpecies();
+                    if (counter > 0) speciesId = counter;
+                    else if (speciesId <= 0)
+                    {
+                        // No choice recorded and no authored fallback species. Skipping is
+                        // the honest degradation — an invented creature here would hide the
+                        // real fault, which is a battle reached before the starter beat.
+                        Debug.LogWarning($"[TrainerDefinition] '{_trainerId}' has a party slot " +
+                                         "keyed to the player's starter, but no starter choice " +
+                                         "has been recorded on the profile. The slot was " +
+                                         "skipped; the fight is against whatever else the row " +
+                                         "authored.");
+                        continue;
+                    }
+                }
+
+                if (speciesId <= 0) continue;
 
                 var level = Mathf.Max(1, member.Level + priorWins * _rematchLevelBonus);
                 // Offsetting by slot keeps party members from sharing an identical IV spread.
-                var creature = CreatureFactory.Create(member.SpeciesId, level, _partySeed + i * 977);
+                var creature = CreatureFactory.Create(speciesId, level, _partySeed + i * 977);
                 creature.Nickname = string.IsNullOrEmpty(member.Nickname) ? null : member.Nickname;
                 creature.HeldItemId = member.HeldItemId;
                 result.Add(creature);
             }
             return result;
         }
+
+        /// <summary>
+        /// The recorded counter species, or 0 when no starter has been chosen on this save.
+        /// </summary>
+        private static int ResolveStarterCounterSpecies() =>
+            ServiceHub.TryGet<IPlayerProfile>(out var profile) && profile is PlayerProfile concrete
+                ? concrete.GetFlagInt(StarterCounterSpeciesFlag, 0)
+                : 0;
 
 #if UNITY_EDITOR
         private void OnValidate()

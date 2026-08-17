@@ -179,6 +179,18 @@ namespace PokeLab.Overworld
                 var progression = SnapshotProgression(concrete);
                 concrete.InitialiseNewGame(trainerName, Choice.SpeciesId, _level, _seed);
                 foreach (var flag in progression) concrete.SetFlag(flag.Key, flag.Value);
+
+                // The rival's half of this choice, made durable. The pairing lives on the
+                // option (RivalCounterSpeciesId), but the option lives on this component and
+                // this component lives in one scene of one session — the rival battle is
+                // fought in another scene, possibly on another day, from a loaded save.
+                // Writing the counter species to the profile here, at the one irreversible
+                // moment of the opening, is what lets TrainerDefinition.BuildParty field it
+                // wherever and whenever the fight actually happens. Written after the
+                // InitialiseNewGame wipe and the snapshot restore, so nothing downstream can
+                // eat it.
+                concrete.SetFlagInt(TrainerDefinition.StarterCounterSpeciesFlag,
+                                    Choice.RivalCounterSpeciesId);
                 return true;
             }
 
