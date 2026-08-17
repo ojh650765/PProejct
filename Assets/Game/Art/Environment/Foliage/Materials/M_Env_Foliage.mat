@@ -49,11 +49,11 @@ Material:
     - _SpecularSharpness: 36
     - _RimStrength: 0.35
     - _RimPower: 3
-    - _SwayAmplitude: 0.24
+    - _SwayAmplitude: 0.09
     - _SwaySpeed: 1.1
     - _FlutterAmplitude: 0.062
     - _FlutterSpeed: 7.4
-    - _GustStrength: 1.7
+    - _GustStrength: 0.85
     - _WindDistanceFade: 70
     - _NormalSpherify: 0.45
     m_Colors:

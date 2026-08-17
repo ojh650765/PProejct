@@ -1497,7 +1497,7 @@
     {
       "SequenceId": "gate_wait_for_kes",
       "PlaysOnlyOnce": true,
-      "Note": "Bram turns the player back, and names Kes as the reason. He is not enforcing a rule; he is passing on a message, which is why he sounds apologetic rather than official.",
+      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. Bram is passing on a message, not enforcing a rule, so he is apologetic.",
       "Lines": [
         {
           "SpeakerId": "npc_gate_01",
@@ -1511,8 +1511,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Off already? Hold on — Kes was here looking for you.",
-          "TextKo": "벌써 나가게? 아 잠깐, 아까 케스가 자네 찾던데."
+          "Text": "Off already?",
+          "TextKo": "어? 벌써 나가려고?"
         },
         {
           "SpeakerId": "npc_gate_01",
@@ -1526,8 +1526,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Went off toward the square. Said it was urgent, the way that boy says everything is urgent.",
-          "TextKo": "광장 쪽으로 갔어. 급하다고 하던데, 뭐 그 녀석은 늘 급하지."
+          "Text": "Oh — Kes was after you, just now.",
+          "TextKo": "아 참, 아까 케스가 자네 찾던데."
         },
         {
           "SpeakerId": "npc_gate_01",
@@ -1541,15 +1541,30 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Go and hear him out first. The road's not going anywhere.",
-          "TextKo": "가서 얘기부터 듣고 오게. 길은 도망 안 가."
+          "Text": "Went off to the square. Something urgent, apparently.",
+          "TextKo": "광장 쪽으로 갔어. 무슨 급한 일이라나 뭐라나…"
+        },
+        {
+          "SpeakerId": "npc_gate_01",
+          "SpeakerName": "Bram",
+          "SpeakerNameKo": "브람",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_gate_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Go and hear him out. The road'll still be there.",
+          "TextKo": "얘기부터 듣고 오게. 길이야 안 없어지니까."
         }
       ]
     },
     {
       "SequenceId": "kes_summons",
       "PlaysOnlyOnce": true,
-      "Note": "Kes' send-off. He does not explain where he is going or why; he sets a forfeit and runs, and the player follows because the alternative is being fined a million won by a teenager. The last line fires vfx.kes_runs so the actor can bolt into the grass.",
+      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. He sets a forfeit and runs without explaining. The closing line is narration: giving it to Kes put his name plate on a sentence about him leaving.",
       "Lines": [
         {
           "SpeakerId": "npc_rival_01",
@@ -1563,8 +1578,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "There you are! Do you know how long I've been standing here?",
-          "TextKo": "야! 너 어디 있었어? 내가 여기 얼마나 서 있었는지 알아?"
+          "Text": "There you are! Where've you been!",
+          "TextKo": "앗! 주인공! 너 어디 있었냐!"
         },
         {
           "SpeakerId": "npc_rival_01",
@@ -1578,8 +1593,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "The lake. Now. Before the survey lot get there and rope the whole bank off.",
-          "TextKo": "호수. 지금. 조사팀이 와서 둑 전부 줄 치기 전에."
+          "Text": "Listen, I'm going to the lake. Come on.",
+          "TextKo": "야, 호수 갈 거니까 따라와."
         },
         {
           "SpeakerId": "npc_rival_01",
@@ -1593,8 +1608,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "You're coming. That's not a question.",
-          "TextKo": "너도 간다. 이건 묻는 거 아니야."
+          "Text": "We have to get there before the survey lot do.",
+          "TextKo": "조사팀 오기 전에 가야 된단 말이야."
         },
         {
           "SpeakerId": "npc_rival_01",
@@ -1608,30 +1623,30 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "vfx.kes_runs",
           "Choices": [],
-          "Text": "Don't show up and it's a million won. A million! I'm counting from now.",
-          "TextKo": "안 오면 벌금 100만원! 100만원이다! 지금부터 센다!"
+          "Text": "You're late, that's a million won! I'm counting!",
+          "TextKo": "늦으면 벌금 100만원이다!? 지금부터 센다!"
         },
         {
-          "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
-          "SpeakerSubtitle": "Aster Town",
-          "SpeakerSubtitleKo": "아스터 마을",
-          "PortraitKey": "npc_rival_01",
+          "SpeakerId": "",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "SpeakerSubtitle": "",
+          "SpeakerSubtitleKo": "",
+          "PortraitKey": "",
           "Tone": 0,
           "ToneName": "Neutral",
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "…gone. Straight through the grass, of course.",
-          "TextKo": "…가버렸네. 당연히 풀숲으로 곧장."
+          "Text": "He's into the grass before you can get a word in.",
+          "TextKo": "말릴 새도 없이 풀숲으로 뛰어들어 갔다."
         }
       ]
     },
     {
       "SequenceId": "gate_open_after_kes",
       "PlaysOnlyOnce": false,
-      "Note": "Bram steps aside. Short, because the player has already been stopped once and a second speech here is the game apologising for its own gate.",
+      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. Short, because the player has already been stopped once.",
       "Lines": [
         {
           "SpeakerId": "npc_gate_01",
@@ -1646,7 +1661,7 @@
           "EventId": "",
           "Choices": [],
           "Text": "Talked to him, then. Off you go.",
-          "TextKo": "얘기했나 보군. 그럼 가 보게."
+          "TextKo": "얘기했나 보군. 그럼 다녀오게."
         },
         {
           "SpeakerId": "npc_gate_01",
@@ -1660,15 +1675,15 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Mind the tall grass. Things live in it.",
-          "TextKo": "풀숲은 조심하고. 거기 뭐가 살거든."
+          "Text": "Mind the tall grass. Things come out of it.",
+          "TextKo": "풀숲은 조심하고. 뭐 나오니까."
         }
       ]
     },
     {
       "SequenceId": "field_professor_mutters",
       "PlaysOnlyOnce": true,
-      "Note": "Linden on the bank, talking past the player rather than to them. He is mid-thought and does not stop being mid-thought because someone arrived -- that is the characterisation. Nothing here explains the plot; it is a man counting something.",
+      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. He is thinking out loud, not addressing anyone, and does not stop because somebody arrived. He leaves on the last line and is gone -- he does not watch from a distance.",
       "Lines": [
         {
           "SpeakerId": "npc_professor_01",
@@ -1682,8 +1697,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "…forty-one. Forty-one, and not one of them past the second bend.",
-          "TextKo": "…마흔 하나. 마흔 하나인데, 두 번째 굽이를 넘은 게 하나도 없어."
+          "Text": "Hm… stopped again. At that stone.",
+          "TextKo": "흠… 또 멈췄군. 저 돌 앞에서."
         },
         {
           "SpeakerId": "npc_professor_01",
@@ -1697,8 +1712,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "They come down to the shallows to feed and they stop. Every one of them. Same water, same hour.",
-          "TextKo": "여울까지 내려와서 먹고는 거기서 멈추네. 하나같이. 같은 물, 같은 시각에."
+          "Text": "The food's in the shallows, so why won't they go round the bend…",
+          "TextKo": "먹이는 여울에 있는데 어째서 굽이를 안 넘는 게냐…"
         },
         {
           "SpeakerId": "npc_professor_01",
@@ -1712,23 +1727,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Something on the far bank they will not cross for. Or something here they will not leave.",
-          "TextKo": "건너편에 못 건널 뭔가가 있거나, 여기 두고 못 갈 뭔가가 있거나."
-        },
-        {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "Oh — you. Kes went on ahead, if you are looking for him.",
-          "TextKo": "아, 자네군. 케스는 먼저 갔네, 찾고 있다면."
+          "Text": "Frightened of something. Or won't leave something.",
+          "TextKo": "무서운 게 있는 겐지, 두고 못 가는 게 있는 겐지…"
         },
         {
           "SpeakerId": "npc_professor_01",
@@ -1742,104 +1742,194 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "vfx.professor_leaves",
           "Choices": [],
-          "Text": "I have to write this down while I still have the numbers straight. Excuse me.",
-          "TextKo": "숫자가 아직 머리에 있을 때 적어야 해서. 실례하네."
+          "Text": "Ah, you two. Forgive me — I must write this down.",
+          "TextKo": "아, 자네들인가. 미안하네만 지금 적어 놔야 해서."
         }
       ]
     },
     {
       "SequenceId": "field_bag_left",
       "PlaysOnlyOnce": true,
-      "Note": "The player notices the bag. One line, and it is an observation rather than a decision -- the encounter interrupts before there is anything to decide.",
+      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. The two of them find it together, and Kes is the one who opens it -- which is what leaves both of them crouched with their backs to the grass.",
       "Lines": [
         {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
+          "SpeakerId": "",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "SpeakerSubtitle": "",
+          "SpeakerSubtitleKo": "",
+          "PortraitKey": "",
           "Tone": 0,
           "ToneName": "Neutral",
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "He has left his bag on the bank. Three balls in the top, unfastened.",
-          "TextKo": "가방을 둑에 두고 갔다. 위쪽에 몬스터볼 세 개, 잠기지도 않은 채로."
+          "Text": "A bag… must be the one that man left behind.",
+          "TextKo": "가방…이네. 좀 전에 그 사람이 놔두고 간 건가 보네."
+        },
+        {
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Huh? Hey, he's left this behind.",
+          "TextKo": "어? 야, 저 아저씨 이거 두고 갔는데?"
+        },
+        {
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "It's not even shut. What's in it…",
+          "TextKo": "안 잠겼잖아. 뭐가 들었지…"
+        },
+        {
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Whoa, Poké Balls! Three of them!",
+          "TextKo": "우왓, 몬스터볼이다! 세 개나!"
         }
       ]
     },
     {
       "SequenceId": "field_ambush",
       "PlaysOnlyOnce": true,
-      "Note": "The wild creature is already standing in the grass by the time this plays -- it is staged, not summoned. Linden is not here, so nobody hands the player anything: they take it.",
+      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. Both of them are cornered, not Kes alone. Cornering only Kes made the player a rescuer standing safely to one side; cornering both makes reaching into the bag the obvious thing rather than the brave thing, which matters because the player has no Pokémon yet and no reason to be brave.",
       "Lines": [
         {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
+          "SpeakerId": "",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "SpeakerSubtitle": "",
+          "SpeakerSubtitleKo": "",
+          "PortraitKey": "",
           "Tone": 0,
           "ToneName": "Neutral",
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "The grass moves. Not wind — it is coming toward the bank.",
-          "TextKo": "풀이 움직인다. 바람이 아니다. 둑 쪽으로 오고 있다."
+          "Text": "The grass moves.",
+          "TextKo": "풀숲이 흔들렸다."
         },
         {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
           "Tone": 0,
           "ToneName": "Neutral",
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "It has seen you. There is nowhere behind you but water.",
-          "TextKo": "이쪽을 봤다. 뒤는 물뿐이다."
+          "Text": "Wagh! P-Pokémon!? What — where did—!",
+          "TextKo": "으왓! 포, 포켓몬!? 뭐야, 대체-!?"
         },
         {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
           "Tone": 0,
           "ToneName": "Neutral",
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "The bag is at your feet. Three balls, unfastened.",
-          "TextKo": "발밑에 가방이 있다. 몬스터볼 세 개, 잠기지 않은 채로."
+          "Text": "Both sides! They've got both of us!",
+          "TextKo": "야, 양쪽이야! 우리 둘 다 둘러싸였어!"
+        },
+        {
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "The Poké Balls! We'll fight with these!",
+          "TextKo": "몬스터볼! 이걸로 싸우자!"
+        },
+        {
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Er… which one are you taking?",
+          "TextKo": "어… 어느 걸로 할 거야?"
         }
       ]
     },
     {
       "SequenceId": "field_professor_returns",
       "PlaysOnlyOnce": true,
-      "Note": "Linden arrives after the fight. He is alarmed for exactly one line and then stops being alarmed, because the thing that interests him is the result. The dex request is his, not a reward the game hands over -- he asks because he has forty-one of something and needs more, which is the thread from his muttering on the bank.",
+      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. He arrives after it is over, is alarmed for one line, then stops -- the result is the part he cares about. The dex request comes out of the same thread as his counting on the bank rather than arriving as a reward.",
       "Lines": [
         {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
           "Tone": 0,
           "ToneName": "Neutral",
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "That is my bag. You opened my bag.",
-          "TextKo": "그건 내 가방인데. 자네, 내 가방을 열었나?"
+          "Text": "Whoo! That was amazing, that was!",
+          "TextKo": "후와-! 야, 너 방금 굉장했어!"
+        },
+        {
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "…only, we did just use someone else's Pokémon. Is that all right…",
+          "TextKo": "…근데 우리 딴 사람 포켓몬 써버린 건데 괜찮으려나…"
         },
         {
           "SpeakerId": "npc_professor_01",
@@ -1853,8 +1943,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "…and it went with you. It did not have to.",
-          "TextKo": "…그런데 따라나섰군. 그럴 이유가 없는데."
+          "Text": "……",
+          "TextKo": "……"
         },
         {
           "SpeakerId": "npc_professor_01",
@@ -1868,8 +1958,23 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Keep it. Arguing with a Pokémon that has already chosen is a waste of an afternoon.",
-          "TextKo": "가지게. 이미 정한 포켓몬하고 다퉈 봐야 오후만 버리네."
+          "Text": "I heard the lot of it from the path. That's my bag.",
+          "TextKo": "길에서 다 들렸네. 그건 내 가방인데."
+        },
+        {
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "It — it was open! We'd have been in real trouble otherwise!",
+          "TextKo": "여, 열려 있었어요! 안 그랬으면 저희 둘 다 큰일 났다고요!"
         },
         {
           "SpeakerId": "npc_professor_01",
@@ -1883,8 +1988,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Forty-one records and not one of them past the second bend. I need more than I can walk to.",
-          "TextKo": "기록이 마흔 하나인데 두 번째 굽이를 넘은 게 없어. 내가 걸어서 닿는 것보다 많이 필요하네."
+          "Text": "Hm… I see. So that's what happened.",
+          "TextKo": "흠… 그래, 그렇게 된 거로군."
         },
         {
           "SpeakerId": "npc_professor_01",
@@ -1898,8 +2003,53 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Come to the lab. Bring that one with you. I will explain properly there.",
-          "TextKo": "연구소로 오게. 그 녀석도 데리고. 거기서 제대로 얘기하지."
+          "Text": "And it went with you. That one doesn't, as a rule.",
+          "TextKo": "자네를 따라나섰구먼. 그럴 녀석이 아닌데 말이야."
+        },
+        {
+          "SpeakerId": "npc_professor_01",
+          "SpeakerName": "Linden",
+          "SpeakerNameKo": "린든",
+          "SpeakerSubtitle": "Aster Field Lab",
+          "SpeakerSubtitleKo": "아스터 필드 연구소",
+          "PortraitKey": "npc_professor_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Keep it. Once one's decided, it's decided.",
+          "TextKo": "가지게. 한번 정한 녀석은 안 바뀌어."
+        },
+        {
+          "SpeakerId": "npc_professor_01",
+          "SpeakerName": "Linden",
+          "SpeakerNameKo": "린든",
+          "SpeakerSubtitle": "Aster Field Lab",
+          "SpeakerSubtitleKo": "아스터 필드 연구소",
+          "PortraitKey": "npc_professor_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "I only ever see this one bend. It's as far as I can walk.",
+          "TextKo": "나는 이 굽이 하나밖에 못 보네. 걸어서 갈 수 있는 데가 여기뿐이라서."
+        },
+        {
+          "SpeakerId": "npc_professor_01",
+          "SpeakerName": "Linden",
+          "SpeakerNameKo": "린든",
+          "SpeakerSubtitle": "Aster Field Lab",
+          "SpeakerSubtitleKo": "아스터 필드 연구소",
+          "PortraitKey": "npc_professor_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Come to the lab. Bring that one with you.",
+          "TextKo": "연구소로 오게. 그 녀석도 데리고 오고."
         }
       ]
     }

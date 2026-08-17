@@ -187,6 +187,37 @@ namespace PokeLab.Overworld
             _encounterRoutine = StartCoroutine(RunEncounter(request, onResolved));
         }
 
+        /// <summary>
+        /// Whether an encounter can actually be staged, asked before anything is committed.
+        ///
+        /// Every reason listed here has produced a stuck screen at some point: no battle stage
+        /// registered because the host was never added to the scene, and an empty party because
+        /// the player reached a battle before the starter beat gave them one. Each is a real
+        /// fault worth fixing where it occurs — but none of them should also cost the player
+        /// the session, and a wipe that has already begun does exactly that.
+        /// </summary>
+        private bool CanStage(EncounterRequest request)
+        {
+            if (!_battleStage.IsValid)
+            {
+                Debug.LogWarning("[GameFlow] No battle stage is registered, so the encounter was " +
+                                 "refused rather than covering the screen for one that cannot " +
+                                 "happen. BattleStageHost is missing from this scene.", this);
+                return false;
+            }
+
+            if (ServiceHub.TryGet<IPlayerProfile>(out var profile) && profile != null
+                && (profile.Party == null || profile.Party.Count == 0))
+            {
+                Debug.LogWarning("[GameFlow] The player has no Pokémon, so there is nothing to " +
+                                 "send out. The encounter was refused; whatever asked for it " +
+                                 "should be gated on the party instead.", this);
+                return false;
+            }
+
+            return true;
+        }
+
         private IEnumerator RunEncounter(EncounterRequest request, Action<EncounterResult> onResolved)
         {
             // 1. Take control away and remember exactly where the player was, before anything
@@ -195,11 +226,26 @@ namespace PokeLab.Overworld
             FreezePlayer(true);
             SetMode(GameMode.EncounterIntro);
 
-            // 2. Ask the cinematics layer to cover the screen. We do not touch the camera.
+            // 2. Refuse before covering, not after.
+            //
+            // The cover used to go up first and the battle was staged behind it, so anything
+            // that stopped the stage being built left the player looking at a half-finished
+            // wipe with no battle behind it and no way back — the transition had already
+            // committed to a thing that then did not happen. Whatever is wrong, doing nothing
+            // is a recoverable outcome and a stuck curtain is not.
+            if (!CanStage(request))
+            {
+                FreezePlayer(false);
+                SetMode(GameMode.Exploring);
+                onResolved?.Invoke(new EncounterResult { Outcome = BattleOutcome.Fled });
+                yield break;
+            }
+
+            // 3. Ask the cinematics layer to cover the screen. We do not touch the camera.
             yield return PlayTransition(director => director.TryInvoke(
                 nameof(ITransitionDirector.PlayEncounterIntro), request, (Action)OnStageReady));
 
-            // 3. Stage the battle behind the cover.
+            // 4. Stage the battle behind the cover.
             SetMode(GameMode.Battle);
             _resultReceived = false;
             _pendingResult = null;
@@ -209,7 +255,7 @@ namespace PokeLab.Overworld
 
             if (!staged) yield return RunDegradedBattle(request);
 
-            // 4. Wait for the battle. Bounded, so a battle layer that never answers cannot strand
+            // 5. Wait for the battle. Bounded, so a battle layer that never answers cannot strand
             //    the player in a frozen overworld.
             var elapsed = 0f;
             while (!_resultReceived && elapsed < _battleTimeout)
@@ -226,7 +272,7 @@ namespace PokeLab.Overworld
 
             var result = _pendingResult ?? new EncounterResult { Outcome = BattleOutcome.Fled };
 
-            // 5. Outro, restore, reveal — in that order, so the reposition happens under cover.
+            // 6. Outro, restore, reveal — in that order, so the reposition happens under cover.
             SetMode(GameMode.BattleOutro);
             yield return PlayTransition(director => director.TryInvoke(
                 nameof(ITransitionDirector.PlayBattleOutro), result, (Action)OnStageReady));

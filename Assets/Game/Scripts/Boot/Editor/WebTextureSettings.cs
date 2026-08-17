@@ -79,13 +79,26 @@ namespace PokeLab.Boot.Editor
                     }
                     else
                     {
-                        // Automatic, not a named format: DXT1 and DXT5 differ only by whether
-                        // the texture has alpha, and the importer already knows which it is.
-                        // Naming one would silently drop the alpha on every cut-out sprite.
-                        settings.format = TextureImporterFormat.Automatic;
+                        // The format is named from the texture's own alpha, not left to
+                        // Automatic.
+                        //
+                        // Automatic was the first attempt, on the reasoning that the importer
+                        // already knows whether a texture has alpha. It does not use that
+                        // knowledge the way this needs: on WebGL it resolved to DXT1 for the
+                        // sprite sheets, DXT1 has no alpha channel, and the cut-out shader's
+                        // clip then discarded nothing — so every character in the web build
+                        // was drawn as a black rectangle with a sprite inside it. The alpha
+                        // was not dimmed or wrong; it was absent, and the sheet's own black
+                        // background was what showed.
+                        var hasAlpha = importer.DoesSourceTextureHaveAlpha();
+                        var crunch = IsPixelArt(path) && !IsNormalMap(path);
+
+                        settings.format = hasAlpha
+                            ? (crunch ? TextureImporterFormat.DXT5Crunched : TextureImporterFormat.DXT5)
+                            : (crunch ? TextureImporterFormat.DXT1Crunched : TextureImporterFormat.DXT1);
                         settings.textureCompression = TextureImporterCompression.Compressed;
-                        settings.crunchedCompression = IsPixelArt(path) && !IsNormalMap(path);
-                        settings.compressionQuality = settings.crunchedCompression ? 60 : 50;
+                        settings.crunchedCompression = crunch;
+                        settings.compressionQuality = crunch ? 60 : 50;
                     }
 
                     importer.SetPlatformTextureSettings(settings);

@@ -382,7 +382,11 @@ float3 PL_FoliageWind(float3 positionWS, float4 vertexColour,
     // 0.24 m sway was reaching 0.65 m at the peak of a gust. A grass card is about 0.4 m, so
     // the tip was travelling further sideways than the blade is long: the plants lay flat and
     // visibly stretched as they went.
-    float maxSwing = swayAmplitude * 2.0;
+    // 1.2, not 2.0. The first cap let a gust reach twice the authored sway, which for the
+    // 0.24 m the foliage atlas carried was 0.48 m of travel on a card 0.4 m tall — still
+    // further sideways than the blade is long, so it still lay flat. A plant may lean; past
+    // its own height it is not leaning, it is falling over.
+    float maxSwing = swayAmplitude * 1.2;
     amp = clamp(amp, -maxSwing, maxSwing);
 
     float3 offset = float3(dir.x, 0.0, dir.y) * amp;

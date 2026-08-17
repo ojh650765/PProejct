@@ -77,7 +77,9 @@ CAST = {
     # Roles with no counterpart in the trainer classes are deliberately absent. The box falls
     # back to their walk sprite, which is worse than a portrait and much better than handing
     # somebody a face that belongs to a different person.
-    "townsman": "townsman.png",       # Bram, at the gate
+    # Bram is deliberately absent. His portrait is hand-drawn art dropped straight into
+    # Resources/Portraits, not a trainer sprite cut and scaled 6x by this script -- running it
+    # over him would resample a drawing that is already at final size and destroy it.
     "shopkeeper": "shopkeeper.png",   # Sela, at the market
     "gardener": "gardener.png",       # Odell, in the plots
 }

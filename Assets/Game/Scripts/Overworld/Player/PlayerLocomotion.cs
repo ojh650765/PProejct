@@ -441,13 +441,23 @@ namespace PokeLab.Overworld
 
             if (IsGrounded && Speed > 0.5f)
             {
-                _lastFreePosition = transform.position;
-                _hasFreePosition = true;
+                // Only remembered while the player is somewhere they could also have left
+                // from. A ravine floor is walkable along its length, so a plain "I moved
+                // freely here" anchor follows the player down into it and then measures the
+                // bottom against the bottom — you can pace a trap for as long as you like and
+                // never satisfy a test for being in one. Requiring the anchor to be no lower
+                // than the one before it keeps the memory on the way in rather than at the
+                // bottom.
+                if (!_hasFreePosition || transform.position.y >= _lastFreePosition.y - 0.05f)
+                {
+                    _lastFreePosition = transform.position;
+                    _hasFreePosition = true;
+                }
                 _stuckTimer = 0f;
                 return;
             }
 
-            if (!wants || !IsGrounded || !_hasFreePosition)
+            if (!IsGrounded || !_hasFreePosition)
             {
                 _stuckTimer = 0f;
                 return;
@@ -460,7 +470,10 @@ namespace PokeLab.Overworld
                 return;
             }
 
-            _stuckTimer += dt;
+            // Counted whether or not they are pushing at a wall. Down in a gully there is
+            // nothing to push against — the player walks about freely and is still trapped —
+            // so requiring input against an obstacle was itself part of why this never fired.
+            _stuckTimer += wants ? dt : dt * 0.35f;
             if (_stuckTimer < _stuckSeconds) return;
 
             Debug.LogWarning($"[Player] Stuck at {transform.position} for {_stuckSeconds:F1}s " +

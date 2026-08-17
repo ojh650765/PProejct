@@ -142,6 +142,16 @@ namespace PokeLab.Boot.Editor
                 }
             }
 
+            // A way out of a trap the automatic recovery cannot see. Added to the existing
+            // rig as well as to a new one, because every scene already has a player.
+            foreach (var locomotion in Object.FindObjectsByType<PlayerLocomotion>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (locomotion.GetComponent<StuckEscape>() != null) continue;
+                locomotion.gameObject.AddComponent<StuckEscape>();
+                repairs++;
+            }
+
             // An empty "Visual" child: the player has no sprite and is invisible.
             foreach (var locomotion in Object.FindObjectsByType<PlayerLocomotion>(
                          FindObjectsInactive.Include, FindObjectsSortMode.None))
