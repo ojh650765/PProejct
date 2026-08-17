@@ -20,17 +20,27 @@ namespace PokeLab.UI
     /// the battle calls <see cref="BeginPlayerTurn"/> and <see cref="LockCommands"/>, which
     /// keeps the command panel in step with the presentation queue rather than with the
     /// engine's internal state.
+    ///
+    /// It is also the UI side of <see cref="ICinematicHudHook"/>. The choreography cannot
+    /// name this assembly, so its frame-accurate HUD beats — a crit landing, the ball
+    /// clicking — arrive through that Core interface, and this view is the natural owner
+    /// because it already holds the plates and the fade group the beats act on. Every beat
+    /// is cheap and non-blocking, and an unrecognised beat id is ignored silently: the
+    /// choreography grows vocabulary faster than the HUD does, and a warning per unknown
+    /// beat would turn every new set piece into log spam on this side of the seam.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class BattleHudView : MonoBehaviour, IBattleEventListener, IPokeLabListener
+    public sealed class BattleHudView : MonoBehaviour, IBattleEventListener, IPokeLabListener, ICinematicHudHook
     {
         [Header("Parts")]
         [SerializeField] private CreatureStatusPanel _playerPlate;
         [SerializeField] private CreatureStatusPanel _opponentPlate;
         [SerializeField] private PokeLabScannerView _scanner;
         [SerializeField] private BattleCommandPanel _commands;
+        [SerializeField] private BattlePartyPicker _partyPicker;
         [SerializeField] private BattleLogView _log;
         [SerializeField] private OverlayDirector _overlays;
+        [SerializeField] private Image _beatFlash;
         [SerializeField] private CanvasGroup _group;
 
         [Header("Layout")]
@@ -41,6 +51,7 @@ namespace PokeLab.UI
         private CreatureInstance _playerActive;
         private CreatureInstance _opponentActive;
         private bool _built;
+        private TweenHandle _beatFlashTween;
 
         /// <summary>Raised when the player commits a move, with its slot index.</summary>
         public Action<int> MoveChosen;
@@ -52,6 +63,8 @@ namespace PokeLab.UI
         public Action PartyRequested;
         /// <summary>Raised when the player tries to flee.</summary>
         public Action RunRequested;
+        /// <summary>Raised when the player throws a ball at the wild creature.</summary>
+        public Action CaptureRequested;
 
         /// <summary>The docked scanner, for callers that want to drive it directly.</summary>
         public PokeLabScannerView Scanner => _scanner;
@@ -88,6 +101,10 @@ namespace PokeLab.UI
         {
             _scanner?.SetMode(ScannerMode.Hidden);
             _commands?.Lock();
+            // A battle can end with the picker open — a capture resolving while the player
+            // deliberates a switch — and a modal that survives its battle would still be
+            // polling for input over the overworld.
+            _partyPicker?.Close();
             if (_group == null) return;
             _group.interactable = false;
             _group.blocksRaycasts = false;
@@ -108,11 +125,42 @@ namespace PokeLab.UI
             _commands?.BeginTurn(_playerActive, forecasts ?? _scanner?.LastReadout?.MoveForecasts);
         }
 
-        /// <summary>Locks the command panel while a turn resolves.</summary>
-        public void LockCommands() => _commands?.Lock();
+        /// <summary>
+        /// Locks the command panel while a turn resolves. The picker closes with it: the
+        /// decision timeout can fire while the picker is open, and a modal that outlives its
+        /// turn would poll the keyboard against next turn's menu.
+        /// </summary>
+        public void LockCommands()
+        {
+            _commands?.Lock();
+            _partyPicker?.Close();
+        }
 
         /// <summary>Back navigation for an input handler to route a cancel press into.</summary>
         public bool GoBack() => _commands != null && _commands.GoBack();
+
+        /// <summary>
+        /// Opens the party picker over the command column, either as the PARTY command's
+        /// answer or — <paramref name="forced"/> — as the replacement prompt after a faint.
+        ///
+        /// The command panel is locked first, not merely covered: both surfaces poll the
+        /// keyboard themselves, and two open menus in one corner would take every arrow
+        /// press twice. A pick surfaces through <see cref="SwitchRequested"/>, exactly as a
+        /// switch from any other surface does, so the presenter needs no second wire; a
+        /// cancel reopens the command menu on the same turn, because backing out of a
+        /// voluntary switch must never cost the turn itself.
+        /// </summary>
+        public void OpenPartyPicker(System.Collections.Generic.IReadOnlyList<CreatureInstance> party,
+            int activeIndex, bool forced)
+        {
+            if (_partyPicker == null) return;
+            _commands?.Lock();
+            _partyPicker.Open(party, activeIndex, forced);
+            // A picker that declined to open — an empty or all-null party list — must not
+            // leave the corner with both menus shut, or the turn dies to the decision
+            // timeout with nothing on screen to press.
+            if (!_partyPicker.IsOpen) BeginPlayerTurn(_playerActive);
+        }
 
         // ------------------------------------------------------------------ readout
 
@@ -141,6 +189,9 @@ namespace PokeLab.UI
             {
                 case BattleStartedEvent started:
                     _log?.Clear();
+                    // The one moment the battle's kind is stated, and the ball command's
+                    // legality follows from it for the rest of the fight.
+                    _commands?.SetBattleKind(started.Kind);
                     _log?.Append(started.Kind == BattleKind.Trainer
                         ? Loc.Pick("A trainer challenges you!", "트레이너가 승부를 걸어왔다!")
                         : Loc.Pick("A wild creature appeared!", "앗! 야생 포켓몬이 나타났다!"));
@@ -485,6 +536,24 @@ namespace PokeLab.UI
             _commands.BagRequested += () => BagRequested?.Invoke();
             _commands.PartyRequested += () => PartyRequested?.Invoke();
             _commands.RunRequested += () => RunRequested?.Invoke();
+            _commands.CaptureRequested += () => CaptureRequested?.Invoke();
+            // The refused throw is narrated here rather than in the panel because the log is
+            // this view's to write. The line is the engine's own — the message it emits when
+            // an illegal capture reaches it — so the answer is the same whether the rule is
+            // enforced at the menu or in the engine.
+            _commands.CaptureBlocked += () => _log?.Append(Loc.Pick(
+                "You can't catch another trainer's creature!",
+                "다른 트레이너의 포켓몬은 잡을 수 없다!"));
+
+            // --- party picker, standing in the command column's corner while it is open.
+            // Sized for a full party of six; with fewer members the rows bottom-align into
+            // the same corner and the caption follows them down, like every stack here.
+            _partyPicker = BattlePartyPicker.Build(main);
+            UiBuilder.Anchor(_partyPicker.GetComponent<RectTransform>(),
+                new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
+                Vector2.zero, new Vector2(BattlePartyPicker.PanelWidth, BattlePartyPicker.PanelHeight));
+            _partyPicker.Picked += index => SwitchRequested?.Invoke(index);
+            _partyPicker.Cancelled += () => BeginPlayerTurn(_playerActive);
 
             // --- player plate, bottom left.
             _playerPlate = CreatureStatusPanel.Build(main, BattleSide.Player);
@@ -506,12 +575,131 @@ namespace PokeLab.UI
                 // actually telling you about.
                 new Vector2(-logInset, 168f));
 
+            // --- beat flash: a full-bleed tint the cinematic hook pulses for a crit or a
+            // super-effective hit. Solid rather than a vignette because the vignette sprite
+            // bakes black pixels and cannot be tinted; at the alphas this uses it reads as a
+            // colour washing over the frame, not a cover. It sits below the overlays so a
+            // result card is never flashed over.
+            _beatFlash = UiBuilder.Image("BeatFlash", rootRect, UiSprites.Solid(),
+                Color.white.WithAlpha(0f), Image.Type.Simple);
+            _beatFlash.enabled = false;
+
             // --- overlays sit above everything, full-bleed, ignoring the safe area.
             var overlayRoot = UiBuilder.Rect("Overlays", rootRect);
             _overlays = overlayRoot.gameObject.AddComponent<OverlayDirector>();
             _overlays.BuildRuntime();
 
             UiBuilder.EnsureEventSystem();
+
+            // The choreography's side of the seam. Registered here because this is the
+            // moment the objects the beats act on exist; there is only ever one battle HUD,
+            // so a re-registration after a domain reload simply replaces a dead reference.
+            ServiceHub.Register<ICinematicHudHook>(this);
+        }
+
+        // ------------------------------------------------------------ cinematic hook
+
+        /// <summary>
+        /// Flies the HUD in or out for the choreography. The duration is honoured directly
+        /// on the fade group rather than routed through <see cref="Show"/>/<see cref="Hide"/>,
+        /// whose house timings would silently override a set piece that asked for a slow
+        /// reveal — but the end states are identical to theirs, so the two paths can be
+        /// interleaved without the HUD ending up half-interactive.
+        /// </summary>
+        public void SetHudVisible(bool visible, float duration)
+        {
+            // ServiceHub cannot unregister, so after a teardown a cached hook can point at a
+            // destroyed view. Unity's lifetime-aware == makes this the honest check.
+            if (this == null) return;
+            duration = Mathf.Max(0.05f, duration);
+            if (visible)
+            {
+                gameObject.SetActive(true);
+                if (_group != null)
+                {
+                    _group.interactable = true;
+                    _group.blocksRaycasts = true;
+                    UiTween.Fade(_group, 1f, duration);
+                }
+                _scanner?.SetMode(ScannerMode.Docked);
+                return;
+            }
+
+            _scanner?.SetMode(ScannerMode.Hidden);
+            _commands?.Lock();
+            _partyPicker?.Close();
+            if (_group == null) { gameObject.SetActive(false); return; }
+            _group.interactable = false;
+            _group.blocksRaycasts = false;
+            UiTween.Fade(_group, 0f, duration, Ease.InCubic, 0f, () =>
+            {
+                if (this != null) gameObject.SetActive(false);
+            });
+        }
+
+        /// <summary>
+        /// A named emphasis beat from the choreography, played cheap and non-blocking: a
+        /// tint pulse and a plate punch, never a coroutine, never a wait. Unknown ids are
+        /// ignored without logging — the beat vocabulary belongs to the cinematics worker
+        /// and grows on their side of the seam, so an id this HUD has no answer for yet is
+        /// the expected case, not an error. The result beats are deliberate no-ops here:
+        /// <see cref="OverlayDirector.PlayResult"/> already stages those moments, and a
+        /// flash under a VICTORY card would be the two systems shouting over each other.
+        /// </summary>
+        public void PlayHudBeat(string beatId, float intensity)
+        {
+            if (string.IsNullOrEmpty(beatId)) return;
+            var strength = Mathf.Clamp(intensity <= 0f ? 1f : intensity, 0.2f, 2f);
+
+            switch (beatId.ToLowerInvariant())
+            {
+                case "critical":
+                    PulseBeatFlash(UiPalette.Critical, 0.20f * strength, 0.32f);
+                    PunchPlate(_opponentPlate, 0.06f * strength);
+                    break;
+
+                case "supereffective":
+                    PulseBeatFlash(UiPalette.ScannerAmber, 0.14f * strength, 0.28f);
+                    PunchPlate(_opponentPlate, 0.045f * strength);
+                    break;
+
+                case "capture_shake":
+                    // No flash: the ball is the show and the OverlayDirector is already
+                    // staging it. A whisper of motion on the plate is all the HUD adds.
+                    PunchPlate(_opponentPlate, 0.03f * strength);
+                    break;
+
+                case "victory":
+                case "defeat":
+                case "fled":
+                    // Covered by OverlayDirector.PlayResult via BattleEndedEvent.
+                    break;
+            }
+        }
+
+        /// <summary>One pulse of the beat tint: near-instant attack, exponential decay.</summary>
+        private void PulseBeatFlash(Color tint, float peakAlpha, float duration)
+        {
+            if (_beatFlash == null) return;
+            UiTween.Kill(ref _beatFlashTween);
+            _beatFlash.enabled = true;
+            _beatFlashTween = UiTween.Run(duration, t =>
+            {
+                if (_beatFlash == null) return;
+                var alpha = t < 0.1f ? t / 0.1f : Mathf.Pow(1f - (t - 0.1f) / 0.9f, 2f);
+                _beatFlash.color = tint.WithAlpha(alpha * peakAlpha);
+            }, Ease.Linear, 0f, true, () =>
+            {
+                if (_beatFlash == null) return;
+                _beatFlash.color = tint.WithAlpha(0f);
+                _beatFlash.enabled = false;
+            });
+        }
+
+        private static void PunchPlate(CreatureStatusPanel plate, float magnitude)
+        {
+            if (plate == null || !plate.gameObject.activeInHierarchy) return;
+            UiTween.Punch(plate.transform, magnitude, 0.3f);
         }
     }
 }
