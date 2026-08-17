@@ -108,6 +108,37 @@ namespace PokeLab.Boot.Editor
         /// </summary>
         private static int s_quietTicks;
 
+        /// <summary>
+        /// Fills the editor window with the Game view for the length of the run.
+        ///
+        /// A screenshot is the size of the Game view, and in the docked layout this project is
+        /// usually left in that is 263x148 — small enough that the capture state stamp alone
+        /// covers the whole frame, and no dialogue line, portrait or HUD label in it can be
+        /// read. Runs were being judged from pictures that could not show the thing being
+        /// judged. superSize would multiply the resolution but drops the overlay UI, which is
+        /// most of what needs looking at here, so the window is enlarged instead and the same
+        /// frame the player would see is what lands on disk.
+        ///
+        /// Restored afterwards: leaving somebody's editor maximised is a side effect the probe
+        /// has no business having.
+        /// </summary>
+        private static bool MaximiseGameView(bool maximised)
+        {
+            var type = System.Type.GetType("UnityEditor.GameView,UnityEditor");
+            if (type == null) return false;
+
+            var windows = Resources.FindObjectsOfTypeAll(type);
+            if (windows == null || windows.Length == 0) return false;
+
+            var view = windows[0] as EditorWindow;
+            if (view == null) return false;
+
+            var was = view.maximized;
+            view.maximized = maximised;
+            view.Repaint();
+            return was;
+        }
+
         private static void Poll()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
@@ -243,6 +274,10 @@ namespace PokeLab.Boot.Editor
                 var pad = InputSystem.AddDevice<Gamepad>("ProbePad");
                 var index = 0;
 
+                var wasMaximised = MaximiseGameView(true);
+                // A frame for the layout to rebuild at the new size before anything is taken.
+                yield return null;
+
                 yield return new WaitForSeconds(Mathf.Max(0f, _request.settleSeconds));
 
                 var player = FindFirstObjectByType<PlayerLocomotion>();
@@ -282,6 +317,16 @@ namespace PokeLab.Boot.Editor
                         }
 
                         var name = $"{index:000}_{Sanitise(leg.label)}_{shot}.png";
+
+                        // Upscaled, because a shot the size of the Game view is not evidence.
+                        //
+                        // CaptureScreenshot takes whatever the Game view happens to be, and in
+                        // this layout that is 263x148 — small enough that the state stamp alone
+                        // covers the frame and no dialogue line, portrait or HUD label can be
+                        // read at all. Runs were being judged from pictures that could not show
+                        // the thing being judged. superSize multiplies the same framing rather
+                        // than changing it, so what lands on disk is the same shot at a size
+                        // where the text in it is legible.
                         ScreenCapture.CaptureScreenshot(Path.Combine(outputDir, name));
                         // CaptureScreenshot completes at the end of the *next* frame.
                         yield return new WaitForEndOfFrame();
@@ -317,6 +362,7 @@ namespace PokeLab.Boot.Editor
                 }
 
                 result.samples = samples.ToArray();
+                MaximiseGameView(wasMaximised);
                 InputSystem.RemoveDevice(pad);
                 WriteResult(result);
 

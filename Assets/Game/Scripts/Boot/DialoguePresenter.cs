@@ -135,6 +135,9 @@ namespace PokeLab.Boot
 
         private Texture2D _worldBlur;
 
+        /// <summary>Whether this conversation already has its backdrop. Cleared when it ends.</summary>
+        private bool _backdropGrabbed;
+
         /// <summary>
         /// Puts something behind the speaker.
         ///
@@ -167,10 +170,18 @@ namespace PokeLab.Boot
             // Everyone else is met where they stand, so they are framed close.
             _view.SetPortraitFraming(staged: false);
 
-            // Grabbed once per line rather than per frame: the world is frozen for the length
-            // of a conversation anyway, and a re-capture every frame would cost a full
-            // readback of the screen for a picture that does not change.
-            _view.SetBackdrop(null, CaptureBlurredWorld(), 0.72f);
+            // Grabbed once per conversation, not once per line.
+            //
+            // Re-capturing on every line re-renders the camera into the target, and the camera
+            // is still easing toward its dialogue framing — so each line replaced the backdrop
+            // with a slightly different one and the blur visibly slid and widened behind the
+            // text. The world does not change during a conversation, so one grab is not merely
+            // cheaper, it is the only one that holds still.
+            if (!_backdropGrabbed)
+            {
+                _backdropGrabbed = true;
+                _view.SetBackdrop(null, CaptureBlurredWorld(), 0.72f);
+            }
         }
 
         /// <summary>
@@ -306,9 +317,12 @@ namespace PokeLab.Boot
             return id;
         }
 
+        private void ResetBackdrop() => _backdropGrabbed = false;
+
         private void OnEnded(string sequenceId)
         {
             if (_view != null) _view.Close();
+            ResetBackdrop();
         }
     }
 }

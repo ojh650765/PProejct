@@ -76,8 +76,25 @@ namespace PokeLab.Audio
 
         // ------------------------------------------------------------------------------
 
+        private static MusicDirector _instance;
+
         private void Awake()
         {
+            // First one wins, and any later arrival removes itself.
+            //
+            // Both playable scenes are loaded together, so each brings its own GameHosts and
+            // its own director. The streamer destroys the duplicate's root — but not before
+            // that copy has registered itself on the hub and had its decks torn out from
+            // under it, and a crossfade already in flight then writes to an AudioSource Unity
+            // has destroyed. That is the NullReferenceException the web build reported on
+            // every load, from a coroutine whose stack said only "Crossfade".
+            if (_instance != null && _instance != this)
+            {
+                Destroy(this);
+                return;
+            }
+            _instance = this;
+
             // Three sources allocated once. Nothing here instantiates per playback.
             var group = AudioDirector.TryResolve(out _director)
                 ? _director.GroupFor(AudioBus.Music)
@@ -88,6 +105,11 @@ namespace PokeLab.Audio
             _stingDeck = _pool.RentReserved();
 
             ServiceHub.Register(this);
+        }
+
+        private void OnDestroy()
+        {
+            if (_instance == this) _instance = null;
         }
 
         private void OnEnable()
@@ -251,6 +273,11 @@ namespace PokeLab.Audio
         {
             var outgoing = Active;
             var incoming = Idle;
+
+            // Checked rather than assumed. A coroutine that throws reports a stack with only
+            // its own name in it — in a release build, not even that — so the one place this
+            // can be null is the one place it has to be tested.
+            if (incoming == null || _director == null) yield break;
 
             incoming.clip = clip;
             incoming.loop = true;

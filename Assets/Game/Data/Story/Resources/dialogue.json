@@ -155,7 +155,7 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Text": "Before anything else. How do you see yourself?",
-          "TextKo": "시작하기 전에 하나 묻겠네. 자네는 남자인가? 아니면 여자인가?",
+          "TextKo": "그럼 이제 자네에 대한 것을 가르쳐주게나. 자네는 남자인가? 아니면 여자인가?",
           "Choices": [
             {
               "Text": "A boy.",
@@ -1320,7 +1320,7 @@
           "EventId": "",
           "Choices": [],
           "Text": "Not without a Pokémon. It isn't personal and it isn't negotiable.",
-          "TextKo": "포켓몬 없이는 안 돼요. 누구라서 그런 것도 아니고, 봐줄 수도 없어요."
+          "TextKo": "아- 포켓몬 없이는 못 내보내요. 나도 그렇게 들어서요…"
         },
         {
           "SpeakerId": "npc_gate_01",
@@ -1578,8 +1578,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "There you are! Where've you been!",
-          "TextKo": "앗! 주인공! 너 어디 있었냐!"
+          "Text": "{PLAYER}! Where've you been!",
+          "TextKo": "앗! {PLAYER}! 너 어디 있었냐!"
         },
         {
           "SpeakerId": "npc_rival_01",

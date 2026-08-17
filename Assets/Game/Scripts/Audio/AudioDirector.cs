@@ -82,7 +82,21 @@ namespace PokeLab.Audio
         /// <summary>Raised whenever <see cref="MusicDuckGain"/> changes.</summary>
         public event Action<float> MusicDuckChanged;
 
-        public AudioClipCatalog Catalog => catalog;
+        /// <summary>
+        /// The clip catalogue, loaded on first use if nothing assigned one.
+        ///
+        /// Resolved through the property rather than only inside Resolve, because MusicDirector
+        /// reads this directly to look a track up — so a lazy load buried in Resolve fixed the
+        /// sound effects and left every piece of music reporting "missing from catalogue"
+        /// against a catalogue that had simply never been fetched. One accessor, one place the
+        /// loading happens.
+        /// </summary>
+        public AudioClipCatalog Catalog =>
+            catalog != null ? catalog : (catalog = Resources.Load<AudioClipCatalog>(CatalogResourceName));
+
+        /// <summary>Name the catalogue is loaded under. It lives in a Resources folder because
+        /// no scene references it, and that is the only lookup a build has.</summary>
+        public const string CatalogResourceName = "AudioClipCatalog";
         public AudioMixer Mixer => mixer;
 
         public AudioMixerGroup GroupFor(AudioBus bus) =>
@@ -209,12 +223,13 @@ namespace PokeLab.Audio
         // ---- playback ----------------------------------------------------------------
 
         public bool HasClip(string clipName) =>
-            catalog != null && catalog.TryGet(clipName, out _);
+            Catalog != null && Catalog.TryGet(clipName, out _);
 
         private bool Resolve(string clipName, out AudioClipCatalog.Entry entry)
         {
             entry = default;
-            if (catalog == null)
+
+            if (Catalog == null)
             {
                 if (!_warnedNoCatalog)
                 {
@@ -224,7 +239,7 @@ namespace PokeLab.Audio
                 }
                 return false;
             }
-            if (!catalog.TryGet(clipName, out entry) || entry.Clip == null)
+            if (!Catalog.TryGet(clipName, out entry) || entry.Clip == null)
             {
                 Debug.LogWarning($"[AudioDirector] Clip '{clipName}' not in catalogue.", this);
                 return false;

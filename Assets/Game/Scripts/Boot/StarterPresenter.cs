@@ -117,6 +117,17 @@ namespace PokeLab.Boot
 
         private void Update()
         {
+            // Re-found rather than resolved once in Awake.
+            //
+            // DialogueView is built at runtime by DialoguePresenter, so on any frame where this
+            // component's Awake ran first the reference was null — and being null was the very
+            // first thing Update tested, so the presenter returned every frame and the starter
+            // case never opened at all. The runner then timed out after ninety seconds and took
+            // a ball on the player's behalf, which is why the beat looked like it was skipped
+            // rather than broken.
+            if (_selection == null) _selection = FindFirstObjectByType<StarterSelection>();
+            if (_view == null) _view = FindFirstObjectByType<DialogueView>();
+
             if (_offered || _selection == null || _view == null) return;
             if (_selection.HasChosen) return;
             if (!ShouldOffer()) return;
@@ -254,22 +265,52 @@ namespace PokeLab.Boot
 
         // --- The world -------------------------------------------------------------------------
 
+        /// <summary>First of <paramref name="names"/> that exists in a loaded scene.</summary>
+        private static GameObject FindMark(params string[] names)
+        {
+            foreach (var name in names)
+            {
+                if (string.IsNullOrEmpty(name)) continue;
+                var found = GameObject.Find(name);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
         /// <summary>
         /// Builds the stage from the authored marks and the drawn props. Returns false when
         /// either is missing, which is the fallback's only trigger.
         /// </summary>
         private bool BuildStage()
         {
-            var caseMark = GameObject.Find(CaseMark);
-            var professorMark = GameObject.Find(ProfessorMark);
-            var playerMark = GameObject.Find(PlayerMark);
+            // Each mark is looked up with the field's equivalent behind it.
+            //
+            // These three name the lab doorway, and they are authored into Town and Overworld
+            // — which was right when the starter was handed over indoors. The story was
+            // restructured so the choice happens on the lake bank instead, out of the
+            // professor's own bag, and the marks did not move with it. In the field they
+            // resolve to nothing when Town is streamed out, and to a spot in the town square
+            // when it is not: either the case had nowhere to stand or it stood a hundred
+            // metres behind the player. Both look identical from the player's chair — the
+            // choice never appears.
+            var caseMark = FindMark(CaseMark, "Prop_ProfessorBag");
+            var professorMark = FindMark(ProfessorMark, "Mark_Prof_Return", "Mark_Rival_FieldPost");
+            var playerMark = FindMark(PlayerMark);
+
+            // The player themselves, rather than a mark, is the last resort and the best one:
+            // wherever this beat is playing, the person choosing is standing there.
+            if (playerMark == null)
+            {
+                var locomotion = FindFirstObjectByType<PokeLab.Overworld.PlayerLocomotion>();
+                if (locomotion != null) playerMark = locomotion.gameObject;
+            }
 
             if (caseMark == null || professorMark == null || playerMark == null)
             {
-                Debug.LogWarning($"[Starter] '{CaseMark}', '{ProfessorMark}' or '{PlayerMark}' " +
-                                 "is not in the scene, so the case has nowhere to stand. Their " +
-                                 "positions are in cast.json and LevelLayoutBuilder.BuildCast " +
-                                 "instantiates them; falling back to the dialogue list.", this);
+                Debug.LogWarning($"[Starter] Neither '{CaseMark}' nor the field's bag is in any " +
+                                 "loaded scene, so the case has nowhere to stand. Their positions " +
+                                 "are in cast.json and LevelLayoutBuilder.BuildCast instantiates " +
+                                 "them; falling back to the dialogue list.", this);
                 return false;
             }
 

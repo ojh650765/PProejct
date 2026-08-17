@@ -337,7 +337,9 @@ Shader "PokeLab/PropGroundBlend"
                 colour += PL_Ambient(normalWS) * albedo * occlusion;
 
                 half rim = PL_Rim(normalWS, viewDirWS, _RimPower, 0.22);
-                half3 rimColour = _RimColor.rgb + _PL_RimTint.rgb * _PL_RimBoost;
+                // _PL_RimBoost lands once, on the strength below. Applied to the colour
+                // as well, the two multiply and the director's boost enters squared.
+                half3 rimColour = lerp(_RimColor.rgb, _PL_RimTint.rgb, saturate(_PL_RimBoost));
                 colour += rimColour * rim * (_RimStrength + _PL_RimBoost) * occlusion;
 
                 // Pickup glow. Emissive, so it survives being in shadow — an item in the

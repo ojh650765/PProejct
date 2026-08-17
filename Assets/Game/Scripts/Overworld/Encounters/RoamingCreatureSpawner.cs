@@ -360,6 +360,24 @@ namespace PokeLab.Overworld
             var creatureLayer = LayerMask.NameToLayer(OverworldNames.LayerCreature);
             if (creatureLayer >= 0) go.layer = creatureLayer;
 
+            // Placed on the navmesh before the agent exists.
+            //
+            // A NavMeshAgent validates its position the instant it is added, and complains —
+            // "Failed to create agent because it is not close enough to the NavMesh" — before
+            // any line after AddComponent can move it. An agent that fails to create is not
+            // merely misplaced; every call on it throws for the rest of its life. So the
+            // position is settled first, and where there is no navmesh within reach the agent
+            // is not added at all: a creature that walks nowhere is better than one that
+            // throws on every step.
+            if (!UnityEngine.AI.NavMesh.SamplePosition(go.transform.position, out var onMesh, 6f,
+                                                       UnityEngine.AI.NavMesh.AllAreas))
+            {
+                Debug.LogWarning($"[Roamers] No navmesh within 6 m of {go.transform.position}, so no agent " +
+                                 "was created. Whatever was going to walk will stand still.");
+                return null;
+            }
+            go.transform.position = onMesh.position;
+
             var agent = go.AddComponent<NavMeshAgent>();
             // Off the navmesh nothing else on the agent matters, and auto-braking is what stops a
             // wanderer overshooting its destination and visibly correcting.

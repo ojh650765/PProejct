@@ -1369,13 +1369,32 @@ def well(bm, rng):
 
 
 def planter(bm, rng):
-    sides = 8
-    for (r, z0, h, m) in ((0.44, 0.0, 0.08, TRIM), (0.40, 0.08, 0.46, STONE_WALL),
-                          (0.46, 0.54, 0.09, TRIM)):
-        poly = [(math.cos(2 * math.pi * i / sides + 0.4) * r,
-                 math.sin(2 * math.pi * i / sides + 0.4) * r)
-                for i in range(sides)]
-        prism_wall(bm, poly, h, m, z0=z0)
+    """A stone planter, built as ONE closed solid rather than a stack of tubes.
+
+    It used to be three `prism_wall` prisms sitting on top of each other, and
+    that is precisely the construction `revolve`'s docstring warns about: each
+    prism is an open shell, `recalc_face_normals` picks its direction from the
+    shell's own topology, and on these three it picked inward.  Every face of
+    the planter pointed at its own centre, so the whole prop back-face culled
+    and read as a hole in the town.
+
+    Closing it removes the ambiguity instead of arguing with it -- on a closed
+    solid there is only one outward, and the basin now has a real soil disc for
+    the foliage to sit in rather than being open to the underside.
+    """
+    profile = [
+        (0.000, 0.000, PAVING),      # underside disc
+        (0.440, 0.000, TRIM),        # base trim, outer face
+        (0.440, 0.080, TRIM),        # base trim, top weathering
+        (0.400, 0.080, STONE_WALL),  # step in to the wall
+        (0.400, 0.540, STONE_WALL),  # the wall itself
+        (0.460, 0.540, TRIM),        # corbel out to the rim
+        (0.460, 0.630, TRIM),        # rim, outer face
+        (0.360, 0.630, PAVING),      # rim top annulus, turning inward
+        (0.360, 0.560, PAVING),      # inner wall, down into the basin
+        (0.000, 0.560, PAVING),      # soil
+    ]
+    revolve(bm, profile, 8)
     for k in range(7):
         a = rng.uniform(0, 6.28)
         d = 0.26 * math.sqrt(rng.random())

@@ -67,6 +67,7 @@ namespace PokeLab.Cinematics
 
         private static readonly string[] ShaderCandidates =
         {
+            "PokeLab/SpriteBillboard",
             "Universal Render Pipeline/Unlit",
             "Sprites/Default",
             "Unlit/Transparent Cutout",
@@ -359,6 +360,18 @@ namespace PokeLab.Cinematics
             if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 0f);
             if (material.HasProperty("_AlphaClip")) material.SetFloat("_AlphaClip", 1f);
             if (material.HasProperty("_Cutoff")) material.SetFloat("_Cutoff", 0.5f);
+            // The project's own shader first, and that ordering is load-bearing.
+            //
+            // URP/Unlit only clips when the _ALPHATEST_ON variant exists, and this material is
+            // built at runtime -- so no material in the project references that variant and the
+            // build strips it. EnableKeyword then sets a keyword nothing compiled against: in
+            // the editor every variant is present and the sprite cuts out correctly, in a build
+            // it draws its whole quad and every character is a rectangle of sheet background.
+            // That is the "transparent in the dialogue box, opaque in the world" split -- the
+            // box draws through a UI shader that needs no variant.
+            //
+            // PokeLab/SpriteBillboard clips unconditionally, so there is no variant to lose, and
+            // it is in Always Included Shaders so it cannot be stripped either.
             material.EnableKeyword("_ALPHATEST_ON");
 
             // Double-sided. The trainer stands nearly on the camera's own axis, so the yaw the

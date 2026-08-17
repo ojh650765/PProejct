@@ -172,8 +172,39 @@ namespace PokeLab.Boot.Editor
         /// the builder already applies, and it is rebuilt rather than added to, so
         /// removing an object removes what it carved.
         /// </summary>
+        /// <summary>
+        /// Saves every authored NavMeshAgent switched off.
+        ///
+        /// RequireComponent puts an agent on each NPC and the scene stores it enabled, so Unity
+        /// validates its position while the scene is loading — before any Awake has run — and
+        /// logs "Failed to create agent because it is not close enough to the NavMesh" for
+        /// every one that sits a few centimetres off the walkable surface. Nothing later can
+        /// prevent that, because nothing later has happened yet, and an agent that fails to
+        /// create keeps throwing for the rest of the session.
+        ///
+        /// NpcController already knows how to put one right: it samples the navmesh in Awake
+        /// and enables the agent afterwards. All this has to do is make sure the agent is not
+        /// live before that runs.
+        /// </summary>
+        private static int DisableAuthoredAgents(GameObject root)
+        {
+            var disabled = 0;
+            foreach (var agent in root.GetComponentsInChildren<UnityEngine.AI.NavMeshAgent>(true))
+            {
+                if (!agent.enabled) continue;
+                agent.enabled = false;
+                disabled++;
+            }
+            return disabled;
+        }
+
         private static void BuildNavigation(GameObject root)
         {
+            var quietened = DisableAuthoredAgents(root);
+            if (quietened > 0)
+                Debug.Log($"[Level] {quietened} NavMeshAgent(s) saved switched off; " +
+                          "NpcController places and enables them.");
+
             var surface = root.GetComponent<NavMeshSurface>();
             if (surface == null) surface = root.AddComponent<NavMeshSurface>();
 

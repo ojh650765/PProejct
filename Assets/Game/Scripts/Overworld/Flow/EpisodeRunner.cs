@@ -825,7 +825,13 @@ namespace PokeLab.Overworld
             var body = actor.transform;
             // The marker's Y came off a path control point rather than the terrain, so it is
             // trusted for where to stand and not for how high to stand there.
-            var destination = new Vector3(marker.position.x, body.position.y, marker.position.z);
+            // The marker's own height, not the walker's.
+            //
+            // This used to keep the actor's starting Y for the whole walk, so anyone crossing
+            // a slope arrived at the height they set off from — Kes crossing the bank sank
+            // into it on the way down and floated over it on the way up. The marker is seated
+            // on the ground by the level builder, so its height is the right one to arrive at.
+            var destination = marker.position;
 
             var agent = actor.GetComponent<NavMeshAgent>();
             var locomotion = actor.GetComponent<PlayerLocomotion>();
@@ -857,11 +863,17 @@ namespace PokeLab.Overworld
                 while (elapsed < timeout)
                 {
                     elapsed += Time.deltaTime;
+                    // Re-seated each step, because a straight line between two points that
+                    // are both on the ground still passes under a rise and over a dip.
                     var next = Vector3.MoveTowards(body.position, destination,
                         _actorWalkSpeed * Time.deltaTime);
                     var facing = Flatten(destination - body.position);
                     PlaceActor(body, locomotion, next,
                         facing.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(facing) : body.rotation);
+
+                    if (Physics.Raycast(body.position + Vector3.up * 3f, Vector3.down,
+                                        out var underfoot, 30f, ~0, QueryTriggerInteraction.Ignore))
+                        body.position = new Vector3(body.position.x, underfoot.point.y, body.position.z);
 
                     if (Flatten(destination - body.position).magnitude <= _arriveDistance)
                     {
@@ -1072,6 +1084,26 @@ namespace PokeLab.Overworld
             // Same agent settings the spawner builds its roamers with. Copied rather than shared
             // because the method that builds them is private to the spawner and this scene must
             // not depend on a spawner existing — the prologue switches it off.
+            // Placed on the navmesh before the agent exists.
+            //
+            // A NavMeshAgent validates its position the instant it is added, and complains —
+            // "Failed to create agent because it is not close enough to the NavMesh" — before
+            // any line after AddComponent can move it. An agent that fails to create is not
+            // merely misplaced; every call on it throws for the rest of its life. So the
+            // position is settled first, and where there is no navmesh within reach the agent
+            // is not added at all: a creature that walks nowhere is better than one that
+            // throws on every step.
+            if (!UnityEngine.AI.NavMesh.SamplePosition(host.transform.position, out var onMesh, 6f,
+                                                       UnityEngine.AI.NavMesh.AllAreas))
+            {
+                Debug.LogWarning($"[Episode] No navmesh within 6 m of {host.transform.position}, so no agent " +
+                                 "was created, so the ambush has nothing to stage. The beat " +
+                                 "ends here rather than holding the player's control for a " +
+                                 "creature that will never arrive.");
+                yield break;
+            }
+            host.transform.position = onMesh.position;
+
             var agent = host.AddComponent<NavMeshAgent>();
             agent.autoBraking = true;
             agent.angularSpeed = 360f;

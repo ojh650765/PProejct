@@ -48,17 +48,54 @@ namespace PokeLab.Boot
             InitializeServices();
         }
 
+        /// <summary>
+        /// Loads the Poké Lab data the way a browser can, then finishes booting.
+        ///
+        /// Its own coroutine because the load is genuinely asynchronous there — five files
+        /// fetched over HTTP — and everything after it in InitializeServices assumes the
+        /// registries exist. Running that assumption a frame early is what produced a whole
+        /// session of estimated stats.
+        /// </summary>
+        private System.Collections.IEnumerator InitialiseDataThenServices()
+        {
+            var task = PokeLabBootstrap.InitializeAsync();
+            while (!task.IsCompleted) yield return null;
+
+            if (task.IsFaulted)
+            {
+                UnityEngine.Debug.LogError("[Boot] The Poké Lab data could not be loaded: " +
+                                           task.Exception?.GetBaseException().Message +
+                                           " Every creature will be built from estimated stats.", this);
+            }
+
+            InitializeServices();
+        }
+
         private void InitializeServices()
         {
             var sw = Stopwatch.StartNew();
 
             // Registers IPokeLabOracle, ISpeciesRegistry, IMoveRegistry and ITypeChart itself.
-            // InitializeNow is the synchronous path; the async one is for a loading screen that
-            // wants to keep rendering, which the boot scene does not yet have.
+            //
+            // The synchronous path reads the data off disk with File.Exists and File.ReadAllText,
+            // which is correct in the editor and on desktop and cannot work in a browser: there
+            // StreamingAssets is a URL served over HTTP, not a directory, and every file reads
+            // as missing. The deployed build threw FileNotFoundException on the very first
+            // frame and then ran the whole game on estimated stats — creatures with the wrong
+            // numbers, a dex with nothing in it, and one line in a console nobody sees.
+            //
+            // The async path already handles both, so on the web the boot waits for it. That
+            // costs the boot scene a few frames without a loading screen, which is a great deal
+            // better than a game running on invented data.
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (!PokeLabBootstrap.IsInitialized) StartCoroutine(InitialiseDataThenServices());
+            return;
+#else
             if (!PokeLabBootstrap.IsInitialized) PokeLabBootstrap.InitializeNow();
 
             sw.Stop();
 
+#endif
             var ok = ServiceHub.Has<ISpeciesRegistry>()
                      && ServiceHub.Has<IMoveRegistry>()
                      && ServiceHub.Has<ITypeChart>()

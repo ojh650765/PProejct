@@ -23,7 +23,18 @@ namespace PokeLab.Audio.Editor
     public static class AudioCatalogBuilder
     {
         public const string ManifestPath = "Assets/Game/Audio/audio_manifest.json";
-        public const string CatalogPath = "Assets/Game/Audio/AudioClipCatalog.asset";
+        /// <summary>
+        /// Inside a Resources folder, because that is the only lookup a player has.
+        ///
+        /// It used to sit one level up. Nothing referenced it from a scene either, so a build
+        /// contained no catalogue at all and every sound in the game was a silent no-op —
+        /// reported once, into a console nobody reads, as "No AudioClipCatalog assigned".
+        /// The same shape as the dialogue book and the string table before them.
+        /// </summary>
+        public const string CatalogPath = "Assets/Game/Audio/Resources/AudioClipCatalog.asset";
+
+        /// <summary>Name the catalogue is loaded under at runtime.</summary>
+        public const string CatalogResourceName = "AudioClipCatalog";
 
         [Serializable]
         private sealed class ManifestClip

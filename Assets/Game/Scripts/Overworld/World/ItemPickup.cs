@@ -87,7 +87,14 @@ namespace PokeLab.Overworld
             if (bag is PlayerProfile concrete) concrete.SetFlagBool(TakenFlagKey, true);
 
             if (_glow != null) _glow.SetActive(false);
+
+            // Both, because they answer different questions. The UnityEvent is the per-instance
+            // hook a designer can wire in the inspector; the static one is the announcement, and
+            // it fires whether or not anybody remembered to wire the first — which, across every
+            // item in every scene, nobody had.
             _collected.Invoke(_itemId);
+            OverworldEvents.RaiseItemCollected(_itemId, _count);
+
             gameObject.SetActive(false);
         }
     }

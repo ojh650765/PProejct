@@ -506,7 +506,7 @@ namespace PokeLab.Cinematics
 
             BattleZone zone = BattleArena.ZoneFor(request != null ? request.BiomeId : null);
             arena.Dress(zone);
-            arena.Stage.SetTrainers(PlayerPersonKey, OpponentPersonKey(request));
+            arena.Stage.SetTrainers(PokeLab.Core.PlayerBody.SpriteKey, OpponentPersonKey(request));
 
             _biomeBeforeBattle = request != null && !string.IsNullOrEmpty(request.BiomeId)
                 ? request.BiomeId
@@ -526,6 +526,9 @@ namespace PokeLab.Cinematics
         // --- Who is standing at the marks ------------------------------------------------------
 
         /// <summary>The key the player is drawn under in <c>people_manifest.json</c>.</summary>
+        // Replaced by PlayerBody.SpriteKey at the call site: the player is whichever character
+        // they said they were in the opening, and a constant here put the boy on the battle
+        // stage no matter who was walking around the world.
         private const string PlayerPersonKey = "player";
 
         /// <summary>

@@ -236,7 +236,7 @@
     "family": "Town",
     "subfamily": "Planter",
     "path": "Assets/Game/Art/Environment/Town/Env_Planter.fbx",
-    "triangles": 438,
+    "triangles": 380,
     "lods": [],
     "pivot": "ground level, footprint centred",
     "textures": [

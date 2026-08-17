@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.Cinemachine;
 using UnityEngine;
 
 namespace PokeLab.Overworld
@@ -67,6 +68,25 @@ namespace PokeLab.Overworld
         private MaterialPropertyBlock _block;
         private Camera _camera;
 
+        /// <summary>
+        /// The one instance allowed to touch materials this frame.
+        ///
+        /// Three copies of this component are alive at once — the persistent rig plus one in
+        /// each streamed band — and they all read the same <see cref="Camera.main"/>. That is
+        /// what made a faded building stay faded forever, and it is why widening the restore
+        /// paths twice did not help: both fixes made fading *work more reliably*, which made
+        /// the collision more likely, not less.
+        ///
+        /// The collision is in the bookkeeping, not the fading. Instance A swaps a renderer
+        /// onto ghost materials and remembers the solid ones. Instance B then meets the same
+        /// renderer, finds nothing in its own table, and reads <c>sharedMaterials</c> — which
+        /// now returns A's ghosts. B files those as that renderer's solid set. From then on
+        /// every restore either instance performs puts the building back onto a transparent
+        /// material, and no amount of correct restore logic can recover it: the record of what
+        /// solid looked like is gone.
+        /// </summary>
+        private static CameraOccluderFade _owner;
+
         private void Awake()
         {
             _block = new MaterialPropertyBlock();
@@ -86,11 +106,73 @@ namespace PokeLab.Overworld
 
         private void LateUpdate()
         {
+            if (!ClaimOwnership())
+            {
+                // Handing back rather than merely standing down. A band that loses ownership
+                // mid-fade is holding the only record of what those renderers looked like
+                // solid, and nothing else will ever put them back.
+                ReleaseAll();
+                return;
+            }
+
             if (_camera == null) _camera = Camera.main;
             if (_camera == null || _target == null) return;
 
             CollectBlockers();
             Drive(Time.deltaTime);
+        }
+
+        /// <summary>
+        /// Whether this instance is the one steering the live camera.
+        ///
+        /// Asked of Cinemachine rather than settled first-wins, because first-wins resolves by
+        /// script execution order — and the winner could just as easily be a band's leftover
+        /// rig following a player nobody is controlling, which would dissolve buildings around
+        /// a spawn point on the other side of the map. When the brain is driving something else
+        /// entirely, such as a battle camera, nobody owns it and nobody fades, which is right.
+        /// </summary>
+        private bool ClaimOwnership()
+        {
+            var mine = GetComponent<CinemachineVirtualCameraBase>();
+            if (mine != null)
+            {
+                // Reached through the camera rather than a static accessor: Cinemachine 3
+                // dropped the brain registry, and the brain is a component on whichever camera
+                // is rendering anyway.
+                if (_camera == null) _camera = Camera.main;
+                var brain = _camera != null ? _camera.GetComponent<CinemachineBrain>() : null;
+                var live = brain != null ? brain.ActiveVirtualCamera : null;
+                if (live != null)
+                {
+                    var isMine = ReferenceEquals(live as CinemachineVirtualCameraBase, mine);
+                    if (isMine) _owner = this;
+                    return isMine;
+                }
+            }
+
+            // No brain, or this rig carries no virtual camera: fall back to first-wins so a
+            // plain camera setup still gets occlusion fading rather than none.
+            if (_owner == null) _owner = this;
+            return ReferenceEquals(_owner, this);
+        }
+
+        /// <summary>Puts everything this instance ghosted back, and forgets it.</summary>
+        private void ReleaseAll()
+        {
+            if (_solidMaterials.Count == 0 && _faded.Count == 0) return;
+
+            foreach (var pair in _faded)
+            {
+                if (pair.Key == null) continue;
+                pair.Key.GetPropertyBlock(_block);
+                _block.SetFloat(FadeAmount, 0f);
+                pair.Key.SetPropertyBlock(_block);
+            }
+            _faded.Clear();
+
+            foreach (var pair in _solidMaterials)
+                if (pair.Key != null) pair.Key.sharedMaterials = pair.Value;
+            _solidMaterials.Clear();
         }
 
         private void CollectBlockers()
@@ -240,6 +322,8 @@ namespace PokeLab.Overworld
 
         private void OnDisable()
         {
+            if (ReferenceEquals(_owner, this)) _owner = null;
+
             // Anything mid-fade would otherwise stay punched through for the rest of the
             // session, with nothing left running to restore it.
             foreach (var pair in _faded)

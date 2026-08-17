@@ -71,6 +71,32 @@ namespace PokeLab.Overworld
             if (_weather == null) _weather = WeatherDirector.Instance;
             if (_encounters == null) _encounters = EncounterDirector.Instance;
 
+            StartCoroutine(BeginSession());
+        }
+
+        /// <summary>
+        /// Starts the session once the dex is loadable.
+        ///
+        /// A new game builds the starter immediately, and CreatureFactory reads its base stats
+        /// from ISpeciesRegistry — which on the web is still being fetched over HTTP when this
+        /// runs. The creature was built from estimates and kept them for the rest of the
+        /// session; the only sign was one line saying so, in a console the player never sees.
+        ///
+        /// Bounded, because a registry that never arrives must not cost the player the game.
+        /// Waiting a second and starting on estimates is worse than waiting; never starting is
+        /// worse than both.
+        /// </summary>
+        private System.Collections.IEnumerator BeginSession()
+        {
+            var deadline = Time.realtimeSinceStartup + 20f;
+            while (!ServiceHub.Has<ISpeciesRegistry>() && Time.realtimeSinceStartup < deadline)
+                yield return null;
+
+            if (!ServiceHub.Has<ISpeciesRegistry>())
+                Debug.LogWarning("[Profile] The species registry never arrived, so the starter " +
+                                 "is built from estimated base stats and will not match the dex.",
+                                 this);
+
             if (_loadOnStart && SaveSystem.SaveExists()) LoadGame();
             else NewGame();
         }

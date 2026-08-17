@@ -556,7 +556,14 @@ Shader "PokeLab/SpriteBillboard"
                 half rim = PL_Rim(normalWS, viewDirWS, _RimPower, _RimThreshold);
                 half lightAlign = saturate(dot(normalWS, mainLight.direction) * 0.5 + 0.5);
                 half rimWeight = lerp(1.0, 1.0 - lightAlign, _RimLightAlign);
-                half3 rimColour = _RimColor.rgb + _PL_RimTint.rgb * _PL_RimBoost;
+                // _PL_RimBoost lands once, on the strength.
+                //
+                // It used to land twice — scaled into the rim colour as well — and the two
+                // multiply, so the director's boost entered this term squared. It went unseen
+                // while world sprites drew through URP/Unlit, which has no rim at all; the
+                // moment they moved onto this shader every character in the game was washed
+                // out. The same expression, and the same fix, as PokeLabFoliage.
+                half3 rimColour = lerp(_RimColor.rgb, _PL_RimTint.rgb, saturate(_PL_RimBoost));
                 colour += rimColour * rim * rimWeight * (_RimStrength + _PL_RimBoost) * occlusion;
 
                 // --- Emission --------------------------------------------------

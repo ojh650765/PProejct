@@ -463,7 +463,9 @@ Shader "PokeLab/Creature"
                 half rim = PL_Rim(normalWS, viewDirWS, _RimPower, _RimThreshold);
                 half lightAlign = saturate(dot(normalWS, mainLight.direction) * 0.5 + 0.5);
                 half rimWeight = lerp(1.0, 1.0 - lightAlign, _RimLightAlign);
-                half3 rimColour = _RimColor.rgb + _PL_RimTint.rgb * _PL_RimBoost;
+                // _PL_RimBoost lands once, on the strength below. Applied to the colour
+                // as well, the two multiply and the director's boost enters squared.
+                half3 rimColour = lerp(_RimColor.rgb, _PL_RimTint.rgb, saturate(_PL_RimBoost));
                 colour += rimColour * rim * rimWeight * (_RimStrength + _PL_RimBoost) * occlusion;
 
                 // --- Emission --------------------------------------------------

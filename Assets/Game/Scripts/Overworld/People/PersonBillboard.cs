@@ -59,6 +59,7 @@ namespace PokeLab.Overworld.People
 
         private static readonly string[] ShaderCandidates =
         {
+            "PokeLab/SpriteBillboard",
             "Universal Render Pipeline/Unlit",
             "Sprites/Default",
             "Unlit/Transparent Cutout",
@@ -174,6 +175,18 @@ namespace PokeLab.Overworld.People
             if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 0f);
             if (material.HasProperty("_AlphaClip")) material.SetFloat("_AlphaClip", 1f);
             if (material.HasProperty("_Cutoff")) material.SetFloat("_Cutoff", 0.5f);
+            // The project's own shader first, and that ordering is load-bearing.
+            //
+            // URP/Unlit only clips when the _ALPHATEST_ON variant exists, and this material is
+            // built at runtime -- so no material in the project references that variant and the
+            // build strips it. EnableKeyword then sets a keyword nothing compiled against: in
+            // the editor every variant is present and the sprite cuts out correctly, in a build
+            // it draws its whole quad and every character is a rectangle of sheet background.
+            // That is the "transparent in the dialogue box, opaque in the world" split -- the
+            // box draws through a UI shader that needs no variant.
+            //
+            // PokeLab/SpriteBillboard clips unconditionally, so there is no variant to lose, and
+            // it is in Always Included Shaders so it cannot be stripped either.
             material.EnableKeyword("_ALPHATEST_ON");
 
             // Double-sided. A single quad has a front and a back, and a billboard that is
@@ -183,6 +196,21 @@ namespace PokeLab.Overworld.People
             // from the facing, so the back of the quad showing the same frame is right.
             if (material.HasProperty("_Cull")) material.SetFloat("_Cull", 0f);
             material.doubleSidedGI = true;
+
+            // Lit flat, because these are pixel drawings and not models.
+            //
+            // PokeLab/SpriteBillboard carries a rim light and a wide light wrap — right for a
+            // creature standing in a battle diorama, wrong for a 32-pixel townsperson walking
+            // down a lane. Moving world people onto this shader to get their alpha cut also
+            // handed them both at their authored strengths, and every character came out
+            // washed out. The shader is still the right one; the terms that model a lit
+            // surface are what a drawing does not want.
+            //
+            // Contact darkening stays, at a third: it is the one term here that helps a flat
+            // sprite sit on the ground rather than hover over it.
+            if (material.HasProperty("_RimStrength")) material.SetFloat("_RimStrength", 0f);
+            if (material.HasProperty("_ContactStrength")) material.SetFloat("_ContactStrength", 0.25f);
+            if (material.HasProperty("_ShadeWrap")) material.SetFloat("_ShadeWrap", 0.15f);
 
             material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
             return material;
@@ -269,8 +297,17 @@ namespace PokeLab.Overworld.People
             }
 
             // The side sheet is drawn walking one way; the other way is that sheet mirrored.
+            //
+            // Inverted against what the angle alone suggests, and the quad is why. BuildQuad
+            // gives its vertices a normal of -Z, so the face the camera sees is the back of
+            // the quad's own frame and its local +X lands on the *left* of the screen. A UV
+            // flip that should have turned the character to face screen-right therefore turned
+            // them to face screen-left, and every character in the game walked backwards when
+            // seen from the side. Verified against the art rather than reasoned from the
+            // transform: the drawn side frames face screen-left, which is what
+            // sideWalksScreenLeft says, so the flag was right and the mapping was not.
             var walksScreenLeft = _entry.sideWalksScreenLeft;
-            _mirror = _view == View.Side && (relative > 0f) == walksScreenLeft;
+            _mirror = _view == View.Side && (relative > 0f) != walksScreenLeft;
         }
 
         private PersonClip ClipFor(View view, float speed)

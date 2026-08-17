@@ -171,6 +171,17 @@ namespace PokeLab.Overworld
         private void Awake()
         {
             _agent = GetComponent<NavMeshAgent>();
+
+            // Switched off before anything moves it, and back on once it is standing somewhere
+            // valid.
+            //
+            // An agent complains the moment it is enabled — "Failed to create agent because it
+            // is not close enough to the NavMesh" — and that happens during the component's own
+            // enable, before any of our code has had a chance to put it somewhere better. The
+            // snap below already knew how to fix the position; it simply always ran too late to
+            // stop the error, and an agent that failed to create stays broken for the session.
+            var wasEnabled = _agent.enabled;
+            _agent.enabled = false;
             _agent.speed = _walkSpeed;
             _rng = new DeterministicRandom(DeterministicRandom.HashString(_npcId));
 
@@ -180,7 +191,14 @@ namespace PokeLab.Overworld
 
             if (_animator == null) _animator = GetComponentInChildren<Animator>();
             CacheAnimatorParams();
+
             SnapToNavMesh();
+            _agent.enabled = wasEnabled;
+
+            // Sampled again with the agent live, because Warp is the only thing that tells an
+            // enabled agent where it is; moving the transform under a disabled one is what
+            // makes the enable succeed, and this is what makes it agree afterwards.
+            if (wasEnabled) SnapToNavMesh();
         }
 
         /// <summary>
@@ -199,14 +217,43 @@ namespace PokeLab.Overworld
         /// </summary>
         private void SnapToNavMesh()
         {
-            if (_agent == null || _agent.isOnNavMesh) return;
+            if (_agent == null) return;
+            if (_agent.enabled && _agent.isOnNavMesh) return;
 
             if (NavMesh.SamplePosition(transform.position, out var hit, 3f, NavMesh.AllAreas))
             {
                 transform.position = hit.position;
+                if (!_agent.enabled) return;        // placed; the enable will take it from here
                 if (_agent.isOnNavMesh) return;
                 _agent.Warp(hit.position);
                 return;
+            }
+
+            // No navmesh anywhere in this scene — an interior or the battle arena, where an
+            // agent is not merely misplaced but meaningless. Switching it off is quieter and
+            // more honest than leaving one that throws on every call.
+            if (!NavMesh.SamplePosition(transform.position, out _, 500f, NavMesh.AllAreas))
+            {
+                _agent.enabled = false;
+                return;
+            }
+
+            // No navmesh within reach, so put them on the ground at least.
+            //
+            // Standing still is survivable; standing still three metres in the air is not — a
+            // character hanging over the valley is the first thing anyone notices and it reads
+            // as the whole game being broken. The navmesh is the better answer because it is
+            // what walking needs, but when it is not there the ground still is, and a raycast
+            // finds it. They will not move, and the warning below says so.
+            if (Physics.Raycast(transform.position + Vector3.up * 4f, Vector3.down,
+                                out var ground, 40f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                var drop = transform.position.y - ground.point.y;
+                transform.position = ground.point;
+                if (drop > 0.25f)
+                    Debug.LogWarning($"[Npc] '{name}' was {drop:F1} m above the ground and has " +
+                                     "been set down on it. Their authored position has the wrong " +
+                                     "height — check the height grid the layout sampled.", this);
             }
 
             // Nothing within three metres is a level fault, not a rounding error, so name

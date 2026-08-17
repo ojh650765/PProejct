@@ -157,6 +157,14 @@ namespace PokeLab.Boot
                 if (_episodes.IsAwaitingName) _text.Append("  [awaiting name]");
                 if (_episodes.IsAwaitingStarter) _text.Append("  [awaiting starter]");
             }
+            // Outside the IsPlaying branch on purpose: a stuck typing latch matters most when
+            // no episode is running, because then nothing on screen explains why the space bar
+            // has stopped working. It is the one piece of state that silently disables the
+            // button the whole game is advanced with.
+            if (PokeLab.Core.TextEntry.IsTyping)
+            {
+                _text.Append("  [TYPING — space will not advance]");
+            }
             _text.Append('\n');
 
             _text.Append("DIALOGUE ");

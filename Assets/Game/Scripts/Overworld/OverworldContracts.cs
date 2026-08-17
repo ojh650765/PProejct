@@ -105,6 +105,18 @@ namespace PokeLab.Overworld
         /// </summary>
         public static event Action<string> DialogueSignal;
 
+        /// <summary>
+        /// An item was taken off the ground: the item id, and how many.
+        ///
+        /// <see cref="ItemPickup"/> already carried a per-instance UnityEvent for this and not
+        /// one instance in any scene had a listener wired to it, so a ball picked up went into
+        /// the bag and vanished off the ground with nothing on screen either way. The series
+        /// always says what you found, and without that line the whole feature reads as absent
+        /// rather than as silent. A static event because the announcement belongs to the UI,
+        /// which is an assembly the world cannot see.
+        /// </summary>
+        public static event Action<string, int> ItemCollected;
+
         public static void RaiseEncounterTelegraphed(Vector3 source) => EncounterTelegraphed?.Invoke(source);
         public static void RaiseEncounterCommitted(EncounterRequest request) => EncounterCommitted?.Invoke(request);
         public static void RaiseEncounterResolved(EncounterResult result) => EncounterResolved?.Invoke(result);
@@ -115,6 +127,7 @@ namespace PokeLab.Overworld
         public static void RaiseInteractionPromptChanged(InteractionPromptData data) => InteractionPromptChanged?.Invoke(data);
         public static void RaiseTrainerSpotted(string trainerId) => TrainerSpotted?.Invoke(trainerId);
         public static void RaiseDialogueSignal(string signalId) => DialogueSignal?.Invoke(signalId);
+        public static void RaiseItemCollected(string itemId, int count) => ItemCollected?.Invoke(itemId, count);
 
         /// <summary>Detaches every subscriber. Call alongside <see cref="GameEvents.Reset"/> on play mode exit.</summary>
         public static void Reset()
@@ -129,6 +142,7 @@ namespace PokeLab.Overworld
             InteractionPromptChanged = null;
             TrainerSpotted = null;
             DialogueSignal = null;
+            ItemCollected = null;
         }
     }
 

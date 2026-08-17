@@ -62,6 +62,12 @@ namespace PokeLab.Overworld.World
 
         private void Apply(float glow)
         {
+            // The block as well as the renderers. OnValidate fires on a component whose Awake
+            // has not run — a prefab instantiated by the level builder, a domain reload mid-play
+            // — and GetPropertyBlock(null) throws ArgumentNullException from deep inside the
+            // engine, once per renderer per validate, with the item's highlight silently dead
+            // for the rest of the session.
+            _block ??= new MaterialPropertyBlock();
             if (_renderers == null) return;
             foreach (var renderer in _renderers)
             {

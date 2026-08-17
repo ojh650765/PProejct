@@ -117,6 +117,21 @@ namespace PokeLab.UI
         private TweenHandle _typing;
         private TweenHandle _caret;
         private Action _onAdvance;
+
+        /// <summary>Backgrounds of the live choice rows, so the selected one can be lit.</summary>
+        private readonly List<Image> _choiceBackgrounds = new List<Image>();
+
+        /// <summary>Which option the keyboard is on. Meaningless when no choices are up.</summary>
+        private int _choiceIndex;
+
+        /// <summary>
+        /// Unscaled time before the option list will accept a confirm.
+        ///
+        /// The press that reveals the question and the press that answers it are the same key,
+        /// and without a gap the space bar that turned to the question also picks the first
+        /// option on the next frame — so the player never sees they were asked.
+        /// </summary>
+        private float _choiceArmedAt;
         private Action<int> _onChoice;
         private IReadOnlyList<string> _pendingChoices;
         private bool _revealing;
@@ -336,6 +351,7 @@ namespace PokeLab.UI
         private void Update()
         {
             DrivePortraitFade();
+            DriveChoiceKeys();
             if (_autoCountdown < 0f) return;
             _autoCountdown -= Time.unscaledDeltaTime;
             if (_autoCountdown > 0f) return;
@@ -479,6 +495,7 @@ namespace PokeLab.UI
 
                 UiButtonMotion.Attach(root, 4);
                 _choiceButtons.Add(UiBuilder.Button("Click", root, background, () => Choose(index)));
+                _choiceBackgrounds.Add(background);
 
                 // Stagger the entrance so the option list reads top to bottom.
                 var group = UiBuilder.Group(root, 0f, true, true);
@@ -486,6 +503,73 @@ namespace PokeLab.UI
             }
 
             _choiceParent?.gameObject.SetActive(true);
+            _choiceIndex = 0;
+            _choiceArmedAt = Time.unscaledTime + 0.25f;
+            HighlightChoice();
+        }
+
+        /// <summary>
+        /// Lights the option the keyboard is on.
+        ///
+        /// Without it the cursor is invisible and pressing space answers a question the player
+        /// cannot see the answer to — which is worse than having no keyboard support at all.
+        /// </summary>
+        private void HighlightChoice()
+        {
+            for (var i = 0; i < _choiceBackgrounds.Count; i++)
+            {
+                var background = _choiceBackgrounds[i];
+                if (background == null) continue;
+                background.color = i == _choiceIndex
+                    ? UiPalette.SurfaceRaised.WithAlpha(0.98f)
+                    : UiPalette.Surface.WithAlpha(0.93f);
+            }
+        }
+
+        /// <summary>
+        /// Moves and answers the option list from the keyboard and the pad.
+        ///
+        /// The list was answerable by mouse alone. Nothing read a key while it was up, so a
+        /// player holding the keyboard — which is how the whole rest of this game is played,
+        /// down to the space bar that opened the conversation — reached the opening's first
+        /// question and could go no further. The starter list is the same widget, so the same
+        /// dead end sat in front of choosing a first partner.
+        ///
+        /// Read here rather than through OverworldInputReader because that lives in an assembly
+        /// this one cannot see, and because a menu should keep working when the world's input
+        /// is switched off — which, during a conversation, it always is.
+        /// </summary>
+        private void DriveChoiceKeys()
+        {
+            if (_pendingChoices == null || _choiceButtons.Count == 0) return;
+            if (PokeLab.Core.TextEntry.IsTyping) return;
+
+            var keyboard = UnityEngine.InputSystem.Keyboard.current;
+            var pad = UnityEngine.InputSystem.Gamepad.current;
+
+            var down = (keyboard != null && (keyboard.downArrowKey.wasPressedThisFrame
+                                             || keyboard.sKey.wasPressedThisFrame))
+                       || (pad != null && (pad.dpad.down.wasPressedThisFrame
+                                           || pad.leftStick.down.wasPressedThisFrame));
+            var up = (keyboard != null && (keyboard.upArrowKey.wasPressedThisFrame
+                                           || keyboard.wKey.wasPressedThisFrame))
+                     || (pad != null && (pad.dpad.up.wasPressedThisFrame
+                                         || pad.leftStick.up.wasPressedThisFrame));
+
+            if (down || up)
+            {
+                var count = _choiceButtons.Count;
+                _choiceIndex = ((_choiceIndex + (down ? 1 : -1)) % count + count) % count;
+                HighlightChoice();
+            }
+
+            var confirm = (keyboard != null && (keyboard.spaceKey.wasPressedThisFrame
+                                                || keyboard.enterKey.wasPressedThisFrame
+                                                || keyboard.numpadEnterKey.wasPressedThisFrame))
+                          || (pad != null && pad.buttonSouth.wasPressedThisFrame);
+
+            if (confirm && Time.unscaledTime >= _choiceArmedAt)
+                Choose(Mathf.Clamp(_choiceIndex, 0, _choiceButtons.Count - 1));
         }
 
         private void Choose(int index)
@@ -499,6 +583,7 @@ namespace PokeLab.UI
         {
             _pendingChoices = null;
             _choiceButtons.Clear();
+            _choiceBackgrounds.Clear();
             UiBuilder.ClearChildren(_choiceParent);
             if (_choiceParent != null) _choiceParent.gameObject.SetActive(false);
         }
