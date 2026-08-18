@@ -1,0 +1,22 @@
+# Console-triage allowlist for Tools/deploy_webgl.py.
+# One substring per line; a console line (or, for Unity's two-line "ERROR: Shader" shape,
+# the ERROR line joined with the line after it) containing any of these is treated as
+# known-benign and does not fail the deploy gate.
+# Add entries ONLY for noise that has been looked at and understood -- this file is the
+# record of what we have decided to live with.
+
+# Known-benign shader fallbacks: WebGL strips these Hidden/ debug-and-copy shaders and the
+# engine logs a two-line "ERROR: Shader" + name for each. Purely cosmetic on this target.
+Hidden/CoreSRP/CoreCopy
+Hidden/Universal Render Pipeline/StencilDitherMaskSeed
+Hidden/Universal/HDRDebugView
+
+# Known duplicate-host guard notices: additive scene loading briefly creates a second host
+# and each of these systems logs that it destroyed the duplicate. The guards working as
+# designed, not a fault.
+A second DialogueRunner arrived
+[EncounterDirector] A second one arrived
+There can be only one active Event System
+
+# WebGL audio streams in late; querying a clip's length before it lands logs this.
+Trying to get length of sound which is not loaded yet
