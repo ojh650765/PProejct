@@ -6,14 +6,20 @@ using PokeLab.Core;
 namespace PokeLab.Cinematics
 {
     /// <summary>
-    /// The camera work that happens outside battle: a trainer noticing you and walking over,
-    /// conversation framing, the scanner being raised, and the beat where the player spots a
-    /// creature in the grass.
+    /// The camera work for short authored beats outside battle: a trainer noticing you and
+    /// walking over, the scanner being raised, and the moment the player spots a creature in
+    /// the grass.
     ///
-    /// All four are short, and all four are the moments where an unauthored camera is most
+    /// All three are short, and all three are the moments where an unauthored camera is most
     /// obvious — the player is in direct control right up until the instant they are not, so
     /// any snap at the hand-off is unmissable. Each sequence therefore takes the camera from
     /// the follow rig by priority and gives it back the same way, never by teleporting.
+    ///
+    /// Conversation framing is not here. It used to be — a BeginConversation/EndConversation
+    /// pair that nothing ever called — and it is superseded by
+    /// <see cref="DialogueCameraDirector"/>, which watches the dialogue runner itself and
+    /// solves occlusion before placing the shot. This class keeps only the beats a scripted
+    /// sequence drives by hand.
     ///
     /// The overworld worker owns movement and interaction; this class owns only the camera
     /// and the timing, and takes the transforms it needs as arguments.
@@ -55,8 +61,8 @@ namespace PokeLab.Cinematics
 
         /// <summary>
         /// True while an overworld cinematic owns the camera. Gate input on this.
-        /// Derived from the camera's own state rather than from a flag, because a
-        /// conversation is held open by the UI worker and has no routine running.
+        /// Derived from the camera's own state rather than from a flag, because the scanner
+        /// is held raised between two calls and has no routine running in between.
         /// </summary>
         public bool IsPlaying => _cinematicCamera != null
                                  && _cinematicCamera.gameObject.activeSelf
@@ -138,28 +144,6 @@ namespace PokeLab.Cinematics
             Vector3 twoShot = ConversationPose(player.position, trainer.position);
             yield return MoveCameraTo(twoShot, midpoint, walkTime, conversationFov, CinematicEase.InOutCubic);
 
-            Release();
-        }
-
-        /// <summary>
-        /// Frames a conversation as a three-quarter two-shot. Holds until
-        /// <see cref="EndConversation"/> is called, because dialogue length is the UI
-        /// worker's business, not the camera's.
-        /// </summary>
-        public IEnumerator BeginConversation(Transform other, float duration = 0.6f)
-        {
-            if (other == null || player == null) yield break;
-            TakeOver();
-
-            Vector3 midpoint = Vector3.Lerp(player.position, other.position, 0.5f) + Vector3.up * eyeHeight;
-            Vector3 pose = ConversationPose(player.position, other.position);
-            yield return MoveCameraTo(pose, midpoint, duration, conversationFov, CinematicEase.InOutCubic);
-        }
-
-        /// <summary>Hands the camera back to the follow rig after a conversation.</summary>
-        public IEnumerator EndConversation(float duration = 0.6f)
-        {
-            yield return CinematicRunner.Wait(duration * 0.25f);
             Release();
         }
 
@@ -274,7 +258,9 @@ namespace PokeLab.Cinematics
 
             if (followCamera != null) _followPriorityBeforeTakeover = followCamera.Priority.Value;
             _cinematicCamera.gameObject.SetActive(true);
-            _cinematicCamera.Priority = Mathf.Max(_followPriorityBeforeTakeover + 20, 120);
+            // The ladder's rung for authored scene beats: above exploration, below the
+            // conversation two-shot — a dialogue opening mid-approach takes the frame.
+            _cinematicCamera.Priority = ShotPriorities.EpisodeShot;
         }
 
         /// <summary>
