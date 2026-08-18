@@ -26756,16 +26756,16 @@
   "playerSpawn": {
    "name": "Spawn_Player",
    "position": [
-    -9.0,
-    2.717,
-    -13.5
+    -19.6,
+    2.5,
+    -35.0
    ],
    "rotation": [
     0,
     45,
     0
    ],
-   "note": "On the plaza's south-east corner, on the exact 45 degree camera axis to the lab: the lab is at (-1.5, -6) and this is (-1.5 - 7.5, -6 - 7.5). Moved 2.6 m back down that axis so the shot opens on the plaza rather than on the lab's doorstep, and so the market row and the well are in the same frame. The note this replaces claimed the opening frame was 'the dome filling the top of the screen'. That is not achievable and never was. The exploration camera is pitched 38 degrees down with a 40 degree vertical FOV, so the top edge of the frame is a ray leaving the camera 18 degrees BELOW horizontal: from a camera eye 5.2 m up nothing above 5.2 m is ever in shot, and it falls a further 0.33 m for every metre of distance. The lab is 9.33 m tall and its dome starts at 6 m. No ground-level position in this town can frame it. What the opening frame actually is, and what it is now composed for, is the lab's ground floor and door filling the top third with the plaza falling away below -- see the report against this pass."
+   "note": "Moved to the town's south plaza on request (was [-9.0, 2.717, -13.5], the plaza's south-east corner on the lab axis). Y is advisory: BuildSpawn seats the marker on the ground at build time, and the runtime rig carries its own ground snap."
   },
   "spawnPoints": [
    {
@@ -26998,7 +26998,7 @@
       "wanderRadius": 0.6
      }
     ],
-    "note": "In the square, because gate_wait_for_kes sends the player to \uad11\uc7a5 and he has to be in it. He was at (-6.2, -7.4), which is 4.15 m from Town_Lab's axis against a collider face 4.70 m out at that bearing -- inside the building, unreachable, and on ground the navmesh bake carves away. This spot is 2.25 m clear of the nearest prop, flat to 0.09 m across 1.5 m, and 3.97 m from Mark_Kes_Approach, which is 2.8 s of walk against kes_summons' 4 s MoveActor timeout -- so the walk-over lands rather than ending in the snap the timeout exists to cover.\n\nONE schedule entry, and that is load-bearing. The second entry used to walk him to the route head at noon; NpcController.ApplyEntry fires on any change of entry, so the schedule would have marched him out of the field post kes_summons puts him on and rival_first_battle waits for him at. A single entry starting at hour 0 can never change."
+    "note": "In the square, because gate_wait_for_kes sends the player to 광장 and he has to be in it. He was at (-6.2, -7.4), which is 4.15 m from Town_Lab's axis against a collider face 4.70 m out at that bearing -- inside the building, unreachable, and on ground the navmesh bake carves away. This spot is 2.25 m clear of the nearest prop, flat to 0.09 m across 1.5 m, and 3.97 m from Mark_Kes_Approach, which is 2.8 s of walk against kes_summons' 4 s MoveActor timeout -- so the walk-over lands rather than ending in the snap the timeout exists to cover.\n\nONE schedule entry, and that is load-bearing. The second entry used to walk him to the route head at noon; NpcController.ApplyEntry fires on any change of entry, so the schedule would have marched him out of the field post kes_summons puts him on and rival_first_battle waits for him at. A single entry starting at hour 0 can never change."
    },
    {
     "name": "NPC_GateKeeper",
