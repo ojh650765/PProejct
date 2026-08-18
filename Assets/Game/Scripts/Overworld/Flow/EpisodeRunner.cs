@@ -1106,8 +1106,7 @@ reachedTheEnd = true;
         /// </summary>
         private void PlayOpeningTheme()
         {
-            var director = FindAnyObjectByType(
-                System.Type.GetType("PokeLab.Audio.MusicDirector, PokeLab.Audio"), FindObjectsInactive.Exclude);
+            var director = ResolveMusicDirector();
             if (director == null) return;
 
             var play = director.GetType().GetMethod("PlayTrack",
@@ -1118,6 +1117,63 @@ reachedTheEnd = true;
 
         /// <summary>The cue that plays from the name prompt onward.</summary>
         private const string OpeningTrack = "Music_Opening_Introduction";
+
+        private static UnityEngine.Object ResolveMusicDirector() => FindAnyObjectByType(
+            System.Type.GetType("PokeLab.Audio.MusicDirector, PokeLab.Audio"), FindObjectsInactive.Exclude);
+
+        /// <summary>
+        /// Tells the music director a scripted scene has taken the pad, or given it back.
+        ///
+        /// An episode is invisible to the mode stack — TakeControl only freezes input — so
+        /// between an episode's dialogue beats the game reads as plain Exploring, and the
+        /// director's world-follows-the-player rules kept starting the town theme over the
+        /// opening's black screen: once from the flow's boot-time hop to Exploring, once
+        /// from every dialogue close, and once from each band that streamed in and raised
+        /// BiomeEntered. Held, the director remembers those arrivals and plays them when
+        /// control genuinely returns; only explicit cues (the opening theme above, battle
+        /// music) start anything in between.
+        ///
+        /// Called from <see cref="SetControl"/> so it rides every path the runner already
+        /// guarantees control comes back on, including the finally that releases an
+        /// interrupted episode — a leaked hold would be a game that never plays world
+        /// music again. Reached by reflection for the same reason PlayOpeningTheme is, and
+        /// a missing director degrades to nothing.
+        /// </summary>
+        private void SetMusicSceneHold(bool held)
+        {
+            // Edge-triggered: SetControl is re-asserted mid-episode every time a nested
+            // conversation hands input back (see the _controlHeld re-freezes), and the
+            // opening's fade-out below must run once at the top of the scene, not again
+            // over the theme the name prompt has since started.
+            if (held == _musicHoldLive) return;
+
+            var director = ResolveMusicDirector();
+            if (director == null) return;
+            _musicHoldLive = held;
+
+            var hold = director.GetType().GetMethod("SetCinematicHold",
+                BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(bool) }, null);
+            hold?.Invoke(director, new object[] { held });
+
+            // The cold open is a scored silence: from the top of the opening until the
+            // name prompt asks for its theme, no music belongs at all — so whatever the
+            // boot window managed to start goes out under the first fade. Scoped to the
+            // opening by id: a mid-game episode keeps whatever is already playing, because
+            // stopping the town theme for every conversation is exactly the abruptness
+            // this director exists to avoid.
+            if (held && _playingId == OpeningEpisodeId)
+            {
+                var fade = director.GetType().GetMethod("FadeOutAll",
+                    BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(float) }, null);
+                fade?.Invoke(director, new object[] { 0.8f });
+            }
+        }
+
+        /// <summary>The one episode whose hold also silences the decks. Matches episodes.json.</summary>
+        private const string OpeningEpisodeId = "opening";
+
+        /// <summary>Whether the hold has actually been placed, so re-asserts stay no-ops.</summary>
+        private bool _musicHoldLive;
 
         private IEnumerator RunAskName(EpisodeBeat beat)
         {
@@ -2382,6 +2438,10 @@ reachedTheEnd = true;
         private void SetControl(bool enabled)
         {
             _controlHeld = !enabled;
+            // The music hold spans exactly the stretch the runner owns the pad, on every
+            // path in and out — see SetMusicSceneHold for why the mode stack cannot carry
+            // this.
+            SetMusicSceneHold(!enabled);
             if (_cameraRig != null) _cameraRig.ControlEnabled = enabled;
             foreach (var reader in FindObjectsByType<OverworldInputReader>(
                          FindObjectsInactive.Exclude, FindObjectsSortMode.None))

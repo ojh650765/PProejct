@@ -22,6 +22,10 @@ namespace PokeLab.Audio
     /// still not a cut: it plays on its own deck while the exploration theme fades under
     /// it, and it was composed to end on the pitch the battle theme opens on so the
     /// hand-off lands on a shared note.
+    ///
+    /// Scripted scenes are the one stretch where the world does not get a vote: while an
+    /// episode holds the pad (<see cref="SetCinematicHold"/>), ambient arrivals are
+    /// remembered rather than played, and only an explicit cue can start music.
     /// </summary>
     [AddComponentMenu("Poke Lab/Audio/Music Director")]
     [DefaultExecutionOrder(-400)]
@@ -71,6 +75,11 @@ namespace PokeLab.Audio
         private float _duckGain = 1f;
         private float _weatherTrim = 1f;
         private float _weatherTrimTarget = 1f;
+
+        /// <summary>
+        /// True while a scripted episode holds the pad. See <see cref="SetCinematicHold"/>.
+        /// </summary>
+        private bool _cinematicHold;
 
         public string CurrentTrack => _currentTrack;
 
@@ -179,7 +188,7 @@ namespace PokeLab.Audio
             var normalised = biomeId.Trim().ToLowerInvariant();
             if (normalised == _biome) return;
             _biome = normalised;
-            if (IsExplorationMode(_mode)) PlayTrack(SelectExplorationTrack(), biomeFade);
+            if (CanStartWorldMusic()) PlayTrack(SelectExplorationTrack(), biomeFade);
         }
 
         private void OnTimeOfDayChanged(TimeOfDay from, TimeOfDay to)
@@ -187,14 +196,14 @@ namespace PokeLab.Audio
             _timeOfDay = to;
             // A slow blend: the day and night arrangements share their harmony, so a long
             // crossfade sits on consonant material for its whole duration.
-            if (IsExplorationMode(_mode)) PlayTrack(SelectExplorationTrack(), timeOfDayFade);
+            if (CanStartWorldMusic()) PlayTrack(SelectExplorationTrack(), timeOfDayFade);
         }
 
         private void OnWeatherChanged(Weather from, Weather to)
         {
             _weather = to;
             _weatherTrimTarget = IsHeavy(to) ? Mathf.Pow(10f, heavyWeatherTrimDb / 20f) : 1f;
-            if (IsExplorationMode(_mode)) PlayTrack(SelectExplorationTrack(), biomeFade);
+            if (CanStartWorldMusic()) PlayTrack(SelectExplorationTrack(), biomeFade);
         }
 
         private void OnModeChanged(GameMode from, GameMode to)
@@ -203,7 +212,11 @@ namespace PokeLab.Audio
             switch (to)
             {
                 case GameMode.Exploring:
-                    PlayTrack(SelectExplorationTrack(), outroFade);
+                    // Gated by the hold as well: a scripted episode never pushes a mode of
+                    // its own, so every dialogue beat inside one ends on a pop back to
+                    // Exploring — and during the opening that pop was starting the town
+                    // theme over the professor's cold open, under a black screen.
+                    if (!_cinematicHold) PlayTrack(SelectExplorationTrack(), outroFade);
                     break;
 
                 case GameMode.EncounterIntro:
@@ -230,6 +243,46 @@ namespace PokeLab.Audio
         private static bool IsExplorationMode(GameMode mode) =>
             mode == GameMode.Exploring || mode == GameMode.Menu ||
             mode == GameMode.Dialogue || mode == GameMode.Boot;
+
+        /// <summary>
+        /// Whether an ambient arrival — biome, time of day, weather — may start a world
+        /// track right now. In free play the answer is yes for every non-battle mode,
+        /// which is what keeps the town theme running under a villager's dialogue box.
+        /// Under a cinematic hold the answer is no: the arrival has already updated the
+        /// selection state above, and that memory is the whole of what it gets to do
+        /// until the scene hands the pad back.
+        /// </summary>
+        private bool CanStartWorldMusic() => !_cinematicHold && IsExplorationMode(_mode);
+
+        /// <summary>
+        /// The scripted-scene gate, driven by EpisodeRunner (by reflection — the overworld
+        /// deliberately does not reference the audio assembly, for the reasons its opening
+        /// theme hook records) when an episode takes the pad and again when it gives it
+        /// back.
+        ///
+        /// It exists because an episode is invisible to the mode stack: TakeControl only
+        /// freezes input, so between dialogue beats the mode reads Exploring and during
+        /// them it reads Dialogue — both of which this director rightly treats as "leave
+        /// the music alone, and follow the world" in free play. During the opening that
+        /// meant every dialogue close and every streamed-in band started the town theme
+        /// over the professor's introduction.
+        ///
+        /// While held, nothing ambient may *start* a track: biome, time and weather
+        /// arrivals are remembered but not played, and the pop back to Exploring after a
+        /// dialogue beat starts nothing. Explicit requests — the opening cue, battle
+        /// themes, stings, FadeOutAll — are untouched, because a script asking by name is
+        /// the one voice a scripted scene should have. On release, if the game is back in
+        /// an exploration mode, the remembered world track fades in on the normal outro
+        /// blend; a track that was already right is a no-op by PlayTrack's own rules.
+        /// </summary>
+        [UnityEngine.Scripting.Preserve] // reached only by reflection; stripping must not eat it
+        public void SetCinematicHold(bool held)
+        {
+            if (_cinematicHold == held) return;
+            _cinematicHold = held;
+            if (!held && IsExplorationMode(_mode))
+                PlayTrack(SelectExplorationTrack(), outroFade);
+        }
 
         private static bool IsHeavy(Weather w) =>
             w == Weather.Rain || w == Weather.Sandstorm || w == Weather.Hail;
