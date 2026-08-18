@@ -1,0 +1,14 @@
+{
+    "name": "PokeLab.Sequencing.Editor",
+    "rootNamespace": "PokeLab.Sequencing.Editor",
+    "references": ["PokeLab.Cinematics", "Unity.Timeline"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
