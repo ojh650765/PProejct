@@ -86,6 +86,24 @@ namespace PokeLab.Overworld
         /// off camera rather than in full view.
         /// </summary>
         ExitActor = 18,
+        /// <summary>
+        /// Frame a genuinely composed shot — a placed, aimed, deoccluded camera — rather than
+        /// the yaw swing <see cref="CameraTo"/> is. `id` names a shot in shots.json; the shot
+        /// director places a CinemachineCamera from its authored composition and claims the
+        /// episode-shot priority rung, held until the next shot replaces it or the episode
+        /// releases it. `target` is the marker the beat degrades to (a plain LookToward) when
+        /// no shot director is registered or the shot cannot be composed.
+        /// </summary>
+        CameraShot = 19,
+        /// <summary>
+        /// Play a generated TimelineAsset — fixed-time camera choreography, scrubbable in the
+        /// editor — and block until it ends. `id` names the asset under Resources/Timelines;
+        /// `seconds` is a ceiling and defaults to the asset's duration plus two seconds. The
+        /// final frame is held on the episode-shot rung, so the beats after it play under the
+        /// pose the choreography ended on. `target` is the LookToward fallback marker, as with
+        /// <see cref="CameraShot"/>.
+        /// </summary>
+        PlayTimeline = 20,
     }
 
     [Serializable]
@@ -127,6 +145,34 @@ namespace PokeLab.Overworld
     public sealed class EpisodeBook
     {
         public List<Episode> Episodes = new List<Episode>();
+    }
+
+    /// <summary>
+    /// The camera department the CameraShot and PlayTimeline beats hand off to.
+    ///
+    /// Declared here and implemented in PokeLab.Cinematics — the forward-contract seam the
+    /// project already uses: Cinematics references Overworld, registers against this on
+    /// <see cref="PokeLab.Core.ServiceHub"/>, and this assembly never learns what a Timeline
+    /// or a CinemachineCamera is. Every member must degrade: the runner treats an absent
+    /// registration, a false return and a negative duration all as "compose nothing", falls
+    /// back to the yaw swing, and keeps the scene moving.
+    /// </summary>
+    public interface IEpisodeShotDirector
+    {
+        /// <summary>Composes and claims the named shot. False means nothing was claimed.</summary>
+        bool ShowShot(string shotName);
+
+        /// <summary>Drops whatever shot or held timeline frame is claimed. Idempotent.</summary>
+        void ReleaseShot();
+
+        /// <summary>The named timeline's length in seconds, or negative when it is missing.</summary>
+        float TimelineDurationSeconds(string timelineName);
+
+        /// <summary>Plays the named timeline, blocking, and holds its final frame claimed.</summary>
+        IEnumerator PlayTimeline(string timelineName);
+
+        /// <summary>Jumps a playing timeline to its end and holds the pose. The timeout hook.</summary>
+        void ForceFinishTimeline();
     }
 
     /// <summary>
@@ -518,6 +564,12 @@ reachedTheEnd = true;
                 {
                     ClearStagedCreature();
                     ClearRing();
+                    // The composed shot comes down by the same rule as the staging: a chain
+                    // hands its held frame to the next link — field_bag_left ends on the
+                    // creature stare precisely so field_ambush opens under it — and the last
+                    // link of any chain, or an interrupted episode, releases here. NEVER
+                    // strand the camera: this finally runs on every path out.
+                    ReleaseEpisodeShot();
                 }
             }
         }
@@ -557,6 +609,10 @@ reachedTheEnd = true;
 
                 case EpisodeBeatKind.GiveControl:
                     SetControl(true);
+                    // The player has the pad again, so the frame goes back to exploration.
+                    // A composed shot held past this point is a camera the player cannot
+                    // steer pointed at something they are walking away from.
+                    ReleaseEpisodeShot();
                     break;
 
                 case EpisodeBeatKind.SetFlag:
@@ -576,6 +632,14 @@ reachedTheEnd = true;
                                          "marker exists the shot is whatever the camera was " +
                                          "already looking at.", this);
                     else if (_cameraRig != null) _cameraRig.LookToward(marker.position);
+                    break;
+
+                case EpisodeBeatKind.CameraShot:
+                    RunCameraShot(beat);
+                    break;
+
+                case EpisodeBeatKind.PlayTimeline:
+                    yield return RunPlayTimeline(beat);
                     break;
 
                 case EpisodeBeatKind.ChooseStarter:
@@ -633,6 +697,92 @@ reachedTheEnd = true;
                                      "kind this runner knows, and was skipped.", this);
                     break;
             }
+        }
+
+        // --- Composed shots ------------------------------------------------------------------
+
+        /// <summary>
+        /// True while a CameraShot or PlayTimeline beat holds the episode-shot camera.
+        ///
+        /// Deliberately not reset per episode: like the staged creature, a held shot is
+        /// handed across a NextEpisodeId chain — the successor's first beat replaces it —
+        /// and released by whichever episode ends without handing on.
+        /// </summary>
+        private bool _shotClaimed;
+
+        /// <summary>
+        /// Frames a composed shot through the shot director, or degrades to the exact thing
+        /// CameraTo does — the yaw swing at the fallback marker — when nothing can compose
+        /// it. The degraded path is the pre-migration behaviour, so a scene missing the
+        /// cinematics layer plays the way it always did.
+        /// </summary>
+        private void RunCameraShot(EpisodeBeat beat)
+        {
+            if (ServiceHub.TryGet<IEpisodeShotDirector>(out var shots) && shots != null
+                && shots.ShowShot(beat.Id))
+            {
+                _shotClaimed = true;
+                return;
+            }
+
+            Debug.LogWarning($"[Episode] CameraShot '{beat.Id}': no shot director could compose " +
+                             "it, so the beat degrades to the yaw swing. The composed framing " +
+                             "needs the cinematics layer and shots.json.", this);
+            FallBackToLookToward(beat, "CameraShot");
+        }
+
+        /// <summary>
+        /// Plays a named camera timeline, blocking with a ceiling. The ceiling is authored
+        /// (`seconds`) or the asset's own duration plus two; on overrun the director is told
+        /// to jump to its final frame, because the one thing worse than choreography cut
+        /// short is choreography abandoned mid-move with the episode playing on under it.
+        /// </summary>
+        private IEnumerator RunPlayTimeline(EpisodeBeat beat)
+        {
+            IEpisodeShotDirector shots = null;
+            var duration = -1f;
+            if (ServiceHub.TryGet<IEpisodeShotDirector>(out shots) && shots != null)
+                duration = shots.TimelineDurationSeconds(beat.Id);
+
+            if (duration < 0f)
+            {
+                Debug.LogWarning($"[Episode] PlayTimeline '{beat.Id}': no shot director or no " +
+                                 "generated asset (Tools/Poké Lab/Rebuild/Sequencing Timelines " +
+                                 "builds them). The beat degrades to the yaw swing and no time " +
+                                 "is spent.", this);
+                FallBackToLookToward(beat, "PlayTimeline");
+                yield break;
+            }
+
+            _shotClaimed = true;
+            var ceiling = beat.Seconds > 0.01f ? beat.Seconds : duration + 2f;
+            yield return RunBounded(shots.PlayTimeline(beat.Id), ceiling,
+                $"PlayTimeline '{beat.Id}'",
+                () => shots.ForceFinishTimeline());
+        }
+
+        /// <summary>The degraded camera path: the yaw swing CameraTo has always been.</summary>
+        private void FallBackToLookToward(EpisodeBeat beat, string kind)
+        {
+            var markerName = string.IsNullOrEmpty(beat.Target) ? beat.Id : beat.Target;
+            var marker = FindMarker(markerName);
+            if (marker == null)
+            {
+                Debug.LogWarning($"[Episode] {kind} '{beat.Id}': fallback marker '{markerName}' " +
+                                 "is not in the scene either, so the shot is whatever the camera " +
+                                 "was already looking at.", this);
+                return;
+            }
+            if (_cameraRig != null) _cameraRig.LookToward(marker.position);
+        }
+
+        /// <summary>Drops the episode-shot camera if a beat claimed it. Safe to call twice.</summary>
+        private void ReleaseEpisodeShot()
+        {
+            if (!_shotClaimed) return;
+            _shotClaimed = false;
+            if (ServiceHub.TryGet<IEpisodeShotDirector>(out var shots) && shots != null)
+                shots.ReleaseShot();
         }
 
         // --- Fades ---------------------------------------------------------------------------

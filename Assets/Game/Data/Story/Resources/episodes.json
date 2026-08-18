@@ -12,7 +12,7 @@
       "5": "TakeControl -- freeze the player, flow to Cutscene.",
       "6": "GiveControl -- unfreeze, flow to Exploring.",
       "7": "MoveActor -- walk the actor named by Id to the marker named by Target, block until it arrives. The actor faces the player on arrival. Seconds is a timeout, not a duration: if the walk has not finished by then, snap and continue, so blocked geometry can never strand the scene.",
-      "8": "CameraTo  -- frame the camera on the object named by Id (OverworldCameraRig.LookToward). Usually a marker from cast.json; 'Actor_StagedCreature' is the one exception, and it is the object a StageCreature beat built, which is why it needs no marker.",
+      "8": "CameraTo  -- swing the camera's YAW toward the object named by Id (OverworldCameraRig.LookToward). Kept working for backwards compatibility, but know what it is: it only sets the orbital rig's yaw from the player's position -- pitch stays 8 deg, the boom stays 8.5 m -- so it can point at something and it cannot COMPOSE anything. The act's authored framings now use CameraShot (19) / PlayTimeline (20); reach for CameraTo only when 'roughly toward that thing from wherever the player stands' is genuinely the shot.",
       "9": "ChooseStarter -- open the starter choice, block until the player commits. StarterSelection.Commit runs InitialiseNewGame, so this beat is the point of no return.",
       "10": "GiveItem -- Id is a FieldItems id, Amount is the count.",
       "11": "SetFlag  -- Id is the flag, Value is on/off. Flags gate episodes, NPC dialogue variants and the gate ramp.",
@@ -22,7 +22,9 @@
       "15": "CreatureApproach -- NEW. Walk the staged creature up to the player and block until it is 1.6 m away. Seconds is a timeout, as with MoveActor: an approach that does not land is snapped, because the beat after it is a battle that needs the creature on screen.",
       "16": "MoveActorToPlayer -- NEW. Walk the actor named by Id to the player's shoulder and block until they are there. Seconds is a timeout, as with MoveActor; Value false means do not turn to face the player on arrival. Exists because the marks live in cast.json and the player does not: the friend who has to be standing beside them when the grass moves has no mark to walk to, and authoring one would pin the shot to a spot the player may not be standing on.",
       "17": "StageRing -- NEW. Ring the player, and the actor named by Id when there is one, with wild creatures; Value false takes the ring away again with a scatter rather than a blink. Target is the game species id and defaults to the staged creature's own, so the ring is that creature's flock. Amount is how many, clamped 3-12. SECONDS IS THE RADIUS IN METRES on this beat and not a wait -- it does not wait for anything. Placed on the navmesh, deterministically from the beat, facing inward, and held still: they cannot wander and cannot start a battle by touching anybody. Removed when the episode ends on every path.",
-      "18": "ExitActor -- NEW. Send the actor named by Id away toward the marker named by Target and stop drawing them the moment the camera can no longer see them. The marker is the DIRECTION they left in, not the end of the journey: past it they keep walking the same bearing until they are out of shot. Seconds is a ceiling, and overrunning it is an error rather than a warning, because it means somebody was removed in full view. Value true takes them off the screen; Value false leaves them drawn and standing on the mark, which is how a walk the navmesh cannot carry -- the town/field seam -- gets finished off camera instead of stalling in frame."
+      "18": "ExitActor -- NEW. Send the actor named by Id away toward the marker named by Target and stop drawing them the moment the camera can no longer see them. The marker is the DIRECTION they left in, not the end of the journey: past it they keep walking the same bearing until they are out of shot. Seconds is a ceiling, and overrunning it is an error rather than a warning, because it means somebody was removed in full view. Value true takes them off the screen; Value false leaves them drawn and standing on the mark, which is how a walk the navmesh cannot carry -- the town/field seam -- gets finished off camera instead of stalling in frame.",
+      "19": "CameraShot -- NEW. Frame a genuinely COMPOSED shot: Id names a shot in shots.json, and the cinematics layer places an aimed, deoccluded CinemachineCamera from that authored composition (fixed position + look-at, or an orbit around a runtime-resolved object -- Actor_StagedCreature, Prop_ProfessorBag, the player) on the episode-shot priority rung. The shot is HELD until the next CameraShot/PlayTimeline replaces it, a GiveControl beat runs, or the episode ends -- the runner's finally releases it on every path, and a NextEpisodeId chain hands the held shot across the seam the way it hands the staged creature. Target is the marker the beat degrades to (a plain CameraTo yaw swing) when the cinematics layer or shots.json is missing, so the scene still points somewhere. The dialogue conversation camera outbids this rung for the length of a line and drops back; the shot keeps its state while outbid.",
+      "20": "PlayTimeline -- NEW. Play the generated TimelineAsset named by Id (Resources/Timelines, built by Tools/Poké Lab/Rebuild/Sequencing Timelines from shots.json) through the cinematics layer's director, blocking. Seconds is a CEILING, not a duration -- it defaults to the asset's own length plus two seconds, and on overrun the choreography is jumped to its final frame rather than abandoned mid-move. The final frame is then held exactly like a CameraShot. Target is the CameraTo fallback marker, as with 19. Asset missing: log, degrade to the yaw swing, spend no time."
     },
     "episodeFields": {
       "Id": "stable id; EpisodeRunner._openingEpisodeId points at 'opening'.",
@@ -61,11 +63,12 @@
           "Note": "Guarantee black rather than trusting the boot state. 0.6s, not 0.0: when the boot cover is already up this fade is invisible either way, and when it is not -- a scene opened directly, a boot path that revealed early -- 0.0 was a hard cut to black on the first frame, which is the one thing the transition brief forbids. Sixty centiseconds is short enough not to delay the prologue and long enough to read as intent."
         },
         {
-          "Kind": 8,
-          "KindName": "CameraTo",
-          "Id": "Look_LabDome",
+          "Kind": 19,
+          "KindName": "CameraShot",
+          "Id": "shot_lab_dome",
+          "Target": "Look_LabDome",
           "Seconds": 0.0,
-          "Note": "Framed behind the black, so the fade-in reveals the dome already composed."
+          "Note": "Framed behind the black, so the fade-in reveals the dome already composed -- and now it genuinely is: the old CameraTo could only yaw the exploration rig, which cut the dome off above the frame (verified in-editor). shot_lab_dome is a placed low-angle camera on the plaza, pitched 22 deg up at the dome, matching tl_opening_reveal's first key so the reveal and the push-in are one continuous frame. Target is the degraded path: no cinematics layer, and this is the old yaw swing again."
         },
         {
           "Kind": 4,
@@ -95,10 +98,12 @@
           "Note": "Slow. This is the shot the whole town was built around."
         },
         {
-          "Kind": 3,
-          "KindName": "Wait",
-          "Seconds": 1.8,
-          "Note": "No text. Let the dome sit there."
+          "Kind": 20,
+          "KindName": "PlayTimeline",
+          "Id": "tl_opening_reveal",
+          "Target": "Look_LabDome",
+          "Seconds": 0.0,
+          "Note": "No text. Let the dome sit there -- then move. Replaces a bare 1.8 s Wait with the authored reveal: 1.2 s of hold and a 3.4 s push-in, scrubbable in the Timeline window. Ends held on the tighter frame, which the bulletin below plays under. Seconds 0 means the default ceiling, asset duration + 2 s."
         },
         {
           "Kind": 4,
@@ -143,11 +148,12 @@
           "Seconds": 0.0
         },
         {
-          "Kind": 8,
-          "KindName": "CameraTo",
-          "Id": "Look_GateRamp",
+          "Kind": 19,
+          "KindName": "CameraShot",
+          "Id": "shot_gate_ramp",
+          "Target": "Look_GateRamp",
           "Seconds": 0.0,
-          "Note": "Down the ramp, past Bram -- the way the player was trying to go. Framed on what is being refused rather than on the man refusing it."
+          "Note": "Down the ramp, past Bram -- the way the player was trying to go. Framed on what is being refused rather than on the man refusing it. The old CameraTo could not make this shot at all: from the player's position beside Bram the yaw swing rendered dirt, a signpost and trees -- no ramp, no gate (verified in-editor). shot_gate_ramp PLACES the camera above the ramp head looking down the ramp's own bearing at the route."
         },
         {
           "Kind": 4,
@@ -184,10 +190,12 @@
           "Seconds": 0.0
         },
         {
-          "Kind": 8,
-          "KindName": "CameraTo",
-          "Id": "Look_Square",
-          "Seconds": 0.0
+          "Kind": 19,
+          "KindName": "CameraShot",
+          "Id": "shot_square",
+          "Target": "Look_Square",
+          "Seconds": 0.0,
+          "Note": "The composed version of the framing cast.json verified by bearings: an over-the-shoulder from behind the trigger's catch point, down the square's axis, with Kes' whole walk coming up the middle of the frame."
         },
         {
           "Kind": 7,
@@ -205,11 +213,12 @@
           "Note": "5 lines. Line 3 is the forfeit and carries EventId 'vfx.kes_runs'; line 4 is the player watching him go. Nothing listens for the event yet, which is why the walk below happens after the whole conversation instead of during it."
         },
         {
-          "Kind": 8,
-          "KindName": "CameraTo",
-          "Id": "Look_GateRamp",
+          "Kind": 20,
+          "KindName": "PlayTimeline",
+          "Id": "tl_square_sendoff",
+          "Target": "Look_GateRamp",
           "Seconds": 0.0,
-          "Note": "Turned away from him before he moves. The script has already said he is gone, so the camera must not be watching him leave -- it is looking at where he went."
+          "Note": "Turned away from him before he moves. The script has already said he is gone, so the camera must not be watching him leave -- it is looking at where he went. Now an authored move rather than an instant yaw: three seconds from the square shot to the gate-ramp shot in one composed pan (the two camera positions are 2.3 m apart, so it crosses no geometry), ending held on shot_gate_ramp's exact pose. The MoveActor and ExitActor beats below walk Kes down the ramp UNDER that held frame."
         },
         {
           "Kind": 7,
@@ -265,10 +274,12 @@
           "Seconds": 0.0
         },
         {
-          "Kind": 8,
-          "KindName": "CameraTo",
-          "Id": "Look_GateRamp",
-          "Seconds": 0.0
+          "Kind": 19,
+          "KindName": "CameraShot",
+          "Id": "shot_gate_ramp",
+          "Target": "Look_GateRamp",
+          "Seconds": 0.0,
+          "Note": "The same composed ramp shot as the refusal -- deliberately: the frame the player was refused in is the frame they are released in."
         },
         {
           "Kind": 4,
@@ -305,11 +316,12 @@
           "Seconds": 0.0
         },
         {
-          "Kind": 8,
-          "KindName": "CameraTo",
-          "Id": "Look_LakeBank",
+          "Kind": 20,
+          "KindName": "PlayTimeline",
+          "Id": "tl_lakebank_arrival",
+          "Target": "Look_LakeBank",
           "Seconds": 0.0,
-          "Note": "The bank and the water behind it. The shallows he is counting have to be in frame or the lines are about nothing."
+          "Note": "The bank and the water behind it. The shallows he is counting have to be in frame or the lines are about nothing. The arrival is now choreographed: the camera opens over the player's shoulder on the water axis and pulls back 1.9 m until Linden, the water and the ambush grass are all carried in one frame -- shot_lake_bank's verified pose -- and holds there for the five lines below."
         },
         {
           "Kind": 4,
@@ -364,11 +376,12 @@
           "Note": "He comes over from his field post, 9 m away. Three of this scene's four lines are his and the one before it has Linden greeting '자네들' -- the script has had the two of them together in the field since it was written and the staging never brought him. So the bag was found, opened and exclaimed over by a boy who was standing on the shore trail the whole time."
         },
         {
-          "Kind": 8,
-          "KindName": "CameraTo",
-          "Id": "Prop_ProfessorBag",
+          "Kind": 19,
+          "KindName": "CameraShot",
+          "Id": "shot_bag_close",
+          "Target": "Prop_ProfessorBag",
           "Seconds": 0.0,
-          "Note": "Down on the bag. The only close shot in the field."
+          "Note": "Down on the bag. The only close shot in the field -- and now actually close: an orbit composed 2.2 m off the bag on the player's own side, 31 deg down at it, instead of the 8.5 m yaw swing that called itself a close shot. Orbit resolves the bag and the player at shot time, so the framing survives the player arriving from any bearing the 3 m trigger allows."
         },
         {
           "Kind": 4,
@@ -387,11 +400,12 @@
           "Note": "Rattata, level 4. GAME species id 25, from SliceRoster -- not the national dex number, which is the one mistake in this project that produces a plausible wrong creature rather than an error. It is in the route's own tall-grass table at levels 3-6, so this is a creature the grass could genuinely have produced, which is the whole reason it is a RoamingCreature and not a prop. Level 4 against a level 5 starter: winnable, and not a formality."
         },
         {
-          "Kind": 8,
-          "KindName": "CameraTo",
-          "Id": "Actor_StagedCreature",
+          "Kind": 19,
+          "KindName": "CameraShot",
+          "Id": "shot_creature_stare",
+          "Target": "Actor_StagedCreature",
           "Seconds": 0.0,
-          "Note": "Swing off the bag and onto the grass. The object exists because the beat above built it, which is why this needs no marker in cast.json."
+          "Note": "Off the bag and onto the grass -- a blend between two composed shots now, not a yaw swing. The orbit resolves Actor_StagedCreature at shot time: the object exists because the beat above built it, which is why this needs no marker in cast.json, and why the shot data names the runtime object rather than a position."
         },
         {
           "Kind": 3,
@@ -425,10 +439,12 @@
           "Note": "Defensive, and normally instant: 'field_bag_left' has already brought him over and a walk of nothing returns on the first frame. It is here because the schema's own note says this episode has to be judgeable -- and jumpable to -- on its own, and every line in it is written for two people standing together."
         },
         {
-          "Kind": 8,
-          "KindName": "CameraTo",
-          "Id": "Actor_StagedCreature",
-          "Seconds": 0.0
+          "Kind": 19,
+          "KindName": "CameraShot",
+          "Id": "shot_creature_stare",
+          "Target": "Actor_StagedCreature",
+          "Seconds": 0.0,
+          "Note": "Defensive re-claim of the same stare the chain handed across, so this episode composes correctly when jumped to on its own. When field_bag_left just played, the pose is already held and this is a no-op-shaped blend."
         },
         {
           "Kind": 4,
@@ -461,11 +477,12 @@
           "Note": "It closes the distance. 6s is a timeout and not a duration: an approach that snags on the reeds is snapped to 1.6 m rather than holding the player frozen watching it fail."
         },
         {
-          "Kind": 8,
-          "KindName": "CameraTo",
-          "Id": "Prop_ProfessorBag",
+          "Kind": 19,
+          "KindName": "CameraShot",
+          "Id": "shot_bag_choice",
+          "Target": "Prop_ProfessorBag",
           "Seconds": 0.0,
-          "Note": "Back down to the bag with the creature a metre and a half away and the rest of them standing round the pair. The frame is the choice: three balls, and something standing over them."
+          "Note": "Back down to the bag with the creature a metre and a half away and the rest of them standing round the pair. The frame is the choice: three balls, and something standing over them. shot_bag_choice is wider and higher than shot_bag_close, and swung to the opposite shoulder, so the return to the bag reads as a new look under new circumstances -- and so the approached creature fits in it."
         },
         {
           "Kind": 4,
@@ -520,11 +537,12 @@
           "Seconds": 0.0
         },
         {
-          "Kind": 8,
-          "KindName": "CameraTo",
-          "Id": "Look_LakeBank",
+          "Kind": 19,
+          "KindName": "CameraShot",
+          "Id": "shot_lake_bank",
+          "Target": "Look_LakeBank",
           "Seconds": 0.0,
-          "Note": "MOVED ABOVE THE WALK, and the order is load-bearing now that he actually leaves. 'field_professor_mutters' stops drawing him once he is out of shot, and the beat below is what puts him back on the screen -- so the camera has to be pointed away from Mark_Prof_Offstage before that happens or the player watches a man come back into existence. cast.json's note on that mark is the guarantee: it 'sits behind the camera in the Look_LakeBank framing, which is what makes it offstage'."
+          "Note": "MOVED ABOVE THE WALK, and the order is load-bearing now that he actually leaves. 'field_professor_mutters' stops drawing him once he is out of shot, and the beat below is what puts him back on the screen -- so the camera has to be pointed away from Mark_Prof_Offstage before that happens or the player watches a man come back into existence. The composed shot keeps the guarantee by construction: from shot_lake_bank's placed position the offstage mark bears 66 degrees off the lens axis, behind the camera -- his walk-in enters frame as a foreground crossing past the lens, a return rather than a materialisation."
         },
         {
           "Kind": 7,
