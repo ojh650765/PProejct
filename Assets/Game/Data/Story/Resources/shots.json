@@ -121,6 +121,7 @@
           "FromPosition": [-8.66, 4.6, -3.19], "ToPosition": [-8.2, 5.6, -1.2],
           "FromLookAt": [-17.8, 3.0, -10.4], "ToLookAt": [-2.0, 0.9, 11.5],
           "Note": "The turn itself: ~84 deg/s at peak, decisive without whipping. End pose retuned with shot_gate_ramp -- the authoring rule is that this last key IS that shot's pose, so the held frame and the shot are one thing."
+        }
       ]
     },
     {
