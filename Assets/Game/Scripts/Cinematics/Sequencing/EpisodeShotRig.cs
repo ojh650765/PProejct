@@ -85,12 +85,72 @@ namespace PokeLab.Cinematics.Sequencing
             transform.localScale = Vector3.one;
 
             ServiceHub.Register<IEpisodeShotDirector>(this);
+
+            // Subscribe, never assign — the multicast etiquette BattleCameraRig documents.
+            CinemachineCore.GetBlendOverride += OnGetBlendOverride;
         }
 
         private void OnDestroy()
         {
             if (_instance == this) _instance = null;
             ServiceHub.Unregister<IEpisodeShotDirector>(this);
+            CinemachineCore.GetBlendOverride -= OnGetBlendOverride;
+        }
+
+        /// <summary>
+        /// Cuts instead of blending when the flight between two poses would go through the
+        /// world.
+        ///
+        /// A Cinemachine blend moves the camera down the straight line between the outgoing
+        /// and incoming poses, and this act stages shots across a town with a gorge in it:
+        /// the opening's dome shot releases to an exploration camera standing on the south
+        /// plaza, twenty-odd metres and one cliff away, and the player watched the camera
+        /// dive through the hillside on the way back. No blend length fixes a path that is
+        /// through rock — checked with a sphere cast between the two poses, plus a distance
+        /// ceiling for flights that are merely absurd rather than blocked. This project
+        /// avoids cuts as a rule; a camera inside the terrain is the exception that earns
+        /// one. Pairs that do not involve this rig's cameras fall through untouched.
+        /// </summary>
+        private CinemachineBlendDefinition OnGetBlendOverride(
+            ICinemachineCamera from, ICinemachineCamera to,
+            CinemachineBlendDefinition defaultBlend, UnityEngine.Object owner)
+        {
+            if (!IsOurs(from) && !IsOurs(to)) return defaultBlend;
+
+            if (!TryPosition(from, out var a) || !TryPosition(to, out var b)) return defaultBlend;
+
+            var span = b - a;
+            var distance = span.magnitude;
+            if (distance > BlendCutDistance)
+                return new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.Cut, 0f);
+
+            if (distance > 0.5f && Physics.SphereCast(a, 0.25f, span / distance, out _,
+                    distance - 0.4f, ~0, QueryTriggerInteraction.Ignore))
+                return new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.Cut, 0f);
+
+            return defaultBlend;
+        }
+
+        /// <summary>Beyond this, a blend is a flight across the map, not a transition.</summary>
+        private const float BlendCutDistance = 20f;
+
+        private bool IsOurs(ICinemachineCamera cam)
+        {
+            if (cam is not CinemachineCamera cm) return false;
+            foreach (var mine in _staticCameras)
+                if (mine != null && cm == mine) return true;
+            return _timelineCamera != null && cm == _timelineCamera;
+        }
+
+        private static bool TryPosition(ICinemachineCamera cam, out Vector3 position)
+        {
+            if (cam is CinemachineCamera cm)
+            {
+                position = cm.transform.position;
+                return true;
+            }
+            position = default;
+            return false;
         }
 
         // --- IEpisodeShotDirector ------------------------------------------------------------
