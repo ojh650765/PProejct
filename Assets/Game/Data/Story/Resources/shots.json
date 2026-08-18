@@ -27,10 +27,10 @@
       "Name": "shot_gate_ramp",
       "Mode": 1,
       "ModeName": "Fixed",
-      "Position": [-8.6, 5.0, -0.9],
-      "LookAt": [-5.6, 1.5, 10.2],
+      "Position": [-8.2, 5.6, -1.2],
+      "LookAt": [-2.0, 0.9, 11.5],
       "Fov": 38.0,
-      "Note": "The refusal, framed on what is being refused. The yaw swing physically could not make this shot -- from the player beside Bram it rendered dirt, a signpost, sky and trees, no ramp, no gate. This camera is PLACED 2.3 m above the street (ground ~2.7) just uphill of the ramp head at (-8.1, 2.7, 1.5), looking down the ramp's own 15-20 deg bearing at the route head (-5.7, 1.6, 10.0): bearing 15.1, pitched 17.5 deg down over 3.5 m of drop -- the drop is the subject. The To_Field gate volume at (-6.6, 5.6) sits mid-frame. Bram at (-9.6, 0.4) bears -38 deg from here, 53 deg off axis: out of frame below-left, which reads as looking PAST him the way the beat asks. FOV 38, slightly tight, because a composed shot should feel composed. Reused by gate_wait_for_kes, gate_opens, and the held end pose of tl_square_sendoff."
+      "Note": "The refusal, framed on what is being refused. RETUNED against cross-band renders (Captures/tune2/000_gate_candA): the first pose aimed at the route head and the crest of the ramp filled the lower half with the route hidden behind it. This one stands 2.9 m over the street just south of the ramp head, aimed past the crest at (-2.0, 0.9, 11.5) -- the route floor beyond the seam -- so the frame reads road-curving-down-to-the-stream-bridge, with the tree rows left and the gorge cliffs right. Bearing 26, pitch 18.4 down over 4.7 m of drop; the drop is the subject and the bridge is the destination the player is being refused. Bram stays out of frame below-left, which reads as looking PAST him the way the beat asks. Verified with Town+Field loaded together (Tools/Poké Lab/Rebuild/Open Town+Field), because the shot crosses the band seam and renders empty sky against Town alone. Reused by gate_wait_for_kes, gate_opens, and the held end pose of tl_square_sendoff."
     },
     {
       "Name": "shot_square",
@@ -64,15 +64,12 @@
     },
     {
       "Name": "shot_creature_stare",
-      "Mode": 2,
-      "ModeName": "Orbit",
-      "TargetName": "Actor_StagedCreature",
-      "Distance": 3.0,
-      "Height": 1.1,
-      "YawOffsetDegrees": -20.0,
-      "AimHeight": 0.35,
+      "Mode": 1,
+      "ModeName": "Fixed",
+      "Position": [23.4, 0.85, 31.86],
+      "LookAt": [26.5, -0.7, 33.25],
       "Fov": 38.0,
-      "Note": "The look at the thing in the grass, before anything names it -- and the ambush's opening frame. The staged creature stands at Mark_Ambush_Grass (26.5, -1.153, 33.25) with 6.74 m to the nearest tree, so a 3 m orbit has room on every bearing. Low (1.1 m up, aiming at its 0.35 m head height) so the creature is met at its own level rather than surveyed; -20 deg keeps the player's sightline into frame without shooting straight over their shoulder. Runtime-resolved because the beat above it BUILT the target."
+      "Note": "The look at the thing in the grass, before anything names it -- and the ambush's opening frame. RETUNED against renders (Captures/tune2/002_ambush_candC_lakeback): the authored 1.1 m orbit put the lens inside the metre-tall shore grass -- the frame was blades edge to edge, and raising it to 1.5 m only swapped the blades for the dark gorge wall behind them. This is a FIXED pose now, not an orbit, because the creature always stands on Mark_Ambush_Grass (26.5, -1.153, 33.25) and the one background that reads is directional: the camera stands lakeward-opposite at bearing 246, 2.0 m up, pitched 24.5 deg down at the mark's 0.45 m head height, so the creature is framed against the bright water and the cattail line instead of grass or rock. The player near the bag sits just left of frame; grass brushes the frame bottom, which is the fiction -- looking over the grass at the thing standing in it. Verified with both bands loaded."
     },
     {
       "Name": "shot_bag_choice",
@@ -121,10 +118,9 @@
         },
         {
           "StartSeconds": 0.4, "EndSeconds": 3.0, "Ease": 1, "EaseName": "Smooth",
-          "FromPosition": [-8.66, 4.6, -3.19], "ToPosition": [-8.6, 5.0, -0.9],
-          "FromLookAt": [-17.8, 3.0, -10.4], "ToLookAt": [-5.6, 1.5, 10.2],
-          "Note": "The turn itself: ~84 deg/s at peak, decisive without whipping."
-        }
+          "FromPosition": [-8.66, 4.6, -3.19], "ToPosition": [-8.2, 5.6, -1.2],
+          "FromLookAt": [-17.8, 3.0, -10.4], "ToLookAt": [-2.0, 0.9, 11.5],
+          "Note": "The turn itself: ~84 deg/s at peak, decisive without whipping. End pose retuned with shot_gate_ramp -- the authoring rule is that this last key IS that shot's pose, so the held frame and the shot are one thing."
       ]
     },
     {
