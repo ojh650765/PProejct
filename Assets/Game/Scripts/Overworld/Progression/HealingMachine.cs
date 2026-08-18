@@ -5,8 +5,14 @@ using PokeLab.Core;
 namespace PokeLab.Overworld
 {
     /// <summary>
-    /// The town's healing machine. Restores the party, saves the game, and optionally lets the
-    /// player rest until morning.
+    /// The town's healing machine. Restores the party and optionally lets the player rest until
+    /// morning.
+    ///
+    /// It used to write a save when the heal finished, as the genre's checkpoint convention.
+    /// That is gone by request: the game now saves only when the player writes a report from
+    /// the menu, and a machine that quietly stamped the file on every heal would undercut
+    /// exactly the thing that rule buys — the player always knowing what their last record
+    /// holds. The machine heals; it does not checkpoint.
     ///
     /// The heal is not instant: a short sequence with hook points gives the audio and VFX workers
     /// somewhere to put the jingle and the glow. Gameplay-wise the party is already restored when
@@ -24,13 +30,10 @@ namespace PokeLab.Overworld
         [Header("Behaviour")]
         [Tooltip("Seconds the heal sequence plays. Purely presentational; the heal itself is instant.")]
         [SerializeField] private float _sequenceSeconds = 2.4f;
-        [Tooltip("Writes a save when the heal completes, which is the genre's checkpoint convention.")]
-        [SerializeField] private bool _savesOnHeal = true;
         [Tooltip("Also advances the clock to morning. Turn off if the town should not be a bed.")]
         [SerializeField] private bool _restsUntilMorning;
 
         [Header("Wiring")]
-        [SerializeField] private PlayerProfileHost _profileHost;
         [SerializeField] private DayNightCycle _clock;
         [SerializeField] private PlayerLocomotion _player;
 
@@ -100,7 +103,6 @@ namespace PokeLab.Overworld
             if (_sequenceSeconds > 0f) yield return new WaitForSeconds(_sequenceSeconds);
 
             if (_restsUntilMorning && _clock != null) _clock.SetPhase(TimeOfDay.Dawn);
-            if (_savesOnHeal && _profileHost != null) _profileHost.SaveGame();
 
             _healCompleted.Invoke(name);
             OverworldEvents.RaisePartyChanged();
