@@ -64,6 +64,23 @@ namespace PokeLab.Overworld
         {
             _wall = GetComponent<BoxCollider>();
             _wall.isTrigger = false;
+
+            // Fossil removal, and the exact bug behind "레벨에 콜리전이 박혀 있어서 케스도 못
+            // 지나감". For one build era this component ADDED a carving NavMeshObstacle in
+            // Configure, and any scene generated in that window has it serialized on this
+            // object — Town.unity's 2026-08-20 rebake does. The design then changed to
+            // player-only blocking and the code stopped managing the obstacle, which left the
+            // serialized copy enabled with nothing to ever switch it off: it carved the ramp
+            // out of the runtime navmesh permanently, gate open or closed, while the baked
+            // asset underneath was perfectly continuous. Destroyed on sight so old scenes
+            // heal at load; the builder no longer creates one, so a rebuilt scene has nothing
+            // to destroy.
+            foreach (var fossil in GetComponents<UnityEngine.AI.NavMeshObstacle>())
+            {
+                Debug.Log("[Gate] Removing a fossil NavMeshObstacle from the story gate — " +
+                          "it carved the ramp permanently; the gate blocks only the player.", this);
+                Destroy(fossil);
+            }
         }
 
         // The wall blocks the PLAYER and nobody else — the user's design, stated exactly:
