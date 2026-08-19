@@ -26,6 +26,13 @@ namespace PokeLab.Audio
         public const string MusicCaptureSuccess = "Music_Capture_Success";
         public const string MusicEncounterSting = "Music_Encounter_Sting";
 
+        /// <summary>
+        /// The hand-supplied opening cue. EpisodeRunner asks for it by this exact string
+        /// through the reflection seam (it cannot reference this const), so a rename here
+        /// must be mirrored in its OpeningTrack.
+        /// </summary>
+        public const string MusicOpeningIntroduction = "Music_Opening_Introduction";
+
         // ---- battle ------------------------------------------------------------------
         public const string BattleSendOut = "SFX_Battle_SendOut";
         public const string BattleRecall = "SFX_Battle_Recall";

@@ -126,6 +126,17 @@ namespace PokeLab.Audio
             _stingDeck = _pool.RentReserved();
 
             ServiceHub.Register(this);
+
+            // The opening cue is the first explicit request of a session and lands seconds
+            // after boot, on a clip whose data — like every clip here — is not preloaded.
+            // Its load starts now, so the deck's load-wait is near zero by the time the
+            // scene asks.
+            var opening = _director != null && _director.Catalog != null
+                ? _director.Catalog.GetClip(AudioIds.MusicOpeningIntroduction)
+                : null;
+            if (opening != null && opening.loadState == AudioDataLoadState.Unloaded &&
+                NeedsLoadGate(opening))
+                opening.LoadAudioData();
         }
 
         private void OnDestroy()
@@ -403,9 +414,9 @@ namespace PokeLab.Audio
             {
                 incoming.loop = true;
                 incoming.volume = 0f;
-                incoming.time = 0f;
                 incoming.outputAudioMixerGroup = _director.GroupFor(AudioBus.Music);
-                incoming.Play();
+                // Not started here: the deck starts inside Crossfade, once the clip's
+                // data has arrived, so the fade-in spends itself on sound, not silence.
             }
 
             _aIsActive = ReferenceEquals(incoming, _deckA);
@@ -413,9 +424,61 @@ namespace PokeLab.Audio
                                              Mathf.Max(0.05f, fadeSeconds)));
         }
 
+        /// <summary>
+        /// Whether a source must wait for its clip's data before starting. No clip here
+        /// has preloadAudioData, so on the web — where the pipeline ignores load type and
+        /// the browser decodes in the background — Play() before the data lands logs
+        /// "Trying to get length of sound which is not loaded yet" from inside Unity.
+        /// Off the web, a Streaming clip is the one kind that buffers for itself and must
+        /// not be asked to load.
+        /// </summary>
+        private static bool NeedsLoadGate(AudioClip clip) =>
+            clip != null &&
+            clip.loadState != AudioDataLoadState.Loaded &&
+            (clip.loadType != AudioClipLoadType.Streaming ||
+             Application.platform == RuntimePlatform.WebGLPlayer);
+
+        /// <summary>
+        /// Kicks the background load of a clip's data and waits, bounded, for it to land.
+        /// A clip that reads Unloaded even after the kick is one LoadAudioData cannot
+        /// touch; the caller starts it cold rather than never. Past the timeout the
+        /// caller plays anyway — one warning is better than silence forever.
+        /// </summary>
+        private static IEnumerator WaitForClipData(AudioClip clip, float timeoutSeconds)
+        {
+            if (clip.loadState == AudioDataLoadState.Unloaded)
+            {
+                clip.LoadAudioData();
+                if (clip.loadState == AudioDataLoadState.Unloaded) yield break;
+            }
+            for (float waited = 0f;
+                 clip.loadState == AudioDataLoadState.Loading && waited < timeoutSeconds;
+                 waited += Time.unscaledDeltaTime)
+                yield return null;
+        }
+
+        /// <summary>Ceiling on a deck's wait for clip data before it plays regardless.</summary>
+        private const float DeckLoadTimeoutSeconds = 5f;
+
         private IEnumerator Crossfade(AudioSource incoming, AudioSource outgoing,
                                       string trackName, float seconds)
         {
+            // A deck never starts an unloaded clip. While the data is on its way the
+            // outgoing deck holds its level (ApplyLevels stands down while _fade is set),
+            // so the handover is late rather than dipped; a retarget or FadeOutAll simply
+            // stops this coroutine, wait included.
+            if (!incoming.isPlaying)
+            {
+                if (NeedsLoadGate(incoming.clip))
+                    yield return WaitForClipData(incoming.clip, DeckLoadTimeoutSeconds);
+                if (incoming == null) { _fade = null; yield break; }
+                // The rewind is only expressible once the data is in; a clip started
+                // cold is at 0 already.
+                if (incoming.clip != null && incoming.clip.loadState == AudioDataLoadState.Loaded)
+                    incoming.time = 0f;
+                incoming.Play();
+            }
+
             // Both ends ramp from where they already are rather than from a fixed 0 and 1,
             // which is what lets a reversed or retargeted blend continue from the level
             // that is currently in the room instead of jumping to meet the curve.
@@ -508,10 +571,7 @@ namespace PokeLab.Audio
             _stingDeck.loop = false;
             _stingDeck.volume = musicLevel;
             _stingDeck.outputAudioMixerGroup = _director.GroupFor(AudioBus.Music);
-            _stingDeck.Play();
-
-            // fade the exploration theme under the sting rather than cutting it
-            FadeOutAll(Mathf.Max(0.4f, clip.length * 0.55f));
+            StartSting(clip, fadeLoopUnder: true);
         }
 
         /// <summary>Plays a one-shot music cue (fanfare, capture sting) without disturbing the loop.</summary>
@@ -524,8 +584,41 @@ namespace PokeLab.Audio
             _stingDeck.loop = false;
             _stingDeck.volume = musicLevel * volume;
             _stingDeck.outputAudioMixerGroup = _director.GroupFor(AudioBus.Music);
-            _stingDeck.Play();
+            StartSting(clip, fadeLoopUnder: false);
         }
+
+        /// <summary>
+        /// Starts the sting deck under the same rule as the crossfade decks: never on an
+        /// unloaded clip. A loaded clip plays synchronously, exactly as before; one still
+        /// decoding plays the frame its data lands. A newer sting cancels a pending one —
+        /// the deck is theirs now.
+        /// </summary>
+        private void StartSting(AudioClip clip, bool fadeLoopUnder)
+        {
+            if (_stingStart != null) { StopCoroutine(_stingStart); _stingStart = null; }
+            _stingStart = StartCoroutine(StartStingWhenLoaded(clip, fadeLoopUnder));
+        }
+
+        private IEnumerator StartStingWhenLoaded(AudioClip clip, bool fadeLoopUnder)
+        {
+            if (NeedsLoadGate(clip))
+                yield return WaitForClipData(clip, DeckLoadTimeoutSeconds);
+            _stingStart = null;
+            if (_stingDeck == null || !ReferenceEquals(_stingDeck.clip, clip)) yield break;
+            _stingDeck.Play();
+
+            // The exploration loop recedes under the sting over ~half the sting's length
+            // — knowable once the data is in, and always for a deck the load gate does
+            // not apply to (off-web streaming keeps length in the asset header). Still
+            // unloaded past the timeout, it falls back to a fixed recede rather than
+            // asking and logging.
+            if (fadeLoopUnder)
+                FadeOutAll(!NeedsLoadGate(clip)
+                    ? Mathf.Max(0.4f, clip.length * 0.55f)
+                    : 1.5f);
+        }
+
+        private Coroutine _stingStart;
 
         public void SetMusicLevel(float linear01) => musicLevel = Mathf.Clamp01(linear01);
     }
