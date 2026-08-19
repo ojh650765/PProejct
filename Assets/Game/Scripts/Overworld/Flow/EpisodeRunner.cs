@@ -2467,7 +2467,16 @@ reachedTheEnd = true;
                 if (!_starterSelection.Choose(0)) yield break;
             }
 
-            _starterSelection.Commit(ResolveTrainerName());
+            var granted = _starterSelection.Commit(ResolveTrainerName());
+            // One line where the episode picks back up, because the class of bug being chased
+            // is "the player chose and the screen just sat there" — and without this the log
+            // cannot say whether the stall is before the commit or after it.
+            Debug.Log(granted
+                ? "[Starter] Episode resumes after commit — party initialised with " +
+                  $"'{_starterSelection.Choice?.DisplayName}'; next beats: SetFlag " +
+                  "story.starter_chosen, then the staged battle."
+                : "[Starter] Episode resumes after a FAILED commit — see the profile error " +
+                  "above; the beats continue but the player has no party.", this);
         }
 
         // --- Flags, profile, control ---------------------------------------------------------
