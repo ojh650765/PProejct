@@ -18,5 +18,7 @@ A second DialogueRunner arrived
 [EncounterDirector] A second one arrived
 There can be only one active Event System
 
-# WebGL audio streams in late; querying a clip's length before it lands logs this.
-Trying to get length of sound which is not loaded yet
+# "Trying to get length of sound which is not loaded yet" is deliberately NOT here.
+# It was allowlisted once as benign; it turned out to be the symptom of music imported
+# as Streaming (unsupported on WebGL). The import policy and AmbienceDirector are fixed,
+# so if that line ever comes back it is a regression and the gate must go red.

@@ -24,12 +24,13 @@ ALLOWLIST = [
     "A second DialogueRunner arrived",
     "[EncounterDirector] A second one arrived",
     "There can be only one active Event System",
-    "Trying to get length of sound which is not loaded yet",
 ]
 
 # A trimmed copy of the real Temp/web_console.txt shape: startup noise, the three benign
-# two-line shader errors (with the blank lines the real dump has between entries), the
-# sound-length spam, and the duplicate-host guard notices.
+# two-line shader errors (with the blank lines the real dump has between entries), and
+# the duplicate-host guard notices. The sound-length spam is deliberately absent: with
+# music no longer imported as Streaming (unsupported on WebGL) a clean run does not log
+# it, and it is now a gate-failing signature, not allowlisted noise.
 CLEAN_FIXTURE = """\
 You can reduce startup time if you configure your web server to add "Content-Encoding: br" response header when serving "Build/WebGL.data.unityweb" file.
 [UnityCache] 'http://localhost:8765/Build/WebGL.data.unityweb' successfully downloaded and stored in the browser cache
@@ -51,8 +52,6 @@ Hidden/Universal/HDRDebugView shader is not supported on this GPU (none of subsh
 
 Input System initialize...
 UnloadTime: 1.099999 ms
-Trying to get length of sound which is not loaded yet.
-Trying to get length of sound which is not loaded yet.
 There can be only one active Event System.
 
 [EncounterDirector] A second one arrived with another scene; destroying the duplicate.
@@ -108,6 +107,12 @@ class TriageSignatureTests(unittest.TestCase):
     def test_would_not_parse(self):
         # the JsonUtility-degrades-silently class this gate exists for
         self.assert_caught("[Species] StreamingAssets/pokelab/species.json would not parse; running with an empty table")
+
+    def test_sound_length_warning_fails_triage(self):
+        # Was allowlisted as benign; it turned out to be music imported as Streaming,
+        # which WebGL does not support. Fixed in the import policy -- a recurrence is
+        # a regression and must fail the gate.
+        self.assert_caught("Trying to get length of sound which is not loaded yet.")
 
     def test_line_numbers_are_one_based_and_correct(self):
         text = "fine\nfine too\nNullReferenceException: boom\n"
@@ -175,6 +180,16 @@ class AllowlistFileTests(unittest.TestCase):
         findings, allowlisted = triage_text(CLEAN_FIXTURE, allowlist=shipped)
         self.assertEqual(findings, [])
         self.assertEqual(allowlisted, 3)
+
+    def test_shipped_allowlist_does_not_mute_the_sound_length_regression(self):
+        # Guard against someone quietly re-allowlisting the Streaming-music symptom:
+        # no shipped entry may match the line, so it stays a gate failure.
+        shipped = deploy_webgl.load_allowlist(deploy_webgl.ALLOWLIST_PATH)
+        line = "Trying to get length of sound which is not loaded yet."
+        self.assertFalse(any(entry in line for entry in shipped),
+                         "the sound-length warning must not be allowlisted again")
+        findings, _ = triage_text(CLEAN_FIXTURE + line + "\n", allowlist=shipped)
+        self.assertEqual([text for _, text in findings], [line])
 
 
 class JsonSanityTests(unittest.TestCase):

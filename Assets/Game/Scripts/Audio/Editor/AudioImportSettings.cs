@@ -20,6 +20,19 @@ namespace PokeLab.Audio.Editor
     ///     exactly what streaming is for.
     ///   * Nothing is resampled: the whole set is authored at 44.1 kHz and the verifier
     ///     asserts it.
+    ///
+    /// WebGL gets an explicit platform override for every category, because two of the
+    /// defaults are wrong in the browser:
+    ///   * Music must NOT stream -- Unity does not support the Streaming load type on
+    ///     WebGL, and shipping it anyway is how the live build's music turned to noise.
+    ///     It becomes Vorbis held compressed in memory (quality 0.5: long stereo
+    ///     material, keep the .data download sane), loaded in the background.
+    ///   * SFX must NOT be PCM -- 100+ uncompressed WAVs inflate the .data download for
+    ///     no gain. They become Vorbis (quality 0.8) still decompressed on load, so the
+    ///     trigger cost stays zero after load.
+    ///   * Ambience is already right (Vorbis, compressed in memory) but gets the same
+    ///     explicit override anyway, so drift in the defaults can never reintroduce
+    ///     Streaming on this platform.
     /// </summary>
     public sealed class AudioImportSettings : AssetPostprocessor
     {
@@ -82,6 +95,29 @@ namespace PokeLab.Audio.Editor
             // waterfall is the one ambience clip the generator writes mono for that reason.
             importer.ambisonic = false;
             importer.defaultSampleSettings = settings;
+
+            // WebGL override -- see the class comment. Start from the category's default
+            // settings and change only what the browser cannot take.
+            var webgl = settings;
+            if (isMusic)
+            {
+                // Streaming is not supported on the WebGL platform; keep it compressed
+                // in memory instead, at a leaner quality than desktop.
+                webgl.loadType = AudioClipLoadType.CompressedInMemory;
+                webgl.compressionFormat = AudioCompressionFormat.Vorbis;
+                webgl.quality = 0.5f;
+                webgl.preloadAudioData = false;
+            }
+            else if (isSfx)
+            {
+                // PCM WAVs would bloat the .data download; Vorbis decompressed on load
+                // keeps the wire size small and the trigger cost zero.
+                webgl.compressionFormat = AudioCompressionFormat.Vorbis;
+                webgl.quality = 0.8f;
+            }
+            // Ambience keeps its default settings verbatim -- the override is set anyway
+            // so the platform can never fall back to a drifted default.
+            importer.SetOverrideSampleSettings(BuildTargetGroup.WebGL, webgl);
             return true;
         }
 
