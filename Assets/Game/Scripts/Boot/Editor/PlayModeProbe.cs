@@ -257,6 +257,9 @@ namespace PokeLab.Boot.Editor
             public void Begin(Request request)
             {
                 _request = request;
+                // The probe runs unattended; without this, the operator switching windows
+                // pauses the player loop and the run silently stops mid-legs.
+                Application.runInBackground = true;
                 StartCoroutine(Probe());
             }
 
