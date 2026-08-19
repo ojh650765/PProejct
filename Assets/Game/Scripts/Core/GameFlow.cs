@@ -154,6 +154,16 @@ namespace PokeLab.Core
         /// <summary>Requests an animation state. Unsupported states must degrade, never throw.</summary>
         void Play(CreatureAnimation animation);
 
+        /// <summary>
+        /// Ground speed the creature is actually covering, in metres per second, published
+        /// every frame by whoever moves it. The art ties its gait to this — frames advance
+        /// at a rate the travel earns — and 0 hands pacing back to the authored idle.
+        /// Separate from <see cref="Play"/> because a state is discrete and speed is not:
+        /// a fleeing Pidgey and an ambling one are both "Walk" to the state machine and
+        /// visibly different animals.
+        /// </summary>
+        void SetMoveSpeed(float metersPerSecond);
+
         /// <summary>Hides without destroying, so a pooled roamer can be reused.</summary>
         void SetVisible(bool visible);
 

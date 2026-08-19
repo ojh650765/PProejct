@@ -887,6 +887,17 @@ namespace PokeLab.Overworld
                 _art?.Play(desired);
             }
 
+            // Published every frame, not only on transitions, because speed is continuous
+            // where the state is discrete: an agent accelerating out of a pause and one flat
+            // out from an alarm are both "Walk"/"Run" above, and the gait has to follow the
+            // ground actually being covered or the feet slide. Zero while stationary hands
+            // pacing back to the authored idle loop — its long holds are what a creature
+            // standing in the grass is supposed to do. No allocation; this is one interface
+            // call on a float.
+            _art?.SetMoveSpeed(desired == CreatureAnimation.Walk || desired == CreatureAnimation.Run
+                ? speed
+                : 0f);
+
             // Rigs that expose a plain Speed float still animate, even without an ICreatureView.
             if (_animator != null) _animator.SetFloat("Speed", speed);
         }

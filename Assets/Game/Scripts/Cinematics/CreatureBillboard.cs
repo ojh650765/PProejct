@@ -135,9 +135,31 @@ namespace PokeLab.Cinematics
 
         private SpriteFacing _facing = SpriteFacing.Front;
         private bool _flip;
+
+        // Which way the subject is leaned across the camera, for MirrorMode.Auto:
+        // -1 screen-left, +1 screen-right, 0 near enough to straight that the authored
+        // look stands. Held with hysteresis so a creature walking a shallow diagonal does
+        // not flicker its mirror on and off.
+        private int _lean;
+
         private float _frameTime;
         private int _frameIndex;
         private float _rateScale = 1f;
+
+        // Uniform playback rate for a creature on the move, in steps per second; 0 means
+        // authored pacing. Gen 5 idle loops hold single frames for up to 1.9 s, which is
+        // exactly right for a creature standing still and reads as a static sprite sliding
+        // the moment the creature travels. See <see cref="SetLocomotionRate"/>.
+        private float _locomotionFps;
+
+        // Locomotion fallback for art that cannot animate — a species missing from the
+        // manifest, a sheet whose texture failed to load, a single-frame portrait. Frames
+        // are the first choice; when there are none, a small speed-synced hop on the quad
+        // itself is what keeps a moving creature from being a decal on a treadmill.
+        private float _bobPhase;
+        private float _bobOffset;
+        private Vector3 _anchorLocalPos;
+
         private bool _frozen;
         private float _flash;
         private float _alpha = 1f;
@@ -324,6 +346,14 @@ namespace PokeLab.Cinematics
             _hasArt = _frontTexture != null;
             _frameIndex = 0;
             _frameTime = 0f;
+            // Per-spawn presentation state. A pooled roamer rebinds rather than being
+            // rebuilt, so anything not cleared here is inherited from the previous species —
+            // a fresh spawn walking with the locomotion pacing of the last one, mirrored the
+            // way the last one happened to be leaning, mid-hop at its predecessor's stride.
+            _locomotionFps = 0f;
+            _lean = 0;
+            _bobPhase = 0f;
+            _bobOffset = 0f;
 
             ResizeQuad();
             ApplyBlock();
@@ -357,7 +387,8 @@ namespace PokeLab.Cinematics
 
             _baseScale = new Vector3(frameHeight * aspect, frameHeight, 1f);
             transform.localScale = Vector3.Scale(_baseScale, _squash);
-            transform.localPosition = new Vector3(0f, -groundOrigin * frameHeight, 0f);
+            _anchorLocalPos = new Vector3(0f, -groundOrigin * frameHeight, 0f);
+            transform.localPosition = _anchorLocalPos;
         }
 
         /// <summary>
@@ -412,6 +443,25 @@ namespace PokeLab.Cinematics
             // owner — CreatureMotionLayer.Fade, published every frame by CreatureView.
         }
 
+        /// <summary>
+        /// Uniform playback rate for a creature that is travelling, in steps per second.
+        /// 0 restores the authored pacing.
+        ///
+        /// This exists because the overworld has no walk cycle to switch to — Gen 5 drew one
+        /// looping idle per view and nothing else — so a moving creature plays its idle as a
+        /// gait. Played at the authored pacing that fails: the source loops hold single
+        /// frames for up to 1.9 seconds (Pidgey's hold is the worst), which is a creature
+        /// standing still, and under a sprite that is covering ground it reads as a statue
+        /// on a conveyor. Uniform steps at a rate tied to the actual metres per second is
+        /// the classic sprite-game answer: legs move because the world is moving under them.
+        ///
+        /// While this is non-zero the plan's <see cref="CreatureAnimationPlan.FrameRateScale"/>
+        /// is ignored — the caller's speed already encodes the urgency the plan's Walk/Run
+        /// bias was approximating. Battle never calls this; it is reset by <see cref="Bind"/>.
+        /// </summary>
+        public void SetLocomotionRate(float stepsPerSecond)
+            => _locomotionFps = Mathf.Max(0f, stepsPerSecond);
+
         /// <summary>Sets the white entry flash. Decays on its own; see <see cref="LateUpdate"/>.</summary>
         public void Flash(float strength) => _flash = Mathf.Clamp01(Mathf.Max(_flash, strength));
 
@@ -443,6 +493,7 @@ namespace PokeLab.Cinematics
         {
             EnsureBuilt();
             AdvanceFrame();
+            UpdateLocomotionBob();
             FaceCamera();
             transform.localScale = Vector3.Scale(_baseScale, _squash);
 
@@ -458,6 +509,24 @@ namespace PokeLab.Cinematics
             var sheet = ActiveSheet();
             if (_frozen || sheet == null || sheet.StepCount <= 1) return;
 
+            // A travelling creature steps uniformly at the caller's speed-tied rate. The
+            // authored holds are what an idle wants and exactly what a walk cannot afford:
+            // spending 1.9 seconds on one frame while the body covers three metres is the
+            // statue-on-a-conveyor read the overworld was shipped with.
+            if (_locomotionFps > 0f)
+            {
+                float step = 1f / _locomotionFps;
+                _frameTime += Time.deltaTime;
+
+                int locoGuard = 0;
+                while (_frameTime >= step && locoGuard++ < 64)
+                {
+                    _frameTime -= step;
+                    _frameIndex = (_frameIndex + 1) % sheet.StepCount;
+                }
+                return;
+            }
+
             // Accumulate real seconds and spend them against each step's own duration, rather
             // than ticking a single frame rate. The source loops are not uniform — a flat rate
             // destroys Pidgey's 1900 ms hold and speeds up the 50 ms flutters.
@@ -469,6 +538,47 @@ namespace PokeLab.Cinematics
                 _frameTime -= sheet.StepSeconds(_frameIndex);
                 _frameIndex = (_frameIndex + 1) % sheet.StepCount;
             }
+        }
+
+        /// <summary>
+        /// The locomotion fallback for art with no frames to advance: a small hop synced to
+        /// the caller's speed-tied rate, applied to the quad's own local position so the feet
+        /// leave and re-meet the anchored ground point. Engages only while a locomotion rate
+        /// is set <i>and</i> the active view genuinely cannot animate — a species the manifest
+        /// does not know, a sheet whose texture failed to load, a single-frame portrait — so
+        /// creatures with real frames never hop on top of them, and battle (which never sets
+        /// a locomotion rate) never sees it. Facing is untouched: a static frame still picks
+        /// its view and its mirror from the heading like every animated one does.
+        /// </summary>
+        private void UpdateLocomotionBob()
+        {
+            var sheet = ActiveSheet();
+            bool needsBob = _locomotionFps > 0f && !_frozen && (sheet == null || sheet.StepCount <= 1);
+
+            if (!needsBob)
+            {
+                // Restore the anchor once, not every frame: the battle's motion beats and
+                // ResizeQuad own this transform the rest of the time.
+                if (_bobOffset != 0f)
+                {
+                    _bobOffset = 0f;
+                    _bobPhase = 0f;
+                    transform.localPosition = _anchorLocalPos;
+                }
+                return;
+            }
+
+            // One hop roughly every two and a half frame-steps of the rate the creature
+            // earned: the wander lands near three hops a second, a flee doubles it. |sin|
+            // rather than sin, because a gait leaves the ground and lands — it does not
+            // sink below the ground line on the down-beat.
+            _bobPhase += Time.deltaTime * _locomotionFps * 0.4f;
+            if (_bobPhase > 1024f) _bobPhase -= 1024f;
+
+            float amplitude = Mathf.Clamp(_displayHeight * 0.05f, 0.01f, 0.06f);
+            _bobOffset = Mathf.Abs(Mathf.Sin(_bobPhase * Mathf.PI)) * amplitude;
+            transform.localPosition = new Vector3(
+                _anchorLocalPos.x, _anchorLocalPos.y + _bobOffset, _anchorLocalPos.z);
         }
 
         /// <summary>
@@ -593,7 +703,7 @@ namespace PokeLab.Cinematics
         {
             switch (mirrorMode)
             {
-                case MirrorMode.Off: _flip = false; return;
+                case MirrorMode.Off: _flip = false; _lean = 0; return;
                 case MirrorMode.On: _flip = true; return;
             }
 
@@ -603,12 +713,32 @@ namespace PokeLab.Cinematics
             right.Normalize();
 
             float lateral = Vector3.Dot(forward, right);
-            // The deadzone is wide on purpose. The official sprites are drawn at a
-            // three-quarter, so a creature standing at the layout's own yaw is already
-            // depicted correctly and mirroring it would turn it away from the fight. Only a
-            // genuine turn across the camera should engage the mirror.
-            if (!_flip && lateral < -mirrorDeadzone) _flip = true;
-            else if (_flip && lateral > -mirrorDeadzone * 0.6f) _flip = false;
+
+            // The subject's lean across the camera, held with a deadzone and hysteresis so a
+            // shallow diagonal does not rattle the mirror. The deadzone is wide on purpose:
+            // near straight-on the authored three-quarter already reads correctly and a
+            // mirror would be churn for nothing. Only a genuine turn engages it, and the
+            // side sectors always qualify — their boundary sits at |lateral| ≈ 0.71, past
+            // any legal deadzone — so the lean and the sector never disagree.
+            if (lateral > mirrorDeadzone) _lean = 1;
+            else if (lateral < -mirrorDeadzone) _lean = -1;
+            else if (Mathf.Abs(lateral) < mirrorDeadzone * 0.6f) _lean = 0;
+            // Between the two thresholds the previous lean holds; that band is the hysteresis.
+
+            // One rule, derived from how the art is drawn: the Gen 5 fronts look screen-left
+            // (the opponent, top-right, looking down at the player's side) and the backs
+            // therefore look screen-right — the same creature seen from behind has its head
+            // toward the other edge. So a front-ish sheet mirrors when the subject is turned
+            // screen-right, and a back-ish sheet when it is turned screen-left.
+            //
+            // This replaces a pair of flips that measured the same turn: the old Auto mirror
+            // engaged on a screen-left heading while the side-borrow correction engaged on a
+            // screen-right one, and EffectiveFlip XORed them — so a creature walking left and
+            // the same creature walking right rendered identically, and every roamer in the
+            // build slid across routes without ever looking where it was going.
+            bool activeIsBack = _facing == SpriteFacing.Back
+                                || (IsSideSector && _sideSheet == null && _sideBorrowsBack);
+            _flip = activeIsBack ? _lean < 0 : _lean > 0;
         }
 
         private Camera ResolveCamera()
@@ -644,25 +774,38 @@ namespace PokeLab.Cinematics
         }
 
         /// <summary>
-        /// The mirror actually applied: the authored mode's choice, flipped again when a side
-        /// sector is borrowing the opposite-handed view. Two flips cancel, which is correct —
-        /// a left-facing subject borrowing an already-mirrored front should end up unmirrored.
+        /// The mirror actually applied, and each mode owns it differently.
         ///
-        /// <see cref="MirrorMode.Off"/> stops the borrow flip as well, and that is the point of
-        /// it. The mode's whole promise is "never mirror", and until this read the mode the
-        /// side-sector fallback mirrored underneath it: at the arena's original 32° layout yaw
-        /// the player's creature sat at 131° against a 135° boundary, landed in a side sector,
-        /// borrowed the back sheet and had it flipped — so it faced the same way as the
-        /// opponent instead of at it, which is the fault this pair of lines was reported for.
-        /// The pin in <c>BattleStage.Occupy</c> keeps a battle out of the side sectors
-        /// altogether; this is what makes the beats that release the pin — the victory turn —
-        /// and any arena tuned to a different yaw safe as well.
+        /// <see cref="MirrorMode.Off"/> stops every flip, the side borrow's included, and that
+        /// is the point of it. The mode's whole promise is "never mirror", and until this read
+        /// the mode the side-sector fallback mirrored underneath it: at the arena's original
+        /// 32° layout yaw the player's creature sat at 131° against a 135° boundary, landed in
+        /// a side sector, borrowed the back sheet and had it flipped — so it faced the same
+        /// way as the opponent instead of at it, which is the fault this property was first
+        /// reported for. The pin in <c>BattleStage.Occupy</c> keeps a battle out of the side
+        /// sectors altogether; this is what makes the beats that release the pin — the victory
+        /// turn — and any arena tuned to a different yaw safe as well.
+        ///
+        /// <see cref="MirrorMode.Auto"/> is one decision made in one place:
+        /// <see cref="UpdateMirror"/> folds the active sheet's authored look and the subject's
+        /// lean across the camera into <c>_flip</c> directly, side borrows included.
+        ///
+        /// <see cref="MirrorMode.On"/> is the caller's standing decision, with only the
+        /// opposite-handed side borrow still correcting underneath it.
         /// </summary>
         private bool EffectiveFlip
         {
             get
             {
                 if (mirrorMode == MirrorMode.Off) return false;
+                // Auto folds the sheet's authored look into _flip inside UpdateMirror, side
+                // borrows included, so no second correction may be applied on top of it.
+                // XORing _sideFlip in as well is exactly the bug this mode had: the two
+                // flips tracked the same turn and cancelled, so left and right rendered
+                // identically and overworld creatures never faced their travel.
+                if (mirrorMode == MirrorMode.Auto) return _flip;
+                // MirrorMode.On: the caller has already decided; only the opposite-handed
+                // side borrow still corrects underneath that decision.
                 return IsSideSector ? _flip ^ _sideFlip : _flip;
             }
         }
