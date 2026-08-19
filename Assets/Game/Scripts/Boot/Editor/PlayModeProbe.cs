@@ -284,6 +284,17 @@ namespace PokeLab.Boot.Editor
                 var reader = FindFirstObjectByType<OverworldInputReader>();
                 if (player == null) { result.ok = false; result.error = "No PlayerLocomotion in the scene."; }
 
+                // Warp is for reaching a distant trigger without steering there. Camera-relative
+                // stick input feeds back through the rig's own swing — a long guided walk spins
+                // in circles — so a run that needs "the player approaches X on foot" warps to
+                // just outside X and walks the last honest metres.
+                if (player != null && _request.warpTo != null && _request.warpTo.Length >= 3)
+                {
+                    player.Warp(new Vector3(_request.warpTo[0], _request.warpTo[1], _request.warpTo[2]),
+                        player.transform.rotation);
+                    yield return null;
+                }
+
                 var startPosition = player != null ? player.transform.position : Vector3.zero;
 
                 foreach (var leg in _request.legs)
@@ -414,6 +425,8 @@ namespace PokeLab.Boot.Editor
             public string scene;
             public string outputDir;
             public float settleSeconds = 2.5f;
+            /// <summary>World position the player is warped to after settle, before the legs.</summary>
+            public float[] warpTo;
             /// <summary>Menu paths run before Play, e.g. a rebuild or a rig repair.</summary>
             public string[] menuItems;
             public Leg[] legs;
