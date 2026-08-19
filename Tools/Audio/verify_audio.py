@@ -41,6 +41,16 @@ CEILING_DBFS = -0.9        # allow a hair of rounding slack on the -1.0 dBFS tar
 MIN_RMS_DBFS = -46.0       # anything quieter than this is effectively silent
 MAX_DC = 0.02
 MAX_LOOP_STEP_RATIO = 1.0  # wrap step must not exceed the sharpest transient in the clip
+# Absolute wrap step: music and ambience loops are pinned (dsp.pin_loop_wrap) so the
+# last sample lands on the first; anything above quantisation noise means the pin was
+# lost. SFX loops come out of sfx.py, which does not pin yet, so they are held only to
+# the relative step-ratio bound above.
+MAX_WRAP_STEP = 0.01
+WRAP_PINNED_CATEGORIES = ("Music", "Ambience")
+
+# Band edges for the spectral split printed for ambience beds; a wind or water bed
+# whose energy sits mostly in 1.2-8 kHz plays back as static on small speakers.
+BAND_EDGES = [0, 300, 1200, 4000, 8000, 16000]
 
 MONO_EXPECTED_PREFIX = ("SFX_",)
 MONO_EXCEPTIONS = {"Amb_Waterfall"}   # 3D point source, deliberately mono
@@ -50,11 +60,23 @@ def dbfs(x: float) -> float:
     return 20.0 * math.log10(max(x, 1e-12))
 
 
+def band_split(mono: np.ndarray, sr: int) -> list:
+    """Fraction of spectral energy in each BAND_EDGES band, over 0-16 kHz."""
+    spec = np.abs(np.fft.rfft(mono)) ** 2
+    freqs = np.fft.rfftfreq(mono.shape[0], 1.0 / sr)
+    total = float(spec[(freqs >= BAND_EDGES[0]) & (freqs < BAND_EDGES[-1])].sum()) + 1e-30
+    return [float(spec[(freqs >= lo) & (freqs < hi)].sum()) / total
+            for lo, hi in zip(BAND_EDGES[:-1], BAND_EDGES[1:])]
+
+
 def check_clip(entry) -> tuple[list, dict]:
     problems = []
     path = os.path.join(REPO, entry["path"].replace("/", os.sep))
     if not os.path.exists(path):
         return [f"missing file {entry['path']}"], {}
+    if not path.endswith(".wav"):
+        # hand-supplied compressed assets carry no PCM invariants to assert
+        return [], {}
 
     with wave.open(path, "rb") as w:
         ch, sw, sr, frames = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
@@ -117,6 +139,10 @@ def check_clip(entry) -> tuple[list, dict]:
         seam = dsp.loop_seam_report(data)
         if seam["step_ratio"] > MAX_LOOP_STEP_RATIO:
             problems.append(f"loop seam discontinuity, step ratio {seam['step_ratio']:.2f}")
+        if (entry["category"].split("/")[0] in WRAP_PINNED_CATEGORIES
+                and seam["wrap_step"] > MAX_WRAP_STEP):
+            problems.append(f"loop wrap step {seam['wrap_step']:.4f} > {MAX_WRAP_STEP} "
+                            "-- pin_loop_wrap missing or undone by a later filter")
         # An edge fade leaves the first/last few ms far quieter than the 30 ms beside
         # them; a loop that simply rests at the wrap is quiet on both counts and passes.
         if seam["edge_fade_ratio"] < 0.12:
@@ -128,7 +154,9 @@ def check_clip(entry) -> tuple[list, dict]:
         "peak_dbfs": dbfs(peak), "rms_dbfs": dbfs(rms), "dc": dc,
         "duration": duration, "channels": ch,
         "step_ratio": seam["step_ratio"] if seam else None,
+        "wrap_step": seam["wrap_step"] if seam else None,
         "crest_db": dbfs(peak) - dbfs(rms),
+        "bands": band_split(mono, sr) if entry["loop"] else None,
     }
     return problems, stats
 
@@ -231,6 +259,11 @@ def main(argv):
         worst = max(loops, key=lambda kv: kv[1]["step_ratio"])
         print(f"\nloops: {len(loops)} checked, worst wrap step ratio "
               f"{worst[1]['step_ratio']:.3f} ({worst[0]}); threshold {MAX_LOOP_STEP_RATIO}")
+        edges = "/".join(str(e) for e in BAND_EDGES)
+        print(f"\nloop seam and band-energy split ({edges} Hz):")
+        for name, s in loops:
+            b = " ".join(f"{x:5.3f}" for x in s["bands"])
+            print(f"  {name:26s} wrap {s['wrap_step']:7.5f}  bands {b}")
 
     peaks = [s["peak_dbfs"] for s in all_stats.values() if s]
     rmss = [s["rms_dbfs"] for s in all_stats.values() if s]

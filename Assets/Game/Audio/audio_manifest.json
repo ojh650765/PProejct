@@ -6,8 +6,8 @@
   "bit_depth": 16,
   "peak_ceiling_dbfs": -1.0,
   "clip_count": 117,
-  "total_bytes": 49340426,
-  "total_mb": 47.05,
+  "total_bytes": 53882448,
+  "total_mb": 51.39,
   "categories": [
     "Ambience",
     "Music",
@@ -31,7 +31,7 @@
       "peak_dbfs": -1.0,
       "rms_dbfs": -13.69,
       "bytes": 1969160,
-      "loop_step_ratio": 0.0135,
+      "loop_step_ratio": 0.0,
       "trigger": "Trainer battle loop; BattleStartedEvent with Kind=Trainer."
     },
     {
@@ -46,7 +46,7 @@
       "peak_dbfs": -1.0,
       "rms_dbfs": -13.69,
       "bytes": 2016044,
-      "loop_step_ratio": 0.0025,
+      "loop_step_ratio": 0.0,
       "trigger": "Wild encounter battle loop; BattleStartedEvent with Kind=Wild."
     },
     {
@@ -76,7 +76,7 @@
       "peak_dbfs": -1.0,
       "rms_dbfs": -13.44,
       "bytes": 4032044,
-      "loop_step_ratio": 0.0028,
+      "loop_step_ratio": 0.0,
       "trigger": "Cave biome, any time of day."
     },
     {
@@ -106,8 +106,18 @@
       "peak_dbfs": -1.0,
       "rms_dbfs": -12.62,
       "bytes": 3256660,
-      "loop_step_ratio": 0.0494,
+      "loop_step_ratio": 0.0,
       "trigger": "Lakeside / water biome."
+    },
+    {
+      "name": "Music_Opening_Introduction",
+      "path": "Assets/Game/Audio/Music/Music_Opening_Introduction.mp3",
+      "category": "Music",
+      "loop": false,
+      "channels": 2,
+      "sample_rate": 44100,
+      "trigger": "The opening, from the moment Linden asks the player's name.",
+      "note": "Supplied by hand rather than generated, so it carries no measured levels."
     },
     {
       "name": "Music_Route_Day",
@@ -121,7 +131,7 @@
       "peak_dbfs": -1.0,
       "rms_dbfs": -13.75,
       "bytes": 2565864,
-      "loop_step_ratio": 0.0404,
+      "loop_step_ratio": 0.0,
       "trigger": "Overworld route, daytime. MusicDirector default for biome 'route'."
     },
     {
@@ -136,7 +146,7 @@
       "peak_dbfs": -1.0,
       "rms_dbfs": -12.43,
       "bytes": 3024044,
-      "loop_step_ratio": 0.0762,
+      "loop_step_ratio": 0.0,
       "trigger": "Overworld route at night; crossfade target on TimeOfDayChanged."
     },
     {
@@ -151,7 +161,7 @@
       "peak_dbfs": -1.0,
       "rms_dbfs": -12.52,
       "bytes": 3386924,
-      "loop_step_ratio": 0.0269,
+      "loop_step_ratio": 0.0,
       "trigger": "Town biome, daytime."
     },
     {
@@ -166,7 +176,7 @@
       "peak_dbfs": -1.0,
       "rms_dbfs": -12.29,
       "bytes": 4032044,
-      "loop_step_ratio": 0.0127,
+      "loop_step_ratio": 0.0001,
       "trigger": "Town biome at night."
     },
     {
@@ -1591,7 +1601,7 @@
       "peak_dbfs": -4.15,
       "rms_dbfs": -24.98,
       "bytes": 1764044,
-      "loop_step_ratio": 0.011,
+      "loop_step_ratio": 0.0,
       "trigger": "Daytime birdsong. Route and lakeside, day only."
     },
     {
@@ -1606,7 +1616,7 @@
       "peak_dbfs": -3.61,
       "rms_dbfs": -31.84,
       "bytes": 1764044,
-      "loop_step_ratio": 0.0077,
+      "loop_step_ratio": 0.0,
       "trigger": "Cave water drips with cave reverb. Cave bed, event layer."
     },
     {
@@ -1634,9 +1644,9 @@
       "sample_rate": 44100,
       "bit_depth": 16,
       "peak_dbfs": -4.44,
-      "rms_dbfs": -26.84,
+      "rms_dbfs": -26.83,
       "bytes": 1764044,
-      "loop_step_ratio": 0.0626,
+      "loop_step_ratio": 0.0,
       "trigger": "Night insects: crickets and a cicada bed. Night, outdoors."
     },
     {
@@ -1649,9 +1659,9 @@
       "sample_rate": 44100,
       "bit_depth": 16,
       "peak_dbfs": -2.62,
-      "rms_dbfs": -18.05,
+      "rms_dbfs": -18.03,
       "bytes": 1764044,
-      "loop_step_ratio": 0.1994,
+      "loop_step_ratio": 0.0,
       "trigger": "Rain. Weather layer, faded in on GameEvents.WeatherChanged to Rain."
     },
     {
@@ -1696,7 +1706,7 @@
       "peak_dbfs": -4.44,
       "rms_dbfs": -20.88,
       "bytes": 1764044,
-      "loop_step_ratio": 0.0165,
+      "loop_step_ratio": 0.0,
       "trigger": "Town crowd murmur and distant activity. Town bed."
     },
     {
@@ -1711,7 +1721,7 @@
       "peak_dbfs": -3.1,
       "rms_dbfs": -19.63,
       "bytes": 1764044,
-      "loop_step_ratio": 0.0419,
+      "loop_step_ratio": 0.0,
       "trigger": "Lake water lapping at the shore. Lakeside bed."
     },
     {
@@ -1726,7 +1736,7 @@
       "peak_dbfs": -1.94,
       "rms_dbfs": -12.48,
       "bytes": 882044,
-      "loop_step_ratio": 0.0419,
+      "loop_step_ratio": 0.0,
       "trigger": "Waterfall. Mono point source for a 3D emitter at the falls."
     },
     {
@@ -1739,9 +1749,9 @@
       "sample_rate": 44100,
       "bit_depth": 16,
       "peak_dbfs": -3.1,
-      "rms_dbfs": -16.66,
+      "rms_dbfs": -17.17,
       "bytes": 1764044,
-      "loop_step_ratio": 0.3048,
+      "loop_step_ratio": 0.0001,
       "trigger": "Wind moving through grass. Route and lakeside beds."
     },
     {
@@ -1754,20 +1764,10 @@
       "sample_rate": 44100,
       "bit_depth": 16,
       "peak_dbfs": -4.15,
-      "rms_dbfs": -20.64,
+      "rms_dbfs": -18.84,
       "bytes": 1764044,
-      "loop_step_ratio": 0.0953,
+      "loop_step_ratio": 0.0,
       "trigger": "Thin high wind. Night route, cliff edges, exposed ground."
-    },
-    {
-      "name": "Music_Opening_Introduction",
-      "path": "Assets/Game/Audio/Music/Music_Opening_Introduction.mp3",
-      "category": "Music",
-      "loop": false,
-      "channels": 2,
-      "sample_rate": 44100,
-      "trigger": "The opening, from the moment Linden asks the player's name.",
-      "note": "Supplied by hand rather than generated, so it carries no measured levels."
     }
   ]
 }

@@ -129,7 +129,10 @@ def main(argv):
     order = {"Music": 0, "Ambience": 2}
     entries.sort(key=lambda e: (order.get(e["category"].split("/")[0], 1), e["name"]))
 
-    total_bytes = sum(e["bytes"] for e in entries)
+    # hand-supplied clips (the opening MP3) carry no measured fields; size them from disk
+    total_bytes = sum(e["bytes"] if "bytes" in e else
+                      os.path.getsize(os.path.join(REPO, e["path"].replace("/", os.sep)))
+                      for e in entries)
     manifest = {
         "schema": 1,
         "generator": "Tools/Audio/build_all.py",
