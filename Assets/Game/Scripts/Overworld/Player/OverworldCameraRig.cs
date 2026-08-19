@@ -227,6 +227,9 @@ namespace PokeLab.Overworld
             if (look.sqrMagnitude > 0.000001f)
             {
                 _idleLookTimer = 0f;
+                // The stick cancels a scripted turn outright: two writers easing the same
+                // axis in different directions is the camera fighting the player.
+                _lookTowardEasing = false;
 
                 var horizontal = _orbital.HorizontalAxis;
                 horizontal.Value += look.x;
@@ -240,7 +243,8 @@ namespace PokeLab.Overworld
             else
             {
                 _idleLookTimer += dt;
-                AutoFollow(dt);
+                ApplyLookToward(dt);
+                if (!_lookTowardEasing) AutoFollow(dt);
             }
         }
 
@@ -373,8 +377,12 @@ namespace PokeLab.Overworld
         }
 
         /// <summary>
-        /// Points the rig at a world position over the next frames, used when a trainer spots the
-        /// player. Sets the yaw target; the orbital damping does the easing so it is never a cut.
+        /// Turns the rig toward a world position over the next frames, used when a trainer or a
+        /// story trigger wants the player's attention. Only the yaw target is set — pitch,
+        /// distance and the camera's current pose are left alone — and the turn is eased from
+        /// wherever the player happened to leave the camera. Writing the axis directly was a
+        /// one-frame teleport to the far side of the player, which is exactly the jump this
+        /// game's camera must never make.
         /// </summary>
         public void LookToward(Vector3 worldPoint)
         {
@@ -382,10 +390,28 @@ namespace PokeLab.Overworld
             var direction = Vector3.ProjectOnPlane(worldPoint - _followTarget.position, Vector3.up);
             if (direction.sqrMagnitude < 0.0001f) return;
 
-            var horizontal = _orbital.HorizontalAxis;
-            horizontal.Value = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
-            _orbital.HorizontalAxis = horizontal;
+            _lookTowardYaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+            _lookTowardEasing = true;
             _idleLookTimer = 0f;
+        }
+
+        [Tooltip("Degrees per second a LookToward turn moves the yaw. Fast enough to arrive " +
+                 "before a speaker's first line lands, slow enough to read as a turn.")]
+        [SerializeField] private float _lookTowardRate = 150f;
+
+        private float _lookTowardYaw;
+        private bool _lookTowardEasing;
+
+        /// <summary>Eases a pending LookToward. The player's own stick always wins mid-turn.</summary>
+        private void ApplyLookToward(float dt)
+        {
+            if (!_lookTowardEasing || _orbital == null) return;
+
+            var horizontal = _orbital.HorizontalAxis;
+            horizontal.Value = Mathf.MoveTowardsAngle(horizontal.Value, _lookTowardYaw, _lookTowardRate * dt);
+            _orbital.HorizontalAxis = horizontal;
+            if (Mathf.Abs(Mathf.DeltaAngle(horizontal.Value, _lookTowardYaw)) < 0.5f)
+                _lookTowardEasing = false;
         }
 
         /// <summary>Overrides the rest distance, e.g. tightening in a cave corridor.</summary>
