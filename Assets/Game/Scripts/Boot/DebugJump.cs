@@ -193,6 +193,23 @@ namespace PokeLab.Boot
             // battle beats are both about a creature that beat placed. Entering at field_ambush
             // would open the desk with nothing standing over it — which is the half of the moment
             // that changed, so it is the half this door has to show.
+
+            // At the bag, not wherever the player happens to stand. The episode's staging,
+            // dialogue and shots are all composed around Prop_ProfessorBag on the lake bank;
+            // played from the town spawn it is a scene talking about things that are a band
+            // away — the same artefact as the gatekeeper speaking to an empty street.
+            var player = FindFirstObjectByType<PlayerLocomotion>();
+            var bag = GameObject.Find("Prop_ProfessorBag");
+            if (player != null && bag != null)
+            {
+                var toPlayer = player.transform.position - bag.transform.position;
+                toPlayer.y = 0f;
+                if (toPlayer.sqrMagnitude < 0.01f) toPlayer = Vector3.back;
+                player.Warp(bag.transform.position + toPlayer.normalized * 2.2f,
+                    Quaternion.LookRotation(-toPlayer.normalized, Vector3.up));
+                yield return new WaitForSecondsRealtime(0.4f);
+            }
+
             if (!runner.Play("field_bag_left"))
                 Warn("'field_bag_left' is not in the book, so the starter choice cannot open");
         }
