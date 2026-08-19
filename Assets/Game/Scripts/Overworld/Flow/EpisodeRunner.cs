@@ -774,7 +774,7 @@ reachedTheEnd = true;
             if (sequence == null || sequence.Lines == null) return null;
             foreach (var line in sequence.Lines)
             {
-                if (line == null || string.IsNullOrEmpty(line.SpeakerId)) continue;
+                if (string.IsNullOrEmpty(line.SpeakerId)) continue;
                 foreach (var npc in FindObjectsByType<NpcController>(
                              FindObjectsInactive.Exclude, FindObjectsSortMode.None))
                 {
