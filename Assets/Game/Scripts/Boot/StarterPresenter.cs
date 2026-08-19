@@ -107,11 +107,14 @@ namespace PokeLab.Boot
         private Image _flash;
         private RectTransform[] _targets;
         private Image[] _rings;
-        private TextMeshProUGUI[] _labels;
         private Button[] _buttons;
+        private Image _portrait;
         private TextMeshProUGUI _name;
         private TextMeshProUGUI _blurb;
         private TextMeshProUGUI _hint;
+        private RectTransform _chipRow;
+        private Image[] _chipFrames;
+        private TextMeshProUGUI[] _chipLabels;
         private RectTransform _confirmRow;
         private Button _takeButton;
         private TextMeshProUGUI _takeLabel;
@@ -224,10 +227,10 @@ namespace PokeLab.Boot
             // it. A name plate here is the professor watching, which is the one thing the
             // scene cannot have.
             //
-            // The box stays, because the card above it is laid out against the scrim and
-            // because the moment still wants a line; what goes in it is the player's own
-            // thought, with no speaker, the way every other piece of narration in the script
-            // is written.
+            // The box stays for the length of the choice because the moment still wants a
+            // line; what goes in it is the player's own thought, with no speaker, the way
+            // every other piece of narration in the script is written. It is closed the
+            // moment the choice commits — see the note above _view.Close() below.
             _view.Show(string.Empty, PokeLab.Core.Loc.Get(_promptKey));
 
             var chosen = -1;
@@ -257,9 +260,24 @@ namespace PokeLab.Boot
 
             TearDownScreen();
 
+            // The prompt was this presenter's own Show, and nothing else will ever close it —
+            // DialoguePresenter only closes sequences the DialogueRunner ran. Left open, the
+            // box holds UiFocus above the battle command panel and its canvas (order 400,
+            // raycast-blocking) sits over the battle HUD (order 380), so the staged battle the
+            // very next beat starts swallows every key and every click: the player picks a
+            // starter and the game visibly stops. Closed on every path out, including the
+            // runner's timeout pick.
+            if (_view != null) _view.Close();
+
             // This is the call the runner has been blocked on since the beat began. Everything
             // above it is presentation; this line is the game starting.
-            if (chosen >= 0) _selection.Choose(chosen);
+            if (chosen >= 0)
+            {
+                var taken = _selection.Options[chosen];
+                Debug.Log($"[Starter] Commit: '{taken.DisplayName}' (game species {taken.SpeciesId}) " +
+                          "— prompt closed, choice handed to StarterSelection.", this);
+                _selection.Choose(chosen);
+            }
 
             // The creature stays out of its ball for a moment, and then the case goes.
             //
@@ -491,7 +509,6 @@ namespace PokeLab.Boot
 
             _targets = new RectTransform[options.Count];
             _rings = new Image[options.Count];
-            _labels = new TextMeshProUGUI[options.Count];
             _buttons = new Button[options.Count];
 
             for (var i = 0; i < options.Count; i++) BuildTarget(i, options[i]);
@@ -520,19 +537,21 @@ namespace PokeLab.Boot
             UiBuilder.Stretch(hit.rectTransform);
             hit.raycastTarget = true;
 
-            var ring = UiBuilder.OutlinedPanel("Ring", root, UiPalette.ScannerCyan, 84, 3);
+            // A hollow frame, emphatically not UiBuilder.OutlinedPanel: that sprite fills its
+            // centre at 55% alpha, and at 170 px over the ball row it is an opaque-enough teal
+            // slab covering the very ball being chosen — which is how the focused choice came
+            // to be reported as "a plain teal rounded rect where the Pokémon should be". The
+            // ring's whole job is to point at the ball, so the ball must stay visible inside it.
+            var ring = UiBuilder.Image("Ring", root, UiSprites.Frame(84, 3), UiPalette.ScannerCyan);
             UiBuilder.Stretch(ring.rectTransform);
             ring.enabled = false;
             _rings[index] = ring;
 
-            var label = UiBuilder.Text("Name", root, option.DisplayName, UiTextRole.Caption,
-                UiPalette.TextMuted, TMPro.TextAlignmentOptions.Center);
-            label.rectTransform.anchorMin = new Vector2(0f, 0f);
-            label.rectTransform.anchorMax = new Vector2(1f, 0f);
-            label.rectTransform.pivot = new Vector2(0.5f, 1f);
-            label.rectTransform.anchoredPosition = new Vector2(0f, -8f);
-            label.rectTransform.sizeDelta = new Vector2(0f, 36f);
-            _labels[index] = label;
+            // No caption under the target any more. It printed the focused option's name a
+            // second time directly under the card's own title — the middle ball projects to
+            // the exact screen region the card occupied — and the side captions floated
+            // through the blurb as bare text. The names now live in the fixed chip row under
+            // the card, where they cannot chase the camera.
 
             var captured = index;
             _buttons[index] = UiBuilder.Button("Pick", root, hit, () => OnBallPressed(captured));
@@ -567,46 +586,96 @@ namespace PokeLab.Boot
 
         private void BuildCard()
         {
-            // Above the dialogue scrim, which is 336 px tall on the 1920x1080 reference. The
-            // name and the blurb belong to the ball, not to the speaker, so they must not sit
-            // inside the box the speaker is talking from.
-            var card = UiBuilder.Rect("Card", _canvasRect, false);
-            card.anchorMin = new Vector2(0.5f, 0f);
-            card.anchorMax = new Vector2(0.5f, 0f);
-            card.pivot = new Vector2(0.5f, 0f);
-            card.anchoredPosition = new Vector2(0f, 372f);
-            card.sizeDelta = new Vector2(900f, 168f);
+            var options = _selection.Options;
 
-            _name = UiBuilder.Text("Name", card, string.Empty, UiTextRole.Title,
+            // Top-centre, because bottom-centre was the bug. The close shot puts the ball row
+            // at the exact centre of the screen, and the old card — bottom-anchored at 372
+            // with 168 of height — put its title on the very same line: the focused ball's
+            // 170 px target landed on the card, printed the name a second time under the
+            // card's own title, and dragged the side captions through the blurb. Everything
+            // the player reads now lives at the top of the frame, where the browse shot keeps
+            // only sky, and the bottom band keeps a single hint clear of the dialogue scrim.
+            var body = UiBuilder.Panel("Card", _canvasRect, UiPalette.Surface.WithAlpha(0.78f),
+                20, shadow: false);
+            var card = (RectTransform)body.transform.parent;
+            UiBuilder.Anchor(card, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -36f), new Vector2(560f, 250f));
+
+            // The creature itself, resolved from the same sheets the battle billboards draw.
+            // The balls are closed while the player browses — that is the fiction — so the
+            // card is the one place the player can actually see what they are about to take.
+            _portrait = UiBuilder.Image("Portrait", body.transform, null, Color.white);
+            _portrait.rectTransform.anchorMin = new Vector2(0.5f, 1f);
+            _portrait.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+            _portrait.rectTransform.pivot = new Vector2(0.5f, 1f);
+            _portrait.rectTransform.anchoredPosition = new Vector2(0f, -10f);
+            _portrait.rectTransform.sizeDelta = new Vector2(132f, 132f);
+            _portrait.preserveAspect = true;
+            _portrait.enabled = false;
+
+            _name = UiBuilder.Text("Name", body.transform, string.Empty, UiTextRole.Heading,
                 UiPalette.TextPrimary, TMPro.TextAlignmentOptions.Center);
             _name.rectTransform.anchorMin = new Vector2(0f, 1f);
             _name.rectTransform.anchorMax = new Vector2(1f, 1f);
             _name.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _name.rectTransform.sizeDelta = new Vector2(0f, 64f);
+            _name.rectTransform.anchoredPosition = new Vector2(0f, -148f);
+            _name.rectTransform.sizeDelta = new Vector2(0f, 46f);
 
-            _blurb = UiBuilder.Text("Blurb", card, string.Empty, UiTextRole.Secondary,
+            _blurb = UiBuilder.Text("Blurb", body.transform, string.Empty, UiTextRole.Secondary,
                 UiPalette.TextSecondary, TMPro.TextAlignmentOptions.Center);
             _blurb.rectTransform.anchorMin = new Vector2(0f, 1f);
             _blurb.rectTransform.anchorMax = new Vector2(1f, 1f);
             _blurb.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _blurb.rectTransform.anchoredPosition = new Vector2(0f, -64f);
-            _blurb.rectTransform.sizeDelta = new Vector2(0f, 56f);
+            _blurb.rectTransform.anchoredPosition = new Vector2(0f, -196f);
+            _blurb.rectTransform.sizeDelta = new Vector2(-32f, 44f);
 
-            _hint = UiBuilder.Text("Hint", card, PokeLab.Core.Loc.Get("starter.hint"),
+            // The three options as fixed chips under the card, in ball order, the focused one
+            // framed. Fixed rather than tracked to the balls, so they can never drift into the
+            // card while the camera blends; the hollow ring on the ball itself is what ties a
+            // chip to the thing in the world.
+            _chipRow = UiBuilder.Rect("Options", body.transform, false);
+            UiBuilder.Anchor(_chipRow, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -262f), new Vector2(920f, 48f));
+
+            _chipFrames = new Image[options.Count];
+            _chipLabels = new TextMeshProUGUI[options.Count];
+            var mid = (options.Count - 1) * 0.5f;
+            for (var i = 0; i < options.Count; i++)
+            {
+                var chip = UiBuilder.Rect($"Chip{i}", _chipRow, false);
+                UiBuilder.Anchor(chip, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(0.5f, 0.5f), new Vector2((i - mid) * 300f, 0f),
+                    new Vector2(260f, 48f));
+
+                var back = UiBuilder.Image("Back", chip, UiSprites.Panel(12),
+                    UiPalette.SurfaceRaised.WithAlpha(0.85f));
+                UiBuilder.Stretch(back.rectTransform);
+
+                var frame = UiBuilder.Image("Focus", chip, UiSprites.Frame(12, 2),
+                    UiPalette.ScannerCyan);
+                UiBuilder.Stretch(frame.rectTransform);
+                frame.enabled = false;
+                _chipFrames[i] = frame;
+
+                _chipLabels[i] = UiBuilder.Text("Label", chip, options[i].DisplayName,
+                    UiTextRole.Caption, UiPalette.TextMuted, TMPro.TextAlignmentOptions.Center);
+                UiBuilder.Stretch(_chipLabels[i].rectTransform);
+            }
+
+            // The hint alone stays at the bottom, just above the dialogue scrim (336 px on the
+            // 1080 reference) and well below the ball row at screen centre.
+            _hint = UiBuilder.Text("Hint", _canvasRect, PokeLab.Core.Loc.Get("starter.hint"),
                 UiTextRole.Caption, UiPalette.TextMuted, TMPro.TextAlignmentOptions.Center);
-            _hint.rectTransform.anchorMin = new Vector2(0f, 1f);
-            _hint.rectTransform.anchorMax = new Vector2(1f, 1f);
-            _hint.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _hint.rectTransform.anchoredPosition = new Vector2(0f, -124f);
-            _hint.rectTransform.sizeDelta = new Vector2(0f, 36f);
+            UiBuilder.Anchor(_hint.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 344f), new Vector2(900f, 32f));
 
-            _confirmRow = UiBuilder.Rect("Confirm", card, false);
-            _confirmRow.anchorMin = new Vector2(0.5f, 1f);
-            _confirmRow.anchorMax = new Vector2(0.5f, 1f);
-            _confirmRow.pivot = new Vector2(0.5f, 1f);
-            _confirmRow.anchoredPosition = new Vector2(0f, -116f);
-            _confirmRow.sizeDelta = new Vector2(680f, 64f);
-            UiBuilder.Horizontal(_confirmRow, 24f);
+            // The confirm takes the chip row's spot, directly under the question that has
+            // replaced the blurb, so the ask and both answers read as one block — and none of
+            // it sits over the creature standing at screen centre in the reveal framing.
+            _confirmRow = UiBuilder.Rect("Confirm", body.transform, false);
+            UiBuilder.Anchor(_confirmRow, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -262f), new Vector2(600f, 56f));
+            UiBuilder.Horizontal(_confirmRow, 24f, alignment: TextAnchor.MiddleCenter);
             _confirmRow.gameObject.SetActive(false);
 
             _takeButton = BuildAnswer("Take", string.Empty, 1, out _takeLabel);
@@ -616,7 +685,7 @@ namespace PokeLab.Boot
         private Button BuildAnswer(string name, string text, int answer, out TextMeshProUGUI label)
         {
             var slab = UiBuilder.Rect(name, _confirmRow, false);
-            UiBuilder.Size(slab, 320f, 60f);
+            UiBuilder.Size(slab, 280f, 56f);
 
             var fill = UiBuilder.Image("Fill", slab, UiSprites.Panel(10),
                 answer > 0 ? UiPalette.ScannerCyan : UiPalette.SurfaceRaised);
@@ -629,6 +698,67 @@ namespace PokeLab.Boot
 
             UiButtonMotion.Attach(slab, 4);
             return UiBuilder.Button("Click", slab, fill, () => _answer = answer);
+        }
+
+        // --- Creature art ----------------------------------------------------------------------
+
+        /// <summary>
+        /// Cut sprites, cached per species: <c>Sprite.Create</c> allocates every call and
+        /// <see cref="Select"/> runs on every cursor move. Destroyed with the screen.
+        /// </summary>
+        private readonly Dictionary<int, Sprite> _frontSprites = new Dictionary<int, Sprite>();
+
+        /// <summary>
+        /// The front view of a species, cut from the same sheet the battle billboards draw.
+        ///
+        /// Resolved through <see cref="CreatureSpriteLibrary"/> — the GAME id into
+        /// sprite_manifest.json into Resources/PokeLabSprites — because that is the one
+        /// resolution path in this project known to work: it is how every creature in a battle
+        /// gets its picture. The frame is cell 0 of the idle sheet, cut the same way
+        /// DialoguePresenter cuts a speaker portrait; a manifest with no entry, or an entry
+        /// whose texture is missing, degrades to a card with a name and no picture rather
+        /// than to a blank rectangle.
+        /// </summary>
+        private Sprite FrontSprite(int speciesId)
+        {
+            if (_frontSprites.TryGetValue(speciesId, out var cached)) return cached;
+
+            Sprite sprite = null;
+            var entry = CreatureSpriteLibrary.Shared.Entry(speciesId);
+            if (entry != null)
+            {
+                var sheet = entry.frontAnim != null && entry.frontAnim.IsUsable ? entry.frontAnim : null;
+                var texture = CreatureSpriteLibrary.Shared.Texture(
+                    sheet != null ? sheet.texture : entry.front);
+                if (texture != null)
+                {
+                    var columns = Mathf.Max(1, sheet != null ? sheet.columns : 1);
+                    var rows = Mathf.Max(1, sheet != null ? sheet.rows : 1);
+                    var cell = sheet != null ? sheet.CellAt(0) : 0;
+                    var cellW = texture.width / columns;
+                    var cellH = texture.height / rows;
+                    var column = cell % columns;
+                    var row = cell / columns;
+
+                    // Row 0 is the top of the sheet; Sprite rects count up from the bottom.
+                    var rect = new Rect(column * cellW, texture.height - (row + 1) * cellH,
+                        cellW, cellH);
+                    sprite = Sprite.Create(texture, rect, new Vector2(0.5f, 0.5f), cellH);
+                    sprite.name = "~StarterFront_" + speciesId;
+                }
+            }
+
+            if (sprite == null)
+            {
+                Debug.LogWarning($"[Starter] No front sprite resolved for game species " +
+                                 $"{speciesId}, so the card shows the name without a picture. " +
+                                 "The entry belongs in sprite_manifest.json under the GAME id " +
+                                 "(not the dex number), with its texture under " +
+                                 "Resources/PokeLabSprites.", this);
+            }
+
+            _frontSprites[speciesId] = sprite;
+            return sprite;
         }
 
         // --- Cursor ----------------------------------------------------------------------------
@@ -707,11 +837,22 @@ namespace PokeLab.Boot
             var options = _selection.Options;
             if (_name != null) _name.SetText(options[index].DisplayName);
             if (_blurb != null) _blurb.SetText(options[index].Blurb ?? string.Empty);
+            if (_portrait != null)
+            {
+                var sprite = FrontSprite(options[index].SpeciesId);
+                _portrait.sprite = sprite;
+                // Disabled rather than left as a Solid-sprite fill: an Image with no real
+                // sprite draws a flat rectangle, which is the placeholder this fix removes.
+                _portrait.enabled = sprite != null;
+            }
 
             for (var i = 0; i < _rings.Length; i++)
             {
                 _rings[i].enabled = i == index;
-                _labels[i].color = i == index ? UiPalette.TextPrimary : UiPalette.TextMuted;
+                if (_chipFrames != null && i < _chipFrames.Length && _chipFrames[i] != null)
+                    _chipFrames[i].enabled = i == index;
+                if (_chipLabels != null && i < _chipLabels.Length && _chipLabels[i] != null)
+                    _chipLabels[i].color = i == index ? UiPalette.TextPrimary : UiPalette.TextMuted;
             }
 
             var system = EventSystem.current;
@@ -738,6 +879,10 @@ namespace PokeLab.Boot
                 if (_rings[i] != null) _rings[i].enabled = browsing && i == _cursor;
             }
             if (_hint != null) _hint.gameObject.SetActive(browsing);
+            // The chips belong to browsing; the confirm row takes their place while a ball is
+            // open, so the two can never stack in the same band the way the old hint and
+            // confirm row did.
+            if (_chipRow != null) _chipRow.gameObject.SetActive(browsing);
             if (browsing) Select(_cursor);
         }
 
@@ -785,15 +930,24 @@ namespace PokeLab.Boot
             _canvasRect = null;
             _targets = null;
             _rings = null;
-            _labels = null;
             _buttons = null;
             _flash = null;
+            _portrait = null;
+            _chipRow = null;
+            _chipFrames = null;
+            _chipLabels = null;
             _confirmRow = null;
             _takeButton = null;
             _takeLabel = null;
             _name = null;
             _blurb = null;
             _hint = null;
+
+            // The cut sprites were created for this screen; the textures they reference are
+            // the shared library's and stay.
+            foreach (var sprite in _frontSprites.Values)
+                if (sprite != null) Destroy(sprite);
+            _frontSprites.Clear();
 
             var system = EventSystem.current;
             if (system != null) system.SetSelectedGameObject(null);
