@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Unity.Cinemachine;
+using PokeLab.Cinematics.Sequencing;
 using PokeLab.Core;
 using PokeLab.Overworld;
 
@@ -30,10 +31,12 @@ namespace PokeLab.Cinematics
     /// edited or referenced back from: this component watches <c>Instance.IsPlaying</c> and
     /// <c>CurrentSpeaker</c>, claims <see cref="ShotPriorities.Dialogue"/> for the length of
     /// the exchange, and hands the frame back by dropping to zero — which returns it to the
-    /// exploration rig in free play and to an episode's authored 120 shot mid-cutscene,
-    /// without knowing which. Blend lengths are enforced through
-    /// <see cref="CinemachineCore.GetBlendOverride"/> for exactly the pairs that involve
-    /// this camera, the same etiquette <see cref="BattleCameraRig"/> established.
+    /// exploration rig. A cutscene, though, is owned by its authored shots: while
+    /// <see cref="EpisodeShotRig.ShotIsLive"/> this director refuses to engage and releases
+    /// if already live, so the 130-over-120 rung is spent only on dialogue that other
+    /// systems chain into free play, never on an episode's own lines. Blend lengths are
+    /// enforced through <see cref="CinemachineCore.GetBlendOverride"/> for exactly the pairs
+    /// that involve this camera, the same etiquette <see cref="BattleCameraRig"/> established.
     /// </summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-320)]
@@ -237,6 +240,11 @@ namespace PokeLab.Cinematics
             // instantly, because the wipe is already covering the switch.
             if (InBattleFlow()) { ReleaseImmediate(); return; }
 
+            // An authored shot going live mid-conversation takes the frame. Through the
+            // normal release, not the emergency one: the brain still owes a blend out, and
+            // no wipe is covering this switch.
+            if (EpisodeShotRig.ShotIsLive) { BeginRelease(); return; }
+
             bool alive = _runner != null && _runner.IsPlaying;
             GameObject speaker = alive ? _runner.CurrentSpeaker : null;
             if (!alive || speaker == null || !speaker.activeInHierarchy || _player == null)
@@ -312,6 +320,12 @@ namespace PokeLab.Cinematics
             if (speaker == null || !speaker.activeInHierarchy) return false;
 
             if (InBattleFlow()) return false;
+
+            // A cutscene is owned by its authored shots: dialogue lines inside an episode
+            // play under the episode's composition, and the two-shot must not outbid it.
+            // This also keeps Settling from reclaiming over a shot that went live mid-blend.
+            if (EpisodeShotRig.ShotIsLive) return false;
+
             if (_player == null) return false;
 
             // A degenerate axis (speaker on top of the player, or the player itself) has no
@@ -363,7 +377,8 @@ namespace PokeLab.Cinematics
         }
 
         /// <summary>Drops the priority and lets the brain blend back to whoever holds the frame —
-        /// the exploration rig in free play, an episode's authored shot mid-cutscene.</summary>
+        /// the exploration rig in free play, or the authored shot this camera is yielding to
+        /// when <see cref="EpisodeShotRig.ShotIsLive"/> went true mid-conversation.</summary>
         private void BeginRelease()
         {
             _sequenceEnded = false;
@@ -670,7 +685,14 @@ namespace PokeLab.Cinematics
             if (!entering && !leaving) return defaultBlend;
 
             float seconds = Mathf.Max(0.05f, entering ? enterSeconds : exitSeconds);
-            return new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, seconds);
+            var blend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, seconds);
+
+            // This handler hooks on engage, after the rig's bootstrap-time subscription, and
+            // a multicast delegate returns only its LAST handler's result — so for a pair
+            // shared with an episode camera (the release toward an authored shot) returning
+            // here would silently discard the rig's cut-when-blocked. The rig's path rule
+            // must outrank this camera's timing, or the yield blends through the hillside.
+            return EpisodeShotRig.EnforceBlendPath(from, to, blend);
         }
     }
 }
