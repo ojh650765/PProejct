@@ -58,6 +58,10 @@ SIGNATURES = [
     re.compile(r"would not parse"),
     re.compile(r"uncaught", re.IGNORECASE),
     re.compile(r"ERROR: Shader"),
+    # Once dismissed as WebGL noise, this is the symptom of audio imported with an
+    # unsupported load type (Streaming) or of code reading clip.length before the clip
+    # loads. Both are fixed; seeing it again is a regression, so it fails the gate.
+    re.compile(r"Trying to get length of sound"),
 ]
 
 
