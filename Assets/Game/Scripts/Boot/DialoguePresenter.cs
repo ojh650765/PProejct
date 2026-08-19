@@ -52,6 +52,9 @@ namespace PokeLab.Boot
 
             _runner.LinePresented += OnLine;
             _runner.SequenceEnded += OnEnded;
+            // A key press advances through the view, same as a click: reveal completion
+            // and the confirm blip come along for free.
+            _runner.AdvanceInputRoute = () => { if (_view != null) _view.Advance(); else _runner.Advance(); };
         }
 
         private void OnDisable()
@@ -59,6 +62,7 @@ namespace PokeLab.Boot
             if (_runner == null) return;
             _runner.LinePresented -= OnLine;
             _runner.SequenceEnded -= OnEnded;
+            _runner.AdvanceInputRoute = null;
         }
 
         /// <summary>

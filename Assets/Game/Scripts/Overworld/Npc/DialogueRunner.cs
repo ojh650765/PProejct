@@ -197,7 +197,15 @@ namespace PokeLab.Overworld
 
             // Read the raw action even though input is disabled for movement: the reader's gate
             // stops the player walking, and dialogue still needs the button.
-            if (_advanceOnInteract && _lockoutTimer <= 0f && WasAdvancePressed()) Advance();
+            //
+            // Routed through the presenter's view when one is attached, so a key press is
+            // the same action as a click: the view completes a running reveal instead of
+            // skipping the line, and plays the confirm blip the click path always had.
+            if (_advanceOnInteract && _lockoutTimer <= 0f && WasAdvancePressed())
+            {
+                if (AdvanceInputRoute != null) AdvanceInputRoute();
+                else Advance();
+            }
         }
 
         /// <summary>
@@ -214,6 +222,11 @@ namespace PokeLab.Overworld
         /// </summary>
         private bool WasAdvancePressed() =>
             _input != null && _input.AdvancePressed && !PokeLab.Core.TextEntry.IsTyping;
+
+        /// <summary>Where a raw advance key press is sent when a presenter owns the box.
+        /// The presenter points this at its view, whose Advance completes reveals and
+        /// plays the confirm sound — the exact path a click takes.</summary>
+        public Action AdvanceInputRoute;
 
         /// <summary>Moves to the next line, or ends the sequence. Called by the UI's continue button.</summary>
         public void Advance()
