@@ -267,6 +267,7 @@ namespace PokeLab.Cinematics.Sequencing
             StopDolly();
             if (_timelinePlaying) ForceFinishTimeline();
             Claim(null);
+            Debug.Log("[CamFlow] rig released: all episode-shot priorities dropped to 0");
         }
 
         public float TimelineDurationSeconds(string timelineName)

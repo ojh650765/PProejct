@@ -802,10 +802,19 @@ reachedTheEnd = true;
         /// <summary>Drops the episode-shot camera if a beat claimed it. Safe to call twice.</summary>
         private void ReleaseEpisodeShot()
         {
-            if (!_shotClaimed) return;
+            if (!_shotClaimed)
+            {
+                Debug.Log("[Episode] shot release: nothing claimed");
+                return;
+            }
             _shotClaimed = false;
-            if (ServiceHub.TryGet<IEpisodeShotDirector>(out var shots) && shots != null)
-                shots.ReleaseShot();
+            var found = ServiceHub.TryGet<IEpisodeShotDirector>(out var shots) && shots != null;
+            // One line either way: the stuck-camera class of bug is exactly this call
+            // silently going nowhere, and in a deployed build the console is the only
+            // witness left.
+            Debug.Log(found ? "[Episode] shot release: director released"
+                            : "[Episode] shot release: NO DIRECTOR on the hub");
+            if (found) shots.ReleaseShot();
         }
 
         // --- Fades ---------------------------------------------------------------------------
