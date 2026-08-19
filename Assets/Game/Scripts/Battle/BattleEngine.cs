@@ -105,6 +105,16 @@ namespace PokeLab.Battle
         /// <summary>Seeded generator for this battle. Null until <see cref="Begin"/> is called.</summary>
         public BattleRandom Random => _rng;
 
+        /// <summary>
+        /// Diagnostic sink for one-line turn traces: who acts first and why, each action as
+        /// it resolves, and the turn's closing state. Null by default and free when unset.
+        /// A callback rather than a logger so the engine stays clear of UnityEngine — the
+        /// scene side (<see cref="BattleStageHost"/>) wires it to <c>Debug.Log</c>. Draws
+        /// nothing from the RNG and emits no events, so replays are byte-identical with it
+        /// on or off.
+        /// </summary>
+        public Action<string> Trace { get; set; }
+
         BattleState IAbilityHost.State => _state;
         BattleRandom IAbilityHost.Random => _rng;
 
@@ -256,6 +266,7 @@ namespace PokeLab.Battle
             {
                 ResolveReplacementTurn(playerAction);
                 EvaluateOutcome();
+                TraceTurnEnd();
                 return _stream.ToArray();
             }
 
@@ -274,6 +285,16 @@ namespace PokeLab.Battle
             var second = Plan(opponentAction);
             if (!GoesFirst(first, second)) (first, second) = (second, first);
 
+            if (Trace != null)
+            {
+                var why = first.Priority != second.Priority ? "priority"
+                    : Math.Abs(first.Speed - second.Speed) > 0.001f ? "speed"
+                    : "coin flip";
+                Trace($"[Turn] {_state.TurnNumber} start: {first.Side} first by {why} " +
+                      $"({first.Side} prio {first.Priority} spd {first.Speed:0.#} | " +
+                      $"{second.Side} prio {second.Priority} spd {second.Speed:0.#})");
+            }
+
             Execute(first);
             if (_state.Outcome == BattleOutcome.InProgress) Execute(second);
 
@@ -281,7 +302,23 @@ namespace PokeLab.Battle
             if (_state.Outcome == BattleOutcome.InProgress) ReplaceFainted();
 
             EvaluateOutcome();
+            TraceTurnEnd();
             return _stream.ToArray();
+        }
+
+        /// <summary>The closing line of a turn's trace: field state, outcome, stream and draw counts.</summary>
+        private void TraceTurnEnd()
+        {
+            if (Trace == null) return;
+            Trace($"[Turn] {_state.TurnNumber} end: player {HpOf(BattleSide.Player)} " +
+                  $"opponent {HpOf(BattleSide.Opponent)} outcome {_state.Outcome} " +
+                  $"events {_stream.Count} draws {_rng.DrawCount}");
+        }
+
+        private string HpOf(BattleSide side)
+        {
+            var creature = _state.ActiveOf(side);
+            return creature == null ? "-" : $"{creature.CurrentHp}/{creature.MaxHp}";
         }
 
         /// <summary>
@@ -347,7 +384,14 @@ namespace PokeLab.Battle
         {
             var side = planned.Side;
             var actor = _state.ActiveOf(side);
-            if (actor == null || actor.IsFainted) return;
+            if (actor == null || actor.IsFainted)
+            {
+                Trace?.Invoke($"[Turn] {_state.TurnNumber} act: {side} skipped " +
+                              $"({(actor == null ? "empty slot" : "already fainted")})");
+                return;
+            }
+
+            Trace?.Invoke($"[Turn] {_state.TurnNumber} act: {side} {Describe(planned.Action)}");
 
             // Marked before the action resolves: a flinch inflicted by this action can only
             // land on a side that has not had its turn yet.
@@ -370,6 +414,22 @@ namespace PokeLab.Battle
                 case BattleAction.Kind.Run:
                     AttemptRun(side);
                     break;
+            }
+        }
+
+        /// <summary>One terse clause naming an action for the turn trace.</summary>
+        private string Describe(BattleAction action)
+        {
+            switch (action.Type)
+            {
+                case BattleAction.Kind.Move:
+                    return $"move '{MoveAt(action.Side, action.MoveIndex)?.Id ?? "?"}'";
+                case BattleAction.Kind.Switch:
+                    return $"switch to party[{action.PartyIndex}]";
+                case BattleAction.Kind.Item:
+                    return $"item '{action.ItemId ?? "?"}'";
+                default:
+                    return action.Type.ToString().ToLowerInvariant();
             }
         }
 
@@ -1496,6 +1556,7 @@ namespace PokeLab.Battle
 
             state.ActiveIndex = index;
             state.ResetOnSwitch();
+            Trace?.Invoke($"[Turn] {_state.TurnNumber} act: Player replacement, fields party[{index}]");
             SendOut(BattleSide.Player, index, true);
             FireEntryAbility(BattleSide.Player);
         }

@@ -43,6 +43,7 @@ namespace PokeLab.Battle
             if (ServiceHub.TryGet<IBattleStage>(out var existing) && existing is BattleStage registered)
             {
                 _stage = registered;
+                _stage.EngineTrace ??= TraceTurn;
                 return;
             }
 
@@ -50,6 +51,9 @@ namespace PokeLab.Battle
             {
                 TrainerDifficulty = _trainerDifficulty,
                 TrainerLevelOffset = _trainerLevelOffset,
+                // Always on, unlike _logBattles: three or four lines a turn, and they are the
+                // console trail a "turn order tangled" report is diagnosed from after the fact.
+                EngineTrace = TraceTurn,
             };
 
             _stage.Register();
@@ -70,6 +74,9 @@ namespace PokeLab.Battle
             if (!string.IsNullOrEmpty(_stage.LastFailureReason))
                 Debug.LogWarning($"[BattleStage] Last encounter aborted: {_stage.LastFailureReason}", this);
         }
+
+        /// <summary>The engine's [Turn] trace lines, surfaced on the console.</summary>
+        private static void TraceTurn(string line) => Debug.Log(line);
 
         private void LogEvents(System.Collections.Generic.IReadOnlyList<BattleEvent> stream)
         {

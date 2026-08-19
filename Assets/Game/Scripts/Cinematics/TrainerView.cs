@@ -78,12 +78,24 @@ namespace PokeLab.Cinematics
         private static readonly int MainTex = Shader.PropertyToID("_MainTex");
         private static readonly int MainTexST = Shader.PropertyToID("_MainTex_ST");
 
+        /// <summary>Metres the hip cut is kept below the frame's bottom edge. Also absorbs the
+        /// one frame of camera lag this component's LateUpdate can run ahead of the brain by.</summary>
+        private const float HemFrameMargin = 0.1f;
+
+        /// <summary>Ceiling on the downward stretch, so a pathologically wide shot cannot
+        /// inflate the trainer without bound. The send-out shot needs about 1.8×.</summary>
+        private const float MaxHemStretch = 2.6f;
+
         private Transform _visual;
         private Transform _portrait;
         private MeshRenderer _portraitRenderer;
         private MaterialPropertyBlock _block;
         private Camera _camera;
         private bool _usingPortrait;
+        private bool _backQuad;
+        private float _quadTop = 1.3f;
+        private float _quadBottom;
+        private float _quadHalfWidth;
 
         /// <summary>True when a person key resolved to art. False means nothing will be drawn.</summary>
         public bool HasArt { get; private set; }
@@ -263,6 +275,10 @@ namespace PokeLab.Cinematics
             float bottom = back ? Mathf.Clamp(portraitHem, 0f, top - 0.05f) : 0f;
             float height = top - bottom;
 
+            _backQuad = back;
+            _quadTop = top;
+            _quadBottom = bottom;
+
             // Sized to one cell of the sheet, not to the sheet.
             //
             // A back view is five drawn poses laid side by side — the throw the games play.
@@ -271,6 +287,11 @@ namespace PokeLab.Cinematics
             float pixelHeight = Mathf.Max(1f, texture.height * uvRect.height);
             float aspect = (texture.width * uvRect.width) / (pixelHeight * _throwFrames);
             float half = height * aspect * 0.5f;
+            _quadHalfWidth = half;
+
+            // A rebind must not inherit the previous battle's hem stretch.
+            _portrait.localScale = Vector3.one;
+            _portrait.localPosition = Vector3.zero;
 
             var mesh = new Mesh { name = "~TrainerPortraitQuad" };
             mesh.vertices = new[]
@@ -408,6 +429,68 @@ namespace PokeLab.Cinematics
             toCamera.y = 0f;
             if (toCamera.sqrMagnitude < 1e-6f) return;
             _portrait.rotation = Quaternion.LookRotation(-toCamera.normalized, Vector3.up);
+
+            StretchHemOffFrame();
+        }
+
+        /// <summary>
+        /// Stretches a back quad downward until the art's hip cut leaves the bottom of the
+        /// frame.
+        ///
+        /// The back sheets are cut at the hip — the source art is drawn to run off the bottom
+        /// of the screen, see <see cref="portraitHem"/> — and the hem holds that cut 0.5 m
+        /// above the ground. The send-out shot's frame reaches below the trainer's own ground
+        /// line, so at rest the cut floated in mid-air with the field visible underneath: a
+        /// figure sawn off at the waist, which is exactly what was reported. The games solve
+        /// it by letting the screen edge do the cropping, and this reproduces that: the quad
+        /// is scaled about its crown (the art is sized crown-down already) until the cut edge
+        /// sits just below where the live camera's bottom frustum plane crosses it. The scale
+        /// is uniform, so the drawing's proportions never change — the figure simply becomes
+        /// the big near-camera back sprite the series composes this shot with.
+        ///
+        /// Solved every LateUpdate rather than once on entry because the shot blends: the
+        /// frame's bottom edge moves smoothly for ~0.7 s after the rig cuts to the send-out,
+        /// and a stretch computed against either endpoint alone shows the cut during the move.
+        /// </summary>
+        private void StretchHemOffFrame()
+        {
+            if (!_backQuad || _camera == null) return;
+
+            float baseHeight = _quadTop - _quadBottom;
+            if (baseHeight < 0.01f) return;
+
+            Transform lens = _camera.transform;
+            float tanHalfFov = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+            // Normal of the frustum's bottom plane, pointing into the visible volume.
+            Vector3 n = lens.rotation * new Vector3(0f, 1f, tanHalfFov);
+            if (n.y < 0.2f) return; // Camera pitched past sanity; keep the last solve.
+
+            float groundY = transform.position.y;
+            float crownWorld = groundY + _quadTop;
+
+            // Two passes, because the corners the cut has to clear move with the scale
+            // being solved. The second pass converges to well under the margin.
+            float scale = 1f;
+            for (int pass = 0; pass < 2; pass++)
+            {
+                Vector3 halfSpan = _portrait.right * (_quadHalfWidth * scale);
+                Vector3 c = lens.position;
+                float frameBottomY = float.PositiveInfinity;
+                for (int corner = -1; corner <= 1; corner += 2)
+                {
+                    Vector3 p = _portrait.position + halfSpan * corner;
+                    float y = c.y - (n.x * (p.x - c.x) + n.z * (p.z - c.z)) / n.y;
+                    if (y < frameBottomY) frameBottomY = y;
+                }
+
+                float targetBottom = Mathf.Min(groundY + _quadBottom, frameBottomY - HemFrameMargin);
+                scale = Mathf.Clamp((crownWorld - targetBottom) / baseHeight, 1f, MaxHemStretch);
+            }
+
+            _portrait.localScale = new Vector3(scale, scale, 1f);
+            Vector3 local = _portrait.localPosition;
+            local.y = _quadTop * (1f - scale); // Pin the crown; all growth goes downward.
+            _portrait.localPosition = local;
         }
 
         /// <summary>
