@@ -241,8 +241,11 @@ namespace PokeLab.Overworld
             _alertness = 0f;
             _cooldownTimer = 0f;
             // Cleared with the rest of the per-spawn state. A pooled instance that was last a
-            // staged ambusher would otherwise come back as a creature that never moves.
+            // staged ambusher would otherwise come back as a creature that never moves — or one
+            // drawn half again its own size. The field rather than the property, because
+            // BuildModel below binds at whatever the height resolves to now.
             _scriptedHold = false;
+            _presenceScale = 1f;
             _swimVelocity = Vector3.zero;
             _hasSwimTarget = false;
             _rng = new DeterministicRandom(GetInstanceID() ^ speciesId * 7919);
@@ -333,6 +336,7 @@ namespace PokeLab.Overworld
         /// <summary>
         /// Drawn height in metres, from the dex-backed registry where one is up, falling back to
         /// the slice's hand-authored table so a roamer is still the right size before boot.
+        /// Multiplied by <see cref="PresenceScale"/>, which is 1 for everything a spawner owns.
         /// </summary>
         private float ResolveDisplayHeight()
         {
@@ -342,7 +346,7 @@ namespace PokeLab.Overworld
                 var registryHeight = registry.GetDisplayHeight(_speciesId);
                 if (registryHeight > 0.01f) height = registryHeight;
             }
-            return height;
+            return height * _presenceScale;
         }
 
         /// <summary>
@@ -385,6 +389,37 @@ namespace PokeLab.Overworld
         }
 
         private bool _scriptedHold;
+
+        /// <summary>
+        /// Multiplier on the drawn size — and, through <see cref="ScaleColliderToSpecies"/>, the
+        /// footprint — over the species' dex height. 1 for every autonomous roamer: an ambient
+        /// population is drawn true to the dex, and a Pidgey genuinely is 0.3 m tall.
+        ///
+        /// An episode sets this on the creatures it stages, because a staged creature is theatre.
+        /// The small route species' real heights are barely-visible specks at the exploration
+        /// camera's 8.5 m boom, and a scene whose lines are about the thing in the grass only
+        /// works if the thing in the grass can be seen. Set after <see cref="Configure"/> — which
+        /// resets it, like every other piece of per-spawn state — it rebinds the model at the new
+        /// height, so the order of the two calls does not matter.
+        /// </summary>
+        public float PresenceScale
+        {
+            get => _presenceScale;
+            set
+            {
+                var clamped = Mathf.Clamp(value, 0.25f, 4f);
+                if (Mathf.Approximately(clamped, _presenceScale)) return;
+                _presenceScale = clamped;
+                if (_art != null)
+                {
+                    _art.Bind(_speciesId, ResolveDisplayHeight());
+                    _art.Play(_currentAnimation);
+                }
+                ScaleColliderToSpecies();
+            }
+        }
+
+        private float _presenceScale = 1f;
 
         private void Update()
         {
