@@ -247,8 +247,15 @@ namespace PokeLab.Cinematics
 
             bool alive = _runner != null && _runner.IsPlaying;
             GameObject speaker = alive ? _runner.CurrentSpeaker : null;
-            if (!alive || speaker == null || !speaker.activeInHierarchy || _player == null)
+            if (!alive || speaker == null || !speaker.activeInHierarchy || _player == null
+                || !CurrentLineHasSpeaker())
             {
+                // The speakerless case is per LINE, not per sequence: the anchor GameObject
+                // stays whoever the sequence named first, but a narration line ("the grass
+                // moved") has nobody talking — holding a two-shot of people through it
+                // frames the wrong thing, cut off at the edges. The exploration frame is
+                // the honest one until somebody speaks again; the Settling reclaim brings
+                // the two-shot back the moment that happens.
                 BeginRelease();
                 return;
             }
@@ -310,9 +317,18 @@ namespace PokeLab.Cinematics
 
         // --- Engage / release ---------------------------------------------------------------
 
+        /// <summary>Whether the line on screen right now is spoken by somebody, rather than
+        /// narration. Framing follows the line, not the sequence.</summary>
+        private bool CurrentLineHasSpeaker()
+        {
+            var line = _runner != null ? _runner.CurrentLine : null;
+            return line != null && !string.IsNullOrEmpty(line.SpeakerId);
+        }
+
         private bool ShouldEngage()
         {
             if (_runner == null || !_runner.IsPlaying) return false;
+            if (!CurrentLineHasSpeaker()) return false;
 
             // No speaker, no shot: the prologue plays over black and the plaza bulletin is
             // ambient — both start with nothing standing in the world to frame.

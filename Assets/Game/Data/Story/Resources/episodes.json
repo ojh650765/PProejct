@@ -214,8 +214,17 @@
           "Kind": 7,
           "KindName": "MoveActor",
           "Id": "NPC_Rival",
+          "Target": "Mark_Player_GateStand",
+          "Seconds": 8.0,
+          "Value": false,
+          "Note": "Waypoint. The navmesh's straight line from the square to the gate cuts behind the market row's houses -- with the walk now happening under the player's free camera, he was watched wading into the back-lot grass. This mark sits ON Path_TownMain; two street hops read as a boy using the road."
+        },
+        {
+          "Kind": 7,
+          "KindName": "MoveActor",
+          "Id": "NPC_Rival",
           "Target": "Mark_Rival_GateStand",
-          "Seconds": 12.0,
+          "Seconds": 8.0,
           "Value": false,
           "Note": "Square to the head of the ramp: 7.3 m in a straight line, more along the path, which is 5.2 s of walking at 1.4 m/s BEFORE the path is longer than the line -- against a timeout that was 5.0. So this beat ended in the snap every single time and said so: '[Episode] NPC_Rival did not reach Mark_Rival_GateStand within 5.0s and was snapped there.' Widened to 12 s rather than moving the mark closer, because the walk is the shot. Value false because he is leaving: MoveActor turns an actor to face the player on arrival, and a boy who has just shouted that he is counting must not stop at the gate and look back."
         },
