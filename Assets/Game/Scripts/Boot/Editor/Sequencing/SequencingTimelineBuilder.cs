@@ -183,12 +183,20 @@ namespace PokeLab.Sequencing.Editor
             timelineClip.start = 0.0;
             timelineClip.displayName = "Camera";
 
+            // The curves are WORLD poses and must land verbatim. CreateClip defaults
+            // removeStartOffset to true, which re-bases the whole move on wherever the
+            // camera happened to stand when the director hit play — the reveal therefore
+            // never once framed the dome in a real session: it drifted a metre and a
+            // quarter from the rig's resting pose near the origin, photographing whatever
+            // lay south of it. Measured in play at (0.0, -0.4, 1.7) against an authored
+            // (-8.8, 3.15, -13.1) before this flag was found.
+            if (timelineClip.asset is UnityEngine.Timeline.AnimationPlayableAsset playable)
+                playable.removeStartOffset = false;
+
             EditorUtility.SetDirty(timeline);
-            // No ImportAsset here: importing re-reads the file from DISK and replaces the
+            // No ImportAsset here: it re-reads the file from disk and replaces the
             // in-memory objects, discarding the track and clip built above before
-            // BuildTimelines' SaveAssets can write them. Every rebuilt timeline shipped as
-            // 4.6 seconds of nothing (m_AnimClip fileID 0) because of that one call, with
-            // the importer's "generated inconsistent result" as the only witness.
+            // BuildTimelines' SaveAssets can write them.
         }
 
         /// <summary>
