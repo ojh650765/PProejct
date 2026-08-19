@@ -15,7 +15,9 @@ namespace PokeLab.Overworld
     /// worker registers the real dex, every creature built after that point is exact, and the
     /// fallback is loud about having been used.
     ///
-    /// The battle engine owns mutation of these instances. This type only ever constructs them.
+    /// The battle engine owns mutation of these instances DURING a battle. This type
+    /// constructs them and services them between battles — stat rebuilds, the healing
+    /// machine's full restore, and scripted level grants.
     /// </summary>
     public static class CreatureFactory
     {
@@ -177,6 +179,28 @@ namespace PokeLab.Overworld
                 if (move == null) continue;
                 creature.Moves.Add(new MoveSlot { MoveId = move.Id, CurrentPp = move.PowerPoints, MaxPp = move.PowerPoints });
             }
+        }
+
+        /// <summary>
+        /// Grants whole levels — a scripted reward, not earned experience.
+        ///
+        /// Level and the experience floor move together, because the engine levels on
+        /// <c>Experience >= ExperienceForLevel(Level + 1)</c>: a level granted without its
+        /// experience would have to be earned all over again before the next one, and the
+        /// experience bar would draw a negative fraction for its whole span — the exact bug
+        /// the Experience seeding in <see cref="Create"/> exists to prevent. Stats are then
+        /// rebuilt through <see cref="ApplyStats"/>, the same path a save restore and the
+        /// battle engine's own level-up use, so max HP moves properly and damage taken is
+        /// carried rather than washed out. Deliberately NOT a heal — callers that mean
+        /// "levelled and treated" say so by calling <see cref="FullHeal"/> after, in that
+        /// order, so the heal fills to the new maximum.
+        /// </summary>
+        public static void GrantLevels(CreatureInstance creature, int levels)
+        {
+            if (creature == null || levels <= 0) return;
+            creature.Level = Mathf.Clamp(creature.Level + levels, 1, MaxLevel);
+            creature.Experience = Mathf.Max(creature.Experience, ExperienceForLevel(creature.Level));
+            ApplyStats(creature);
         }
 
         /// <summary>Full restore: HP to max, status cleared, PP refilled. The healing machine's job.</summary>

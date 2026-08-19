@@ -1,6 +1,5 @@
 using PokeLab.Core;
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace PokeLab.Overworld
 {
@@ -42,7 +41,6 @@ namespace PokeLab.Overworld
         [SerializeField] private float _rearmMargin = 1.8f;
 
         private BoxCollider _wall;
-        private NavMeshObstacle _navBlock;
         private Transform _player;
         private bool _spoken;
 
@@ -60,38 +58,26 @@ namespace PokeLab.Overworld
             // player walks through.
             _wall.center = new Vector3(0f, size.y * 0.5f - 1f, 0f);
             _wall.isTrigger = false;
-            EnsureNavBlock();
         }
 
         private void Awake()
         {
             _wall = GetComponent<BoxCollider>();
             _wall.isTrigger = false;
-            EnsureNavBlock();
         }
 
-        /// <summary>
-        /// Stands a carving NavMeshObstacle in the wall's own box, added at runtime so no
-        /// scene rewrite is needed.
-        ///
-        /// The collider blocks the player's body; this is what blocks an agent's PATH, and it
-        /// is the half that was missing. The gate used to be baked straight into the navmesh —
-        /// its collider sits on a layer BuildNavigation collects — so the ramp under it was a
-        /// permanent hole in the town mesh: disabling the collider let the player through and
-        /// let no agent through, ever, and Kes' walk out of town turned right at the fence
-        /// because the ramp was the one place his path could not go. The builder now keeps the
-        /// wall out of the bake (NavMeshModifier, see BuildStoryGate) and this obstacle carves
-        /// the same box only while the gate is genuinely closed.
-        /// </summary>
-        private void EnsureNavBlock()
-        {
-            if (_navBlock == null) _navBlock = GetComponent<NavMeshObstacle>();
-            if (_navBlock == null) _navBlock = gameObject.AddComponent<NavMeshObstacle>();
-            _navBlock.shape = NavMeshObstacleShape.Box;
-            _navBlock.carving = true;
-            _navBlock.size = _wall.size;
-            _navBlock.center = _wall.center;
-        }
+        // The wall blocks the PLAYER and nobody else — the user's design, stated exactly:
+        // "플레이어만 못 지나가게 하고 에이전트는 괜찮도록". The solid collider stops the
+        // CharacterController; NavMesh agents ignore physics colliders and their mesh is
+        // continuous through the gate (BuildStoryGate keeps this box out of the bake with a
+        // NavMeshModifier — it used to be baked in, which severed the ramp permanently and
+        // sent every departing agent into the fence beside it). There is deliberately NO
+        // NavMeshObstacle and no carving: a scripted walk must never be re-routed by a story
+        // rule aimed at the player. The accepted trade is visual — an agent crossing while
+        // the gate is still closed would clip through the visible wall — and it is accepted
+        // because no authored NPC route crosses the ramp before story.gate_open: Bram stands
+        // beside it, the villagers' waypoints are all in-town, and Kes' exit runs only after
+        // the same episode has set the flag.
 
         private void Update()
         {
@@ -101,12 +87,10 @@ namespace PokeLab.Overworld
                 // this object is per-scene load: a player who re-enters town on a save that has
                 // not opened the gate needs the wall back.
                 _wall.enabled = false;
-                if (_navBlock != null) _navBlock.enabled = false;
                 return;
             }
 
             _wall.enabled = true;
-            if (_navBlock != null) _navBlock.enabled = true;
             Speak();
         }
 

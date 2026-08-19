@@ -107,6 +107,14 @@ namespace PokeLab.Overworld
         /// <see cref="CameraShot"/>.
         /// </summary>
         PlayTimeline = 20,
+        /// <summary>
+        /// Grants the player's whole party `amount` levels (0 = none) and then restores
+        /// everyone to full — HP to the NEW maximum, status cleared, PP refilled. Level first,
+        /// heal second, so the heal fills what the level-up just raised. The level grant rides
+        /// the same stat-rebuild path a save restore uses (<see cref="CreatureFactory"/>), not
+        /// hand-poked numbers. Instant; waits for nothing.
+        /// </summary>
+        RestoreParty = 21,
     }
 
     [Serializable]
@@ -728,6 +736,10 @@ reachedTheEnd = true;
 
                 case EpisodeBeatKind.CreatureApproach:
                     yield return RunCreatureApproach(beat);
+                    break;
+
+                case EpisodeBeatKind.RestoreParty:
+                    RunRestoreParty(beat);
                     break;
 
                 default:
@@ -1554,12 +1566,14 @@ reachedTheEnd = true;
         ///
         /// And the agent only drives a leg it can genuinely path — PathComplete, not partial.
         /// A partial path is worse than none: the agent runs to whatever point of its own mesh
-        /// lies nearest the target, which at the town gate is the fence BESIDE the ramp,
-        /// because the baked StoryGate wall carves the ramp itself out of the town mesh (see
-        /// StoryGate). A leg the mesh cannot carry is walked as a scripted straight line at
-        /// _exitRunSpeed instead, reseated on the ground each step — the actor is leaving the
-        /// playable space anyway, and a walk that visibly goes the right way and then
-        /// relocates unseen is honest staging where a veer into the fence is not.
+        /// lies nearest the target, which at the town gate was the fence BESIDE the ramp while
+        /// the baked StoryGate wall still severed the town mesh (fixed in the 2026-08-20
+        /// rebake; the gate now blocks only the player, and agents pass it even closed — see
+        /// StoryGate). The scripted leg is the belt-and-braces path today, kept because the
+        /// band seam still returns partial: a leg the mesh cannot carry is walked as a
+        /// straight line at the beat's pace, reseated on the ground each step — the actor is
+        /// leaving the playable space anyway, and a walk that visibly goes the right way and
+        /// then relocates unseen is honest staging where a veer into the fence is not.
         /// </summary>
         private IEnumerator RunExitActor(EpisodeBeat beat)
         {
@@ -2201,6 +2215,44 @@ reachedTheEnd = true;
             // The flow hands control back to the player when it returns, which is right for a
             // wild encounter and wrong in the middle of a scripted scene. Put the freeze back.
             if (_controlHeld) SetControl(false);
+        }
+
+        /// <summary>
+        /// Levels the party up and puts everyone back on their feet — the professor looking
+        /// the starter over after its first fight ("스타팅 전투 끝나면 플레이어의 포켓몬
+        /// 레벨업시켜서 HP도 full로 만들기").
+        ///
+        /// `amount` is levels to grant; 0 is a plain full heal. Order matters and is fixed
+        /// here rather than trusted to callers: the level grant rebuilds max HP through the
+        /// same stat path a save restore uses, and only THEN does the heal fill to it — the
+        /// other way round leaves the new level's HP margin empty. Whole-party on purpose:
+        /// today the party is exactly the starter, and a beat that names slots would be a
+        /// schema for scenes nobody has written.
+        /// </summary>
+        private void RunRestoreParty(EpisodeBeat beat)
+        {
+            if (!ServiceHub.TryGet<IPlayerProfile>(out var profile) || profile?.Party == null
+                || profile.Party.Count == 0)
+            {
+                Debug.LogWarning("[Episode] RestoreParty with no party to restore. The beat is " +
+                                 "skipped; if this is the post-battle heal, the battle it follows " +
+                                 "should have guaranteed a starter.", this);
+                return;
+            }
+
+            var levels = Mathf.Max(0, beat.Amount);
+            var treated = new List<string>(profile.Party.Count);
+            foreach (var member in profile.Party)
+            {
+                if (member == null) continue;
+                CreatureFactory.GrantLevels(member, levels);
+                CreatureFactory.FullHeal(member);
+                treated.Add($"{CreatureFactory.DisplayName(member)} Lv{member.Level} " +
+                            $"{member.CurrentHp}/{member.MaxHp}");
+            }
+
+            Debug.Log($"[Episode] RestoreParty: +{levels} level(s) and a full restore for " +
+                      $"{treated.Count} party member(s) — {string.Join(", ", treated)}.", this);
         }
 
         // --- Staged creatures ------------------------------------------------------------------
