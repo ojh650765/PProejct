@@ -2484,7 +2484,14 @@ reachedTheEnd = true;
             // path in and out — see SetMusicSceneHold for why the mode stack cannot carry
             // this.
             SetMusicSceneHold(!enabled);
-            if (_cameraRig != null) _cameraRig.ControlEnabled = enabled;
+            if (_cameraRig != null)
+            {
+                _cameraRig.ControlEnabled = enabled;
+                // The scene borrowed the camera; giving control back gives back the framing
+                // the player had arranged before it, so a conversation never permanently
+                // rearranges their viewpoint.
+                if (enabled) _cameraRig.ReleaseLookToward();
+            }
             foreach (var reader in FindObjectsByType<OverworldInputReader>(
                          FindObjectsInactive.Exclude, FindObjectsSortMode.None))
             {

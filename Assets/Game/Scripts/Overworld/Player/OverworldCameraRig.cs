@@ -227,9 +227,12 @@ namespace PokeLab.Overworld
             if (look.sqrMagnitude > 0.000001f)
             {
                 _idleLookTimer = 0f;
-                // The stick cancels a scripted turn outright: two writers easing the same
-                // axis in different directions is the camera fighting the player.
+                // The stick cancels a scripted turn and any owed restore outright: the
+                // player just took the camera back, and where they point it is the new
+                // arrangement worth preserving.
                 _lookTowardEasing = false;
+                _lookTowardRestoring = false;
+                _hasRestoreYaw = false;
 
                 var horizontal = _orbital.HorizontalAxis;
                 horizontal.Value += look.x;
@@ -390,9 +393,33 @@ namespace PokeLab.Overworld
             var direction = Vector3.ProjectOnPlane(worldPoint - _followTarget.position, Vector3.up);
             if (direction.sqrMagnitude < 0.0001f) return;
 
+            // The player's own arrangement is remembered once, before the first scripted
+            // turn of a scene, so the whole exchange can end where it began.
+            if (!_hasRestoreYaw && !_lookTowardEasing)
+            {
+                _restoreYaw = _orbital.HorizontalAxis.Value;
+                _hasRestoreYaw = true;
+            }
+
             _lookTowardYaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
             _lookTowardEasing = true;
             _idleLookTimer = 0f;
+        }
+
+        /// <summary>
+        /// Eases the yaw back to where the player had it before the last scripted turn.
+        /// The conversation borrowed the camera; giving control back must also give back
+        /// the framing, or every exchange permanently rearranges a camera the player owns.
+        /// </summary>
+        public void ReleaseLookToward()
+        {
+            if (!_hasRestoreYaw) return;
+            _lookTowardYaw = _restoreYaw;
+            _lookTowardEasing = true;
+            // Faster than the turn out: the restore runs while a conversation camera still
+            // covers the screen, and should be over before its exit blend lands here.
+            _lookTowardRestoring = true;
+            _hasRestoreYaw = false;
         }
 
         [Tooltip("Degrees per second a LookToward turn moves the yaw. Fast enough to arrive " +
@@ -401,17 +428,24 @@ namespace PokeLab.Overworld
 
         private float _lookTowardYaw;
         private bool _lookTowardEasing;
+        private bool _lookTowardRestoring;
+        private float _restoreYaw;
+        private bool _hasRestoreYaw;
 
         /// <summary>Eases a pending LookToward. The player's own stick always wins mid-turn.</summary>
         private void ApplyLookToward(float dt)
         {
             if (!_lookTowardEasing || _orbital == null) return;
 
+            var rate = _lookTowardRestoring ? _lookTowardRate * 2.5f : _lookTowardRate;
             var horizontal = _orbital.HorizontalAxis;
-            horizontal.Value = Mathf.MoveTowardsAngle(horizontal.Value, _lookTowardYaw, _lookTowardRate * dt);
+            horizontal.Value = Mathf.MoveTowardsAngle(horizontal.Value, _lookTowardYaw, rate * dt);
             _orbital.HorizontalAxis = horizontal;
             if (Mathf.Abs(Mathf.DeltaAngle(horizontal.Value, _lookTowardYaw)) < 0.5f)
+            {
                 _lookTowardEasing = false;
+                _lookTowardRestoring = false;
+            }
         }
 
         /// <summary>Overrides the rest distance, e.g. tightening in a cave corridor.</summary>
