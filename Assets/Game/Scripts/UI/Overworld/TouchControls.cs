@@ -3,12 +3,13 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.OnScreen;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 namespace PokeLab.UI
 {
     /// <summary>
-    /// A thumbstick and an action button, for playing on a phone.
+    /// A thumbstick, an action button and a look surface, for playing on a phone.
     ///
     /// The web build is the version people will actually open, and on a phone it has no
     /// controls at all: the game reads a keyboard and a gamepad, and a browser on a
@@ -17,9 +18,13 @@ namespace PokeLab.UI
     /// The controls are Input System on-screen controls, not a parallel input path: the
     /// stick injects into <c>&lt;Gamepad&gt;/leftStick</c> and the button into
     /// <c>&lt;Gamepad&gt;/buttonNorth</c>, which are exactly the paths the action asset and
-    /// <c>OverworldInputReader</c> already bind. Everything downstream — movement, the
-    /// dialogue advance, the interact prompt — works unchanged, and the input reader's
-    /// freeze gate applies to a thumb the same way it applies to a keyboard.
+    /// <c>OverworldInputReader</c> already bind. Camera look is the one exception — a drag
+    /// on the right half of the screen routes pixel deltas through
+    /// <see cref="TouchLookRoute"/> into the reader's own look path, because the Look
+    /// action's <c>&lt;Pointer&gt;/delta</c> binding cannot tell a camera drag from the
+    /// stick's thumb. Everything downstream — movement, the dialogue advance, the interact
+    /// prompt — works unchanged, and the input reader's freeze gate applies to a thumb the
+    /// same way it applies to a keyboard.
     ///
     /// Self-bootstrapped like <c>AvPresenterHost</c>, because no scene may be edited and
     /// every scene needs it. Built rather than authored, like every other screen here.
@@ -155,6 +160,19 @@ namespace PokeLab.UI
             UiBuilder.ConfigureCanvas(_canvas, SortingOrder);
             UiBuilder.EnsureEventSystem();
 
+            // The look pad: an invisible drag surface over the right half of the screen.
+            // Without it the only yaw on a phone is AutoFollow, which reads as a camera
+            // moving on its own. First child on purpose — the A button and the stick are
+            // later in the hierarchy, so they render above and win the raycast wherever
+            // they overlap it: a touch on the button presses the button, never looks.
+            var pad = UiBuilder.Image("LookPad", canvasGo.transform, null,
+                new Color(0f, 0f, 0f, 0f), Image.Type.Simple, raycast: true);
+            pad.rectTransform.anchorMin = new Vector2(0.5f, 0f);
+            pad.rectTransform.anchorMax = Vector2.one;
+            pad.rectTransform.offsetMin = Vector2.zero;
+            pad.rectTransform.offsetMax = Vector2.zero;
+            pad.gameObject.AddComponent<LookPad>();
+
             // Notches and rounded phone corners: the container tracks Screen.safeArea, so
             // neither control is ever authored flush to a physical edge it cannot use.
             var safe = UiBuilder.Rect("SafeArea", canvasGo.transform);
@@ -274,6 +292,51 @@ namespace PokeLab.UI
                 _target.offsetMin = Vector2.zero;
                 _target.offsetMax = Vector2.zero;
             }
+        }
+
+        /// <summary>
+        /// Camera look from a drag on the right half of the screen, fed to the input reader
+        /// through <see cref="TouchLookRoute"/> in raw screen pixels — the reader applies
+        /// its mouse degrees-per-pixel, so touch and mouse look at identical sensitivity.
+        ///
+        /// uGUI's per-pointer capture is the claiming rule: a touch is this pad's only if
+        /// it began on the pad — began on the stick and it stays the stick's for its whole
+        /// life, began on a button and it is a press — which is what lets one thumb steer
+        /// while the other looks. Touch pointers only: mouse and pen already reach the
+        /// reader through the Look action, and counting them here too would double every
+        /// right-half drag on a touch laptop.
+        /// </summary>
+        private sealed class LookPad : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IDragHandler
+        {
+            private const int None = int.MinValue;
+
+            // One finger owns the camera: a second touch landing on the pad while the
+            // first still drags would double the rate, so it is ignored until the owner
+            // lifts.
+            private int _pointer = None;
+
+            public void OnPointerDown(PointerEventData eventData)
+            {
+                if (_pointer == None && IsTouch(eventData)) _pointer = eventData.pointerId;
+            }
+
+            public void OnDrag(PointerEventData eventData)
+            {
+                if (eventData.pointerId == _pointer) TouchLookRoute.Add(eventData.delta);
+            }
+
+            public void OnPointerUp(PointerEventData eventData)
+            {
+                if (eventData.pointerId == _pointer) _pointer = None;
+            }
+
+            // The pad hides with the canvas (battle, touchscreen removal); the claim must
+            // not survive into the next show or a recycled pointer id could steal it.
+            private void OnDisable() => _pointer = None;
+
+            private static bool IsTouch(PointerEventData eventData) =>
+                eventData is ExtendedPointerEventData extended
+                && extended.pointerType == UIPointerType.Touch;
         }
 
         /// <summary>

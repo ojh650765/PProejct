@@ -1,4 +1,5 @@
 using System;
+using PokeLab.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -197,24 +198,36 @@ namespace PokeLab.Overworld
 
         private Vector2 ReadLook()
         {
-            if (_look == null) return Vector2.zero;
-            var raw = _look.ReadValue<Vector2>();
-            if (raw.sqrMagnitude < 0.000001f) return Vector2.zero;
+            // Touch look arrives through the route, not the Look action: the action's
+            // <Pointer>/delta binding cannot tell a camera drag from a thumb steering the
+            // on-screen stick, so the look pad — which knows which touch it owns — feeds
+            // pixels here directly. Multiplied by the mouse sensitivity because the pad's
+            // deltas are the same unit as mouse deltas: one degrees-per-pixel for every
+            // drag-shaped device. Consumed only here, inside the input gate, so a frozen
+            // player cannot be looked around by a stray drag.
+            var scaled = TouchLookRoute.Consume() * _mouseLookSensitivity;
 
-            var control = _look.activeControl;
+            var raw = _look != null ? _look.ReadValue<Vector2>() : Vector2.zero;
+            if (raw.sqrMagnitude >= 0.000001f)
+            {
+                var control = _look.activeControl;
 
-            // A touchscreen is a Pointer, so a thumb dragging the on-screen stick would land
-            // here as look delta and yaw the camera while steering. This game has no
-            // touch-look: on a touchscreen the camera belongs to the rig, never the finger.
-            if (control != null && control.device is Touchscreen) return Vector2.zero;
+                // A touchscreen is a Pointer, so a thumb dragging the on-screen stick would
+                // land here as look delta and yaw the camera while steering. Touchscreen
+                // deltas are dropped from the action path entirely; touch look goes through
+                // the route above, where the pad has already excluded the stick's thumb.
+                if (!(control != null && control.device is Touchscreen))
+                {
+                    // Mouse delta is per-frame pixels; a stick is a normalised, frame-rate
+                    // independent rate. Treating them the same makes one of the two feel
+                    // broken, so branch on device.
+                    var isPointerDelta = control != null && control.device is Pointer;
 
-            // Mouse delta is per-frame pixels; a stick is a normalised, frame-rate independent
-            // rate. Treating them the same makes one of the two feel broken, so branch on device.
-            var isPointerDelta = control != null && control.device is Pointer;
-
-            var scaled = isPointerDelta
-                ? raw * _mouseLookSensitivity
-                : raw * (_gamepadLookSensitivity * Time.deltaTime);
+                    scaled += isPointerDelta
+                        ? raw * _mouseLookSensitivity
+                        : raw * (_gamepadLookSensitivity * Time.deltaTime);
+                }
+            }
 
             if (_invertLookY) scaled.y = -scaled.y;
             return scaled;
