@@ -119,6 +119,15 @@ namespace PokeLab.Overworld
         public float Seconds = 0.4f;
         public int Amount = 1;
         public bool Value = true;
+
+        /// <summary>
+        /// ExitActor only: this departure's metres per second, driving the agent on mesh legs
+        /// and the scripted line alike. Authored per beat because the pace is characterisation
+        /// — Kes bolts for the cave while Linden must never inherit a run — and 0 (absent in
+        /// the JSON) keeps the walker's own agent speed on mesh legs and the runner's
+        /// _exitRunSpeed on scripted ones.
+        /// </summary>
+        public float Speed;
     }
 
     [Serializable]
@@ -1589,6 +1598,9 @@ reachedTheEnd = true;
             var gone = false;     // the despawn rule was satisfied: nobody could have seen the end
             var arrived = false;  // Value false only: the walk genuinely reached the landing mark
             var agentDisabledHere = false;
+            // The beat's own pace where it authored one — see EpisodeBeat.Speed.
+            var scriptedSpeed = beat.Speed > 0.01f ? beat.Speed : _exitRunSpeed;
+            var agentSpeedRestore = -1f;
 
             var leg = 0;
             var destination = route[0].position;
@@ -1598,6 +1610,13 @@ reachedTheEnd = true;
             var scripted = !AgentCanReach(agent, destination);
             if (!scripted)
             {
+                if (beat.Speed > 0.01f)
+                {
+                    // The agent runs this departure at the beat's pace, and its own speed goes
+                    // back afterwards — the exit must not retune whoever it borrowed.
+                    agentSpeedRestore = agent.speed;
+                    agent.speed = beat.Speed;
+                }
                 agent.isStopped = false;
                 // Zero, not the arrival tolerance: somebody leaving does not slow down and stop
                 // politely on a mark they are only passing through.
@@ -1692,7 +1711,7 @@ reachedTheEnd = true;
                     // driven blind — a transform walk that shoves through a prop's collider is
                     // reseated on TOP of it by the ground ray, and the player watched Kes
                     // summit a rock on his way over.
-                    var step = SteerStep(body, destination, _exitRunSpeed * Time.deltaTime);
+                    var step = SteerStep(body, destination, scriptedSpeed * Time.deltaTime);
                     var facing = Flatten(step - body.position);
                     PlaceActor(body, locomotion, step,
                         facing.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(facing) : body.rotation);
@@ -1787,6 +1806,7 @@ reachedTheEnd = true;
                     if (!agent.isOnNavMesh) agent.Warp(landing);
                 }
             }
+            if (agentSpeedRestore > 0f && agent != null) agent.speed = agentSpeedRestore;
             StopAgent(agent);
         }
 

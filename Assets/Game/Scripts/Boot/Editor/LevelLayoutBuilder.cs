@@ -2005,8 +2005,14 @@ namespace PokeLab.Boot.Editor
             // the player while it is pending, and it can only read one that is there. Without
             // that, the sight cone and the story beat race for who starts the fight and the
             // loser is the party built from the player's starter.
+            //
+            // REGATED to story.cave_act (2026-08-20), which NOTHING sets yet: the user's
+            // revision has Kes leave the lake on the bet without fighting — he runs for the
+            // grotto at the end of field_professor_returns — so this beat belongs to the cave
+            // act, whose opener will own the flag and probably move his post with it. Gated
+            // rather than deleted, so the fight and its starter-counter party wait whole.
             new StoryTrigger("NPC_Rival", "rival_first_battle",
-                             "story.pokedex", "story.rival_battle_done", 5.0f, 0f),
+                             "story.cave_act", "story.rival_battle_done", 5.0f, 0f),
         };
 
         /// <summary>Arms the authored story beats on the people who carry them.</summary>

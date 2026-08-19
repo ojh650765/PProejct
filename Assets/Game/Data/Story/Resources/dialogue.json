@@ -828,8 +828,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Come up to the lab when you have had your look at the lake and I will put it in the register in ink. Then it is a gift.",
-          "TextKo": "호수 보고 연구소로 오게. 기록에 잉크로 올려 주겠네. 그때부터 자네 걸세."
+          "Text": "Have your look at the lake and come back. I will put it in the register in ink. Then it is a gift.",
+          "TextKo": "호수를 보고 오게. 기록에 잉크로 올려 주겠네. 그때부터 자네 걸세."
         },
         {
           "SpeakerId": "npc_professor_01",
@@ -1133,8 +1133,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Go on. And come up to the lab afterwards — I meant what I said about the ink.",
-          "TextKo": "가 보게. 끝나면 연구소로 오고. 잉크 얘기는 진심일세."
+          "Text": "Go on. I meant what I said about the ink.",
+          "TextKo": "가 보게. 잉크 얘기는 진심일세."
         }
       ]
     },
@@ -1371,8 +1371,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "The professor's rule isn't. He wants you at the lab first — something about ink. It's a two-minute walk.",
-          "TextKo": "박사님 규칙이 남았죠. 연구소부터 들르라시더군요. 잉크가 어쩌고. 걸어서 2분이에요."
+          "Text": "The professor's side isn't. He's down at the lake — something about ink.",
+          "TextKo": "박사님 쪽이 남았죠. 호숫가에 계시던데요. 잉크가 어쩌고 하시면서."
         }
       ]
     },
@@ -1913,7 +1913,7 @@
     {
       "SequenceId": "field_professor_returns",
       "PlaysOnlyOnce": true,
-      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. He arrives after it is over, is alarmed for one line, then stops -- the result is the part he cares about. The dex request comes out of the same thread as his counting on the bank rather than arriving as a reward.",
+      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. He arrives after it is over, is alarmed for one line, then stops -- the result is the part he cares about. The dex request comes out of the same thread as his counting on the bank rather than arriving as a reward. REVISED 2026-08-20 per the user: the lab invite is gone everywhere -- the lab is empty and the story died there -- so Linden asks for the dex work ON THE SPOT and stays on the bank with his count. Then Kes declares the real bet and bolts for the cave; the '벌금 두 배' is his own 100만원 gag doubled, not a new number. 라일락 마을 (Lilac Town) is COINED here -- no next town exists anywhere in the data (sceneLinks only Town<->Field; the cave names only itself) -- flower-named to match Aster, and flagged for the user to rename.",
       "Lines": [
         {
           "SpeakerId": "npc_rival_01",
@@ -2060,10 +2060,70 @@
           "Tone": 0,
           "ToneName": "Neutral",
           "AutoAdvanceSeconds": 0.0,
+          "EventId": "story.dex_given",
+          "Choices": [],
+          "Text": "One favour. This Pokédex — fill it for me. The ones you meet on the road.",
+          "TextKo": "부탁이 하나 있네. 이 도감, 자네가 채워 주게. 길에서 만나는 녀석들 말일세."
+        },
+        {
+          "SpeakerId": "npc_professor_01",
+          "SpeakerName": "Linden",
+          "SpeakerNameKo": "린든",
+          "SpeakerSubtitle": "Aster Field Lab",
+          "SpeakerSubtitleKo": "아스터 필드 연구소",
+          "PortraitKey": "npc_professor_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Come to the lab. Bring that one with you.",
-          "TextKo": "연구소로 오게. 그 녀석도 데리고 오고."
+          "Text": "I'll be here, still counting. Just show me as you pass.",
+          "TextKo": "난 여기서 마저 세고 있겠네. 지나는 길에 보여 주기만 하게."
+        },
+        {
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Right — then from here it's a real bet!",
+          "TextKo": "좋아, 그럼 지금부터 진짜 내기다!"
+        },
+        {
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Greatest trainer! That's me. You get second.",
+          "TextKo": "최고의 트레이너! 그건 나다. 넌 두 번째고."
+        },
+        {
+          "SpeakerId": "npc_rival_01",
+          "SpeakerName": "Kes",
+          "SpeakerNameKo": "케스",
+          "SpeakerSubtitle": "Aster Town",
+          "SpeakerSubtitleKo": "아스터 마을",
+          "PortraitKey": "npc_rival_01",
+          "Tone": 2,
+          "ToneName": "Excited",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "vfx.kes_runs",
+          "Choices": [],
+          "Text": "Through the cave — Lilac Town! See you there. Late and the fine doubles!?",
+          "TextKo": "동굴 지나서 라일락 마을! 거기서 보자. 늦으면 벌금 두 배다!?"
         }
       ]
     },
