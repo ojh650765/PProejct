@@ -107,6 +107,23 @@ namespace PokeLab.Audio
         private float _nextThunder;
         private int _thunderIndex;
 
+        /// <summary>
+        /// True while a scripted episode holds the beds. See <see cref="SetCinematicHold"/>.
+        /// </summary>
+        private bool _cinematicHold;
+
+        /// <summary>
+        /// Master gain the hold drives: 1 in free play, 0 while held, moving through
+        /// MoveTowards like every other level in this component. Volume is the only thing
+        /// the hold touches — targets keep tracking biome, time and weather underneath it,
+        /// so the release fades in whatever the world wants now, not what it wanted when
+        /// the scene took the beds.
+        /// </summary>
+        private float _holdGain = 1f;
+
+        private const float HoldFadeOutSeconds = 0.8f;
+        private const float HoldFadeInSeconds = 1f;
+
         private sealed class Emitter
         {
             public AudioSource Source;
@@ -278,6 +295,9 @@ namespace PokeLab.Audio
         {
             float step = Time.deltaTime / Mathf.Max(0.05f, blendSeconds);
 
+            _holdGain = Mathf.MoveTowards(_holdGain, _cinematicHold ? 0f : 1f,
+                Time.deltaTime / (_cinematicHold ? HoldFadeOutSeconds : HoldFadeInSeconds));
+
             for (int i = 0; i < _current.Length; i++)
             {
                 _current[i] = Mathf.MoveTowards(_current[i], _target[i], step);
@@ -287,17 +307,22 @@ namespace PokeLab.Audio
                 if (src.clip == null) src.clip = ClipFor(AudioIds.AmbienceLayers[i]);
                 if (src.clip == null) continue;
 
-                float gain = _current[i] * ambienceLevel;
+                float gain = _current[i] * ambienceLevel * _holdGain;
                 src.volume = gain;
 
                 if (gain > 0.001f)
                 {
                     _silentFor[i] = 0f;
-                    if (!src.isPlaying)
+                    // A held director never starts a bed: the target keeps tracking the
+                    // world, but nothing new may sound until the scene hands the beds back.
+                    if (!src.isPlaying && !_cinematicHold)
                     {
                         // random entry point: the beds are stationary textures, so this is
-                        // inaudible, and it stops every layer restarting in lockstep.
-                        src.time = UnityEngine.Random.Range(0f, Mathf.Max(0.01f, src.clip.length - 0.1f));
+                        // inaudible, and it stops every layer restarting in lockstep. Only
+                        // when the data is in: these clips stream on WebGL, and asking an
+                        // unloaded clip its length logs once per start.
+                        if (src.clip.loadState == AudioDataLoadState.Loaded)
+                            src.time = UnityEngine.Random.Range(0f, Mathf.Max(0.01f, src.clip.length - 0.1f));
                         src.Play();
                     }
                 }
@@ -310,6 +335,26 @@ namespace PokeLab.Audio
 
             UpdateEmitters();
             UpdateThunder();
+        }
+
+        /// <summary>
+        /// The scripted-scene gate, driven by EpisodeRunner (by reflection — the overworld
+        /// deliberately does not reference the audio assembly) when the opening takes the
+        /// beds and again when it gives them back. The twin of
+        /// <see cref="MusicDirector.SetCinematicHold"/>, and the release rides the same
+        /// every-path-out guarantee that one does.
+        ///
+        /// While held, everything this director voices fades to silence — beds and 3D
+        /// emitters both — and nothing new may start; biome, time and weather arrivals
+        /// still update the targets, so release fades in what the world wants now. The
+        /// whole effect is one gain, so calling this before Awake has built the sources
+        /// only moves a float.
+        /// </summary>
+        [UnityEngine.Scripting.Preserve] // reached only by reflection; stripping must not eat it
+        public void SetCinematicHold(bool held)
+        {
+            if (_cinematicHold == held) return;
+            _cinematicHold = held;
         }
 
         // ---- 3D emitters -------------------------------------------------------------
@@ -342,10 +387,13 @@ namespace PokeLab.Audio
             src.rolloffMode = AudioRolloffMode.Logarithmic;
             src.minDistance = minDistance;
             src.maxDistance = maxDistance;
-            src.volume = volume * ambienceLevel;
+            src.volume = volume * ambienceLevel * _holdGain;
             src.outputAudioMixerGroup = _director != null ? _director.GroupFor(AudioBus.Ambience) : null;
             src.transform.position = anchor.position;
-            src.time = UnityEngine.Random.Range(0f, Mathf.Max(0.01f, clip.length - 0.1f));
+            // Only when the data is in: these clips stream on WebGL, and asking an unloaded
+            // clip its length logs. An unloaded emitter starts from 0 instead.
+            if (clip.loadState == AudioDataLoadState.Loaded)
+                src.time = UnityEngine.Random.Range(0f, Mathf.Max(0.01f, clip.length - 0.1f));
             src.Play();
 
             _emitters.Add(new Emitter { Source = src, Anchor = anchor, Volume = volume });
@@ -375,7 +423,7 @@ namespace PokeLab.Audio
                     continue;
                 }
                 e.Source.transform.position = e.Anchor.position;
-                e.Source.volume = e.Volume * ambienceLevel;
+                e.Source.volume = e.Volume * ambienceLevel * _holdGain;
             }
         }
 
@@ -388,6 +436,9 @@ namespace PokeLab.Audio
         private void UpdateThunder()
         {
             if (!thunderInRain || _weather != Weather.Rain) return;
+            // Thunder is a one-shot on the SFX bus, so the hold gain cannot silence it;
+            // gate it here or a clap lands in the middle of a held scene.
+            if (_cinematicHold) return;
             if (Time.time < _nextThunder) return;
             if (_director != null)
             {

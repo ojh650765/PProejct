@@ -1096,7 +1096,10 @@ reachedTheEnd = true;
         /// all — the note it carried is now satisfied rather than deferred.
         /// </summary>
         /// <summary>
-        /// Starts the opening theme as the question is asked.
+        /// Starts the opening theme. Called from the opening's hold placement so the theme
+        /// runs from the professor's first line, and again from the name prompt — the
+        /// degraded path if the hold never ran — which PlayTrack turns into a no-op when
+        /// the theme is already the current or pending track.
         ///
         /// Reached by reflection for the same reason the screen wipe is: MusicDirector lives
         /// in the audio assembly, which PokeLab.Overworld does not reference, and adding that
@@ -1115,7 +1118,7 @@ reachedTheEnd = true;
             play?.Invoke(director, new object[] { OpeningTrack, 1.2f });
         }
 
-        /// <summary>The cue that plays from the name prompt onward.</summary>
+        /// <summary>The cue that scores the opening, from the professor's first line.</summary>
         private const string OpeningTrack = "Music_Opening_Introduction";
 
         private static UnityEngine.Object ResolveMusicDirector() => FindAnyObjectByType(
@@ -1144,28 +1147,61 @@ reachedTheEnd = true;
             // Edge-triggered: SetControl is re-asserted mid-episode every time a nested
             // conversation hands input back (see the _controlHeld re-freezes), and the
             // opening's fade-out below must run once at the top of the scene, not again
-            // over the theme the name prompt has since started.
-            if (held == _musicHoldLive) return;
-
-            var director = ResolveMusicDirector();
-            if (director == null) return;
-            _musicHoldLive = held;
-
-            var hold = director.GetType().GetMethod("SetCinematicHold",
-                BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(bool) }, null);
-            hold?.Invoke(director, new object[] { held });
-
-            // The cold open is a scored silence: from the top of the opening until the
-            // name prompt asks for its theme, no music belongs at all — so whatever the
-            // boot window managed to start goes out under the first fade. Scoped to the
-            // opening by id: a mid-game episode keeps whatever is already playing, because
-            // stopping the town theme for every conversation is exactly the abruptness
-            // this director exists to avoid.
-            if (held && _playingId == OpeningEpisodeId)
+            // over the theme it has since started.
+            if (held != _musicHoldLive)
             {
-                var fade = director.GetType().GetMethod("FadeOutAll",
-                    BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(float) }, null);
-                fade?.Invoke(director, new object[] { 0.8f });
+                var director = ResolveMusicDirector();
+                if (director != null)
+                {
+                    _musicHoldLive = held;
+
+                    var hold = director.GetType().GetMethod("SetCinematicHold",
+                        BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(bool) }, null);
+                    hold?.Invoke(director, new object[] { held });
+
+                    // The opening is scored from its first line: whatever the boot window
+                    // managed to start goes out under one fade, and the theme comes in on
+                    // top of it, so the professor never speaks over the town track. Scoped
+                    // to the opening by id: a mid-game episode keeps whatever is already
+                    // playing, because stopping the town theme for every conversation is
+                    // exactly the abruptness the director exists to avoid.
+                    if (held && _playingId == OpeningEpisodeId)
+                    {
+                        var fade = director.GetType().GetMethod("FadeOutAll",
+                            BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(float) }, null);
+                        fade?.Invoke(director, new object[] { 0.8f });
+                        PlayOpeningTheme();
+                    }
+                }
+            }
+
+            // The ambience beds have no notion of an episode either: their wind loops kept
+            // playing under the opening's black screen and read as noise against the theme.
+            // Placement is opening-only, like the fade above — mid-game conversations keep
+            // their ambience — but the release is keyed on the hold actually being live, not
+            // on the episode id, because this runs from SetControl's every path out
+            // (GiveControl, the finally on an interrupted episode) and a leaked hold is a
+            // game with no ambience for the rest of the session.
+            if (held && !_ambienceHoldLive && _playingId == OpeningEpisodeId)
+            {
+                var ambience = ResolveAmbienceDirector();
+                var ambienceHold = ambience?.GetType().GetMethod("SetCinematicHold",
+                    BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(bool) }, null);
+                if (ambienceHold != null)
+                {
+                    ambienceHold.Invoke(ambience, new object[] { true });
+                    _ambienceHoldLive = true;
+                }
+            }
+            else if (!held && _ambienceHoldLive)
+            {
+                // Cleared before the reflection round-trip: if the director has been torn
+                // down its hold died with it, and the flag must not pin a stale one.
+                _ambienceHoldLive = false;
+                var ambience = ResolveAmbienceDirector();
+                var ambienceHold = ambience?.GetType().GetMethod("SetCinematicHold",
+                    BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(bool) }, null);
+                ambienceHold?.Invoke(ambience, new object[] { false });
             }
         }
 
@@ -1174,6 +1210,12 @@ reachedTheEnd = true;
 
         /// <summary>Whether the hold has actually been placed, so re-asserts stay no-ops.</summary>
         private bool _musicHoldLive;
+
+        /// <summary>Whether this runner placed an ambience hold; the release keys on this.</summary>
+        private bool _ambienceHoldLive;
+
+        private static UnityEngine.Object ResolveAmbienceDirector() => FindAnyObjectByType(
+            System.Type.GetType("PokeLab.Audio.AmbienceDirector, PokeLab.Audio"), FindObjectsInactive.Exclude);
 
         private IEnumerator RunAskName(EpisodeBeat beat)
         {
