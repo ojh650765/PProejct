@@ -410,10 +410,15 @@ namespace PokeLab.Cinematics.Sequencing
         /// </summary>
         private void Claim(CinemachineCamera live)
         {
+            // Unclaimed is -1, not 0. The exploration camera sits at Cinemachine's default
+            // priority of 0, and the brain KEEPS the current live camera on a tie -- so a
+            // release that dropped these to 0 tied with exploration and the frame stayed on
+            // the shot forever. Measured in the deployed build: 'rig released' logged, and
+            // no camera change ever followed it.
             foreach (var cam in _staticCameras)
-                if (cam != null) cam.Priority = cam == live ? ShotPriorities.EpisodeShot : 0;
+                if (cam != null) cam.Priority = cam == live ? ShotPriorities.EpisodeShot : -1;
             if (_timelineCamera != null)
-                _timelineCamera.Priority = _timelineCamera == live ? ShotPriorities.EpisodeShot : 0;
+                _timelineCamera.Priority = _timelineCamera == live ? ShotPriorities.EpisodeShot : -1;
         }
 
         private void StopDolly()
