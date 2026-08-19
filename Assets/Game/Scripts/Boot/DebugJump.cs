@@ -107,6 +107,11 @@ namespace PokeLab.Boot
             switch (_request)
             {
                 case "opening": yield return Episode("opening"); break;
+                // Free roam on the plaza with the opening marked seen — the state one second
+                // after the prologue ends. Exists for probes that need to walk into a story
+                // trigger from outside it; asking for a fake episode id got the same state
+                // plus a warning in the console every run.
+                case "free": break;
                 case "starter": yield return Starter(); break;
                 case "wild": yield return Battle(wild: true); break;
                 case "trainer": yield return Battle(wild: false); break;
