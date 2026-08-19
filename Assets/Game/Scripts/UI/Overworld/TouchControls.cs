@@ -1,3 +1,4 @@
+using PokeLab.Core;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -22,13 +23,18 @@ namespace PokeLab.UI
     ///
     /// Self-bootstrapped like <c>AvPresenterHost</c>, because no scene may be edited and
     /// every scene needs it. Built rather than authored, like every other screen here.
+    ///
+    /// Shown only where a touchscreen exists, and hidden for the length of a battle: that
+    /// screen is tap-driven end to end, so the pad has nothing to steer and would only
+    /// cover the command buttons.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class TouchControls : MonoBehaviour
     {
-        // Under the battle HUD at 380, the dialogue box at 400 and the menus at 460: any
-        // full-screen UI that offers its own tap targets covers these, which is right —
-        // dialogue already advances on a tap anywhere via its ClickCatcher.
+        // Under the dialogue box at 400 and the menus at 460: any full-screen UI that
+        // offers its own tap targets covers these, which is right — dialogue already
+        // advances on a tap anywhere via its ClickCatcher. Battle goes further and hides
+        // the pad outright; see Refresh.
         private const int SortingOrder = 300;
 
         // Canvas units on the 1080-high reference resolution.
@@ -44,7 +50,10 @@ namespace PokeLab.UI
         private static TouchControls s_instance;
 
         private Canvas _canvas;
+        private RectTransform _knob;
         private bool _built;
+        private IGameFlow _flow;
+        private bool _battleHidden;
 
         /// <summary>
         /// Self-bootstraps after the first scene loads. AfterSceneLoad so a scene-authored
@@ -75,8 +84,7 @@ namespace PokeLab.UI
             s_instance = this;
 
             // WebGL can register the touchscreen after startup, so visibility follows the
-            // device list rather than being decided once at boot. No polling: the canvas is
-            // event-driven and this component has no Update.
+            // device list rather than being decided once at boot.
             InputSystem.onDeviceChange += OnDeviceChange;
             Refresh();
         }
@@ -96,12 +104,43 @@ namespace PokeLab.UI
                 Refresh();
         }
 
+        /// <summary>
+        /// Battle hiding polls the flow service, same idiom as BattlePropCurtain: the
+        /// service registers after this host boots, and a poll self-heals across scene
+        /// loads where an event subscription would need re-acquisition anyway. Runs only
+        /// once the canvas exists, so a desktop never pays for it.
+        /// </summary>
+        private void Update()
+        {
+            if (!_built) return;
+            if (_flow == null && !ServiceHub.TryGet(out _flow)) return;
+
+            var inBattle = _flow.Mode == GameMode.Battle || _flow.Mode == GameMode.BattleOutro;
+            if (inBattle == _battleHidden) return;
+            _battleHidden = inBattle;
+            Refresh();
+        }
+
         private void Refresh()
         {
             // Built on first demand, never on desktop: a machine that never reports a
             // touchscreen never allocates a canvas, so the desktop build is untouched.
             if (Wanted && !_built) Build();
-            if (_built) _canvas.gameObject.SetActive(Wanted);
+            if (!_built) return;
+
+            // Hidden through Battle and BattleOutro: that UI is tap-driven and owns the
+            // whole screen, so the pad would only cover its buttons. The touch-device rule
+            // stays the outer condition — a desktop never shows the pad in any mode.
+            var visible = Wanted && !_battleHidden;
+            if (_canvas.gameObject.activeSelf == visible) return;
+            _canvas.gameObject.SetActive(visible);
+
+            // Deactivating the canvas disables the on-screen controls, whose OnDisable
+            // resets a non-default control and removes the virtual gamepad with the last
+            // control — a stick held when the battle starts cannot latch its input. Only
+            // the knob's rect needs help: a hide mid-drag skips OnPointerUp, and the knob
+            // would come back visually deflected.
+            if (!visible && _knob != null) _knob.anchoredPosition = Vector2.zero;
         }
 
         // --- construction ----------------------------------------------------------------
@@ -121,7 +160,7 @@ namespace PokeLab.UI
             var safe = UiBuilder.Rect("SafeArea", canvasGo.transform);
             canvasGo.AddComponent<SafeAreaFitter>().SetTarget(safe);
 
-            BuildStick(safe);
+            _knob = BuildStick(safe);
             BuildActionButton(safe);
         }
 
@@ -135,7 +174,7 @@ namespace PokeLab.UI
         /// a pure delta: the exact-position modes resolve against canvas-local space and
         /// misplace a stick whose parent is not centred on the canvas.
         /// </summary>
-        private static void BuildStick(RectTransform safe)
+        private static RectTransform BuildStick(RectTransform safe)
         {
             var zone = UiBuilder.Rect("StickZone", safe, false);
             UiBuilder.Anchor(zone, Vector2.zero, Vector2.zero, Vector2.zero,
@@ -162,6 +201,7 @@ namespace PokeLab.UI
             var stick = knob.gameObject.AddComponent<OnScreenStick>();
             stick.movementRange = StickRange;
             stick.controlPath = StickPath;
+            return knob.rectTransform;
         }
 
         /// <summary>
