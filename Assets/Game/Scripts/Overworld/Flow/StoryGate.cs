@@ -1,5 +1,6 @@
 using PokeLab.Core;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace PokeLab.Overworld
 {
@@ -41,6 +42,7 @@ namespace PokeLab.Overworld
         [SerializeField] private float _rearmMargin = 1.8f;
 
         private BoxCollider _wall;
+        private NavMeshObstacle _navBlock;
         private Transform _player;
         private bool _spoken;
 
@@ -58,12 +60,37 @@ namespace PokeLab.Overworld
             // player walks through.
             _wall.center = new Vector3(0f, size.y * 0.5f - 1f, 0f);
             _wall.isTrigger = false;
+            EnsureNavBlock();
         }
 
         private void Awake()
         {
             _wall = GetComponent<BoxCollider>();
             _wall.isTrigger = false;
+            EnsureNavBlock();
+        }
+
+        /// <summary>
+        /// Stands a carving NavMeshObstacle in the wall's own box, added at runtime so no
+        /// scene rewrite is needed.
+        ///
+        /// The collider blocks the player's body; this is what blocks an agent's PATH, and it
+        /// is the half that was missing. The gate used to be baked straight into the navmesh —
+        /// its collider sits on a layer BuildNavigation collects — so the ramp under it was a
+        /// permanent hole in the town mesh: disabling the collider let the player through and
+        /// let no agent through, ever, and Kes' walk out of town turned right at the fence
+        /// because the ramp was the one place his path could not go. The builder now keeps the
+        /// wall out of the bake (NavMeshModifier, see BuildStoryGate) and this obstacle carves
+        /// the same box only while the gate is genuinely closed.
+        /// </summary>
+        private void EnsureNavBlock()
+        {
+            if (_navBlock == null) _navBlock = GetComponent<NavMeshObstacle>();
+            if (_navBlock == null) _navBlock = gameObject.AddComponent<NavMeshObstacle>();
+            _navBlock.shape = NavMeshObstacleShape.Box;
+            _navBlock.carving = true;
+            _navBlock.size = _wall.size;
+            _navBlock.center = _wall.center;
         }
 
         private void Update()
@@ -74,10 +101,12 @@ namespace PokeLab.Overworld
                 // this object is per-scene load: a player who re-enters town on a save that has
                 // not opened the gate needs the wall back.
                 _wall.enabled = false;
+                if (_navBlock != null) _navBlock.enabled = false;
                 return;
             }
 
             _wall.enabled = true;
+            if (_navBlock != null) _navBlock.enabled = true;
             Speak();
         }
 
