@@ -36,6 +36,9 @@ namespace PokeLab.Boot.Editor
         /// the domain reload a recompile causes, which a static field would not.</summary>
         private const string RefreshedKey = "PokeLab.MenuRunner.RefreshedFor";
 
+        /// <summary>Consecutive non-compiling ticks since the refresh for the pending request.</summary>
+        private static int _quietTicks;
+
         private static void Poll()
         {
             if (!File.Exists(RequestPath)) return;
@@ -47,9 +50,18 @@ namespace PokeLab.Boot.Editor
             if (SessionState.GetString(RefreshedKey, "") != stamp)
             {
                 SessionState.SetString(RefreshedKey, stamp);
+                _quietTicks = 0;
                 AssetDatabase.Refresh(ImportAssetOptions.Default);
                 return;
             }
+
+            // Refresh() returns before a queued compile flips isCompiling, so the guard at
+            // the top is blind for a few ticks — a build request served in that window ships
+            // the PREVIOUS assemblies with a straight face. An instrumented build went out
+            // with none of its instrumentation that way. Waiting out a run of quiet ticks is
+            // the same closure PlayModeProbe uses for the identical race.
+            if (++_quietTicks < 150) return;
+            _quietTicks = 0;
 
             string[] lines;
             try
