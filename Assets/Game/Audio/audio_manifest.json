@@ -5,9 +5,9 @@
   "sample_rate": 44100,
   "bit_depth": 16,
   "peak_ceiling_dbfs": -1.0,
-  "clip_count": 117,
-  "total_bytes": 53882448,
-  "total_mb": 51.39,
+  "clip_count": 116,
+  "total_bytes": 49340426,
+  "total_mb": 47.05,
   "categories": [
     "Ambience",
     "Music",
@@ -108,16 +108,6 @@
       "bytes": 3256660,
       "loop_step_ratio": 0.0,
       "trigger": "Lakeside / water biome."
-    },
-    {
-      "name": "Music_Opening_Introduction",
-      "path": "Assets/Game/Audio/Music/Music_Opening_Introduction.mp3",
-      "category": "Music",
-      "loop": false,
-      "channels": 2,
-      "sample_rate": 44100,
-      "trigger": "The opening, from the moment Linden asks the player's name.",
-      "note": "Supplied by hand rather than generated, so it carries no measured levels."
     },
     {
       "name": "Music_Route_Day",
