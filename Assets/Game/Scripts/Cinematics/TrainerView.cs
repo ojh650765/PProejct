@@ -280,7 +280,12 @@ namespace PokeLab.Cinematics
                 new Vector3(-half, top, 0f),
                 new Vector3( half, top, 0f),
             };
-            mesh.uv = new[] { Vector2.zero, Vector2.right, Vector2.up, Vector2.one };
+            // The back sheet is mirrored: drawn throwing with the arm on the side away from
+            // the enemy, so the ball visibly left the wrong hand. Flipping U on the quad
+            // mirrors every throw pose; the front portrait stays as drawn.
+            mesh.uv = back
+                ? new[] { Vector2.right, Vector2.zero, Vector2.one, Vector2.up }
+                : new[] { Vector2.zero, Vector2.right, Vector2.up, Vector2.one };
             mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
             mesh.normals = new[] { -Vector3.forward, -Vector3.forward, -Vector3.forward, -Vector3.forward };
             mesh.RecalculateBounds();
