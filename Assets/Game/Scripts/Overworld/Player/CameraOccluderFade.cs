@@ -25,6 +25,13 @@ namespace PokeLab.Overworld
     /// to the handful of things actually in the way rather than to the whole prop set, and
     /// the strength itself still rides a MaterialPropertyBlock so two walls can be at
     /// different opacities on the same clone.
+    ///
+    /// Foliage takes a second lane through the same bookkeeping, because real alpha is
+    /// exactly what a canopy cannot have: thousands of unsorted two-sided cards on the
+    /// transparent queue stop being leaves and become tearing layers. PokeLab/Foliage
+    /// instead clips pixels against _FadeAmount in every pass (PL_FadeDither), so a tree
+    /// fades in place — same property block drive, same easing, no ghost material ever
+    /// made for it.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class CameraOccluderFade : MonoBehaviour
@@ -50,6 +57,13 @@ namespace PokeLab.Overworld
                  "close it is. Roughly the player's own width plus the probe radius.")]
         [SerializeField] private float _clearanceAtTarget = 1.2f;
 
+        [Tooltip("Radius of the vegetation-only sweep. A tree's capsule is trunk-width — about " +
+                 "13% of the canopy (LevelLayoutBuilder.AddCollision) — so a canopy crosses the " +
+                 "sight line while its trunk stands up to ~2 m off it. This plus the capsule " +
+                 "radius has to cover that overhang. Only foliage may answer the wide probe, so " +
+                 "its width cannot put walls or fences back on the glass path.")]
+        [SerializeField] private float _canopyProbeRadius = 1.5f;
+
         [Header("Fade")]
         [Tooltip("How transparent a blocker becomes. 1 is invisible, which loses the sense " +
                  "of a building being there at all — it should read as glass, not as a gap.")]
@@ -61,7 +75,17 @@ namespace PokeLab.Overworld
         [Tooltip("Slower coming back, so brushing past a corner does not flicker the wall.")]
         [SerializeField] private float _fadeOutSeconds = 0.35f;
 
+        /// <summary>
+        /// How a renderer is allowed to give way. Blend is the ghost-material lane; Dither
+        /// drives _FadeAmount in place and must never be ghosted — a canopy on the
+        /// transparent queue is the fault the old vegetation ban existed to prevent.
+        /// </summary>
+        private enum FadeStyle { None, Blend, Dither }
+
         private readonly RaycastHit[] _hits = new RaycastHit[24];
+        private readonly Collider[] _overlaps = new Collider[24];
+        private readonly Dictionary<Renderer, FadeStyle> _styles =
+            new Dictionary<Renderer, FadeStyle>();
         private readonly Dictionary<Renderer, float> _faded = new Dictionary<Renderer, float>();
         private readonly Dictionary<Renderer, Material[]> _solidMaterials =
             new Dictionary<Renderer, Material[]>();
@@ -210,6 +234,7 @@ namespace PokeLab.Overworld
                 pair.Key.SetPropertyBlock(_block);
             }
             _faded.Clear();
+            _styles.Clear();
 
             foreach (var pair in _solidMaterials)
                 if (pair.Key != null) pair.Key.sharedMaterials = pair.Value;
@@ -252,20 +277,47 @@ namespace PokeLab.Overworld
                     QueryTriggerInteraction.Ignore);
 
                 for (var i = 0; i < count; i++)
-                {
-                    var collider = _hits[i].collider;
-                    if (collider == null) continue;
+                    Collect(_hits[i].collider, foliageOnly: false);
+            }
 
-                    // Never the player, and never the ground. Fading the terrain the player is
-                    // standing on would punch a hole in the world under their feet — the camera
-                    // looks down at it, so it is always between the two.
-                    if (collider.transform.root == _target.root) continue;
-                    if (collider.gameObject.layer == LayerMask.NameToLayer("Ground")) continue;
+            // A second, wider sweep that only vegetation may answer. The rays above hit a
+            // tree only through its capsule, and the capsule is trunk-width on purpose — so
+            // a canopy that hangs across the sight line while its trunk stands beside it was
+            // never collected. An overlap rather than a sphere cast, because a cast reports
+            // nothing it already overlaps at its start, and a canopy filling half the frame
+            // is exactly the tree the camera is already inside.
+            var chest = to + Vector3.up * SampleHeights[1];
+            var line = chest - from;
+            var length = line.magnitude;
+            var span = length - _clearanceAtTarget;
+            if (span > 0.05f && length > 0.05f)
+            {
+                var end = from + line / length * span;
+                var found = Physics.OverlapCapsuleNonAlloc(from, end, _canopyProbeRadius,
+                    _overlaps, _mask, QueryTriggerInteraction.Ignore);
+                for (var i = 0; i < found; i++)
+                    Collect(_overlaps[i], foliageOnly: true);
+            }
+        }
 
-                    foreach (var renderer in collider.GetComponentsInChildren<Renderer>())
-                        if (renderer != null && CanFade(renderer) && !_blocking.Contains(renderer))
-                            _blocking.Add(renderer);
-                }
+        private void Collect(Collider collider, bool foliageOnly)
+        {
+            if (collider == null) return;
+
+            // Never the player, and never the ground. Fading the terrain the player is
+            // standing on would punch a hole in the world under their feet — the camera
+            // looks down at it, so it is always between the two.
+            if (collider.transform.root == _target.root) return;
+            if (collider.gameObject.layer == LayerMask.NameToLayer("Ground")) return;
+
+            foreach (var renderer in collider.GetComponentsInChildren<Renderer>())
+            {
+                if (renderer == null || _blocking.Contains(renderer)) continue;
+                var style = StyleOf(renderer);
+                if (style == FadeStyle.None) continue;
+                if (foliageOnly && style != FadeStyle.Dither) continue;
+                _blocking.Add(renderer);
+                _styles[renderer] = style;
             }
         }
 
@@ -278,25 +330,27 @@ namespace PokeLab.Overworld
         private static readonly float[] SampleHeights = { 0.25f, 0.9f, 1.5f };
 
         /// <summary>
-        /// Whether this renderer is the kind of thing that should give way.
+        /// How this renderer is allowed to give way, if at all.
         ///
-        /// Architecture is. Vegetation and people are not, and letting them through is what the
-        /// stuck-translucency reports were actually looking at. A grass or foliage batch is one
-        /// renderer covering a large part of the frame; putting it on the transparent queue with
-        /// depth writing off makes it sort against everything else by distance to a single
-        /// origin, so it stops being leaves and becomes a flat sheet of green laid over the
-        /// shot. Billboards are worse: they are already alpha-clipped by their own shader, so a
-        /// transparent clone gains nothing and loses the depth they rely on to sit in the world,
-        /// and a half-dissolved NPC standing in a cutscene reads as a rendering fault.
+        /// Architecture blends: its shaders carry _SrcBlend/_DstBlend/_ZWriteMode for the
+        /// ghost clone to flip. Foliage dithers: a canopy is thousands of unsorted two-sided
+        /// cards, and on the transparent queue with depth writing off it sorts as one origin
+        /// and becomes a flat sheet of green — so PokeLab/Foliage instead clips pixels against
+        /// _FadeAmount (PL_FadeDither) in its lit, shadow and depth passes, and needs nothing
+        /// swapped. People and billboards never fade: billboards are already alpha-clipped and
+        /// rely on their depth to sit in the world, and a half-dissolved NPC standing in a
+        /// cutscene reads as a rendering fault.
         ///
         /// The camera stands still through the long scenes — the starter choice, the ambush —
         /// so anything caught here stays caught for as long as the shot lasts. That is why this
         /// has to be a rule about what may fade rather than a timeout.
         /// </summary>
-        private static bool CanFade(Renderer renderer)
+        private static FadeStyle StyleOf(Renderer renderer)
         {
-            if (renderer is SpriteRenderer || renderer is ParticleSystemRenderer) return false;
+            if (renderer is SpriteRenderer || renderer is ParticleSystemRenderer)
+                return FadeStyle.None;
 
+            var dithers = false;
             var materials = renderer.sharedMaterials;
             for (var i = 0; i < materials.Length; i++)
             {
@@ -305,16 +359,20 @@ namespace PokeLab.Overworld
 
                 // The project builds its billboard materials at runtime and names them with a
                 // leading '~'; the shader check catches the authored ones alongside them.
-                if (material.name.Length > 0 && material.name[0] == '~') return false;
-                if (material.name.IndexOf("Foliage", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                    return false;
+                if (material.name.Length > 0 && material.name[0] == '~') return FadeStyle.None;
 
                 var shader = material.shader;
                 if (shader != null && shader.name.IndexOf("Billboard", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                    return false;
+                    return FadeStyle.None;
+
+                if (material.name.IndexOf("Foliage", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    (shader != null && shader.name.IndexOf("Foliage", System.StringComparison.OrdinalIgnoreCase) >= 0))
+                    dithers = true;
             }
 
-            return true;
+            // One foliage slot dithers the whole renderer: ghosting swaps every slot at once,
+            // and a ghost of a foliage material is the tearing this lane exists to avoid.
+            return dithers ? FadeStyle.Dither : FadeStyle.Blend;
         }
 
         private void Drive(float dt)
@@ -353,7 +411,13 @@ namespace PokeLab.Overworld
                 }
                 _faded[renderer] = amount;
 
-                if (amount > 0.0001f) MakeGhost(renderer);
+                // Only the blend lane wears a ghost; the dither lane's shader does its own
+                // clipping and must keep its opaque queue and depth writes.
+                if (amount > 0.0001f)
+                {
+                    if (!_styles.TryGetValue(renderer, out var style) || style == FadeStyle.Blend)
+                        MakeGhost(renderer);
+                }
                 else MakeSolid(renderer);
 
                 renderer.GetPropertyBlock(_block);
@@ -365,7 +429,11 @@ namespace PokeLab.Overworld
                 if (amount <= 0.0001f) _finished.Add(renderer);
             }
 
-            foreach (var renderer in _finished) _faded.Remove(renderer);
+            foreach (var renderer in _finished)
+            {
+                _faded.Remove(renderer);
+                _styles.Remove(renderer);
+            }
 
             // Anything still wearing ghost materials that is no longer fading is put back.
             //
@@ -487,6 +555,7 @@ namespace PokeLab.Overworld
             _ghostSource.Clear();
 
             _faded.Clear();
+            _styles.Clear();
         }
     }
 }
