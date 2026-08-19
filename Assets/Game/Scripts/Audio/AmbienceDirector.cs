@@ -129,6 +129,8 @@ namespace PokeLab.Audio
             public AudioSource Source;
             public Transform Anchor;
             public float Volume;
+            /// <summary>False while the clip's data is still on its way; see TryStartSource.</summary>
+            public bool Started;
         }
 
         // ------------------------------------------------------------------------------
@@ -315,16 +317,9 @@ namespace PokeLab.Audio
                     _silentFor[i] = 0f;
                     // A held director never starts a bed: the target keeps tracking the
                     // world, but nothing new may sound until the scene hands the beds back.
-                    if (!src.isPlaying && !_cinematicHold)
-                    {
-                        // random entry point: the beds are stationary textures, so this is
-                        // inaudible, and it stops every layer restarting in lockstep. Only
-                        // when the data is in: these clips stream on WebGL, and asking an
-                        // unloaded clip its length logs once per start.
-                        if (src.clip.loadState == AudioDataLoadState.Loaded)
-                            src.time = UnityEngine.Random.Range(0f, Mathf.Max(0.01f, src.clip.length - 0.1f));
-                        src.Play();
-                    }
+                    // This runs every frame a wanted bed is silent, so a clip still
+                    // decoding costs nothing: it starts the frame its data lands.
+                    if (!src.isPlaying && !_cinematicHold) TryStartSource(src, src.clip);
                 }
                 else
                 {
@@ -355,6 +350,44 @@ namespace PokeLab.Audio
         {
             if (_cinematicHold == held) return;
             _cinematicHold = held;
+        }
+
+        /// <summary>
+        /// Starts a looping source only once its clip's data has arrived. Play() itself on
+        /// an unloaded clip is what logs "Trying to get length of sound which is not loaded
+        /// yet" from inside Unity on the web build — every clip here ships with
+        /// preloadAudioData off, so the data must be asked for and waited on. Returns true
+        /// once the source is playing (or never will be), false while the caller should
+        /// keep asking.
+        /// </summary>
+        private static bool TryStartSource(AudioSource src, AudioClip clip)
+        {
+            switch (clip.loadState)
+            {
+                case AudioDataLoadState.Loaded:
+                    // random entry point: the beds are stationary textures, so this is
+                    // inaudible, and it stops every layer restarting in lockstep. Safe to
+                    // ask only now: length is unknowable before the data is in.
+                    src.time = UnityEngine.Random.Range(0f, Mathf.Max(0.01f, clip.length - 0.1f));
+                    src.Play();
+                    return true;
+
+                case AudioDataLoadState.Unloaded:
+                    clip.LoadAudioData();
+                    if (clip.loadState != AudioDataLoadState.Unloaded) return false;
+                    // Still Unloaded after the kick: this clip's data is not
+                    // LoadAudioData's to fetch (a loadType the engine buffers for
+                    // itself). Start it cold, from 0, rather than never.
+                    src.Play();
+                    return true;
+
+                case AudioDataLoadState.Failed:
+                    // Nothing will ever arrive; stop asking and stay silent.
+                    return true;
+
+                default: // Loading
+                    return false;
+            }
         }
 
         // ---- 3D emitters -------------------------------------------------------------
@@ -390,13 +423,14 @@ namespace PokeLab.Audio
             src.volume = volume * ambienceLevel * _holdGain;
             src.outputAudioMixerGroup = _director != null ? _director.GroupFor(AudioBus.Ambience) : null;
             src.transform.position = anchor.position;
-            // Only when the data is in: these clips stream on WebGL, and asking an unloaded
-            // clip its length logs. An unloaded emitter starts from 0 instead.
-            if (clip.loadState == AudioDataLoadState.Loaded)
-                src.time = UnityEngine.Random.Range(0f, Mathf.Max(0.01f, clip.length - 0.1f));
-            src.Play();
 
-            _emitters.Add(new Emitter { Source = src, Anchor = anchor, Volume = volume });
+            // A clip whose data has not arrived registers pending rather than playing —
+            // see TryStartSource — and UpdateEmitters starts it the frame the data lands.
+            _emitters.Add(new Emitter
+            {
+                Source = src, Anchor = anchor, Volume = volume,
+                Started = TryStartSource(src, clip),
+            });
             return src;
         }
 
@@ -424,6 +458,8 @@ namespace PokeLab.Audio
                 }
                 e.Source.transform.position = e.Anchor.position;
                 e.Source.volume = e.Volume * ambienceLevel * _holdGain;
+                // Deferred start for a registration that arrived before its data did.
+                if (!e.Started) e.Started = TryStartSource(e.Source, e.Source.clip);
             }
         }
 

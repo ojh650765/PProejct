@@ -121,7 +121,10 @@ namespace PokeLab.Audio
             // holding no clip is ignored and Unity says so every time, which a pool that
             // resets each voice on creation and on return turns into a steady drip of
             // warnings about nothing. Stop() has already rewound anything that was playing.
-            if (src.clip != null) src.time = 0f;
+            // Same for a clip whose data never arrived: seeking it asks Unity for a length
+            // it does not know yet, and it says so — and such a clip is at 0 regardless.
+            if (src.clip != null && src.clip.loadState == AudioDataLoadState.Loaded)
+                src.time = 0f;
             src.clip = null;
             src.loop = false;
             src.volume = 1f;
