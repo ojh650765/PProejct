@@ -57,6 +57,21 @@ namespace PokeLab.Boot
             _billboard.ApplyPlan(CreatureAnimationPlans.For(animation));
         }
 
+        public void SetMoveSpeed(float metersPerSecond)
+        {
+            if (_billboard == null) return;
+            // Gen 5 drew one looping idle per view and no walk cycle, so a moving creature
+            // plays its idle as a gait. At the authored pacing that fails — the loops hold
+            // single frames for up to 1.9 s, which under a travelling sprite is a statue on
+            // a conveyor — so the billboard steps uniformly at a rate tied to the actual
+            // metres per second. 6 steps per metre lands the wander (1.3 m/s) near 8 fps and
+            // the flee (4.4 m/s) at the 18 fps ceiling; the floor keeps a creature easing
+            // out of a stop from visibly freezing mid-stride.
+            _billboard.SetLocomotionRate(metersPerSecond > 0.15f
+                ? Mathf.Clamp(metersPerSecond * 6f, 5f, 18f)
+                : 0f);
+        }
+
         public void SetVisible(bool visible)
         {
             if (_billboard != null) _billboard.SetVisible(visible);
