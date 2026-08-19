@@ -28,9 +28,10 @@ namespace PokeLab.Cinematics.Sequencing
     /// giving it back by dropping out, never by touching the real camera or the exploration
     /// rig. Two static-shot cameras alternate so a shot-to-shot change is a blend rather than
     /// a teleport of a live camera; a third carries the Timeline choreography. The dialogue
-    /// two-shot at <see cref="ShotPriorities.Dialogue"/> outbids all of them for the length
-    /// of a line and drops back — these cameras keep their state while outbid, which is what
-    /// makes that safe.
+    /// two-shot at <see cref="ShotPriorities.Dialogue"/> could outbid all of them, and must
+    /// not while a shot is live — a cutscene is owned by its authored shots. It watches
+    /// <see cref="ShotIsLive"/> and stays out; the 130-over-120 headroom exists only for
+    /// dialogue that other systems chain into free play.
     /// </summary>
     [DefaultExecutionOrder(-330)]
     [DisallowMultipleComponent]
@@ -98,6 +99,29 @@ namespace PokeLab.Cinematics.Sequencing
         }
 
         /// <summary>
+        /// True exactly while a rig camera holds the frame at
+        /// <see cref="ShotPriorities.EpisodeShot"/> or the rig's timeline is playing — the
+        /// window in which the dialogue two-shot must not engage. Computed from the live
+        /// claims every read, never cached: a stored flag stuck true would lock the dialogue
+        /// camera out of free play for the rest of the session, which is worse than any
+        /// mid-cutscene ping-pong this signal exists to prevent. No rig means no claim.
+        /// </summary>
+        public static bool ShotIsLive
+        {
+            get
+            {
+                var rig = _instance;
+                if (rig == null) return false;
+                if (rig._timelinePlaying) return true;
+                foreach (var cam in rig._staticCameras)
+                    if (cam != null && cam.Priority.Value == ShotPriorities.EpisodeShot)
+                        return true;
+                return rig._timelineCamera != null
+                    && rig._timelineCamera.Priority.Value == ShotPriorities.EpisodeShot;
+            }
+        }
+
+        /// <summary>
         /// Cuts instead of blending when the flight between two poses would go through the
         /// world.
         ///
@@ -114,10 +138,23 @@ namespace PokeLab.Cinematics.Sequencing
         private CinemachineBlendDefinition OnGetBlendOverride(
             ICinemachineCamera from, ICinemachineCamera to,
             CinemachineBlendDefinition defaultBlend, UnityEngine.Object owner)
-        {
-            if (!IsOurs(from) && !IsOurs(to)) return defaultBlend;
+            => EnforceBlendPath(from, to, defaultBlend);
 
-            if (!TryPosition(from, out var a) || !TryPosition(to, out var b)) return defaultBlend;
+        /// <summary>
+        /// The path rule above, callable by a later <see cref="CinemachineCore.GetBlendOverride"/>
+        /// subscriber whose pair shares a rig camera. A multicast delegate returns only its
+        /// LAST handler's result, so a handler subscribed after this rig (the dialogue
+        /// two-shot hooks on engage, long after bootstrap) silently discards the cut this
+        /// rule demands unless it routes its own proposed blend through here. Pairs with no
+        /// rig camera, and a session with no rig, pass the proposal through untouched.
+        /// </summary>
+        public static CinemachineBlendDefinition EnforceBlendPath(
+            ICinemachineCamera from, ICinemachineCamera to, CinemachineBlendDefinition proposed)
+        {
+            var rig = _instance;
+            if (rig == null || (!rig.IsOurs(from) && !rig.IsOurs(to))) return proposed;
+
+            if (!TryPosition(from, out var a) || !TryPosition(to, out var b)) return proposed;
 
             var span = b - a;
             var distance = span.magnitude;
@@ -128,7 +165,7 @@ namespace PokeLab.Cinematics.Sequencing
                     distance - 0.4f, ~0, QueryTriggerInteraction.Ignore))
                 return new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.Cut, 0f);
 
-            return defaultBlend;
+            return proposed;
         }
 
         /// <summary>Beyond this, a blend is a flight across the map, not a transition.</summary>
