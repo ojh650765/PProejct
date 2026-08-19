@@ -350,7 +350,7 @@ namespace PokeLab.Cinematics
             _recheckTimer = 0f;
             _blockedFor = 0f;
 
-            SelectShot(speakerT);
+            if (!SelectShot(speakerT)) return;
 
             // The camera snaps to the composed pose and the *brain* performs the entry
             // blend, at exactly enterSeconds via the blend override. Seeding at the old
@@ -426,7 +426,7 @@ namespace PokeLab.Cinematics
         /// a seen speaker outranks a seen player, because the occluder fade already keeps
         /// the player readable — and the deoccluder net carries the rest.
         /// </summary>
-        private void SelectShot(Transform speakerT)
+        private bool SelectShot(Transform speakerT)
         {
             Vector3 a = _player.position;
             Vector3 b = speakerT.position;
@@ -461,12 +461,17 @@ namespace PokeLab.Cinematics
             _shot = best;
             _gapAtSelect = FlatDistance(a, b);
             _lastSelectAt = Time.unscaledTime;
+
+            // Every candidate unreachable or buried: there is no honest two-shot here.
+            // The exploration frame is always readable; a buried lens never is.
+            return bestScore >= 0;
         }
 
         /// <summary>Speaker visibility scores 2, player 1, a buried camera position −1: a shot
         /// that sees both is 3, and among partials the speaker is the face that matters.</summary>
         private int ScoreCandidate(Vector3 pos, Vector3 playerHead, Vector3 speakerHead, Transform speakerT)
         {
+            if (!CameraReachable(playerHead, pos, speakerT)) return -1;
             if (!PositionClear(pos, speakerT)) return -1;
             int score = 0;
             if (HasLineOfSight(pos, speakerHead, speakerT)) score += 2;
@@ -500,6 +505,35 @@ namespace PokeLab.Cinematics
                 if (hit.collider == null) continue;
                 // Distance zero means the cast began overlapping this collider, which says
                 // nothing about where its surface is — same rule the exploration rig uses.
+                if (hit.distance <= 0.001f) continue;
+                if (IsActor(hit.collider.transform, speakerT)) continue;
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Whether the candidate can be reached by sight from the player's head — cast
+        /// OUTWARD, from the head to the lens. Every probe that starts at the candidate is
+        /// blind to the case that keeps recurring: a lens composed at the eye line of
+        /// speakers standing on a bank sits INSIDE the slope behind them, and casts from
+        /// inside a mesh exit through backfaces without ever hitting it. From the head the
+        /// terrain face is a frontface, and a candidate behind it is rejected before any
+        /// other test spends time on it.
+        /// </summary>
+        private bool CameraReachable(Vector3 playerHead, Vector3 pos, Transform speakerT)
+        {
+            Vector3 delta = pos - playerHead;
+            float length = delta.magnitude - cameraClearRadius;
+            if (length <= 0.05f) return true;
+            Vector3 dir = delta / delta.magnitude;
+
+            int count = Physics.SphereCastNonAlloc(playerHead, probeRadius, dir, _hits, length,
+                occluderMask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                RaycastHit hit = _hits[i];
+                if (hit.collider == null) continue;
                 if (hit.distance <= 0.001f) continue;
                 if (IsActor(hit.collider.transform, speakerT)) continue;
                 return false;

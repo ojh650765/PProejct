@@ -197,6 +197,20 @@
           "Note": "5 lines. Line 3 is the forfeit and carries EventId 'vfx.kes_runs'; line 4 is the player watching him go. Nothing listens for the event yet, which is why the walk below happens after the whole conversation instead of during it."
         },
         {
+          "Kind": 11,
+          "KindName": "SetFlag",
+          "Id": "story.gate_open",
+          "Value": true,
+          "Seconds": 0.0,
+          "Note": "Read by StoryGate, which drops the wall across the ramp. Set here and not in 'gate_opens': that episode hangs off a trigger object at the ramp, and if the object is missing the player must still be able to leave."
+        },
+        {
+          "Kind": 6,
+          "KindName": "GiveControl",
+          "Seconds": 0.0,
+          "Note": "BEFORE the walk-offs, not after. Holding the pad through twenty-four seconds of a boy walking away reads as a freeze -- the user called it one, twice. The player is free the moment the last line lands; Kes leaves under their feet, the way a friend actually leaves."
+        },
+        {
           "Kind": 7,
           "KindName": "MoveActor",
           "Id": "NPC_Rival",
@@ -213,19 +227,6 @@
           "Seconds": 12.0,
           "Value": false,
           "Note": "Down the ramp and gone. This was a MoveActor, and a MoveActor cannot make this journey: Town and Field bake their own navmeshes with nothing linking them, so his path stops dead at the seam at the bottom of the ramp -- and the old arrival test read the end of a truncated path as an arrival, so he 'arrived' there, silently, and stood at the bottom of the ramp for the rest of the act. That is the strange place he settled in. ExitActor walks him out of the Look_GateRamp shot and only then puts him on the field mark, so the part the navmesh cannot carry happens where nobody is looking. Value false: he stays drawn, because rival_first_battle waits for him at that mark."
-        },
-        {
-          "Kind": 11,
-          "KindName": "SetFlag",
-          "Id": "story.gate_open",
-          "Value": true,
-          "Seconds": 0.0,
-          "Note": "Read by StoryGate, which drops the wall across the ramp. Set here and not in 'gate_opens': that episode hangs off a trigger object at the ramp, and if the object is missing the player must still be able to leave."
-        },
-        {
-          "Kind": 6,
-          "KindName": "GiveControl",
-          "Seconds": 0.0
         }
       ]
     },
@@ -291,6 +292,12 @@
           "Note": "5 lines. Line 4 carries EventId 'vfx.professor_leaves'. Nothing listens, so the walk is the beat below."
         },
         {
+          "Kind": 6,
+          "KindName": "GiveControl",
+          "Seconds": 0.0,
+          "Note": "Before the walk-off, for the same reason as kes_summons: fourteen held seconds of an old man walking away reads as a freeze. The bag is on the bank either way; noticing it is the player's move."
+        },
+        {
           "Kind": 18,
           "KindName": "ExitActor",
           "Id": "NPC_Professor",
@@ -298,12 +305,6 @@
           "Seconds": 14.0,
           "Value": true,
           "Note": "He goes back to the town, and the mark is the direction rather than the destination. This was a MoveActor to the same mark and that is the whole of the fault: Mark_Prof_Offstage is 7.7 m away, so he walked seven metres, stopped, and -- because MoveActor turns an actor to face the player on arrival -- turned round and stood there looking at them for the rest of the scene, still in frame, with the walk cycle running because a parked agent's sprite was reading its speed off a smoothed position delta that never quite reached zero. ExitActor keeps him walking town-ward past the mark until the camera has lost him and then stops drawing him. He is put back on the mark as he goes, because that is verified ground with navmesh under it and 'field_professor_returns' brings him in from there."
-        },
-        {
-          "Kind": 6,
-          "KindName": "GiveControl",
-          "Seconds": 0.0,
-          "Note": "Handed back with the bag now the only thing on the bank. Nothing points at it; noticing it is the player's move."
         }
       ]
     },

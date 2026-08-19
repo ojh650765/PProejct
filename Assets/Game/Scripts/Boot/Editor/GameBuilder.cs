@@ -225,7 +225,11 @@ namespace PokeLab.Boot.Editor
         /// </summary>
         private static void ReportPagesFit(string folder)
         {
+            // The publish folder is its own git checkout; .git is never served and its
+            // history dwarfs the site, so counting it reports a fit failure for a site
+            // that fits.
             var files = Directory.GetFiles(folder, "*", SearchOption.AllDirectories)
+                .Where(p => !p.Replace('\\', '/').Contains("/.git/"))
                 .Select(p => new FileInfo(p))
                 .OrderByDescending(f => f.Length)
                 .ToArray();
