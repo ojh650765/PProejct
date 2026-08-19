@@ -201,9 +201,15 @@ namespace PokeLab.Overworld
             var raw = _look.ReadValue<Vector2>();
             if (raw.sqrMagnitude < 0.000001f) return Vector2.zero;
 
+            var control = _look.activeControl;
+
+            // A touchscreen is a Pointer, so a thumb dragging the on-screen stick would land
+            // here as look delta and yaw the camera while steering. This game has no
+            // touch-look: on a touchscreen the camera belongs to the rig, never the finger.
+            if (control != null && control.device is Touchscreen) return Vector2.zero;
+
             // Mouse delta is per-frame pixels; a stick is a normalised, frame-rate independent
             // rate. Treating them the same makes one of the two feel broken, so branch on device.
-            var control = _look.activeControl;
             var isPointerDelta = control != null && control.device is Pointer;
 
             var scaled = isPointerDelta
