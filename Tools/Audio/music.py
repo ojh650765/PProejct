@@ -490,6 +490,127 @@ def lakeside_theme():
 
 
 # ======================================================================================
+# OPENING -- G major, 66 BPM, dawn-quiet; plays UNDER the professor's dialogue
+# ======================================================================================
+
+OPENING_BPM = 66.0
+OPENING_BARS = 16
+OPENING_BEATS = OPENING_BARS * 4
+
+# | G | Em7 | Cmaj7 | Dsus2 | Gadd9 | Em7 | Cmaj7 | Dsus4 |
+# | Em7 | Cmaj7 | G | Am7 | Cmaj7 | G | Am7 | Dsus4 |
+# The last bar is an unresolved sus4 so the wrap back to bar 1's G is the resolution:
+# the loop point itself is the cadence, which is what keeps a 58-second bed circular.
+OPENING_CHORDS = [
+    ch("G3"), ch("E3", "min7"), ch("C3", "maj7"), ch("D3", "sus2"),
+    ch("G3", "add9"), ch("E3", "min7"), ch("C3", "maj7"), ch("D3", "sus4"),
+    ch("E3", "min7"), ch("C3", "maj7"), ch("G3"), ch("A2", "min7"),
+    ch("C3", "maj7"), ch("G3"), ch("A2", "min7"), ch("D3", "sus4"),
+]
+OPENING_BASS = [
+    dsp.n("G2"), dsp.n("E2"), dsp.n("C2"), dsp.n("D2"),
+    dsp.n("G2"), dsp.n("E2"), dsp.n("C2"), dsp.n("D2"),
+    dsp.n("E2"), dsp.n("C2"), dsp.n("G1"), dsp.n("A1"),
+    dsp.n("C2"), dsp.n("G1"), dsp.n("A1"), dsp.n("D2"),
+]
+
+# An original motif written for this game: a rising fourth-then-third that outlines
+# the tonic (D-G-B), settled by its upper neighbour, answered by a falling line that
+# lands on the 9 over Em7. Stated alone (A), restated with a dip variation (A'),
+# opened out (B), then closed on scale degrees 2-3 so the wrap resolves it.
+OPENING_MELODY = [
+    # A -- bars 1-4: the motif, alone
+    (0.0, "D5", 1.0), (1.0, "G5", 1.0), (2.0, "B5", 1.5), (3.5, "A5", 0.5),
+    (4.0, "E5", 1.0), (5.0, "G5", 1.0), (6.0, "F#5", 2.0),
+    (8.0, "E5", 1.5), (9.5, "D5", 0.5), (10.0, "C5", 1.0), (11.0, "E5", 1.0),
+    (12.0, "D5", 3.0),
+    # A' -- bars 5-8: restated over the fuller bed, cadence dips before it lands
+    (16.0, "D5", 1.0), (17.0, "G5", 1.0), (18.0, "B5", 1.5), (19.5, "A5", 0.5),
+    (20.0, "E5", 1.0), (21.0, "G5", 1.0), (22.0, "F#5", 2.0),
+    (24.0, "E5", 1.5), (25.5, "D5", 0.5), (26.0, "C5", 1.0), (27.0, "E5", 1.0),
+    (28.0, "A4", 1.5), (29.5, "C5", 0.5), (30.0, "D5", 2.0),
+    # B -- bars 9-12: the answer phrase, wider and a shade warmer
+    (32.0, "B4", 1.0), (33.0, "E5", 1.0), (34.0, "G5", 2.0),
+    (36.0, "A5", 1.5), (37.5, "G5", 0.5), (38.0, "E5", 2.0),
+    (40.0, "D5", 1.0), (41.0, "G5", 1.0), (42.0, "B5", 1.0), (43.0, "A5", 1.0),
+    (44.0, "B5", 1.5), (45.5, "A5", 0.5), (46.0, "E5", 2.0),
+    # A'' -- bars 13-16: the motif from the third, settling onto 2-3 against the sus
+    (48.0, "E5", 1.0), (49.0, "G5", 1.0), (50.0, "B5", 1.5), (51.5, "A5", 0.5),
+    (52.0, "G5", 2.0), (54.0, "D5", 1.0), (55.0, "B4", 1.0),
+    (56.0, "C5", 1.0), (57.0, "E5", 1.0), (58.0, "D5", 2.0),
+    (60.0, "A4", 2.0), (62.0, "B4", 2.0),
+]
+
+
+def opening_theme():
+    """
+    The prologue bed. It sits UNDER speech from the professor's first line through
+    the name prompt, so everything about it is turned down relative to the town
+    themes: fewer voices, no kit beyond a late heartbeat, and finish() is given a
+    lower peak ceiling which build_all preserves instead of re-normalising.
+    """
+    bpm = OPENING_BPM
+    ir = dsp.make_ir(2.8, decay=3.0, damp_hz=3600, seed=131)
+
+    # music box states the tune; long ring past the written durations
+    box = I.Track(I.bell, bpm, gain=0.55, humanise=0.012, seed=131)
+    box.extend([(b, p, min(d * 2.0, 3.0), 0.58) for b, p, d in OPENING_MELODY])
+
+    # second pass onward: a slow harp counter-line, one note per beat in the gaps
+    hp = I.Track(I.harp, bpm, gain=0.38, humanise=0.015, seed=132)
+    for bar, chord in enumerate(OPENING_CHORDS):
+        if bar < 4:
+            continue  # the first statement of the motif is alone over the pad
+        for k, idx in enumerate((0, 2, 1, 3)):
+            pitch = chord[idx % len(chord)] + 12 * (idx // len(chord)) + 12
+            hp.add(bar * 4 + k, pitch, 1.5, 0.42)
+
+    # B section onward: a soft mallet echo shadows every other melody note
+    echo = I.Track(I.marimba, bpm, gain=0.3, humanise=0.014, seed=133)
+    echo.extend([(b + 0.5, p, 0.5, 0.4) for b, p, d in OPENING_MELODY[::2] if b >= 32.0])
+
+    # string pad carries the harmony throughout; its velocity is the warmth curve
+    pads = I.Track(I.strings, bpm, gain=0.42, seed=134)
+    warmth = [0.42] * 4 + [0.5] * 4 + [0.58] * 4 + [0.5] * 4
+    for bar, chord in enumerate(OPENING_CHORDS):
+        pads.add(bar * 4, [p - 12 for p in chord], 4.0 * 0.98, warmth[bar])
+
+    # a second, darker pad joins for the B section lift and stays through the coda
+    glow = I.Track(I.pad, bpm, gain=0.42, seed=135)
+    for bar, chord in enumerate(OPENING_CHORDS):
+        if bar < 8:
+            continue
+        glow.add(bar * 4, [chord[0] - 12, chord[2] - 12], 4.0, 0.5, cutoff=1400.0)
+
+    low = I.Track(I.sub_bass, bpm, gain=0.5, seed=136)
+    for bar, root in enumerate(OPENING_BASS):
+        if bar < 4:
+            continue  # the bass also waits for the second pass
+        low.add(bar * 4, root, 3.6, 0.75)
+
+    # the only percussion: a very soft heartbeat pulse across the last four bars
+    heart = I.Track(drum_voice(I.kick, seconds=0.32, tune=40.0), bpm, gain=0.2, seed=137)
+    for bar in range(12, OPENING_BARS):
+        for off, v in ((0.0, 0.45), (0.5, 0.3), (2.0, 0.45), (2.5, 0.3)):
+            heart.add(bar * 4 + off, 60, 0.5, v)
+
+    tail = 8.0
+    loop_seconds = OPENING_BEATS * 60.0 / bpm
+    parts = [
+        (box.render(OPENING_BEATS, tail), 0.1),
+        (hp.render(OPENING_BEATS, tail), -0.35),
+        (echo.render(OPENING_BEATS, tail), 0.3),
+        (pads.render(OPENING_BEATS, tail), -0.1),
+        (glow.render(OPENING_BEATS, tail), 0.2),
+        (low.render(OPENING_BEATS, tail), 0.0),
+        (heart.render(OPENING_BEATS, tail), 0.0),
+    ]
+    # peak 0.70 (~-3.1 dBFS) instead of the usual 0.86: this bed must sit ~20%
+    # under the town themes because dialogue plays over the top of it.
+    return finish(parts, loop_seconds, ir, rev_mix=0.32, width=1.35, peak=0.70), loop_seconds
+
+
+# ======================================================================================
 # WILD BATTLE -- E minor, 168 BPM, driving
 # ======================================================================================
 
@@ -824,6 +945,10 @@ TRACKS = {
     "Music_Town_Night": (town_night, True, "Town biome at night."),
     "Music_Cave": (cave_theme, True, "Cave biome, any time of day."),
     "Music_Lakeside": (lakeside_theme, True, "Lakeside / water biome."),
+    "Music_Opening_Introduction": (opening_theme, True,
+                                   "Prologue: from the professor's first line through the name "
+                                   "prompt (EpisodeRunner.PlayOpeningTheme). Sits under dialogue, "
+                                   "so it is authored ~3 dB below the town themes."),
     "Music_Battle_Wild": (wild_battle, True, "Wild encounter battle loop; BattleStartedEvent with Kind=Wild."),
     "Music_Battle_Trainer": (trainer_battle, True, "Trainer battle loop; BattleStartedEvent with Kind=Trainer."),
     "Music_Victory_Fanfare": (victory_fanfare, False, "BattleEndedEvent with Outcome=PlayerVictory. Ducks music."),

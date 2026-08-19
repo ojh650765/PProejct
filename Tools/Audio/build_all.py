@@ -68,7 +68,11 @@ def build_music(entries):
     for name, (fn, loop, trigger) in music.TRACKS.items():
         t0 = time.time()
         sig, _ = fn()
-        _write(entries, name, sig, "Music", "Music", loop, trigger)
+        # The opening bed plays under dialogue: its finish() sets a deliberately
+        # lower peak ceiling, so keep that level instead of re-normalising to PEAK.
+        quiet = name in ("Music_Opening_Introduction",)
+        _write(entries, name, sig, "Music", "Music", loop, trigger,
+               normalise=not quiet)
         print(f"  {name:26s} {time.time() - t0:5.2f}s")
 
 
