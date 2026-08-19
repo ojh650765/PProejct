@@ -148,14 +148,6 @@
           "Seconds": 0.0
         },
         {
-          "Kind": 19,
-          "KindName": "CameraShot",
-          "Id": "shot_gate_ramp",
-          "Target": "Look_GateRamp",
-          "Seconds": 0.0,
-          "Note": "Down the ramp, past Bram -- the way the player was trying to go. Framed on what is being refused rather than on the man refusing it. The old CameraTo could not make this shot at all: from the player's position beside Bram the yaw swing rendered dirt, a signpost and trees -- no ramp, no gate (verified in-editor). shot_gate_ramp PLACES the camera above the ramp head looking down the ramp's own bearing at the route."
-        },
-        {
           "Kind": 4,
           "KindName": "Dialogue",
           "Id": "gate_wait_for_kes",
@@ -190,14 +182,6 @@
           "Seconds": 0.0
         },
         {
-          "Kind": 19,
-          "KindName": "CameraShot",
-          "Id": "shot_square",
-          "Target": "Look_Square",
-          "Seconds": 0.0,
-          "Note": "The composed version of the framing cast.json verified by bearings: an over-the-shoulder from behind the trigger's catch point, down the square's axis, with Kes' whole walk coming up the middle of the frame."
-        },
-        {
           "Kind": 7,
           "KindName": "MoveActor",
           "Id": "NPC_Rival",
@@ -211,14 +195,6 @@
           "Id": "kes_summons",
           "Seconds": 0.0,
           "Note": "5 lines. Line 3 is the forfeit and carries EventId 'vfx.kes_runs'; line 4 is the player watching him go. Nothing listens for the event yet, which is why the walk below happens after the whole conversation instead of during it."
-        },
-        {
-          "Kind": 20,
-          "KindName": "PlayTimeline",
-          "Id": "tl_square_sendoff",
-          "Target": "Look_GateRamp",
-          "Seconds": 0.0,
-          "Note": "Turned away from him before he moves. The script has already said he is gone, so the camera must not be watching him leave -- it is looking at where he went. Now an authored move rather than an instant yaw: three seconds from the square shot to the gate-ramp shot in one composed pan (the two camera positions are 2.3 m apart, so it crosses no geometry), ending held on shot_gate_ramp's exact pose. The MoveActor and ExitActor beats below walk Kes down the ramp UNDER that held frame."
         },
         {
           "Kind": 7,
@@ -274,14 +250,6 @@
           "Seconds": 0.0
         },
         {
-          "Kind": 19,
-          "KindName": "CameraShot",
-          "Id": "shot_gate_ramp",
-          "Target": "Look_GateRamp",
-          "Seconds": 0.0,
-          "Note": "The same composed ramp shot as the refusal -- deliberately: the frame the player was refused in is the frame they are released in."
-        },
-        {
           "Kind": 4,
           "KindName": "Dialogue",
           "Id": "gate_open_after_kes",
@@ -314,14 +282,6 @@
           "Kind": 5,
           "KindName": "TakeControl",
           "Seconds": 0.0
-        },
-        {
-          "Kind": 20,
-          "KindName": "PlayTimeline",
-          "Id": "tl_lakebank_arrival",
-          "Target": "Look_LakeBank",
-          "Seconds": 0.0,
-          "Note": "The bank and the water behind it. The shallows he is counting have to be in frame or the lines are about nothing. The arrival is now choreographed: the camera opens over the player's shoulder on the water axis and pulls back 1.9 m until Linden, the water and the ambush grass are all carried in one frame -- shot_lake_bank's verified pose -- and holds there for the five lines below."
         },
         {
           "Kind": 4,
@@ -376,14 +336,6 @@
           "Note": "He comes over from his field post, 9 m away. Three of this scene's four lines are his and the one before it has Linden greeting '자네들' -- the script has had the two of them together in the field since it was written and the staging never brought him. So the bag was found, opened and exclaimed over by a boy who was standing on the shore trail the whole time."
         },
         {
-          "Kind": 19,
-          "KindName": "CameraShot",
-          "Id": "shot_bag_close",
-          "Target": "Prop_ProfessorBag",
-          "Seconds": 0.0,
-          "Note": "Down on the bag. The only close shot in the field -- and now actually close: an orbit composed 2.2 m off the bag on the player's own side, 31 deg down at it, instead of the 8.5 m yaw swing that called itself a close shot. Orbit resolves the bag and the player at shot time, so the framing survives the player arriving from any bearing the 3 m trigger allows."
-        },
-        {
           "Kind": 4,
           "KindName": "Dialogue",
           "Id": "field_bag_left",
@@ -398,14 +350,6 @@
           "Amount": 4,
           "Seconds": 0.0,
           "Note": "Rattata, level 4. GAME species id 25, from SliceRoster -- not the national dex number, which is the one mistake in this project that produces a plausible wrong creature rather than an error. It is in the route's own tall-grass table at levels 3-6, so this is a creature the grass could genuinely have produced, which is the whole reason it is a RoamingCreature and not a prop. Level 4 against a level 5 starter: winnable, and not a formality."
-        },
-        {
-          "Kind": 19,
-          "KindName": "CameraShot",
-          "Id": "shot_creature_stare",
-          "Target": "Actor_StagedCreature",
-          "Seconds": 0.0,
-          "Note": "Off the bag and onto the grass -- a blend between two composed shots now, not a yaw swing. The orbit resolves Actor_StagedCreature at shot time: the object exists because the beat above built it, which is why this needs no marker in cast.json, and why the shot data names the runtime object rather than a position."
         },
         {
           "Kind": 3,
@@ -439,14 +383,6 @@
           "Note": "Defensive, and normally instant: 'field_bag_left' has already brought him over and a walk of nothing returns on the first frame. It is here because the schema's own note says this episode has to be judgeable -- and jumpable to -- on its own, and every line in it is written for two people standing together."
         },
         {
-          "Kind": 19,
-          "KindName": "CameraShot",
-          "Id": "shot_creature_stare",
-          "Target": "Actor_StagedCreature",
-          "Seconds": 0.0,
-          "Note": "Defensive re-claim of the same stare the chain handed across, so this episode composes correctly when jumped to on its own. When field_bag_left just played, the pose is already held and this is a no-op-shaped blend."
-        },
-        {
           "Kind": 4,
           "KindName": "Dialogue",
           "Id": "field_ambush",
@@ -475,14 +411,6 @@
           "KindName": "CreatureApproach",
           "Seconds": 6.0,
           "Note": "It closes the distance. 6s is a timeout and not a duration: an approach that snags on the reeds is snapped to 1.6 m rather than holding the player frozen watching it fail."
-        },
-        {
-          "Kind": 19,
-          "KindName": "CameraShot",
-          "Id": "shot_bag_choice",
-          "Target": "Prop_ProfessorBag",
-          "Seconds": 0.0,
-          "Note": "Back down to the bag with the creature a metre and a half away and the rest of them standing round the pair. The frame is the choice: three balls, and something standing over them. shot_bag_choice is wider and higher than shot_bag_close, and swung to the opposite shoulder, so the return to the bag reads as a new look under new circumstances -- and so the approached creature fits in it."
         },
         {
           "Kind": 4,
@@ -535,14 +463,6 @@
           "Kind": 5,
           "KindName": "TakeControl",
           "Seconds": 0.0
-        },
-        {
-          "Kind": 19,
-          "KindName": "CameraShot",
-          "Id": "shot_lake_bank",
-          "Target": "Look_LakeBank",
-          "Seconds": 0.0,
-          "Note": "MOVED ABOVE THE WALK, and the order is load-bearing now that he actually leaves. 'field_professor_mutters' stops drawing him once he is out of shot, and the beat below is what puts him back on the screen -- so the camera has to be pointed away from Mark_Prof_Offstage before that happens or the player watches a man come back into existence. The composed shot keeps the guarantee by construction: from shot_lake_bank's placed position the offstage mark bears 66 degrees off the lens axis, behind the camera -- his walk-in enters frame as a foreground crossing past the lens, a return rather than a materialisation."
         },
         {
           "Kind": 7,
