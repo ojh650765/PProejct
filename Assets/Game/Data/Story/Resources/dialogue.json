@@ -2032,6 +2032,21 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
+          "Text": "Give it here. …Mm, nothing serious. It'll be right as rain in a moment.",
+          "TextKo": "이리 줘 보게. …음, 많이 다치진 않았군. 금방 팔팔해질 걸세."
+        },
+        {
+          "SpeakerId": "npc_professor_01",
+          "SpeakerName": "Linden",
+          "SpeakerNameKo": "린든",
+          "SpeakerSubtitle": "Aster Field Lab",
+          "SpeakerSubtitleKo": "아스터 필드 연구소",
+          "PortraitKey": "npc_professor_01",
+          "Tone": 0,
+          "ToneName": "Neutral",
+          "AutoAdvanceSeconds": 0.0,
+          "EventId": "",
+          "Choices": [],
           "Text": "Keep it. Once one's decided, it's decided.",
           "TextKo": "가지게. 한번 정한 녀석은 안 바뀌어."
         },

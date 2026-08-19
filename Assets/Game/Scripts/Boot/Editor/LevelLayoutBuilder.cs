@@ -2084,9 +2084,10 @@ namespace PokeLab.Boot.Editor
             // BuildNavigation collects, so the closed wall was baked into the town mesh as
             // permanent geometry: the ramp under it was a hole no runtime flag could heal, and
             // every agent asked to leave town pathed around it into the fence — that is Kes
-            // veering right at the gatekeeper. The wall still blocks bodies (its collider) and
-            // still blocks paths while closed (StoryGate's carving NavMeshObstacle); what it
-            // must never do is block the BAKE.
+            // veering right at the gatekeeper. The wall blocks the PLAYER's body and nothing
+            // else, by design ("플레이어만 못 지나가게 하고 에이전트는 괜찮도록"): agents
+            // ignore physics colliders, the mesh stays continuous through the gate, and there
+            // is deliberately no NavMeshObstacle either — see the note in StoryGate.
             var navmesh = go.AddComponent<NavMeshModifier>();
             navmesh.ignoreFromBuild = true;
 
