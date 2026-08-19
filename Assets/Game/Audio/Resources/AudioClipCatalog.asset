@@ -43,6 +43,11 @@ MonoBehaviour:
     Bus: 1
     Loop: 1
     Gain: 1
+  - Name: Music_Opening_Introduction
+    Clip: {fileID: 8300000, guid: 2eccf70b03d6615c11405745145e7b8c, type: 3}
+    Bus: 1
+    Loop: 1
+    Gain: 1
   - Name: Music_Route_Day
     Clip: {fileID: 8300000, guid: 6a307c06c35679149988c03aa7fa1207, type: 3}
     Bus: 1
@@ -592,9 +597,4 @@ MonoBehaviour:
     Clip: {fileID: 8300000, guid: 66c88489ea49a19499dd311ae22b5dc1, type: 3}
     Bus: 3
     Loop: 1
-    Gain: 1
-  - Name: Music_Opening_Introduction
-    Clip: {fileID: 8300000, guid: bd9d83ea4745efd498996cd99a2db5b0, type: 3}
-    Bus: 1
-    Loop: 0
     Gain: 1
