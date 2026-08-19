@@ -78,12 +78,15 @@ namespace PokeLab.Overworld
         /// </summary>
         StageRing = 17,
         /// <summary>
-        /// Send an actor out of the scene toward the marker named by `target`, and stop
-        /// drawing them the moment the camera can no longer see them. `seconds` is a ceiling.
+        /// Send an actor out of the scene along the route named by `target` — one marker, or
+        /// several separated by '>', the last of which is the landing — and stop drawing them
+        /// only once they have been continuously out of the camera AND far from the player
+        /// (both thresholds serialized on the runner). `seconds` is a ceiling.
         ///
-        /// `value` false leaves them drawn and standing on the mark instead of removing them,
-        /// which is how a walk the navmesh cannot carry — the town/field seam — is finished
-        /// off camera rather than in full view.
+        /// `value` false leaves them drawn and standing on the landing mark instead of
+        /// removing them; a walk the navmesh cannot carry — the town/field seam, the baked
+        /// gate hole — is finished as a scripted straight-line leg and, where even that is
+        /// still watched, off camera by relocation.
         /// </summary>
         ExitActor = 18,
         /// <summary>
@@ -205,6 +208,13 @@ namespace PokeLab.Overworld
         [Tooltip("Authored dialogue, relative to the project root. Beat ids key into it.")]
         [SerializeField] private string _dialoguePath = "Assets/Game/Data/Story/dialogue.json";
 
+        [Tooltip("Staging data with every marker's authored position, relative to the project " +
+                 "root. Read only when a beat names a marker no loaded scene contains — a mark " +
+                 "authored tonight that the level builder has not built yet, or one whose band " +
+                 "the streamer has not brought in — so the beat can stand it up from the " +
+                 "authored coordinates instead of degrading.")]
+        [SerializeField] private string _castPath = "Assets/Game/Data/Story/cast.json";
+
         [Tooltip("Episode to play when a new game starts and its completion flag is unset.")]
         [SerializeField] private string _openingEpisodeId = "opening";
 
@@ -227,6 +237,21 @@ namespace PokeLab.Overworld
                  "the beat is not waiting on a mark — it is waiting for the actor to be out of " +
                  "shot, and how long that takes depends on where the camera is pointing.")]
         [SerializeField] private float _defaultExitTimeoutSeconds = 14f;
+        [Tooltip("Metres from the player an exiting actor must be before ExitActor may stop " +
+                 "drawing them, or relocate them to their landing mark. The old rule was 'out " +
+                 "of frame', and under the free camera that is just a player mid-turn: the " +
+                 "professor popped out of existence eight metres from a player who had merely " +
+                 "glanced away, and turned back.")]
+        [SerializeField] private float _exitDespawnDistanceMetres = 25f;
+        [Tooltip("Seconds an exiting actor must be continuously out of the camera's view " +
+                 "before ExitActor believes nobody is watching. This AND the distance above " +
+                 "must both hold before anybody despawns or teleports.")]
+        [SerializeField] private float _exitOffscreenGraceSeconds = 2f;
+        [Tooltip("Metres per second of an ExitActor leg the navmesh cannot carry. Faster than " +
+                 "the NPCs' 1.4 walk on purpose: everybody who leaves through this beat has " +
+                 "just announced they are leaving — Kes is racing the player to the field — " +
+                 "and a departure at strolling pace reads as wandering off.")]
+        [SerializeField] private float _exitRunSpeed = 2.8f;
         [Tooltip("Multiplier on the drawn size of everything StageCreature and StageRing place, " +
                  "over the species' dex height. Roamers a spawner owns stay at 1 — true to the " +
                  "dex — but a staged creature is theatre, and the small route species' real " +
@@ -1419,6 +1444,18 @@ reachedTheEnd = true;
             var truncated = false;
             var elapsed = 0f;
 
+            // A detached agent is re-attached before the walk falls back to the straight line.
+            // An ExitActor leg the mesh could not carry leaves the agent switched off, and the
+            // straight line is the walk that climbs over rocks instead of going round them —
+            // the approach to the player is in full view, so it should path properly whenever
+            // there is mesh to path on.
+            if (agent != null && (!agent.enabled || !agent.isOnNavMesh)
+                && NavMesh.SamplePosition(body.position, out var reseat, 3f, NavMesh.AllAreas))
+            {
+                if (!agent.enabled) agent.enabled = true;
+                if (!agent.isOnNavMesh) agent.Warp(reseat.position);
+            }
+
             if (agent != null && agent.enabled && agent.isOnNavMesh)
             {
                 agent.isStopped = false;
@@ -1444,11 +1481,12 @@ reachedTheEnd = true;
                 while (elapsed < timeout)
                 {
                     elapsed += Time.deltaTime;
-                    // Re-seated each step, because a straight line between two points that
+                    // Steered, not driven blind: the straight line shoves through prop
+                    // colliders and the ground ray then seats the walker on top of them. And
+                    // re-seated each step, because a straight line between two points that
                     // are both on the ground still passes under a rise and over a dip.
-                    var next = Vector3.MoveTowards(body.position, destination,
-                        _actorWalkSpeed * Time.deltaTime);
-                    var facing = Flatten(destination - body.position);
+                    var next = SteerStep(body, destination, _actorWalkSpeed * Time.deltaTime);
+                    var facing = Flatten(next - body.position);
                     PlaceActor(body, locomotion, next,
                         facing.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(facing) : body.rotation);
 
@@ -1488,14 +1526,31 @@ reachedTheEnd = true;
         }
 
         /// <summary>
-        /// Sends an actor away and stops drawing them once nothing can see them.
+        /// Sends an actor away and stops drawing them once nobody could have seen it happen.
         ///
-        /// The marker is the direction they left in, not the end of the journey. Linden says
-        /// he is going back to write his notes up, and a man who walks eight metres and then
-        /// stands in frame for the rest of the scene has not gone anywhere — so the walk keeps
-        /// extending along the same bearing until the camera has lost him, and only then is he
-        /// taken off the screen. Nothing disappears in view, which is the one thing this must
-        /// not do; and nothing is left standing on the bank, which is the thing it is for.
+        /// The last marker is the direction they left in, not the end of the journey. Linden
+        /// says he is going back to write his notes up, and a man who walks eight metres and
+        /// then stands in frame for the rest of the scene has not gone anywhere — so the walk
+        /// keeps extending along the same bearing until nobody is watching. `Target` may name
+        /// a route — marks separated by '>' — walked leg by leg, with the LAST mark the
+        /// landing: the town gate exit has to go DOWN THE RAMP before it heads for the field,
+        /// and a single mark cannot say that.
+        ///
+        /// Two rules of honesty, both serialized on this runner. Nothing is taken off the
+        /// screen, and nothing is teleported, until the actor has been continuously out of the
+        /// camera for _exitOffscreenGraceSeconds AND is _exitDespawnDistanceMetres from the
+        /// player. The old rule was "out of frame for one frame", and under the free camera
+        /// that is just a player mid-turn: the professor popped out of existence eight metres
+        /// from a player who glanced away and looked back.
+        ///
+        /// And the agent only drives a leg it can genuinely path — PathComplete, not partial.
+        /// A partial path is worse than none: the agent runs to whatever point of its own mesh
+        /// lies nearest the target, which at the town gate is the fence BESIDE the ramp,
+        /// because the baked StoryGate wall carves the ramp itself out of the town mesh (see
+        /// StoryGate). A leg the mesh cannot carry is walked as a scripted straight line at
+        /// _exitRunSpeed instead, reseated on the ground each step — the actor is leaving the
+        /// playable space anyway, and a walk that visibly goes the right way and then
+        /// relocates unseen is honest staging where a veer into the fence is not.
         /// </summary>
         private IEnumerator RunExitActor(EpisodeBeat beat)
         {
@@ -1507,14 +1562,15 @@ reachedTheEnd = true;
                 yield break;
             }
 
-            var marker = FindMarker(beat.Target);
-            if (marker == null)
+            var route = ResolveExitRoute(beat.Target);
+            if (route.Count == 0)
             {
-                Debug.LogWarning($"[Episode] ExitActor: no marker '{beat.Target}' in the scene, so " +
-                                 $"'{beat.Id}' has no direction to leave in and stayed where they " +
-                                 "are. The marker's world position is in cast.json.", this);
+                Debug.LogWarning($"[Episode] ExitActor: no marker of '{beat.Target}' is in the " +
+                                 $"scene, so '{beat.Id}' has no direction to leave in and stayed " +
+                                 "where they are. The markers' world positions are in cast.json.", this);
                 yield break;
             }
+            var landingMark = route[route.Count - 1];
 
             TakeActor(actor);
             ShowActor(actor);
@@ -1523,19 +1579,24 @@ reachedTheEnd = true;
             var locomotion = actor.GetComponent<PlayerLocomotion>();
             var agent = actor.GetComponent<NavMeshAgent>();
             var renderers = actor.GetComponentsInChildren<Renderer>();
+            var playerObject = FindActor(PlayerActorName);
+            var player = playerObject != null ? playerObject.transform : null;
 
-            var heading = Flatten(marker.position - body.position);
-            if (heading.sqrMagnitude < 1e-4f) heading = Flatten(body.forward);
-            if (heading.sqrMagnitude < 1e-4f) heading = Vector3.forward;
-            heading = heading.normalized;
-
-            var destination = marker.position;
             var timeout = beat.Seconds > 0.01f ? beat.Seconds : _defaultExitTimeoutSeconds;
             var elapsed = 0f;
-            var gone = false;
-            var stranded = false;
+            var offscreenFor = 0f;
+            var playerDistance = float.MaxValue;
+            var gone = false;     // the despawn rule was satisfied: nobody could have seen the end
+            var arrived = false;  // Value false only: the walk genuinely reached the landing mark
+            var agentDisabledHere = false;
 
-            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            var leg = 0;
+            var destination = route[0].position;
+            var heading = LegHeading(body, destination);
+
+            // Mode is chosen per leg, not per actor.
+            var scripted = !AgentCanReach(agent, destination);
+            if (!scripted)
             {
                 agent.isStopped = false;
                 // Zero, not the arrival tolerance: somebody leaving does not slow down and stop
@@ -1543,35 +1604,96 @@ reachedTheEnd = true;
                 agent.stoppingDistance = 0f;
                 agent.SetDestination(destination);
             }
+            else if (agent != null && agent.enabled)
+            {
+                // The transform walk has to own the body: a live agent keeps its own
+                // nextPosition and writes it back over anything set underneath it.
+                StopAgent(agent);
+                agent.enabled = false;
+                agentDisabledHere = true;
+            }
 
             while (elapsed < timeout)
             {
                 elapsed += Time.deltaTime;
 
+                // Continuous, not momentary: one out-of-frustum frame under the free camera is
+                // a player mid-turn, not a player who has lost him.
+                if (IsOutOfShot(renderers)) offscreenFor += Time.deltaTime;
+                else offscreenFor = 0f;
+
+                playerDistance = player != null
+                    ? Flatten(body.position - player.position).magnitude
+                    : float.MaxValue;
+
                 // Given a beat of grace before the test counts. On the frame the beat starts the
-                // camera may still be blending off whatever the last shot was, and an actor who
-                // is off screen for that one frame would be removed before taking a step.
-                if (elapsed > ExitGraceSeconds && IsOutOfShot(renderers))
+                // camera may still be blending off whatever the last shot was.
+                if (elapsed > ExitGraceSeconds
+                    && offscreenFor >= _exitOffscreenGraceSeconds
+                    && playerDistance >= _exitDespawnDistanceMetres)
                 {
                     gone = true;
                     break;
                 }
 
-                if (agent != null && agent.enabled && agent.isOnNavMesh)
+                if (!scripted && agent != null && agent.enabled && agent.isOnNavMesh)
                 {
                     if (!agent.pathPending && agent.remainingDistance <= 0.6f)
                     {
-                        var next = ExtendAlongMesh(destination, heading, ExitStrideMetres);
-                        if (next == destination) { stranded = true; break; }
-                        destination = next;
-                        agent.SetDestination(destination);
+                        if (leg < route.Count - 1)
+                        {
+                            leg++;
+                            destination = route[leg].position;
+                            heading = LegHeading(body, destination);
+                            if (AgentCanReach(agent, destination))
+                            {
+                                agent.SetDestination(destination);
+                            }
+                            else
+                            {
+                                StopAgent(agent);
+                                agent.enabled = false;
+                                agentDisabledHere = true;
+                                scripted = true;
+                            }
+                        }
+                        else if (!beat.Value)
+                        {
+                            // They stay drawn and this is their mark: a genuine arrival, the
+                            // one way this beat ends with nothing to hide.
+                            arrived = true;
+                            break;
+                        }
+                        else
+                        {
+                            var next = ExtendAlongMesh(destination, heading, ExitStrideMetres);
+                            if (next == destination)
+                            {
+                                // Out of mesh mid-departure. The walk continues on legs — the
+                                // scripted line below — rather than stranding in frame, which
+                                // is what this used to do.
+                                StopAgent(agent);
+                                agent.enabled = false;
+                                agentDisabledHere = true;
+                                scripted = true;
+                            }
+                            else
+                            {
+                                destination = next;
+                                agent.SetDestination(destination);
+                            }
+                        }
                     }
                 }
                 else
                 {
-                    var step = Vector3.MoveTowards(body.position, destination,
-                        _actorWalkSpeed * Time.deltaTime);
-                    var facing = Flatten(destination - body.position);
+                    // The scripted leg, at run speed: this is somebody who has just announced
+                    // they are leaving, not somebody on their daily round. Steered rather than
+                    // driven blind — a transform walk that shoves through a prop's collider is
+                    // reseated on TOP of it by the ground ray, and the player watched Kes
+                    // summit a rock on his way over.
+                    var step = SteerStep(body, destination, _exitRunSpeed * Time.deltaTime);
+                    var facing = Flatten(step - body.position);
                     PlaceActor(body, locomotion, step,
                         facing.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(facing) : body.rotation);
 
@@ -1580,7 +1702,23 @@ reachedTheEnd = true;
                         body.position = new Vector3(body.position.x, underfoot.point.y, body.position.z);
 
                     if (Flatten(destination - body.position).magnitude <= 0.4f)
-                        destination += heading * ExitStrideMetres;
+                    {
+                        if (leg < route.Count - 1)
+                        {
+                            leg++;
+                            destination = route[leg].position;
+                            heading = LegHeading(body, destination);
+                        }
+                        else if (!beat.Value)
+                        {
+                            arrived = true;
+                            break;
+                        }
+                        else
+                        {
+                            destination += heading * ExitStrideMetres;
+                        }
+                    }
                 }
 
                 yield return null;
@@ -1588,35 +1726,178 @@ reachedTheEnd = true;
 
             StopAgent(agent);
 
-            if (!gone)
+            // One [Exit] line per despawn decision, whichever way it went: in a deployed build
+            // the console is the only witness left.
+            if (arrived)
             {
-                // Loud, because the alternative is the thing this beat exists to prevent: an
-                // actor removed, or parked, while the player is looking straight at them.
-                Debug.LogError($"[Episode] '{beat.Id}' was still in shot after {timeout:0.0}s of " +
-                               $"walking away toward '{beat.Target}'" +
-                               (stranded ? " and ran out of navmesh on the way" : "") +
-                               ". They are being taken off the screen in view of the player, which " +
-                               "reads as a bug. The mark needs to lead somewhere the camera cannot " +
-                               "follow, or the beat needs longer.", this);
+                Debug.Log($"[Exit] '{beat.Id}' walked the whole way to '{landingMark.name}' in " +
+                          $"{elapsed:0.0}s and stays drawn there; nothing to hide.", this);
+            }
+            else if (gone)
+            {
+                Debug.Log($"[Exit] '{beat.Id}' " +
+                          (beat.Value ? "despawns" : $"relocates to '{landingMark.name}'") +
+                          $": out of view {offscreenFor:0.0}s and {playerDistance:0.0}m from the " +
+                          $"player (rule: {_exitOffscreenGraceSeconds:0.0}s AND " +
+                          $"{_exitDespawnDistanceMetres:0.0}m) after {elapsed:0.0}s.", this);
+            }
+            else if (playerDistance >= _exitDespawnDistanceMetres)
+            {
+                // The ceiling, but far away: a player who stood and stared never granted the
+                // out-of-view half of the rule, and a sprite this distant ending its walk is
+                // the acceptable end of that stare — not the nearby pop the rule exists for.
+                Debug.Log($"[Exit] '{beat.Id}' hit the {timeout:0.0}s ceiling still in view but " +
+                          $"{playerDistance:0.0}m out; " +
+                          (beat.Value ? "hidden" : $"relocated to '{landingMark.name}'") +
+                          " at that distance.", this);
+            }
+            else
+            {
+                // Loud, because this is the thing the beat exists to prevent: an actor removed,
+                // or teleported, right next to a player who is looking at them.
+                Debug.LogError($"[Exit] '{beat.Id}' was still in view and only " +
+                               $"{playerDistance:0.0}m from the player after {timeout:0.0}s of " +
+                               $"leaving toward '{landingMark.name}'. They are being " +
+                               (beat.Value ? "removed" : "teleported") +
+                               " in plain sight, which reads as a bug. The route needs to leave " +
+                               "the camera faster, or the beat needs longer.", this);
             }
 
-            // Set down on the mark whichever way this ended. It is verified ground with navmesh
-            // under it, where "however far along the bearing they got" is not; and for the actor
-            // who stays drawn this is the off-camera half of a walk the navmesh could not carry.
-            var landing = NavMesh.SamplePosition(marker.position, out var onMesh, 4f, NavMesh.AllAreas)
-                ? onMesh.position
-                : marker.position;
-            PlaceActor(body, locomotion, landing, body.rotation);
-            StopAgent(agent);
-
+            // Hidden FIRST, moved second, so the relocation is invisible even when the rule was
+            // never satisfied. The old order — set down on the mark, then hide — was a visible
+            // teleport straight back toward the player followed by a vanish.
             if (beat.Value) HideActor(actor, renderers);
+
+            // Set down on the landing mark whichever way this ended. It is verified ground,
+            // where "however far along the bearing they got" is not; and for the actor who
+            // stays drawn this is the off-camera half of a walk the navmesh could not carry.
+            var landed = NavMesh.SamplePosition(landingMark.position, out var onMesh, 4f, NavMesh.AllAreas);
+            var landing = landed ? onMesh.position : SeatOnGround(landingMark.position);
+            PlaceActor(body, locomotion, landing, body.rotation);
+
+            if (agentDisabledHere && agent != null)
+            {
+                // Only turned back on where there is mesh to stand on — an agent enabled
+                // off-mesh throws once a frame for the rest of the session. When the landing's
+                // band is not streamed in yet there is no mesh to find; later walks fall back
+                // to the transform walk, which is enough.
+                if (landed)
+                {
+                    agent.enabled = true;
+                    if (!agent.isOnNavMesh) agent.Warp(landing);
+                }
+            }
+            StopAgent(agent);
         }
 
         /// <summary>Metres an exit walk reaches ahead of itself once it is past its mark.</summary>
         private const float ExitStrideMetres = 8f;
 
-        /// <summary>Seconds before the out-of-shot test is believed. Covers a camera blend.</summary>
+        /// <summary>Seconds before the despawn rule is consulted at all. Covers a camera blend.</summary>
         private const float ExitGraceSeconds = 0.4f;
+
+        /// <summary>
+        /// The marks an ExitActor walks through, in order — `Target` split on '>'. A missing
+        /// waypoint is dropped with a warning; a missing LANDING empties the route, because
+        /// stopping on the second-to-last mark of a departure is the wrong place to live.
+        /// </summary>
+        private List<Transform> ResolveExitRoute(string target)
+        {
+            var route = new List<Transform>();
+            if (string.IsNullOrEmpty(target)) return route;
+
+            var names = target.Split('>');
+            for (var i = 0; i < names.Length; i++)
+            {
+                var markName = names[i].Trim();
+                if (markName.Length == 0) continue;
+                var mark = FindMarker(markName);
+                if (mark == null)
+                {
+                    Debug.LogWarning($"[Episode] ExitActor route names '{markName}', which is " +
+                                     "not in the scene; the leg is dropped. Its world position " +
+                                     "belongs in cast.json.", this);
+                    continue;
+                }
+                route.Add(mark);
+            }
+
+            var last = names[names.Length - 1].Trim();
+            if (route.Count > 0 && route[route.Count - 1].name != last) route.Clear();
+            return route;
+        }
+
+        /// <summary>The flat, normalized direction of a walk's next leg.</summary>
+        private static Vector3 LegHeading(Transform body, Vector3 destination)
+        {
+            var heading = Flatten(destination - body.position);
+            if (heading.sqrMagnitude < 1e-4f) heading = Flatten(body.forward);
+            if (heading.sqrMagnitude < 1e-4f) heading = Vector3.forward;
+            return heading.normalized;
+        }
+
+        /// <summary>
+        /// Whether the agent can genuinely path to the point — PathComplete, nothing less.
+        /// Partial is a no here on purpose: a partial path ends wherever the agent's own mesh
+        /// happens to come nearest the target, and following one is how Kes turned right at
+        /// the gate instead of going down the ramp.
+        /// </summary>
+        private static bool AgentCanReach(NavMeshAgent agent, Vector3 destination)
+        {
+            if (agent == null || !agent.enabled || !agent.isOnNavMesh) return false;
+            var path = new NavMeshPath();
+            return agent.CalculatePath(destination, path)
+                   && path.status == NavMeshPathStatus.PathComplete;
+        }
+
+        /// <summary>A point dropped onto whatever collider is under it, for landings off the mesh.</summary>
+        private static Vector3 SeatOnGround(Vector3 point)
+        {
+            return Physics.Raycast(point + Vector3.up * 20f, Vector3.down, out var hit, 60f,
+                                   ~0, QueryTriggerInteraction.Ignore)
+                ? new Vector3(point.x, hit.point.y, point.z)
+                : point;
+        }
+
+        /// <summary>
+        /// One step of a scripted walk, steered around whatever stands in the way.
+        ///
+        /// A transform walk has no physics: MoveTowards pushes straight into a prop's collider
+        /// and the ground ray then seats the walker on TOP of it, so an NPC crossing the bank
+        /// climbed over the rocks instead of going round them ("장애물 넘지 않고" — the report).
+        /// The probe is a sphere cast at knee height; when the straight line is blocked the
+        /// step swings left or right by up to seventy degrees, and a walker boxed in on every
+        /// bearing pushes on rather than stalling the beat.
+        /// </summary>
+        private static readonly float[] SteerYawsDegrees = { 0f, 35f, -35f, 70f, -70f };
+
+        private static Vector3 SteerStep(Transform body, Vector3 destination, float stepLength)
+        {
+            var desired = Flatten(destination - body.position);
+            if (desired.sqrMagnitude < 1e-6f) return body.position;
+            var remaining = desired.magnitude;
+            desired /= remaining;
+
+            // Inside the last stride, walk straight in: the destination is verified ground and
+            // a sidestep this close is a shuffle on the mark.
+            if (remaining <= 0.6f)
+                return Vector3.MoveTowards(body.position, destination, stepLength);
+
+            var origin = body.position + Vector3.up * 0.6f;
+            for (var i = 0; i < SteerYawsDegrees.Length; i++)
+            {
+                var direction = Quaternion.Euler(0f, SteerYawsDegrees[i], 0f) * desired;
+                if (Physics.SphereCast(origin, 0.3f, direction, out var blocker,
+                                       stepLength + 0.7f, ~0, QueryTriggerInteraction.Ignore)
+                    && blocker.transform.root != body.root
+                    && !blocker.transform.root.CompareTag(OverworldNames.PlayerTag))
+                    continue;
+
+                return body.position + direction * stepLength;
+            }
+
+            return body.position + desired * stepLength;
+        }
 
         /// <summary>Metres a companion stops short of the player. Just outside their capsule.</summary>
         private const float CompanionStandDistance = 1.4f;
@@ -2553,11 +2834,71 @@ reachedTheEnd = true;
             }
         }
 
-        private static Transform FindMarker(string markerName)
+        private Transform FindMarker(string markerName)
         {
             if (string.IsNullOrEmpty(markerName)) return null;
             var go = GameObject.Find(markerName);
-            return go != null ? go.transform : null;
+            return go != null ? go.transform : StandUpMarkerFromCast(markerName);
+        }
+
+        // --- Markers stood up from cast.json ---------------------------------------------------
+
+        /// <summary>Authored marker positions, keyed by name. Loaded once, on first miss.</summary>
+        private Dictionary<string, Vector3> _castMarkers;
+
+        [Serializable] private sealed class CastStaging { public CastStagingMarker[] markers; }
+        [Serializable] private sealed class CastStagingMarker { public string name; public float[] position; }
+
+        /// <summary>
+        /// Builds a missing marker at its authored cast.json position, or returns null when
+        /// cast.json does not know it either.
+        ///
+        /// The level builder is what genuinely authors markers into the bands, but it only
+        /// runs on a rebuild — so a mark added to cast.json tonight does not exist in the
+        /// scene until someone reruns Tools/Poké Lab, and a mark that DOES exist is invisible
+        /// to GameObject.Find until WorldStreamer brings its band in. Both holes used to
+        /// degrade the beat with a warning; standing the marker up from the same coordinates
+        /// the builder would use keeps the scene whole. The object takes the marker's exact
+        /// name, so every later lookup finds it the normal way.
+        /// </summary>
+        private Transform StandUpMarkerFromCast(string markerName)
+        {
+            if (_castMarkers == null)
+            {
+                _castMarkers = new Dictionary<string, Vector3>();
+                try
+                {
+                    var path = Path.Combine(Directory.GetCurrentDirectory(), _castPath);
+                    if (File.Exists(path))
+                    {
+                        var cast = JsonUtility.FromJson<CastStaging>(File.ReadAllText(path));
+                        foreach (var mark in cast?.markers ?? Array.Empty<CastStagingMarker>())
+                        {
+                            if (string.IsNullOrEmpty(mark.name)) continue;
+                            if (mark.position == null || mark.position.Length < 3) continue;
+                            _castMarkers[mark.name] =
+                                new Vector3(mark.position[0], mark.position[1], mark.position[2]);
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[Episode] cast.json at {_castPath} could not be read for " +
+                                     $"marker fallback: {e.Message}. Beats naming unbuilt markers " +
+                                     "will degrade.", this);
+                }
+            }
+
+            if (!_castMarkers.TryGetValue(markerName, out var authored)) return null;
+
+            // cast.json's own schema warns its Y values are approximate; seat on whatever
+            // ground is loaded, and keep the authored height where none is.
+            var stand = new GameObject(markerName);
+            stand.transform.position = SeatOnGround(authored);
+            Debug.Log($"[Episode] Marker '{markerName}' is not in any loaded scene; stood up " +
+                      $"from cast.json at {stand.transform.position}. A level rebuild " +
+                      "(Tools/Poké Lab) authors it properly.", this);
+            return stand.transform;
         }
 
         // --- Shared plumbing -----------------------------------------------------------------

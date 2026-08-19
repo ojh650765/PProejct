@@ -22,7 +22,7 @@
       "15": "CreatureApproach -- NEW. Walk the staged creature up to the player and block until it is 1.6 m away. Seconds is a timeout, as with MoveActor: an approach that does not land is snapped, because the beat after it is a battle that needs the creature on screen.",
       "16": "MoveActorToPlayer -- NEW. Walk the actor named by Id to the player's shoulder and block until they are there. Seconds is a timeout, as with MoveActor; Value false means do not turn to face the player on arrival. Exists because the marks live in cast.json and the player does not: the friend who has to be standing beside them when the grass moves has no mark to walk to, and authoring one would pin the shot to a spot the player may not be standing on.",
       "17": "StageRing -- NEW. Ring the player, and the actor named by Id when there is one, with wild creatures; Value false takes the ring away again with a scatter rather than a blink. Target is the game species id and defaults to the staged creature's own, so the ring is that creature's flock. Amount is how many, clamped 3-12. SECONDS IS THE RADIUS IN METRES on this beat and not a wait -- it does not wait for anything. Placed on the navmesh, deterministically from the beat, facing inward, and held still: they cannot wander and cannot start a battle by touching anybody. Removed when the episode ends on every path.",
-      "18": "ExitActor -- NEW. Send the actor named by Id away toward the marker named by Target and stop drawing them the moment the camera can no longer see them. The marker is the DIRECTION they left in, not the end of the journey: past it they keep walking the same bearing until they are out of shot. Seconds is a ceiling, and overrunning it is an error rather than a warning, because it means somebody was removed in full view. Value true takes them off the screen; Value false leaves them drawn and standing on the mark, which is how a walk the navmesh cannot carry -- the town/field seam -- gets finished off camera instead of stalling in frame.",
+      "18": "ExitActor -- Send the actor named by Id away along Target: one marker, or a '>'-separated route ('Mark_Exit_RampDown>Mark_Rival_BagSide') whose LAST mark is the landing and whose earlier marks are waypoints the visible walk must pass through. The landing is the direction they left in, not necessarily the end of the journey: past it they keep walking the same bearing. DESPAWN RULE (2026-08-20): nothing is hidden or teleported until the actor has been continuously out of the camera for EpisodeRunner._exitOffscreenGraceSeconds AND is _exitDespawnDistanceMetres from the player (defaults 2 s / 25 m) -- 'out of frame for one frame' under the free camera is just a player mid-turn. Legs the agent cannot genuinely path (PathComplete, not partial -- a partial path veers to wherever the mesh ends) run as a scripted straight-line walk at _exitRunSpeed with obstacle side-stepping, so the seam and the gate cannot bend the visible walk. Seconds is a ceiling; overrunning it far from the player ends the exit quietly at distance, overrunning it NEAR the player is an error, because somebody was removed in full view. Value true takes them off the screen (hidden first, moved second, so the landing snap is invisible); Value false leaves them drawn and standing on the landing mark -- or, if they walked the whole route watched, simply standing where they walked to, no teleport at all. One '[Exit]' console line records every despawn decision.",
       "19": "CameraShot -- NEW. Frame a genuinely COMPOSED shot: Id names a shot in shots.json, and the cinematics layer places an aimed, deoccluded CinemachineCamera from that authored composition (fixed position + look-at, or an orbit around a runtime-resolved object -- Actor_StagedCreature, Prop_ProfessorBag, the player) on the episode-shot priority rung. The shot is HELD until the next CameraShot/PlayTimeline replaces it, a GiveControl beat runs, or the episode ends -- the runner's finally releases it on every path, and a NextEpisodeId chain hands the held shot across the seam the way it hands the staged creature. Target is the marker the beat degrades to (a plain CameraTo yaw swing) when the cinematics layer or shots.json is missing, so the scene still points somewhere. The dialogue conversation camera outbids this rung for the length of a line and drops back; the shot keeps its state while outbid.",
       "20": "PlayTimeline -- NEW. Play the generated TimelineAsset named by Id (Resources/Timelines, built by Tools/Poké Lab/Rebuild/Sequencing Timelines from shots.json) through the cinematics layer's director, blocking. Seconds is a CEILING, not a duration -- it defaults to the asset's own length plus two seconds, and on overrun the choreography is jumped to its final frame rather than abandoned mid-move. The final frame is then held exactly like a CameraShot. Target is the CameraTo fallback marker, as with 19. Asset missing: log, degrade to the yaw swing, spend no time."
     },
@@ -174,7 +174,7 @@
         "radius": 5.0,
         "approachSeconds": 0.0
       },
-      "Note": "The send-off. He walks over rather than speaking from his post, because being approached is the whole characterisation. He explains nothing, sets a forfeit and leaves -- and the forfeit is what carries the scene, because it is the only reason the player has to follow somebody who has not said where he is going. This is also where the ramp opens: the flag is set here, in the beat that earns it, rather than in a later scene that could be missed.\n\nTriggered off a marker object in the square rather than off Kes himself, and the walk-over is a MoveActor beat instead of StoryEncounter's own approach. That looks like a downgrade and is not: NPC_Rival has exactly one StoryEncounter slot, and it is needed for the rival battle -- which is the one beat that has to sit on the same object as his TrainerController, or the sight cone and the story beat race each other for who gets to start the fight. See TrainerController.StandsDown. Target length ~40s. Kes leaves through the gate, not across it. He used to be sent straight from the square to his field post, and with the two bands baking separate navmeshes his agent simply headed for the straight line — out through the fence beside the ramp, in full view, which is the one shot this beat exists to sell. Mark_Rival_GateStand already stands at the head of the ramp, so the run is square -> gate -> field and only the last leg crosses the seam, off camera.",
+      "Note": "The send-off. He walks over rather than speaking from his post, because being approached is the whole characterisation. He explains nothing, sets a forfeit and leaves -- and the forfeit is what carries the scene, because it is the only reason the player has to follow somebody who has not said where he is going. This is also where the ramp opens: the flag is set here, in the beat that earns it, rather than in a later scene that could be missed.\n\nTriggered off a marker object in the square rather than off Kes himself, and the walk-over is a MoveActor beat instead of StoryEncounter's own approach. That looks like a downgrade and is not: NPC_Rival has exactly one StoryEncounter slot, and it is needed for the rival battle -- which is the one beat that has to sit on the same object as his TrainerController, or the sight cone and the story beat race each other for who gets to start the fight. See TrainerController.StandsDown. Target length ~40s. Kes leaves through the gate, not across it. He used to be sent straight from the square to his field post, and with the two bands baking separate navmeshes his agent simply headed for the straight line — out through the fence beside the ramp, in full view, which is the one shot this beat exists to sell. Mark_Rival_GateStand stands at the head of the ramp, so the run is square -> gate -> DOWN THE RAMP (Mark_Exit_RampDown, the user-supplied point the exit must visibly pass through) -> the lake bank, and he lands beside the professor's bag (Mark_Rival_BagSide) so the player who follows finds him already there — '먼저 도착' made literal. field_professor_returns walks him from the bag side back to Mark_Rival_FieldPost before story.pokedex is granted, which is the separation cast.json's field-post note demands.",
       "Beats": [
         {
           "Kind": 5,
@@ -232,10 +232,10 @@
           "Kind": 18,
           "KindName": "ExitActor",
           "Id": "NPC_Rival",
-          "Target": "Mark_Rival_FieldPost",
-          "Seconds": 12.0,
+          "Target": "Mark_Exit_RampDown>Mark_Rival_BagSide",
+          "Seconds": 24.0,
           "Value": false,
-          "Note": "Down the ramp and gone. This was a MoveActor, and a MoveActor cannot make this journey: Town and Field bake their own navmeshes with nothing linking them, so his path stops dead at the seam at the bottom of the ramp -- and the old arrival test read the end of a truncated path as an arrival, so he 'arrived' there, silently, and stood at the bottom of the ramp for the rest of the act. That is the strange place he settled in. ExitActor walks him out of the Look_GateRamp shot and only then puts him on the field mark, so the part the navmesh cannot carry happens where nobody is looking. Value false: he stays drawn, because rival_first_battle waits for him at that mark."
+          "Note": "Down the ramp and gone -- and now the route SAYS down the ramp. A single field-side mark gave the walk a bearing that cuts east through the fence beside the gatekeeper, and the baked StoryGate hole in the town mesh meant his agent could not even reach the ramp: the partial path's end was the fence, which is the veer-right the 2026-08-20 play reports describe. Two legs now: Mark_Exit_RampDown is the point ON the ramp the walk must pass through (the user supplied the coordinate), Mark_Rival_BagSide is the landing -- he beats the player to the lake and is standing at the professor's bag when they arrive, which is what '먼저 도착' costs him. Legs the navmesh cannot carry run as a scripted straight line at the runner's exit run speed (he has just shouted he is counting; 1.4 m/s is a stroll). Value false: he stays drawn, and the relocation onto the landing waits until he has been out of the player's view for the runner's grace AND is past its despawn distance -- or he simply runs the whole way there, watched, and no teleport happens at all. 53 m of route at 2.8 m/s is 19 s against the 24 s ceiling."
         }
       ]
     },
@@ -311,9 +311,9 @@
           "KindName": "ExitActor",
           "Id": "NPC_Professor",
           "Target": "Mark_Prof_Offstage",
-          "Seconds": 14.0,
+          "Seconds": 26.0,
           "Value": true,
-          "Note": "He goes back to the town, and the mark is the direction rather than the destination. This was a MoveActor to the same mark and that is the whole of the fault: Mark_Prof_Offstage is 7.7 m away, so he walked seven metres, stopped, and -- because MoveActor turns an actor to face the player on arrival -- turned round and stood there looking at them for the rest of the scene, still in frame, with the walk cycle running because a parked agent's sprite was reading its speed off a smoothed position delta that never quite reached zero. ExitActor keeps him walking town-ward past the mark until the camera has lost him and then stops drawing him. He is put back on the mark as he goes, because that is verified ground with navmesh under it and 'field_professor_returns' brings him in from there."
+          "Note": "He goes back to the town, and the mark is the direction rather than the destination: ExitActor keeps him walking town-ward past it along the same bearing. What changed on 2026-08-20 is WHEN he stops being drawn. 'Out of frame for one frame' was the old rule, and under the free camera that is a player mid-turn -- 박사 아저씨 popped out of existence eight metres away the moment the camera lost him. Now he keeps walking deep toward the town and is only hidden once he has been continuously out of the player's view for the runner's offscreen grace AND is past its despawn distance (defaults 2 s and 25 m, serialized on EpisodeRunner). Ceiling widened 14 -> 26 to buy the distance at his own 1.4 m/s -- he is seventy-one, and the exit run speed is for people who bolt, not for him; his legs stay agent-driven because his own mesh carries them. A player who stands and stares never grants the out-of-view half, so the ceiling ends it at distance, quietly. He is still put back on the mark as he goes dark, because that is verified ground and 'field_professor_returns' brings him in from there."
         }
       ]
     },
@@ -343,7 +343,7 @@
           "KindName": "MoveActorToPlayer",
           "Id": "NPC_Rival",
           "Seconds": 10.0,
-          "Note": "He comes over from his field post, 9 m away. Three of this scene's four lines are his and the one before it has Linden greeting '자네들' -- the script has had the two of them together in the field since it was written and the staging never brought him. So the bag was found, opened and exclaimed over by a boy who was standing on the shore trail the whole time."
+          "Note": "A step, not a journey. He used to come over from his field post 9 m away -- the user watched that walk and asked for him to simply BE at the bag ('케스 가방 옆에 있는 걸로 배치. 멀리서 걸어오지 않고') -- so kes_summons now lands him on Mark_Rival_BagSide, 2.5 m from the bag, and this beat closes the last metre or two to the player's shoulder. Kept rather than dropped because the episode has to be judgeable on its own: jumped into cold, it still brings him from wherever he is."
         },
         {
           "Kind": 4,
@@ -490,19 +490,28 @@
           "Note": "5 lines. Alarmed for exactly one of them. The last sends the player to the lab, which is the next act's problem and not this file's."
         },
         {
+          "Kind": 6,
+          "KindName": "GiveControl",
+          "Seconds": 0.0,
+          "Note": "BEFORE the walk-offs, for the reason kes_summons and the mutter scene already moved theirs: beats block, and the professor's exit below now has a 26 s ceiling -- held, that is twenty-six seconds of an old man walking away, which the user has twice called a freeze. From here the field behaves like a field. The flag that ends the prologue is set by the runner's finally only after BOTH walks below finish, which is what makes the last one safe to rely on."
+        },
+        {
           "Kind": 18,
           "KindName": "ExitActor",
           "Id": "NPC_Professor",
           "Target": "Mark_Prof_Offstage",
-          "Seconds": 14.0,
+          "Seconds": 26.0,
           "Value": true,
-          "Note": "He goes back up the hill, because he just said he would, and he keeps going until he is out of shot rather than stopping eight metres away and turning round. Leaving him standing on the bank makes 'come to the lab' a lie the player can walk around -- and so does leaving him visible at the top of the path."
+          "Note": "He goes back up the hill, because he just said he would, and he keeps going until nobody could see him stop rather than stopping eight metres away and turning round. Same despawn rule and same widened ceiling as the mutter exit: continuously out of view AND past the runner's despawn distance, or the ceiling ends it at distance. Leaving him standing on the bank makes 'come to the lab' a lie the player can walk around -- and so does leaving him visible at the top of the path. A player who literally follows him toward the lab can pin him in frame to the ceiling; that ends in the loud [Exit] error, and is the trade for never freezing the pad."
         },
         {
-          "Kind": 6,
-          "KindName": "GiveControl",
-          "Seconds": 0.0,
-          "Note": "The flag that ends the prologue is set immediately after this by the runner's finally. From here the field behaves like a field: grass produces encounters, roamers repopulate, and Kes can be fought."
+          "Kind": 7,
+          "KindName": "MoveActor",
+          "Id": "NPC_Rival",
+          "Target": "Mark_Rival_FieldPost",
+          "Seconds": 10.0,
+          "Value": false,
+          "Note": "Kes takes up his post on the shore trail, under the player's free camera like every other walk-off tonight. Load-bearing, not staging, and the bug is confirmed live ('박사가 연구실로 따라오라고 했는데 케스가 바로 전투 거는데?'): the ambush beats bring Kes to the player's shoulder and nothing sent him back, so the moment this episode's finally granted story.pokedex, rival_first_battle's 5.0 m radius on him fired with the professor's last line still on screen. cast.json's rule for Mark_Rival_FieldPost exists for exactly this frame. This walk restores the 9 m separation BEFORE the flag is set: ~7 m from the bag side, under 5 s of walking against the 10 s ceiling. Value false -- he is waiting to fight, not turning round to chat."
         }
       ]
     },

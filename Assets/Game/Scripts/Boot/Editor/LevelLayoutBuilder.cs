@@ -2074,8 +2074,19 @@ namespace PokeLab.Boot.Editor
                 keeper.GetComponent<NpcController>(),
                 new Vector3(opening.x + 1.5f, 4f, 0.6f));
 
+            // Kept OUT of the navmesh bake. The gate sits on Environment, a layer
+            // BuildNavigation collects, so the closed wall was baked into the town mesh as
+            // permanent geometry: the ramp under it was a hole no runtime flag could heal, and
+            // every agent asked to leave town pathed around it into the fence — that is Kes
+            // veering right at the gatekeeper. The wall still blocks bodies (its collider) and
+            // still blocks paths while closed (StoryGate's carving NavMeshObstacle); what it
+            // must never do is block the BAKE.
+            var navmesh = go.AddComponent<NavMeshModifier>();
+            navmesh.ignoreFromBuild = true;
+
             SetLayer(go, "Environment");
-            Debug.Log("[Level] Story: the town ramp is closed until story.gate_open.");
+            Debug.Log("[Level] Story: the town ramp is closed until story.gate_open, and the " +
+                      "wall no longer bakes a hole in the navmesh.");
         }
 
         [Serializable] private sealed class Cast
