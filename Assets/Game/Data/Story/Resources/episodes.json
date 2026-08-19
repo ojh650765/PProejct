@@ -490,19 +490,19 @@
           "Note": "5 lines. Alarmed for exactly one of them. The last sends the player to the lab, which is the next act's problem and not this file's."
         },
         {
+          "Kind": 6,
+          "KindName": "GiveControl",
+          "Seconds": 0.0,
+          "Note": "BEFORE the walk-offs, for the reason kes_summons and the mutter scene already moved theirs: beats block, and the professor's exit below now has a 26 s ceiling -- held, that is twenty-six seconds of an old man walking away, which the user has twice called a freeze. From here the field behaves like a field. The flag that ends the prologue is set by the runner's finally only after BOTH walks below finish, which is what makes the last one safe to rely on."
+        },
+        {
           "Kind": 18,
           "KindName": "ExitActor",
           "Id": "NPC_Professor",
           "Target": "Mark_Prof_Offstage",
           "Seconds": 26.0,
           "Value": true,
-          "Note": "He goes back up the hill, because he just said he would, and he keeps going until nobody could see him stop rather than stopping eight metres away and turning round. Same despawn rule and same widened ceiling as the mutter exit: continuously out of view AND past the runner's despawn distance, or the ceiling ends it at distance. Leaving him standing on the bank makes 'come to the lab' a lie the player can walk around -- and so does leaving him visible at the top of the path."
-        },
-        {
-          "Kind": 6,
-          "KindName": "GiveControl",
-          "Seconds": 0.0,
-          "Note": "From here the field behaves like a field: grass produces encounters, roamers repopulate. The flag that ends the prologue is set by the runner's finally AFTER the walk below -- which is the point of the walk being below."
+          "Note": "He goes back up the hill, because he just said he would, and he keeps going until nobody could see him stop rather than stopping eight metres away and turning round. Same despawn rule and same widened ceiling as the mutter exit: continuously out of view AND past the runner's despawn distance, or the ceiling ends it at distance. Leaving him standing on the bank makes 'come to the lab' a lie the player can walk around -- and so does leaving him visible at the top of the path. A player who literally follows him toward the lab can pin him in frame to the ceiling; that ends in the loud [Exit] error, and is the trade for never freezing the pad."
         },
         {
           "Kind": 7,
@@ -511,7 +511,7 @@
           "Target": "Mark_Rival_FieldPost",
           "Seconds": 10.0,
           "Value": false,
-          "Note": "Kes takes up his post on the shore trail, under the player's free camera like every other walk-off tonight. Load-bearing, not staging: kes_summons now lands him BESIDE THE BAG (Mark_Rival_BagSide, 2.5 m out) so he is already there when the player arrives, but cast.json's rule for Mark_Rival_FieldPost still stands -- story.pokedex is granted with the player within 3 m of the bag, and rival_first_battle's 5.0 m radius on Kes must not fire in that same frame. This walk restores the 9 m separation BEFORE the episode's finally sets the flag: ~7 m from the bag side, under 5 s of walking against the 10 s ceiling. Value false -- he is waiting to fight, not turning round to chat."
+          "Note": "Kes takes up his post on the shore trail, under the player's free camera like every other walk-off tonight. Load-bearing, not staging, and the bug is confirmed live ('박사가 연구실로 따라오라고 했는데 케스가 바로 전투 거는데?'): the ambush beats bring Kes to the player's shoulder and nothing sent him back, so the moment this episode's finally granted story.pokedex, rival_first_battle's 5.0 m radius on him fired with the professor's last line still on screen. cast.json's rule for Mark_Rival_FieldPost exists for exactly this frame. This walk restores the 9 m separation BEFORE the flag is set: ~7 m from the bag side, under 5 s of walking against the 10 s ceiling. Value false -- he is waiting to fight, not turning round to chat."
         }
       ]
     },
