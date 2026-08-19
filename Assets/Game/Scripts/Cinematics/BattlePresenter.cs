@@ -63,6 +63,13 @@ namespace PokeLab.Cinematics
         // The queue is a List rather than a Queue because the choreography reads ahead of the
         // playhead to anticipate misses and damage; a Queue cannot be indexed.
         private readonly List<BattleEvent> _pending = new List<BattleEvent>();
+
+        // Queued events whose EventObserved has NOT fired yet. Observation must happen in
+        // stream order: once one event is held back for its beat, everything that arrives
+        // behind it holds too, or the HUD prints the consequences before the cause — the
+        // experience line, the level-up and the opponent's replacement all landing in the
+        // log before "쓰러졌다!", which reads as the turn order tangling.
+        private readonly HashSet<BattleEvent> _unobserved = new HashSet<BattleEvent>();
         private readonly Dictionary<BattleSide, CreatureInstance> _active = new Dictionary<BattleSide, CreatureInstance>();
 
         private Coroutine _pump;
@@ -216,6 +223,15 @@ namespace PokeLab.Cinematics
                 yield return WaitUntilIdle(Mathf.Max(1f, turnPerformanceTimeout));
                 if (!battle.IsBattleActive) break;
 
+                // The only path on which two turns' events can share the queue: the wait above
+                // gave up before the performance drained. Say so, because interleaved beats
+                // are exactly what a "turn order tangled" report looks like from the outside.
+                if (!IsIdle)
+                {
+                    Debug.LogWarning($"[Turn] performance still busy after {turnPerformanceTimeout:0}s " +
+                                     $"(pending {PendingCount}); the next turn's events will interleave.", this);
+                }
+
                 if (battle.Engine == null)
                 {
                     battle.Abort("The stage reported a live battle with no engine behind it.");
@@ -334,9 +350,14 @@ namespace PokeLab.Cinematics
 
             // Handed on unqueued, because the HUD is reporting state rather than performing it:
             // a health bar that only moved once the camera had finished its shot would be
-            // showing the player a number that stopped being true several seconds ago. The
-            // exception is an event that carries the result — see <see cref="RevealsOutcome"/>.
-            if (!RevealsOutcome(evt)) EventObserved?.Invoke(evt);
+            // showing the player a number that stopped being true several seconds ago. Two
+            // exceptions: an event that carries the result — see <see cref="RevealsOutcome"/> —
+            // and anything queued BEHIND one, because observation must stay in stream order.
+            // The engine keeps emitting after a faint (experience, level-ups, the opponent's
+            // replacement), and relaying those on arrival printed them all before the faint
+            // line they follow from.
+            if (!RevealsOutcome(evt) && _unobserved.Count == 0) EventObserved?.Invoke(evt);
+            else _unobserved.Add(evt);
             if (_pump == null && isActiveAndEnabled) _pump = CinematicRunner.Run(Pump());
         }
 
@@ -356,11 +377,12 @@ namespace PokeLab.Cinematics
         /// The battle's end qualifies because the engine emits it last and emits nothing after
         /// it, so holding it back cannot reorder the HUD's view of anything else in the stream.
         ///
-        /// A faint qualifies for the same reason at a smaller scale: "쓰러졌다" printed while the
-        /// creature is still standing is the same spoiler one beat earlier, and it is what the
-        /// player actually reads. Nothing is lost by waiting — the health bar already emptied on
-        /// the DamageDealt event ahead of it, which is state and still arrives immediately, so
-        /// the bar drains, then the creature falls, then the line says so.
+        /// A faint qualifies as the same spoiler at a smaller scale: "쓰러졌다" printed while the
+        /// creature is still standing is what the player actually reads. Nothing is lost by
+        /// waiting — the health bar already emptied on the DamageDealt event ahead of it. But
+        /// unlike the battle's end, a faint is NOT last in its stream: experience, level-ups
+        /// and the replacement send-out follow it, so everything queued behind a held event is
+        /// held too (see <see cref="OnBattleEvent"/>) or those lines overtake the faint.
         /// </summary>
         private static bool RevealsOutcome(BattleEvent evt) =>
             evt is BattleEndedEvent || evt is CreatureFaintedEvent;
@@ -390,6 +412,7 @@ namespace PokeLab.Cinematics
         public void FlushQueue()
         {
             _pending.Clear();
+            _unobserved.Clear();
             if (_pump != null) { CinematicRunner.Halt(_pump); _pump = null; }
             ReleasePerformance();
         }
@@ -428,7 +451,7 @@ namespace PokeLab.Cinematics
                 // The paced half of the split in OnBattleEvent. Raised as the beat opens rather
                 // than after it, so the result card is up for the celebration it belongs to
                 // instead of arriving once the camera has already left.
-                if (RevealsOutcome(evt)) EventObserved?.Invoke(evt);
+                if (_unobserved.Remove(evt)) EventObserved?.Invoke(evt);
 
                 // The performed tap. Beat-open rather than beat-close, so a cue fired by a
                 // listener lands with the wind-up of the thing it scores instead of trailing it.
@@ -473,11 +496,15 @@ namespace PokeLab.Cinematics
             return false;
         }
 
-        /// <summary>Consumes a specific queued event that this beat has already performed.</summary>
+        /// <summary>
+        /// Consumes a specific queued event that this beat has already performed. An event
+        /// whose observation was deferred behind a held result is observed here, because it
+        /// will never reach the pump's own observation point.
+        /// </summary>
         private void ConsumePeeked(BattleEvent evt)
         {
             if (evt == null) return;
-            _pending.Remove(evt);
+            if (_pending.Remove(evt) && _unobserved.Remove(evt)) EventObserved?.Invoke(evt);
         }
 
         // --- Dispatch ---------------------------------------------------------------------

@@ -74,6 +74,13 @@ namespace PokeLab.Battle
         /// <summary>Policy that plays the player's side when no presenter has claimed the battle.</summary>
         public BattleAi AutoPlayPolicy { get; set; } = new BattleAi(AiDifficulty.Standard);
 
+        /// <summary>
+        /// Diagnostic sink handed to every engine this stage builds — see
+        /// <see cref="BattleEngine.Trace"/>. Set by the scene host; the stage itself is pure
+        /// C# and cannot log.
+        /// </summary>
+        public Action<string> EngineTrace { get; set; }
+
         /// <summary>Registers this stage so <see cref="IGameFlow"/> can find it.</summary>
         public void Register() => ServiceHub.Register<IBattleStage>(this);
 
@@ -219,6 +226,7 @@ namespace PokeLab.Battle
             Engine = new BattleEngine(ai: new BattleAi(
                 request.Kind == BattleKind.Wild ? AiDifficulty.Wild : TrainerDifficulty));
 
+            Engine.Trace = EngineTrace;
             Engine.SetOpponentTrainer(request.TrainerId);
             Engine.Begin(request.Kind, _playerParty, _opponentParty, request.Weather, request.Seed);
             return true;
