@@ -18,8 +18,8 @@
       "Name": "shot_lab_dome",
       "Mode": 1,
       "ModeName": "Fixed",
-      "Position": [-8.8, 3.15, -13.1],
-      "LookAt": [-1.45, 7.4, -5.69],
+      "Position": [-15.74, 3.21, -23.27],
+      "LookAt": [-1.45, 7.2, -5.69],
       "Fov": 42.0,
       "Note": "The opening reveal, composed so the dome is actually IN it. The yaw swing kept the exploration rig's 8 deg pitch on an 8.5 m boom behind the spawn at (-15, -19.5)ish, which cut the dome off above the frame and let the tree canopies flanking the plaza into both edges. This camera stands ON the plaza near the spawn (ground 2.43, lens 0.72 m up -- a low angle), past the tree rows, on the spawn-to-lab 44 deg axis, pitched 22 deg UP at the dome: horizontal distance 10.4 m, rise 4.25 m. Aiming at y 7.4 -- 0.8 m below the dome centre at 8.2 -- puts the dome in the upper third with sky behind it, which is the authored intent: 'the dome filling the top of the screen'. Pose is identical to tl_opening_reveal's first key, so the fade-in reveals the shot the timeline then pushes from with no seam."
     },
@@ -93,15 +93,15 @@
       "Segments": [
         {
           "StartSeconds": 0.0, "EndSeconds": 1.2, "Ease": 0, "EaseName": "Hold",
-          "FromPosition": [-8.8, 3.15, -13.1], "ToPosition": [-8.8, 3.15, -13.1],
-          "FromLookAt": [-1.45, 7.4, -5.69], "ToLookAt": [-1.45, 7.4, -5.69],
-          "Note": "Let the dome sit there. Same intent as the Wait beat this replaces."
+          "FromPosition": [-15.74, 3.21, -23.27], "ToPosition": [-15.74, 3.21, -23.27],
+          "FromLookAt": [-1.45, 7.2, -5.69], "ToLookAt": [-1.45, 7.2, -5.69],
+          "Note": "Let the dome sit there. Same intent as the Wait beat this replaces. RETUNED against in-play film: the old pose stood 5.5 m from the lab's door face, which fills the frame wall-to-wall at FOV 42 -- the building is 222 deg rotated and its visible face is far closer than its centre. This one stands 23 m out on the same axis (verified render: Captures/dome_retune/001_domeB_wider) with the round observatory floor centred under open sky, the town's fences and the neighbour house framing it."
         },
         {
           "StartSeconds": 1.2, "EndSeconds": 4.6, "Ease": 1, "EaseName": "Smooth",
-          "FromPosition": [-8.8, 3.15, -13.1], "ToPosition": [-7.55, 3.4, -11.85],
-          "FromLookAt": [-1.45, 7.4, -5.69], "ToLookAt": [-1.45, 7.4, -5.69],
-          "Note": "The push-in. Slow: 0.5 m/s at peak."
+          "FromPosition": [-15.74, 3.21, -23.27], "ToPosition": [-13.49, 3.2, -20.51],
+          "FromLookAt": [-1.45, 7.2, -5.69], "ToLookAt": [-1.45, 7.5, -5.69],
+          "Note": "The push-in: 3.5 m along the same axis, aim lifting to the dome proper, ending on Captures/dome_retune/000_domeA's verified frame. ~1 m/s at peak."
         }
       ]
     },
