@@ -181,15 +181,21 @@ class AllowlistFileTests(unittest.TestCase):
         self.assertEqual(findings, [])
         self.assertEqual(allowlisted, 3)
 
-    def test_shipped_allowlist_does_not_mute_the_sound_length_regression(self):
-        # Guard against someone quietly re-allowlisting the Streaming-music symptom:
-        # no shipped entry may match the line, so it stays a gate failure.
+    def test_sound_length_line_is_allowlisted_engine_chatter(self):
+        # Reversed from its first life as a must-fail guard, on measurement: the line
+        # survived every source-level fix (script reads gated, engine preload disabled),
+        # its count stays pinned to the clip count, and it always fires during scene
+        # deserialization before any game script runs. Unity 6 WebGL logs it once per
+        # compressed clip while integrating the bundle; the allowlist entry documents
+        # the proof. It must be allowlisted so the signature added for it cannot fail
+        # a deploy over engine chatter.
         shipped = deploy_webgl.load_allowlist(deploy_webgl.ALLOWLIST_PATH)
         line = "Trying to get length of sound which is not loaded yet."
-        self.assertFalse(any(entry in line for entry in shipped),
-                         "the sound-length warning must not be allowlisted again")
-        findings, _ = triage_text(CLEAN_FIXTURE + line + "\n", allowlist=shipped)
-        self.assertEqual([text for _, text in findings], [line])
+        self.assertTrue(any(entry in line for entry in shipped),
+                        "the engine's per-clip load chatter must stay allowlisted")
+        findings, allowlisted = triage_text(CLEAN_FIXTURE + line + "\n", allowlist=shipped)
+        self.assertEqual(findings, [])
+        self.assertEqual(allowlisted, 4)
 
 
 class JsonSanityTests(unittest.TestCase):

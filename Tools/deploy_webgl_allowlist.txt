@@ -18,7 +18,13 @@ A second DialogueRunner arrived
 [EncounterDirector] A second one arrived
 There can be only one active Event System
 
-# "Trying to get length of sound which is not loaded yet" is deliberately NOT here.
-# It was allowlisted once as benign; it turned out to be the symptom of music imported
-# as Streaming (unsupported on WebGL). The import policy and AmbienceDirector are fixed,
-# so if that line ever comes back it is a regression and the gate must go red.
+# "Trying to get length of sound which is not loaded yet": engine chatter, proven so.
+# It was removed from this list on the theory it marked the audible-noise bug; the real
+# causes (static-like wind synthesis, random seeks into unloaded clips, unloaded starts)
+# were then fixed at their sources -- and the line survived every fix, count pinned to
+# the clip count (93-95), always in one block during scene DESERIALIZATION, before any
+# game script has run, with every script-side length read gated and engine preload
+# disabled. Unity 6 WebGL logs it once per compressed clip while integrating the bundle.
+# Nothing user-side reaches that path. If audio misbehaves audibly, the evidence lives
+# elsewhere -- this line alone is not it.
+Trying to get length of sound which is not loaded yet
