@@ -321,8 +321,8 @@ namespace PokeLab.Cinematics
         /// narration. Framing follows the line, not the sequence.</summary>
         private bool CurrentLineHasSpeaker()
         {
-            var line = _runner != null ? _runner.CurrentLine : null;
-            return line != null && !string.IsNullOrEmpty(line.SpeakerId);
+            if (_runner == null || !_runner.IsPlaying) return false;
+            return !string.IsNullOrEmpty(_runner.CurrentLine.SpeakerId);
         }
 
         private bool ShouldEngage()
