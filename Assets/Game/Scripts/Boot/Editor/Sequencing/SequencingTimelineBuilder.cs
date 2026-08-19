@@ -184,7 +184,11 @@ namespace PokeLab.Sequencing.Editor
             timelineClip.displayName = "Camera";
 
             EditorUtility.SetDirty(timeline);
-            if (!fresh) AssetDatabase.ImportAsset(path);
+            // No ImportAsset here: importing re-reads the file from DISK and replaces the
+            // in-memory objects, discarding the track and clip built above before
+            // BuildTimelines' SaveAssets can write them. Every rebuilt timeline shipped as
+            // 4.6 seconds of nothing (m_AnimClip fileID 0) because of that one call, with
+            // the importer's "generated inconsistent result" as the only witness.
         }
 
         /// <summary>
