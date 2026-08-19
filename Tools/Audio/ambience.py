@@ -37,13 +37,15 @@ EVENT_TAIL = 3.0     # overhang rendered for event layers so their tails fold ba
 def bed_layer(build_fn) -> np.ndarray:
     """Render a continuous texture and close it into an exact LOOP-length cycle."""
     raw = build_fn(LOOP + BED_FADE)
-    return dsp.crossfade_loop(raw, BED_FADE)
+    # the crossfade makes the interior continuous; the pin removes the residual
+    # |first - last| step the wrap itself would still play as a tick
+    return dsp.pin_loop_wrap(dsp.crossfade_loop(raw, BED_FADE))
 
 
 def event_layer(build_fn) -> np.ndarray:
     """Render sparse events plus their tails and fold the overhang onto the head."""
     raw = build_fn(LOOP + EVENT_TAIL)
-    return dsp.make_seamless(raw, LOOP)
+    return dsp.pin_loop_wrap(dsp.make_seamless(raw, LOOP))
 
 
 def stereo_place(dest: np.ndarray, mono: np.ndarray, at_s: float, position: float,
@@ -202,43 +204,78 @@ def amb_birdsong():
 
 
 def amb_wind_grass():
-    """Wind through grass: a gusting band of noise plus granular blade movement."""
+    """
+    Wind through grass. Real wind is low: the energy lives under ~600 Hz and moves
+    with the gusts, and the grass itself is only a faint high sparkle riding on top.
+    A midrange noise band reads as static on small speakers, so the core here is
+    low-passed noise whose cutoff and level breathe together, and every brighter
+    layer is gated by the same gust curve -- HF exists only while the wind swells.
+    """
 
     def build(total):
         length = n_samples(total)
-        # Gusts run at about a third of a hertz: two or three swells across the loop.
-        gust = dsp.drift_unipolar(length, rate_hz=0.32, seed=1002, floor=0.42)
+        # Gusts around a third of a hertz: two or three swells across the loop.
+        gust = dsp.drift_unipolar(length, rate_hz=0.3, seed=1002, floor=0.35, partials=4)
 
+        # Core rumble: <600 Hz dominant. The cutoff rides the gusts over ~1.5 octaves
+        # so a swell opens the spectrum rather than only getting louder.
         base = dsp.noise_pink(length=length, seed=1003)
-        cutoff = 380.0 * (2.0 ** (1.6 * gust))
-        body = sweep_filter(base, cutoff, q=0.9, mode="bp", block=256) * gust
+        cutoff = 170.0 * (2.0 ** (1.55 * gust))
+        core = sweep_filter(base, cutoff, q=0.8, mode="lp", block=256) * gust
+
+        # Mid whoosh an octave up, decorrelated per ear for width, gated harder than
+        # the core so it appears inside swells only.
+        wh_l = sweep_filter(dsp.noise_pink(length=length, seed=1032), cutoff * 2.2,
+                            q=1.1, mode="bp", block=256)
+        wh_r = sweep_filter(dsp.noise_pink(length=length, seed=1033), cutoff * 2.2,
+                            q=1.1, mode="bp", block=256)
+        whoosh = np.stack([wh_l, wh_r], axis=1) * (gust ** 1.6)[:, None]
 
         def blade(d, r):
             m = max(8, n_samples(min(d, 0.02)))
             return bandpass(r.standard_normal(m), r.uniform(1600, 3800), r.uniform(4000, 11000), 2)
 
-        rustle = dsp.granular(blade, total, grain_ms=26.0, density=260.0, pitch_jitter=0.5,
+        # Grass detail: kept ~14 dB under the core and gated by gust^2 so the sparkle
+        # rides the swells instead of hissing continuously.
+        rustle = dsp.granular(blade, total, grain_ms=26.0, density=180.0, pitch_jitter=0.5,
                               seed=1004, pan_spread=0.9)
-        rustle *= (0.3 + 0.7 * gust)[:, None]
-        out = dsp.mono_to_stereo(body) * 0.5 + rustle * 0.55
+        rustle *= (gust ** 2)[:, None]
+
+        out = dsp.mono_to_stereo(core) * 1.0 + whoosh * 0.22 + rustle * 0.10
         return highpass(out, 45.0, 2)
 
     return bed_layer(build), "Wind moving through grass. Route and lakeside beds."
 
 
 def amb_wind_high():
-    """A thinner, colder wind for night and exposed ground."""
+    """
+    A thinner, colder wind for night and exposed ground. Sits higher than the grass
+    wind but is still low-dominated; the cold comes from a faint gust-gated whistle,
+    not from shifting the whole bed into the midrange.
+    """
 
     def build(total):
         length = n_samples(total)
         # faster and more restless than the grass wind, and it opens further
-        gust = dsp.drift_unipolar(length, rate_hz=0.55, seed=1005, floor=0.32, partials=6)
+        gust = dsp.drift_unipolar(length, rate_hz=0.5, seed=1005, floor=0.3, partials=6)
         base = dsp.noise_pink(length=length, seed=1006)
-        cutoff = 700.0 * (2.0 ** (2.2 * gust))
-        body = sweep_filter(base, cutoff, q=1.6, mode="bp", block=256) * gust
-        whistle = sweep_filter(base, cutoff * 3.2, q=7.0, mode="bp", block=256) * gust * 0.25
-        wide = dsp.widen(dsp.mono_to_stereo(body * 0.6 + whistle), 1.6)
-        return highpass(wide, 60.0, 2)
+        cutoff = 260.0 * (2.0 ** (1.7 * gust))
+        core = sweep_filter(base, cutoff, q=0.8, mode="lp", block=256) * gust
+
+        # edge: a narrow moving band just above the core, decorrelated per ear
+        eg_l = sweep_filter(dsp.noise_pink(length=length, seed=1034), cutoff * 2.4,
+                            q=2.2, mode="bp", block=256)
+        eg_r = sweep_filter(dsp.noise_pink(length=length, seed=1035), cutoff * 2.4,
+                            q=2.2, mode="bp", block=256)
+        edge = np.stack([eg_l, eg_r], axis=1) * (gust ** 1.8)[:, None]
+
+        # the whistle only speaks near the top of a swell
+        whistle = sweep_filter(base, cutoff * 5.0, q=9.0, mode="bp", block=256)
+        whistle *= np.clip(gust - 0.55, 0.0, None) ** 1.5
+
+        out = dsp.mono_to_stereo(core) + edge * 0.28 + dsp.mono_to_stereo(whistle) * 0.7
+        out = dsp.widen(out, 1.4)
+        return highpass(out, 55.0, 2)
 
     return bed_layer(build), "Thin high wind. Night route, cliff edges, exposed ground."
 

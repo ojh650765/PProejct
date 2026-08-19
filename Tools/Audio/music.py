@@ -106,7 +106,9 @@ def finish(parts_and_pans, loop_seconds: float, ir=None, rev_mix: float = 0.18,
     bed = dsp.highpass(bed, 28.0, 2)
     bed = dsp.soft_clip(bed, 0.95)
     if loop:
-        bed = make_seamless(bed, loop_seconds)
+        # make_seamless folds the decay overhang; the pin removes the residual
+        # |first - last| step left by filter and compressor state at t = 0
+        bed = dsp.pin_loop_wrap(make_seamless(bed, loop_seconds))
     return dsp.normalize(bed, peak)
 
 

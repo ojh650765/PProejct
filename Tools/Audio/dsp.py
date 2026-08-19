@@ -935,6 +935,32 @@ def crossfade_loop(sig: np.ndarray, fade_s: float = 0.5) -> np.ndarray:
     return body
 
 
+def pin_loop_wrap(sig: np.ndarray, fade_s: float = 0.05) -> np.ndarray:
+    """
+    Land the loop's last sample exactly on its first.
+
+    ``crossfade_loop`` / ``make_seamless`` make the interior continuous, but the wrap
+    itself still steps by whatever |x[0] - x[-1]| happens to be, and on a broadband
+    bed that residual is an audible per-loop tick. The residual is spread across the
+    final ``fade_s`` as a half-cosine ramp: at 50 ms the correction sits below 10 Hz,
+    under the highpass every bed and theme already carries, so it cannot be heard as
+    program material. Per-sample maps applied afterwards (soft_clip, normalize, gain)
+    preserve the endpoint equality; filters do not -- this must be the last stateful
+    step before write. Loops only; a one-shot has no wrap to pin.
+    """
+    k = min(n_samples(fade_s), sig.shape[0] // 4)
+    if k < 4:
+        return sig
+    out = sig.copy()
+    w = 0.5 - 0.5 * np.cos(np.linspace(0.0, math.pi, k))
+    delta = out[0] - out[-1]
+    if out.ndim == 2:
+        out[-k:] += w[:, None] * delta[None, :]
+    else:
+        out[-k:] += w * delta
+    return out
+
+
 def zero_edges(sig: np.ndarray, samples: int = 32) -> np.ndarray:
     """
     Micro fade on the very first and last samples of a one-shot.
