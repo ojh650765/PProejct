@@ -191,7 +191,41 @@ namespace PokeLab.Audio
             // exact delegate; the hub only drops a registration that is still ours.
             _cue = (cueId, position) => { if (HasClip(cueId)) PlaySfx(cueId); };
             ServiceHub.Register(_cue);
+
+            StartCoroutine(WarmCatalog());
         }
+
+        /// <summary>
+        /// Starts the background load of every one-shot clip in the catalogue, a few per
+        /// frame. Nothing is engine-preloaded any more — on the web the engine's own
+        /// scene-load preload asked every SFX clip its length before the browser had
+        /// decoded it, one warning per clip before any script ran — so residency is this
+        /// director's job now. Kicks are paced so boot never issues ninety decode
+        /// requests in one frame; the set is resident within a couple of seconds, well
+        /// before gameplay input exists. Music is left out: the decks load their own
+        /// tracks on demand, and decoding whole songs up front is memory the web build
+        /// does not have. Streaming clips are skipped for the same reason they are never
+        /// load-gated off-web — they buffer for themselves.
+        /// </summary>
+        private IEnumerator WarmCatalog()
+        {
+            var cat = Catalog;
+            if (cat == null) yield break;
+
+            int kicked = 0;
+            for (int i = 0; i < cat.Entries.Count; i++)
+            {
+                var e = cat.Entries[i];
+                if (e.Clip == null || e.Bus == AudioBus.Music) continue;
+                if (e.Clip.loadType == AudioClipLoadType.Streaming) continue;
+                if (e.Clip.loadState != AudioDataLoadState.Unloaded) continue;
+                e.Clip.LoadAudioData();
+                if (++kicked % WarmClipsPerFrame == 0) yield return null;
+            }
+        }
+
+        /// <summary>Decode kicks issued per frame by <see cref="WarmCatalog"/>.</summary>
+        private const int WarmClipsPerFrame = 8;
 
         private void OnDestroy()
         {
@@ -323,9 +357,25 @@ namespace PokeLab.Audio
             return true;
         }
 
+        /// <summary>
+        /// Whether a clip may start right now. A one-shot whose data has not arrived is
+        /// dropped — a missed click beats a logged warning — and the kick issued here
+        /// means the next trigger finds it resident; loops defer instead (see
+        /// <see cref="StartLoopWhenLoaded"/>). A clip the kick cannot touch (off-web
+        /// streaming buffers for itself) counts as ready, and a Failed one never does.
+        /// </summary>
+        private static bool ClipReady(AudioClip clip)
+        {
+            if (clip.loadState == AudioDataLoadState.Loaded) return true;
+            if (clip.loadState != AudioDataLoadState.Unloaded) return false;
+            clip.LoadAudioData();
+            return clip.loadState == AudioDataLoadState.Unloaded;
+        }
+
         public void PlaySfx(string clipName, float volume = 1f, float pitch = 1f)
         {
             if (!Resolve(clipName, out var e)) return;
+            if (!ClipReady(e.Clip)) return;
             var src = _sfxPool.Rent();
             if (src == null) return;
             src.outputAudioMixerGroup = GroupFor(e.Bus == AudioBus.Master ? AudioBus.Sfx : e.Bus);
@@ -339,6 +389,7 @@ namespace PokeLab.Audio
                               float pitch = 1f)
         {
             if (!Resolve(clipName, out var e)) return;
+            if (!ClipReady(e.Clip)) return;
             var src = _spatialPool.Rent();
             if (src == null) return;
             src.transform.position = worldPosition;
@@ -352,6 +403,7 @@ namespace PokeLab.Audio
         public void PlayUi(string clipName, float volume = 1f, float pitch = 1f)
         {
             if (!Resolve(clipName, out var e)) return;
+            if (!ClipReady(e.Clip)) return;
             var src = _uiPool.Rent();
             if (src == null) return;
             src.outputAudioMixerGroup = GroupFor(AudioBus.Ui);
@@ -376,14 +428,35 @@ namespace PokeLab.Audio
             src.loop = true;
             src.spatialBlend = spatial ? 1f : 0f;
             src.volume = volume * SafeGain(e) * SourceFallbackGain(bus);
-            src.Play();
+            // The caller gets its handle either way; a clip still decoding starts the
+            // frame its data lands, the way the ambience beds retry.
+            if (ClipReady(e.Clip)) src.Play();
+            else StartCoroutine(StartLoopWhenLoaded(src, e.Clip));
             return src;
+        }
+
+        /// <summary>
+        /// The loop counterpart of the one-shot drop: the source is already rented and
+        /// configured — the caller holds it — so it waits silent instead. Release ends
+        /// the wait: the pool's Reset clears the clip, and that (or a re-rent onto
+        /// another clip) is the signal to stand down.
+        /// </summary>
+        private IEnumerator StartLoopWhenLoaded(AudioSource src, AudioClip clip)
+        {
+            while (src != null && ReferenceEquals(src.clip, clip) && !src.isPlaying)
+            {
+                if (clip.loadState == AudioDataLoadState.Loaded) { src.Play(); yield break; }
+                if (clip.loadState == AudioDataLoadState.Failed) yield break;
+                yield return null;
+            }
         }
 
         public void StopLoop(AudioSource source, float fadeSeconds = 0.25f)
         {
             if (source == null) return;
-            if (fadeSeconds <= 0f || !isActiveAndEnabled)
+            // A loop still waiting on its data has made no sound to fade; releasing it
+            // now clears its clip, which is what stands the waiting start down.
+            if (fadeSeconds <= 0f || !isActiveAndEnabled || !source.isPlaying)
             {
                 _loopPool.Release(source);
                 return;

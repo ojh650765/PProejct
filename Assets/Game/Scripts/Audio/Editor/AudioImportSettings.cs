@@ -11,9 +11,13 @@ namespace PokeLab.Audio.Editor
     ///
     /// The policy, and why:
     ///   * SFX are short, fire in bursts, and must not cost a decode when they trigger,
-    ///     so they are PCM, decompressed on load, preloaded and forced to mono. Forcing
-    ///     mono is free here because the generator already writes them mono; the flag is
-    ///     belt and braces against a stereo file sneaking in.
+    ///     so they are PCM, decompressed on load and forced to mono. Forcing mono is
+    ///     free here because the generator already writes them mono; the flag is belt
+    ///     and braces against a stereo file sneaking in. They are NOT engine-preloaded:
+    ///     on the web the engine's scene-load preload queries each clip's length before
+    ///     the browser has decoded it -- one warning per clip, once per boot, ninety-odd
+    ///     lines before any script runs -- so preload is off everywhere and AudioDirector
+    ///     warms the catalogue itself the moment it wakes, a few clips per frame.
     ///   * Ambience is up to ten simultaneous looping layers, which is too many streams,
     ///     so it is Vorbis held compressed in memory -- one decoder per layer, no disk.
     ///   * Music is at most three simultaneous decks of long stereo material, which is
@@ -25,8 +29,11 @@ namespace PokeLab.Audio.Editor
     /// SetOverrideSampleSettings returns false for "WebGL"/"Web" while accepting
     /// "Standalone" (verified against this install, 6000.3.6f1) -- because the web
     /// pipeline re-encodes audio for the browser's decoder and ignores load type and
-    /// quality per clip. The browser-side faults that looked like import problems were
-    /// runtime ones: AudioSources seeked into clips whose data had not loaded yet.
+    /// quality per clip. Most browser-side faults that looked like import problems were
+    /// runtime ones -- AudioSources seeked into or started clips whose data had not
+    /// loaded yet -- but one was genuinely import-borne: preloadAudioData had the
+    /// engine itself asking every SFX clip its length during scene deserialization,
+    /// which is why nothing here preloads any more.
     /// </summary>
     public sealed class AudioImportSettings : AssetPostprocessor
     {
@@ -77,8 +84,8 @@ namespace PokeLab.Audio.Editor
                 settings.compressionFormat = AudioCompressionFormat.PCM;
                 settings.quality = 1f;
                 importer.forceToMono = true;
-                importer.loadInBackground = false;
-                settings.preloadAudioData = true;
+                importer.loadInBackground = true;
+                settings.preloadAudioData = false;
             }
             else
             {
