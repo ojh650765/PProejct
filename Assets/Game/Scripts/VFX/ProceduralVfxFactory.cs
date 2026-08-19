@@ -46,6 +46,10 @@ namespace PokeLab.Vfx
             go.transform.localPosition = e.Offset;
 
             var ps = go.AddComponent<ParticleSystem>();
+            // A fresh ParticleSystem is already playing when AddComponent returns, and
+            // main.duration refuses to be written on a playing system — every build
+            // logged that refusal. playOnAwake=false below is too late to prevent it.
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var renderer = go.GetComponent<ParticleSystemRenderer>();
 
             // ParticleSystem modules are structs returned by value in the Unity API,
