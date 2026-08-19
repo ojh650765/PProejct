@@ -329,10 +329,13 @@ namespace PokeLab.Cinematics
             if (_player == null) return false;
 
             // A degenerate axis (speaker on top of the player, or the player itself) has no
-            // sides to choose between and no two-shot to compose.
+            // sides to choose between and no two-shot to compose — and neither has a pair
+            // standing a street apart. A conversation anchor that far out is a staging or
+            // wiring fault, and composing on it parks the camera in whatever lies between;
+            // staying out leaves the exploration frame, which is always readable.
             Vector3 axis = speaker.transform.position - _player.position;
             axis.y = 0f;
-            return axis.sqrMagnitude > 0.09f;
+            return axis.sqrMagnitude > 0.09f && axis.sqrMagnitude < 64f;
         }
 
         private void Engage()

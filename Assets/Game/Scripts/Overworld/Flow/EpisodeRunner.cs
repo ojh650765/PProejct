@@ -761,6 +761,29 @@ reachedTheEnd = true;
                 () => shots.ForceFinishTimeline());
         }
 
+        /// <summary>
+        /// The scene presence of a sequence's first named speaker, for the dialogue camera
+        /// to frame — or null when nobody in the sequence stands in the world (narration,
+        /// the plaza terminal). This runner's own GameObject used to stand in here, and it
+        /// lives at the world origin: the two-shot composed every episode conversation
+        /// against (0,0,0), which put the camera a dozen metres from the people talking
+        /// and inside whatever terrain lay on that axis.
+        /// </summary>
+        private static GameObject ResolveSpeakerActor(DialogueSequence sequence)
+        {
+            if (sequence == null || sequence.Lines == null) return null;
+            foreach (var line in sequence.Lines)
+            {
+                if (line == null || string.IsNullOrEmpty(line.SpeakerId)) continue;
+                foreach (var npc in FindObjectsByType<NpcController>(
+                             FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+                {
+                    if (npc.NpcId == line.SpeakerId) return npc.gameObject;
+                }
+            }
+            return null;
+        }
+
         /// <summary>The degraded camera path: the yaw swing CameraTo has always been.</summary>
         private void FallBackToLookToward(EpisodeBeat beat, string kind)
         {
@@ -923,7 +946,7 @@ reachedTheEnd = true;
                 yield break;
             }
 
-            if (!runner.Play(sequence, gameObject))
+            if (!runner.Play(sequence, ResolveSpeakerActor(sequence)))
             {
                 // Play refuses for two reasons and only one of them is worth waiting on. A
                 // sequence with no lines in it will be just as empty in three minutes' time.
