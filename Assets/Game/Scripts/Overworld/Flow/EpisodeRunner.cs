@@ -227,6 +227,12 @@ namespace PokeLab.Overworld
                  "the beat is not waiting on a mark — it is waiting for the actor to be out of " +
                  "shot, and how long that takes depends on where the camera is pointing.")]
         [SerializeField] private float _defaultExitTimeoutSeconds = 14f;
+        [Tooltip("Multiplier on the drawn size of everything StageCreature and StageRing place, " +
+                 "over the species' dex height. Roamers a spawner owns stay at 1 — true to the " +
+                 "dex — but a staged creature is theatre, and the small route species' real " +
+                 "0.3 m reads as a speck at the exploration boom. 1.5 draws them at ~0.45 m, " +
+                 "the head height shot_creature_stare is aimed at.")]
+        [SerializeField] private float _stagedPresenceScale = 1.5f;
 
         [Header("Ceilings")]
         [Tooltip("Seconds a wipe may take before the beat gives up on it and forces the screen " +
@@ -1995,6 +2001,9 @@ reachedTheEnd = true;
             // nothing if the hold is ever lifted by accident. An Aggressive ambusher that got
             // loose would charge the player during a line and start the battle early.
             _staged.Configure(speciesId, Mathf.Max(1, beat.Amount), Temperament.Placid, stand);
+            // After Configure, which resets it: staged creatures are drawn larger than the dex
+            // says, because the scene's lines are about this thing and it has to read on screen.
+            _staged.PresenceScale = _stagedPresenceScale;
             _staged.ScriptedHold = true;
 
             // Turned to face the player from the start. A creature standing side-on in the grass
@@ -2047,7 +2056,7 @@ reachedTheEnd = true;
         /// The scene is holding the player's control while it runs. So it is a plain walk with a
         /// ceiling on it, like every other wait in this file, and the creature is snapped onto
         /// its final distance if the walk does not land: a scripted approach that never arrives
-        /// would hold the player frozen watching a Rattata stuck on a rock.
+        /// would hold the player frozen watching a Pidgey stuck on a rock.
         /// </summary>
         private IEnumerator RunCreatureApproach(EpisodeBeat beat)
         {
@@ -2328,6 +2337,10 @@ reachedTheEnd = true;
 
             var creature = host.AddComponent<RoamingCreature>();
             creature.Configure(speciesId, level, Temperament.Placid, stand);
+            // The same presence the staged ambusher gets, because the one that walks out at the
+            // player has to be one of the ones standing in the ring — a ring of dex-true specks
+            // around a scaled-up ambusher would give the trick away.
+            creature.PresenceScale = _stagedPresenceScale;
             // Held, and that is what makes a ring safe. Loose, every one of these has a contact
             // radius that opens a battle, so a ring of them standing a few metres off a player
             // who has no party yet is a ring of chances to start a fight mid-choice.

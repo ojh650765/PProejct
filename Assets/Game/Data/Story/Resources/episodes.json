@@ -356,10 +356,10 @@
           "Kind": 14,
           "KindName": "StageCreature",
           "Id": "Mark_Ambush_Grass",
-          "Target": "25",
+          "Target": "21",
           "Amount": 4,
           "Seconds": 0.0,
-          "Note": "Rattata, level 4. GAME species id 25, from SliceRoster -- not the national dex number, which is the one mistake in this project that produces a plausible wrong creature rather than an error. It is in the route's own tall-grass table at levels 3-6, so this is a creature the grass could genuinely have produced, which is the whole reason it is a RoamingCreature and not a prop. Level 4 against a level 5 starter: winnable, and not a formality."
+          "Note": "Pidgey, level 4. GAME species id 21, from SliceRoster -- not the national dex number, which is the one mistake in this project that produces a plausible wrong creature rather than an error. A bird by the 2026-08 play-test note, which asked for bird species here; it was Rattata (game 25). It is in the lakeside grass table at levels 3-6 in daylight, so this is a creature the bank could genuinely have produced, which is the whole reason it is a RoamingCreature and not a prop. Level 4 against a level 5 starter: winnable, and not a formality. The same note said the staging read as barely-visible specks: a Pidgey really is 0.3 m tall, so EpisodeRunner draws everything it stages at its staged presence scale (1.5x dex height, ~0.45 m -- the head height shot_creature_stare aims at) rather than authoring a size here."
         },
         {
           "Kind": 3,
@@ -404,10 +404,10 @@
           "KindName": "StageRing",
           "Id": "NPC_Rival",
           "Target": "",
-          "Amount": 7,
+          "Amount": 3,
           "Seconds": 4.5,
           "Value": true,
-          "Note": "THE ENCIRCLEMENT, and the reason this beat exists at all is that the line below it -- '야, 양쪽이야! 우리 둘 다 둘러싸였어!' -- has been in the script since the act was written and there has never been anything on screen to make it true. Seven of them at 4.5 m, centred on the midpoint of the player and Kes rather than on the player, so the friend is inside the circle with them and not watching from outside it. Expect fewer than seven to land: the bag is 2.41 m from the waterline and the navmesh excludes water, so the lake arc of the ring has nothing to stand on and is skipped with a note in the log. That is the right failure -- they came out of the grass, not out of the lake -- and it still closes the landward side, which is the side the player is facing. Target is empty, which means the staged creature's own species and level: these are its flock, and the one that walks out at the player in the next beat has to be one of the ones standing in the ring. They are held still -- they cannot wander and cannot open a battle by touching anybody, which matters because the player has no party yet."
+          "Note": "THE ENCIRCLEMENT, and the reason this beat exists at all is that the line below it -- '야, 양쪽이야! 우리 둘 다 둘러싸였어!' -- has been in the script since the act was written and there has never been anything on screen to make it true. Three of them at 4.5 m -- it was seven, and the 2026-08 play-test note called that too many: seven small creatures at this radius read as a wall of specks, while three, drawn at the staged presence scale, each read as a thing standing there, and '양쪽' still holds because three points around a midpoint are still both sides. Centred on the midpoint of the player and Kes rather than on the player, so the friend is inside the circle with them and not watching from outside it. A slot can still be skipped: the bag is 2.41 m from the waterline and the navmesh excludes water, so a slot on the lake arc has nothing to stand on and is dropped with a note in the log. That is the right failure -- they came out of the grass, not out of the lake -- and the landward side still closes, which is the side the player is facing. Target is empty, which means the staged creature's own species and level: these are its flock (Pidgey now -- see field_bag_left's StageCreature), and the one that walks out at the player in the next beat has to be one of the ones standing in the ring. They are held still -- they cannot wander and cannot open a battle by touching anybody, which matters because the player has no party yet."
         },
         {
           "Kind": 4,
