@@ -13,13 +13,73 @@ MonoBehaviour:
   m_Name: AudioClipCatalog
   m_EditorClassIdentifier: PokeLab.Audio::PokeLab.Audio.AudioClipCatalog
   entries:
+  - Name: Amb_Birdsong
+    Clip: {fileID: 8300000, guid: 48444e7c13f457c4aad123d7fa57914f, type: 3}
+    Bus: 3
+    Loop: 1
+    Gain: 1
+  - Name: Amb_CaveDrips
+    Clip: {fileID: 8300000, guid: 9ce955d6eaec2e947869f43c636a01cf, type: 3}
+    Bus: 3
+    Loop: 1
+    Gain: 1
+  - Name: Amb_CaveRumble
+    Clip: {fileID: 8300000, guid: 6cc4bee240fa68b48b21c99e53c349ce, type: 3}
+    Bus: 3
+    Loop: 1
+    Gain: 1
+  - Name: Amb_NightInsects
+    Clip: {fileID: 8300000, guid: 569894dcd21d893459953fef73afe417, type: 3}
+    Bus: 3
+    Loop: 1
+    Gain: 1
+  - Name: Amb_Rain
+    Clip: {fileID: 8300000, guid: 9e0aa5ff6a0a4c241b1df432ec493827, type: 3}
+    Bus: 3
+    Loop: 1
+    Gain: 1
+  - Name: Amb_Thunder_01
+    Clip: {fileID: 8300000, guid: cc0f010264d8d484c9be603a87187819, type: 3}
+    Bus: 3
+    Loop: 0
+    Gain: 1
+  - Name: Amb_Thunder_02
+    Clip: {fileID: 8300000, guid: c1f70df9aab072149a1f45c6fdc5d041, type: 3}
+    Bus: 3
+    Loop: 0
+    Gain: 1
+  - Name: Amb_TownMurmur
+    Clip: {fileID: 8300000, guid: 2f421b52894ee7d4b90f83e6539c23d8, type: 3}
+    Bus: 3
+    Loop: 1
+    Gain: 1
+  - Name: Amb_WaterLapping
+    Clip: {fileID: 8300000, guid: cae8ddf13b35ab649bb624b2ab84ecb4, type: 3}
+    Bus: 3
+    Loop: 1
+    Gain: 1
+  - Name: Amb_Waterfall
+    Clip: {fileID: 8300000, guid: bc89dd80261ef534b88b0ec6dda7225c, type: 3}
+    Bus: 3
+    Loop: 1
+    Gain: 1
+  - Name: Amb_WindGrass
+    Clip: {fileID: 8300000, guid: fdaf5d2cba8a9244689154010b129e8a, type: 3}
+    Bus: 3
+    Loop: 1
+    Gain: 1
+  - Name: Amb_WindHigh
+    Clip: {fileID: 8300000, guid: 66c88489ea49a19499dd311ae22b5dc1, type: 3}
+    Bus: 3
+    Loop: 1
+    Gain: 1
   - Name: Music_Battle_Trainer
-    Clip: {fileID: 8300000, guid: 4b4a7f983b548d647b28803e4a028107, type: 3}
+    Clip: {fileID: 8300000, guid: d9aeb25b2df5c8843a2385dffd9ec80b, type: 3}
     Bus: 1
     Loop: 1
     Gain: 1
   - Name: Music_Battle_Wild
-    Clip: {fileID: 8300000, guid: 231fec197c0a209419b33a1194521ef3, type: 3}
+    Clip: {fileID: 8300000, guid: 9ec08ce7ae6b01f45ba6131ba3ed999c, type: 3}
     Bus: 1
     Loop: 1
     Gain: 1
@@ -44,7 +104,7 @@ MonoBehaviour:
     Loop: 1
     Gain: 1
   - Name: Music_Opening_Introduction
-    Clip: {fileID: 8300000, guid: 2eccf70b03d6615c11405745145e7b8c, type: 3}
+    Clip: {fileID: 8300000, guid: 9507220a9b1ee0f47a0bf0cdab91ad76, type: 3}
     Bus: 1
     Loop: 1
     Gain: 1
@@ -55,6 +115,11 @@ MonoBehaviour:
     Gain: 1
   - Name: Music_Route_Night
     Clip: {fileID: 8300000, guid: b4c6799b80c5090468758d65447a4440, type: 3}
+    Bus: 1
+    Loop: 1
+    Gain: 1
+  - Name: Music_Title
+    Clip: {fileID: 8300000, guid: 0e4e13b666d037743941a12ef463ffa2, type: 3}
     Bus: 1
     Loop: 1
     Gain: 1
@@ -69,7 +134,7 @@ MonoBehaviour:
     Loop: 1
     Gain: 1
   - Name: Music_Victory_Fanfare
-    Clip: {fileID: 8300000, guid: 03a4d24e745cf694091f6e52e17589dd, type: 3}
+    Clip: {fileID: 8300000, guid: 094061a585a7314449cb4d04340b49b6, type: 3}
     Bus: 1
     Loop: 0
     Gain: 1
@@ -80,6 +145,21 @@ MonoBehaviour:
     Gain: 1
   - Name: SFX_Battle_Faint
     Clip: {fileID: 8300000, guid: ac7a4a94d71d866439b0751c858cb3a6, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Battle_Flee
+    Clip: {fileID: 8300000, guid: f308d4163f3caa540b3e1719c514133b, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Battle_HealRestore
+    Clip: {fileID: 8300000, guid: e2d8b5e4727e4ec41af46f1feefb2b61, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Battle_HeldItem
+    Clip: {fileID: 8300000, guid: e2eaaed71e95240448ef0dd384e429a0, type: 3}
     Bus: 2
     Loop: 0
     Gain: 1
@@ -258,6 +338,26 @@ MonoBehaviour:
     Bus: 2
     Loop: 0
     Gain: 1
+  - Name: SFX_Move_Absorb
+    Clip: {fileID: 8300000, guid: caa66e33925c40149bd8744dc2f1b794, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_Bite
+    Clip: {fileID: 8300000, guid: cd155bce8a4eefd4b8df1f1d3a3097b8, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_BubbleBeam
+    Clip: {fileID: 8300000, guid: df9ccfc330cdfe54f95b0bf6de104206, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_ConfuseRay
+    Clip: {fileID: 8300000, guid: bc56d680d78615d45b3633b4a4df54d4, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
   - Name: SFX_Move_Critical
     Clip: {fileID: 8300000, guid: 5109aefbe3565e1408baa83d678b691b, type: 3}
     Bus: 2
@@ -270,6 +370,11 @@ MonoBehaviour:
     Gain: 1
   - Name: SFX_Move_Electric_Impact
     Clip: {fileID: 8300000, guid: 923e769fe18e97843999356672861ea4, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_Ember
+    Clip: {fileID: 8300000, guid: d353b29967d59ad4f9c598dac89cfba5, type: 3}
     Bus: 2
     Loop: 0
     Gain: 1
@@ -290,6 +395,11 @@ MonoBehaviour:
     Gain: 1
   - Name: SFX_Move_Fire_Impact
     Clip: {fileID: 8300000, guid: 714692760b58db248972f7452f3b5f15, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_Flamethrower
+    Clip: {fileID: 8300000, guid: e8599432bba9547489029bd0757a67aa, type: 3}
     Bus: 2
     Loop: 0
     Gain: 1
@@ -333,6 +443,41 @@ MonoBehaviour:
     Bus: 2
     Loop: 0
     Gain: 1
+  - Name: SFX_Move_Growl
+    Clip: {fileID: 8300000, guid: 8020049e1592a2c46adde2a2052ebafc, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_Gust
+    Clip: {fileID: 8300000, guid: 6a2b7c3b14cbac142ae4be5265c5b74d, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_HyperFang
+    Clip: {fileID: 8300000, guid: bb1b74cb291e18f4f9ea033a060cdf7c, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_Hypnosis
+    Clip: {fileID: 8300000, guid: 23d58770dbbc3794da642fe5da334cdc, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_KarateChop
+    Clip: {fileID: 8300000, guid: 0e288cbcf8510cb42ba723d932bdaf4c, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_Lick
+    Clip: {fileID: 8300000, guid: e29429e7236e3e149abd7eccecab40d7, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_MudSlap
+    Clip: {fileID: 8300000, guid: 7f95e1852056b4a47b75c262c92a0c94, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
   - Name: SFX_Move_Normal_Cast
     Clip: {fileID: 8300000, guid: 7a6c6cfaec4cf5a48b4cb171e0bdc12f, type: 3}
     Bus: 2
@@ -345,6 +490,16 @@ MonoBehaviour:
     Gain: 1
   - Name: SFX_Move_NotVeryEffective
     Clip: {fileID: 8300000, guid: a12202502049a554488416581445d3c4, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_PoisonPowder
+    Clip: {fileID: 8300000, guid: ddd00e42d0aec4b4a8a6eb0740a3823e, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_PoisonSting
+    Clip: {fileID: 8300000, guid: f9da85de55750334cb8ee12ef75411a7, type: 3}
     Bus: 2
     Loop: 0
     Gain: 1
@@ -368,6 +523,26 @@ MonoBehaviour:
     Bus: 2
     Loop: 0
     Gain: 1
+  - Name: SFX_Move_QuickAttack
+    Clip: {fileID: 8300000, guid: b941b169381f7e745a878998fd80530f, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_RazorLeaf
+    Clip: {fileID: 8300000, guid: 3e0a253206b32244396a38aa82f4a9b8, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_RockBlast
+    Clip: {fileID: 8300000, guid: ac62e4211f0dd3a4ea4bc8a990e14335, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_RockThrow
+    Clip: {fileID: 8300000, guid: f5fa04ee0a361e64d9d8be01ed55357a, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
   - Name: SFX_Move_Rock_Cast
     Clip: {fileID: 8300000, guid: d78a7428ad2a82b41a8e15a0b1722934, type: 3}
     Bus: 2
@@ -378,8 +553,63 @@ MonoBehaviour:
     Bus: 2
     Loop: 0
     Gain: 1
+  - Name: SFX_Move_SeismicToss
+    Clip: {fileID: 8300000, guid: 5175642e4e888134f923de35949d225e, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_SleepPowder
+    Clip: {fileID: 8300000, guid: a883b75b7691fcd49974b07772c45b70, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_Sludge
+    Clip: {fileID: 8300000, guid: 2a7b21558e808b443aebe5bc690383e4, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_StunSpore
+    Clip: {fileID: 8300000, guid: babf18cb00f1e234cb3932e30fa5272c, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
   - Name: SFX_Move_SuperEffective
     Clip: {fileID: 8300000, guid: fbdfcfdcb3686894c901e8e8a43fefc1, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_Tackle
+    Clip: {fileID: 8300000, guid: 77fd4b07c9c62854c847e71acf59f0b2, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_TailWhip
+    Clip: {fileID: 8300000, guid: f8c8134063fa2d24d81789452fef8737, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_ThunderShock
+    Clip: {fileID: 8300000, guid: 0ccd0a368b329ff42be0a55009914772, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_ThunderWave
+    Clip: {fileID: 8300000, guid: 10fe0d854b074b7469d8dd4262fb4029, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_Thunderbolt
+    Clip: {fileID: 8300000, guid: c96b2212aeaddfa4991686e1a84144a4, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_VineWhip
+    Clip: {fileID: 8300000, guid: eed605b05a7542c4cb0ce80600505318, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_WaterGun
+    Clip: {fileID: 8300000, guid: de6ddaa4d528a3f4b839b19975949ebb, type: 3}
     Bus: 2
     Loop: 0
     Gain: 1
@@ -390,6 +620,16 @@ MonoBehaviour:
     Gain: 1
   - Name: SFX_Move_Water_Impact
     Clip: {fileID: 8300000, guid: 5add5af17e2ba0c4cba10757eb3dc2e5, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_WingAttack
+    Clip: {fileID: 8300000, guid: e7baf5b8a4d34464f9e090d37eac4025, type: 3}
+    Bus: 2
+    Loop: 0
+    Gain: 1
+  - Name: SFX_Move_Withdraw
+    Clip: {fileID: 8300000, guid: ca8f3a396a51b964ab2d1f474243ef86, type: 3}
     Bus: 2
     Loop: 0
     Gain: 1
@@ -537,64 +777,4 @@ MonoBehaviour:
     Clip: {fileID: 8300000, guid: 420bd52620253b748aaf091168ff3653, type: 3}
     Bus: 4
     Loop: 0
-    Gain: 1
-  - Name: Amb_Birdsong
-    Clip: {fileID: 8300000, guid: 48444e7c13f457c4aad123d7fa57914f, type: 3}
-    Bus: 3
-    Loop: 1
-    Gain: 1
-  - Name: Amb_CaveDrips
-    Clip: {fileID: 8300000, guid: 9ce955d6eaec2e947869f43c636a01cf, type: 3}
-    Bus: 3
-    Loop: 1
-    Gain: 1
-  - Name: Amb_CaveRumble
-    Clip: {fileID: 8300000, guid: 6cc4bee240fa68b48b21c99e53c349ce, type: 3}
-    Bus: 3
-    Loop: 1
-    Gain: 1
-  - Name: Amb_NightInsects
-    Clip: {fileID: 8300000, guid: 569894dcd21d893459953fef73afe417, type: 3}
-    Bus: 3
-    Loop: 1
-    Gain: 1
-  - Name: Amb_Rain
-    Clip: {fileID: 8300000, guid: 9e0aa5ff6a0a4c241b1df432ec493827, type: 3}
-    Bus: 3
-    Loop: 1
-    Gain: 1
-  - Name: Amb_Thunder_01
-    Clip: {fileID: 8300000, guid: cc0f010264d8d484c9be603a87187819, type: 3}
-    Bus: 3
-    Loop: 0
-    Gain: 1
-  - Name: Amb_Thunder_02
-    Clip: {fileID: 8300000, guid: c1f70df9aab072149a1f45c6fdc5d041, type: 3}
-    Bus: 3
-    Loop: 0
-    Gain: 1
-  - Name: Amb_TownMurmur
-    Clip: {fileID: 8300000, guid: 2f421b52894ee7d4b90f83e6539c23d8, type: 3}
-    Bus: 3
-    Loop: 1
-    Gain: 1
-  - Name: Amb_WaterLapping
-    Clip: {fileID: 8300000, guid: cae8ddf13b35ab649bb624b2ab84ecb4, type: 3}
-    Bus: 3
-    Loop: 1
-    Gain: 1
-  - Name: Amb_Waterfall
-    Clip: {fileID: 8300000, guid: bc89dd80261ef534b88b0ec6dda7225c, type: 3}
-    Bus: 3
-    Loop: 1
-    Gain: 1
-  - Name: Amb_WindGrass
-    Clip: {fileID: 8300000, guid: fdaf5d2cba8a9244689154010b129e8a, type: 3}
-    Bus: 3
-    Loop: 1
-    Gain: 1
-  - Name: Amb_WindHigh
-    Clip: {fileID: 8300000, guid: 66c88489ea49a19499dd311ae22b5dc1, type: 3}
-    Bus: 3
-    Loop: 1
     Gain: 1

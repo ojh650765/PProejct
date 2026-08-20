@@ -21,6 +21,7 @@ namespace PokeLab.Overworld
         private static void ResetStatics()
         {
             OverworldEvents.Reset();
+            EpisodeRunner.ResetLive();
             TrainerRegistry.Reset();
             EncounterTable.ResetBuiltIns();
             RoamingCreature.ResetRegistry();

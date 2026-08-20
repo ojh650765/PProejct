@@ -100,7 +100,7 @@ namespace PokeLab.Audio
         private AudioSourcePool _emitterPool;
         private readonly List<Emitter> _emitters = new List<Emitter>();
 
-        private string _biome = AudioIds.BiomeRoute;
+        private string _biome = AudioIds.BiomeNone;
         private TimeOfDay _timeOfDay = TimeOfDay.Day;
         private Weather _weather = Weather.Clear;
         private AudioDirector _director;
@@ -217,6 +217,22 @@ namespace PokeLab.Audio
             Recalculate();
         }
 
+        /// <summary>
+        /// The player is on a menu, not in a place: every bed fades out.
+        ///
+        /// Counterpart to <c>MusicDirector.LeaveWorld</c> and closing the same bug from the
+        /// other side. The beds used to default to the route's, so the login screen and the
+        /// title came up over birdsong and wind in grass — the user heard it as 메인 메뉴에서
+        /// 새소리. Fading rather than stopping because the levels are already a MoveTowards
+        /// and blendSeconds is what a bed is supposed to take to leave.
+        /// </summary>
+        public void LeaveWorld()
+        {
+            if (_biome == AudioIds.BiomeNone) return;
+            _biome = AudioIds.BiomeNone;
+            Recalculate();
+        }
+
         private void OnTimeOfDayChanged(TimeOfDay from, TimeOfDay to)
         {
             _timeOfDay = to;
@@ -236,6 +252,15 @@ namespace PokeLab.Audio
         public void Recalculate()
         {
             var profile = FindProfile(_biome);
+
+            // Nowhere has no weather either. Without this the rain layer still comes up over a
+            // menu whenever the clock has it raining in a world nobody is looking at.
+            if (ReferenceEquals(profile, Silent))
+            {
+                Array.Clear(_target, 0, _target.Length);
+                return;
+            }
+
             bool night = _timeOfDay == TimeOfDay.Night || _timeOfDay == TimeOfDay.Dusk;
             (night ? profile.night : profile.day).Write(_target);
 
@@ -282,15 +307,28 @@ namespace PokeLab.Audio
             }
         }
 
+        /// <summary>
+        /// Every layer at zero, for <see cref="AudioIds.BiomeNone"/>.
+        ///
+        /// Deliberately not reached through the fallback below: an unrecognised biome id is a
+        /// typo somewhere and the route beds answer it better than silence does, whereas no
+        /// biome at all means there is no world on screen and the beds would be wrong at any
+        /// volume. One instance, never mutated -- Write only reads it.
+        /// </summary>
+        private static readonly BiomeAmbience Silent =
+            new BiomeAmbience { biomeId = AudioIds.BiomeNone };
+
         private BiomeAmbience FindProfile(string biomeId)
         {
+            if (string.IsNullOrEmpty(biomeId)) return Silent;
+
             for (int i = 0; i < profiles.Count; i++)
             {
                 if (profiles[i] != null &&
                     string.Equals(profiles[i].biomeId, biomeId, StringComparison.OrdinalIgnoreCase))
                     return profiles[i];
             }
-            return profiles.Count > 0 ? profiles[0] : new BiomeAmbience();
+            return profiles.Count > 0 ? profiles[0] : Silent;
         }
 
         private void Update()

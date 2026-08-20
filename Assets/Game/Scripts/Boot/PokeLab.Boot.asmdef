@@ -6,6 +6,7 @@
         "PokeLab.Intelligence",
         "PokeLab.Battle",
         "PokeLab.Overworld",
+        "PokeLab.Online",
         "PokeLab.UI",
         "PokeLab.Cinematics",
         "PokeLab.Audio",

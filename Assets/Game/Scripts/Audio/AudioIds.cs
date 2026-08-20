@@ -24,6 +24,16 @@ namespace PokeLab.Audio
         public const string MusicBattleTrainer = "Music_Battle_Trainer";
         public const string MusicVictoryFanfare = "Music_Victory_Fanfare";
         public const string MusicCaptureSuccess = "Music_Capture_Success";
+
+        /// <summary>
+        /// The title screen's own piece.
+        ///
+        /// Separate from <see cref="MusicOpeningIntroduction"/> on purpose: that one is the
+        /// PROLOGUE — the professor talking over black — and the two were briefly the same
+        /// recording. A title screen and a monologue are different moments and the player hears
+        /// them back to back.
+        /// </summary>
+        public const string MusicTitle = "Music_Title";
         public const string MusicEncounterSting = "Music_Encounter_Sting";
 
         /// <summary>
@@ -39,6 +49,26 @@ namespace PokeLab.Audio
         public const string BattleFaint = "SFX_Battle_Faint";
         public const string BattleHpTick = "SFX_Battle_HpTick";
         public const string BattleLowHpWarning = "SFX_Battle_LowHpWarning";
+        // Imported with the real SFX library; see Tools/Audio/import_move_sfx.py.
+        public const string BattleHealRestore = "SFX_Battle_HealRestore";
+        public const string BattleFlee = "SFX_Battle_Flee";
+        public const string BattleHeldItem = "SFX_Battle_HeldItem";
+
+        /// <summary>
+        /// The clip for one move, by its moves.json id — "SFX_Move_QuickAttack" from
+        /// "quick-attack". Every one of the game's 32 moves has a dedicated recording; a move
+        /// added later with no file falls back to its element's generated cast/impact pair,
+        /// which is quieter than it should be rather than silent.
+        /// </summary>
+        public static string MoveSfx(string moveId)
+        {
+            if (string.IsNullOrEmpty(moveId)) return null;
+            var parts = moveId.Split(new[] { '-', '_', ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            var name = "SFX_Move_";
+            foreach (var part in parts)
+                name += char.ToUpperInvariant(part[0]) + part.Substring(1).ToLowerInvariant();
+            return name;
+        }
         public const string BattleLevelUp = "SFX_Battle_LevelUp";
         public const string BattleExpGain = "SFX_Battle_ExpGain";
         public const string BattleStatUp = "SFX_Battle_StatUp";
@@ -138,6 +168,15 @@ namespace PokeLab.Audio
         public const string UiError = "SFX_UI_Error";
         public const string UiMenuOpen = "SFX_UI_MenuOpen";
         public const string UiMenuClose = "SFX_UI_MenuClose";
+
+        // There was a UiLaunch here -- "the sting under a screen committing to something".
+        // It named SFX_UI_Launch, no such recording was ever imported, and nothing in the game
+        // ever asked for it: the colour wash a menu row plays on its way out is carried by
+        // UiConfirm and the wash itself. A constant that resolves to nothing is not a silent
+        // no-op, because the catalogue validator walks every id declared on this class and
+        // fails the build gate on the ones it cannot find -- which is how it surfaced, as
+        // "AudioIds references missing clip 'SFX_UI_Launch'". Declare it again when there is a
+        // file to declare.
         public const string UiTypewriter = "SFX_UI_Typewriter";
 
         // ---- ambience layers ---------------------------------------------------------
@@ -164,6 +203,21 @@ namespace PokeLab.Audio
         // ---- biome ids ---------------------------------------------------------------
         // Matched case-insensitively against GameEvents.BiomeEntered, which is a free
         // string owned by the overworld worker. Unknown biomes fall back to Route.
+        /// <summary>
+        /// Not anywhere. The state the audio layer starts a session in and returns to whenever
+        /// a menu is on screen.
+        ///
+        /// It exists because "no biome" used to be spelled <see cref="BiomeRoute"/>, and a
+        /// default is not the same thing as an absence. The login screen and the title are not
+        /// places: the world clock ticks under them exactly as it does in the field, both
+        /// directors answer TimeOfDayChanged by picking the track and the beds for wherever
+        /// they think the player is, and with route as the default that is the route's daytime
+        /// theme and its birdsong -- over a menu, before the player has pressed anything. The
+        /// user heard it as 로그인 화면과 메인메뉴에서 스토리모드의 배경음악.
+        ///
+        /// No profile is registered against it, so it selects nothing and mixes to silence.
+        /// </summary>
+        public const string BiomeNone = "";
         public const string BiomeRoute = "route";
         public const string BiomeTown = "town";
         public const string BiomeCave = "cave";

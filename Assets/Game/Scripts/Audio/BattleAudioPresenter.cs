@@ -66,6 +66,13 @@ namespace PokeLab.Audio
 
         private ElementType _lastMoveType = ElementType.Normal;
         private bool _lastMoveMadeContact;
+
+        /// <summary>
+        /// Whether the move now landing brought its own recording, rather than falling back to
+        /// its element's generic cast. Read by the damage handler, which pulls the generic
+        /// impact back so the turn is not scored twice.
+        /// </summary>
+        private bool _lastMoveHadOwnClip;
         private BattleKind _battleKind = BattleKind.Wild;
         private AudioSource _lowHpLoop;
         private AudioSource _expLoop;
@@ -264,12 +271,33 @@ namespace PokeLab.Audio
             float volume = evt.HitCount > 1 ? Mathf.Lerp(1f, 0.72f, evt.HitIndex / (float)Mathf.Max(1, evt.HitCount - 1)) : 1f;
             float pitch = evt.HitCount > 1 ? 1f + 0.03f * evt.HitIndex : 1f;
 
-            _audio.PlaySfx(AudioIds.MoveCast(evt.MoveType), volume, pitch);
+            // The move's OWN recording, when there is one.
+            //
+            // Every move in moves.json now has a dedicated clip imported from the authored
+            // library (Tools/Audio/import_move_sfx.py). Before that there were only per-ELEMENT
+            // cast sounds, so Thunder Shock, Thunderbolt and Thunder Wave were the same noise —
+            // which is exactly the flatness the user was describing.
+            //
+            // Falls back to the element cast rather than going silent: a move added later with
+            // no recording should be less characterful, not inaudible. HasClip is the test
+            // because the catalogue is the only thing that knows what actually shipped.
+            var moveClip = AudioIds.MoveSfx(evt.MoveId);
+            _lastMoveHadOwnClip = !string.IsNullOrEmpty(moveClip) && _audio.HasClip(moveClip);
 
-            // Status moves get the stat-shift gesture as well: without it a status turn is
-            // the only turn in a battle with no sound at all.
-            if (evt.Category == MoveCategory.Status)
-                _audio.PlaySfx(AudioIds.BattleStatUp, 0.35f, 0.95f);
+            if (_lastMoveHadOwnClip)
+            {
+                _audio.PlaySfx(moveClip, volume, pitch);
+            }
+            else
+            {
+                _audio.PlaySfx(AudioIds.MoveCast(evt.MoveType), volume, pitch);
+
+                // Status moves get the stat-shift gesture as well: without it a status turn is
+                // the only turn in a battle with no sound at all. Not needed on the dedicated
+                // path — a real status move's recording is already the whole gesture.
+                if (evt.Category == MoveCategory.Status)
+                    _audio.PlaySfx(AudioIds.BattleStatUp, 0.35f, 0.95f);
+            }
         }
 
         private void OnMoveMissed(MoveMissedEvent evt)
@@ -306,6 +334,15 @@ namespace PokeLab.Audio
             {
                 // Contact moves land heavier than projectiles: same cue, more of it.
                 float volume = (evt.Critical ? 1f : 0.92f) * (_lastMoveMadeContact ? 1f : 0.9f);
+
+                // Pulled well back when the move brought its own recording.
+                //
+                // The authored library's clips are the WHOLE move — wind-up and landing in one
+                // file — so at full volume this generic impact plays a second landing on top of
+                // the real one and the turn sounds doubled. It is not dropped entirely because
+                // it is what carries crit and contact weight, which the recording cannot know.
+                if (_lastMoveHadOwnClip) volume *= 0.4f;
+
                 _audio.PlaySfx(AudioIds.MoveImpact(_lastMoveType), volume);
             }
 

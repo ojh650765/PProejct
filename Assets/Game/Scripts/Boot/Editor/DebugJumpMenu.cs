@@ -44,8 +44,11 @@ namespace PokeLab.Boot.Editor
         [MenuItem("Tools/Poké Lab/Debug/Act 1/2 · Kes' Send-Off", priority = 201)]
         public static void KesSummons() => Jump("kes_summons", Town, freshSave: true);
 
-        [MenuItem("Tools/Poké Lab/Debug/Act 1/3 · Gate Opens", priority = 202)]
-        public static void GateOpens() => Jump("gate_opens", Town, freshSave: true);
+        // "3 · Gate Opens" stood here. Its episode is gone: it was Bram stepping aside with
+        // "얘기했나 보군. 그럼 다녀오게." the moment the player came back up the ramp after Kes,
+        // and the user cut it. Nothing replaced it, so there is no beat to jump to. The numbers
+        // below are left alone rather than closed up, because they are how the acts are
+        // referred to in the notes and in the play reports.
 
         [MenuItem("Tools/Poké Lab/Debug/Act 1/4 · Professor On The Bank", priority = 203)]
         public static void ProfessorMutters() => Jump("field_professor_mutters", Field, freshSave: true);

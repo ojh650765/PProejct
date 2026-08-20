@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -57,20 +58,26 @@ namespace PokeLab.UI
         /// <summary>
         /// Animates to a new value. Decreases drag the chip fill behind them; increases pull
         /// it along immediately so a heal does not leave a stale ghost.
+        ///
+        /// <paramref name="onComplete"/> is what an experience roll-up chains off: a bar that
+        /// has to fill, hit the end, roll over and fill again cannot be sequenced by guessing
+        /// durations, and every guess drifts against reduced motion, which finishes a tween on
+        /// the spot.
         /// </summary>
-        public void SetValue(float fraction, float? duration = null)
+        public void SetValue(float fraction, float? duration = null, Action onComplete = null, float delay = 0f)
         {
             fraction = Mathf.Clamp01(fraction);
             var decreasing = fraction < _fraction;
             var from = _fraction;
             var seconds = duration ?? _duration;
+            delay = Mathf.Max(0f, delay);
 
             UiTween.Kill(ref _fillTween);
             _fillTween = UiTween.Run(seconds, t =>
             {
                 _fraction = Mathf.LerpUnclamped(from, fraction, t);
                 ApplyPadding();
-            }, _ease);
+            }, _ease, delay, true, onComplete);
 
             if (_chipFill == null) return;
 
@@ -83,7 +90,7 @@ namespace PokeLab.UI
                 {
                     _chipFraction = Mathf.LerpUnclamped(chipFrom, fraction, t);
                     ApplyPadding();
-                }, Ease.InOutQuad, seconds * 0.5f + _chipLag);
+                }, Ease.InOutQuad, delay + seconds * 0.5f + _chipLag);
             }
             else
             {
@@ -91,7 +98,7 @@ namespace PokeLab.UI
                 {
                     _chipFraction = Mathf.LerpUnclamped(chipFrom, fraction, t);
                     ApplyPadding();
-                }, _ease);
+                }, _ease, delay);
             }
         }
 
@@ -108,6 +115,33 @@ namespace PokeLab.UI
         {
             if (_fill != null) _fill.color = color;
             if (_chipFill != null) _chipFill.color = Color.Lerp(color, Color.white, 0.55f).WithAlpha(0.8f);
+        }
+
+        /// <summary>
+        /// Sets the main fill colour only, leaving the trailing chip at whatever it was.
+        ///
+        /// For an oscillation driven from outside — the low-health throb — where restating the
+        /// chip's tint every frame would make the ghost of the last hit pulse along with it and
+        /// stop reading as a ghost.
+        /// </summary>
+        public void SetFillColorImmediate(Color color)
+        {
+            if (_fill != null) _fill.color = color;
+        }
+
+        /// <summary>
+        /// Whitens the fill and lets it fall back to <paramref name="settleTo"/>.
+        ///
+        /// The impact tell on the bar itself: on the frame a hit lands the bar blows out to
+        /// near-white before it starts moving, so the eye is on the bar for the drain rather
+        /// than finding it already lower.
+        /// </summary>
+        public void Flash(Color settleTo, float duration = 0.34f, float strength = 0.85f)
+        {
+            if (_fill == null) return;
+            var hot = Color.Lerp(settleTo, Color.white, Mathf.Clamp01(strength));
+            _fill.color = hot;
+            UiTween.Color(hot, settleTo, duration, c => { if (_fill != null) _fill.color = c; }, Ease.OutCubic);
         }
 
         private void ApplyPadding()

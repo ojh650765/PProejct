@@ -51,8 +51,18 @@ namespace PokeLab.UI
         private CreatureInstance _playerActive;
         private CreatureInstance _opponentActive;
         private bool _built;
-private TweenHandle _visibilityFade;
+        private TweenHandle _visibilityFade;
         private TweenHandle _beatFlashTween;
+
+        // Which plate the last blow landed on. The choreography's emphasis beats — "critical",
+        // "supereffective" — name the beat but not the side, and they arrive on the same frame
+        // as the damage event that set this, so it is always the plate they mean.
+        private BattleSide _lastHitSide = BattleSide.Opponent;
+
+        // What kind of battle is running. Set from the opening event, and used for the one
+        // line whose wording depends on it: whether the creature opposite walked out of the
+        // grass or was sent out by somebody.
+        private BattleKind _battleKind = BattleKind.Wild;
 
         /// <summary>Raised when the player commits a move, with its slot index.</summary>
         public Action<int> MoveChosen;
@@ -192,6 +202,7 @@ private TweenHandle _visibilityFade;
                     _log?.Clear();
                     // The one moment the battle's kind is stated, and the ball command's
                     // legality follows from it for the rest of the fight.
+                    _battleKind = started.Kind;
                     _commands?.SetBattleKind(started.Kind);
                     _log?.Append(started.Kind == BattleKind.Trainer
                         ? Loc.Pick("A trainer challenges you!", "트레이너가 승부를 걸어왔다!")
@@ -201,15 +212,27 @@ private TweenHandle _visibilityFade;
 
                 case CreatureSentOutEvent sentOut:
                     BindSide(sentOut.Side, sentOut.Creature, true);
-                    // The wild side gets "나타났다", the trainer side "내보냈다": one walked
-                    // out of the grass on its own, the other was sent. DP keeps them apart and
-                    // so does this — a wild encounter that says the grass "sent out" a Rattata
-                    // is the tell that a template wrote the line.
-                    _log?.Append(sentOut.Side == BattleSide.Player
-                        ? Loc.Pick($"Go, {UiServices.NameOf(sentOut.Creature)}!",
-                                   $"가랏! {UiServices.NameOf(sentOut.Creature)}!")
-                        : Loc.Pick($"{UiServices.NameOf(sentOut.Creature)} entered the field.",
-                                   $"{Josa.WithSubject(UiServices.NameOf(sentOut.Creature))} 나타났다!"));
+                {
+                    // "나타났다" against "내보냈다": one walked out of the grass on its own, the
+                    // other was sent by somebody. DP keeps them apart and so does this — a wild
+                    // encounter that says the grass "sent out" a Rattata is the tell that a
+                    // template wrote the line.
+                    //
+                    // The split used to be by SIDE, which got the wild case right by accident
+                    // and the trainer case wrong every time: an opposing trainer's creature was
+                    // narrated as having "appeared", as though it had wandered in during their
+                    // own battle. It is the battle's KIND that decides, not which half of the
+                    // field the creature is standing on.
+                    var who = UiServices.NameOf(sentOut.Creature);
+                    if (sentOut.Side == BattleSide.Player)
+                        _log?.Append(Loc.Pick($"Go, {who}!", $"가랏! {who}!"));
+                    else if (_battleKind == BattleKind.Trainer)
+                        _log?.Append(Loc.Pick($"The opponent sent out {who}!",
+                                              $"상대는 {Josa.WithObject(who)} 내보냈다!"));
+                    else
+                        _log?.Append(Loc.Pick($"A wild {who} appeared!",
+                                              $"{Josa.WithSubject(who)} 나타났다!"));
+                }
                     break;
 
                 case CreatureWithdrawnEvent withdrawn:
@@ -237,14 +260,23 @@ private TweenHandle _visibilityFade;
                     break;
 
                 case DamageDealtEvent damage:
-                    RefreshSide(damage.Target);
+                    // Driven from the event's own RemainingHp, never from the instance. The
+                    // engine has already resolved the whole turn by the time the first blow of
+                    // it is staged, so the creature is holding its post-turn HP: a second hit
+                    // in the same turn would find the bar already where it was going.
+                    _lastHitSide = damage.Target;
+                    PlateFor(damage.Target)?.PlayDamage(damage);
                     AppendEffectiveness(damage);
                     break;
 
                 case HealedEvent healed:
-                    RefreshSide(healed.Target);
+                {
+                    var plate = PlateFor(healed.Target);
+                    if (plate != null && healed.MaxHp > 0) plate.PlayHeal(healed.Amount, healed.RemainingHp, healed.MaxHp);
+                    else RefreshSide(healed.Target);
                     _log?.Append(Loc.Pick($"{UiServices.NameOf(ActiveOf(healed.Target))} recovered health.",
                         $"{Josa.WithTopic(UiServices.NameOf(ActiveOf(healed.Target)))} 체력을 회복했다!"));
+                }
                     break;
 
                 case StatusChangedEvent status:
@@ -299,20 +331,20 @@ private TweenHandle _visibilityFade;
                     break;
 
                 case CaptureAttemptEvent capture:
-                    _overlays?.PlayCapture(capture.Shakes, capture.Succeeded, capture.CatchProbability);
+                    // No overlay. The choreography throws a real ball, absorbs the creature
+                    // into it and shakes it exactly Shakes times; a flat ball on this canvas
+                    // wobbling the same count under a catch-rate readout was the same event
+                    // dramatised twice at once. Same reasoning as the result beats below — see
+                    // PlayHudBeat — only applied to the beat it had never been applied to. The
+                    // log line stays, because narration is this view's job and the arena has
+                    // no words.
                     _log?.Append(capture.Succeeded
                         ? Loc.Pick("Gotcha! It was caught!", "신난다! 포켓몬을 잡았다!")
                         : Loc.Pick("It broke free!", "앗! 포켓몬이 볼에서 나와버렸다!"));
                     break;
 
                 case ExperienceGainedEvent experience:
-                    _log?.Append(Loc.Pick($"Gained {experience.Amount} EXP.",
-                        $"경험치를 {experience.Amount} 얻었다!"));
-                    if (experience.LeveledUp)
-                    {
-                        _overlays?.PlayLevelUp(_playerActive, experience.NewLevel);
-                        if (_playerActive != null) _playerPlate?.Bind(_playerActive);
-                    }
+                    PlayExperienceGain(experience);
                     break;
 
                 case BattleEndedEvent ended:
@@ -324,6 +356,68 @@ private TweenHandle _visibilityFade;
                     _log?.Append(message.Text);
                     break;
             }
+        }
+
+        /// <summary>
+        /// The experience beat, on the plate rather than on a card.
+        ///
+        /// The event carries the new running total, the new level and how much was gained, but
+        /// not where it started — so the start is reconstructed: the old total is the new one
+        /// minus the gain, and the old level is what that total implies on the curve. That is
+        /// exact rather than approximate, because the curve is a pure function of the total
+        /// (see <see cref="ExperienceCurve"/>, which mirrors the engine's n³).
+        ///
+        /// Only the creature standing on the field gets the animation. Experience is shared
+        /// with every participant, and a benched member's gain has no bar on screen to fill —
+        /// it gets its line in the log and nothing else, rather than silently animating the
+        /// wrong creature's plate, which is what binding by side alone would have done.
+        /// </summary>
+        private void PlayExperienceGain(ExperienceGainedEvent experience)
+        {
+            if (experience == null) return;
+
+            var active = _playerActive;
+            var isActive = active != null &&
+                           (string.IsNullOrEmpty(experience.InstanceId) ||
+                            experience.InstanceId == active.InstanceId);
+
+            var name = isActive ? UiServices.NameOf(active) : null;
+            _log?.Append(name != null
+                ? Loc.Pick($"{name} gained {experience.Amount} EXP.",
+                           $"{Josa.WithTopic(name)} 경험치를 {experience.Amount} 얻었다!")
+                : Loc.Pick($"Gained {experience.Amount} EXP.",
+                           $"경험치를 {experience.Amount} 얻었다!"));
+
+            if (!isActive || _playerPlate == null) return;
+
+            var newTotal = Mathf.Max(0, experience.NewTotal);
+            var newLevel = Mathf.Max(1, experience.NewLevel);
+            var oldTotal = Mathf.Clamp(newTotal - Mathf.Max(0, experience.Amount), 0, newTotal);
+            var oldLevel = Mathf.Min(newLevel, ExperienceCurve.LevelFor(oldTotal));
+
+            BattleFloater.Gain(_playerPlate.FloaterLayer, "+" + experience.Amount + " EXP",
+                BattleSkin.Cyan, 38f, _playerPlate.FloatToRight, _playerPlate.FloatUpward);
+
+            var plate = _playerPlate;
+            plate.PlayExperience(oldTotal, oldLevel, newTotal, newLevel, 1.5f,
+                onLevelUp: () =>
+                {
+                    if (plate == null) return;
+                    BattleFloater.Shout(plate.FloaterLayer, Loc.Pick("LEVEL UP!", "레벨 업!"),
+                        UiPalette.ScannerAmber, 52f, plate.FloatUpward);
+                    // The frame's quiet agreement with the plate — a wash in the corner the
+                    // plate lives in, not a card over the middle of the screen.
+                    _overlays?.PlayLevelUp(active, newLevel);
+                    PulseBeatFlash(UiPalette.ScannerAmber, 0.16f, 0.4f);
+                },
+                onComplete: () =>
+                {
+                    // Levelling recomputes stats, so max HP may have moved under the bar. The
+                    // rebind is deliberately last: doing it up front would overwrite the roll
+                    // with the creature's already-final fraction and there would be nothing
+                    // left to animate.
+                    if (plate != null && active != null && newLevel > oldLevel) plate.Bind(active);
+                });
         }
 
         private void AppendEffectiveness(DamageDealtEvent damage)
@@ -654,26 +748,46 @@ private TweenHandle _visibilityFade;
 
             switch (beatId.ToLowerInvariant())
             {
+                // The hit beats carry the share of the bar the blow took as their intensity.
+                // The plate's own shake, flash and damage figure are already driven from the
+                // event itself, so all the frame adds is a wash — and only for a hit big
+                // enough to deserve one, because a tint on every chip is a strobe.
+                case "hit_player":
+                case "hit_opponent":
+                    if (intensity >= 0.28f)
+                    {
+                        PulseBeatFlash(beatId == "hit_player" ? UiPalette.Negative : Color.white,
+                            Mathf.Lerp(0.05f, 0.13f, Mathf.Clamp01(intensity)), 0.26f);
+                    }
+                    break;
+
                 case "critical":
                     PulseBeatFlash(UiPalette.Critical, 0.20f * strength, 0.32f);
-                    PunchPlate(_opponentPlate, 0.06f * strength);
+                    // The plate that was actually struck. This used to be hardcoded to the
+                    // opponent's, so a critical landing on the player knocked the wrong plate.
+                    ShakePlate(PlateFor(_lastHitSide), 22f * strength);
                     break;
 
                 case "supereffective":
                     PulseBeatFlash(UiPalette.ScannerAmber, 0.14f * strength, 0.28f);
-                    PunchPlate(_opponentPlate, 0.045f * strength);
+                    ShakePlate(PlateFor(_lastHitSide), 15f * strength);
                     break;
 
                 case "capture_shake":
                     // No flash: the ball is the show and the OverlayDirector is already
                     // staging it. A whisper of motion on the plate is all the HUD adds.
-                    PunchPlate(_opponentPlate, 0.03f * strength);
+                    ShakePlate(_opponentPlate, 7f * strength);
                     break;
 
                 case "victory":
                 case "defeat":
                 case "fled":
-                    // Covered by OverlayDirector.PlayResult via BattleEndedEvent.
+                    // The result card is armed by BattleEndedEvent with a lead, and this is
+                    // the frame the choreography says the moment has actually arrived — the
+                    // winner has turned to the lens and started celebrating. Cueing it here
+                    // is what makes the card read as caused by the celebration rather than
+                    // as something that happened to appear at the same time.
+                    _overlays?.CueResult();
                     break;
             }
         }
@@ -697,10 +811,17 @@ private TweenHandle _visibilityFade;
             });
         }
 
-        private static void PunchPlate(CreatureStatusPanel plate, float magnitude)
+        /// <summary>
+        /// A knock on a plate, in pixels.
+        ///
+        /// Pixels rather than the scale punch this used to do: a plate that grows on impact
+        /// reads as a button being pressed, and a plate shoved off its anchor reads as
+        /// something hitting the creature it names.
+        /// </summary>
+        private static void ShakePlate(CreatureStatusPanel plate, float pixels)
         {
             if (plate == null || !plate.gameObject.activeInHierarchy) return;
-            UiTween.Punch(plate.transform, magnitude, 0.3f);
+            plate.Shake(pixels, 0.3f);
         }
     }
 }

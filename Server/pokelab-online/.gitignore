@@ -1,0 +1,8 @@
+node_modules/
+.wrangler/
+.dev.vars
+
+# Cloudflare API token. 44 bytes of credential; it was staged once by a `git add -A`
+# and must never reach a public repository.
+.tok2
+.tok*

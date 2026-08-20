@@ -119,6 +119,12 @@ namespace PokeLab.Overworld
             if (_runner == null) _runner = FindFirstObjectByType<EpisodeRunner>();
             if (_runner != null && _runner.IsPlaying) return;
 
+            // Nor on top of a hold that is not an episode. The gate walks the player back down
+            // the ramp after Bram has refused them, and Kes' trigger sits in the square they are
+            // being walked into — so without this the send-off fired at somebody who was not
+            // driving, halfway through somebody else's scene.
+            if (StoryInterlude.Active) return;
+
             if (_player == null)
             {
                 var found = GameObject.FindGameObjectWithTag(OverworldNames.PlayerTag);

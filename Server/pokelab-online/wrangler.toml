@@ -1,0 +1,54 @@
+name = "pokelab-online"
+main = "src/index.ts"
+compatibility_date = "2026-06-03"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+# D1, not Supabase.
+#
+# The reference project this was modelled on (ttk) keeps its data in Supabase, and that is the
+# right call there: it was already carrying a Postgres schema with vector search in it. None of
+# that applies here. What this game stores is four small relational tables — an account, the six
+# creatures it owns, an experience row per creature, and a match record — and putting them in
+# D1 keeps the whole backend inside one Cloudflare account with one deploy and one set of
+# credentials. A second vendor would mean a service-role key shipped as a Worker secret, for a
+# database doing nothing Postgres is needed for.
+[[d1_databases]]
+binding = "DB"
+database_name = "pokelab"
+# Replaced by `wrangler d1 create pokelab` — see README.
+database_id = "57abfba8-785e-4cdc-bbe2-1098b8d0911b"
+
+# The PvP room.
+#
+# A Durable Object and not a queue or a KV poll, because a battle between two people is the
+# textbook case for one: it is a single small piece of state that BOTH players must agree on,
+# and a DO is the only Cloudflare primitive that guarantees exactly one instance of it exists
+# anywhere in the world. Two Workers holding two copies of a turn order is not a race that can
+# be patched around afterwards.
+[[durable_objects.bindings]]
+name = "MATCH"
+class_name = "MatchRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MatchRoom"]
+
+[vars]
+# Seconds a sign-in token stays valid. Fourteen days: long enough that a player is not asked
+# their recovery answer every session, short enough that a token copied off a shared machine
+# is not permanent.
+TOKEN_TTL_SECONDS = "1209600"
+
+# How many failed sign-ins one trainer name may collect before it is refused for a while.
+# The whole security argument for recovery-question auth rests on this number: an answer with
+# a few thousand plausible values is safe only while an attacker cannot try a few thousand of
+# them. See README.
+SIGNIN_ATTEMPT_LIMIT = "8"
+SIGNIN_ATTEMPT_WINDOW_SECONDS = "900"
+
+[env.preview]
+name = "pokelab-online-preview"

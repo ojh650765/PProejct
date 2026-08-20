@@ -45,7 +45,17 @@ namespace PokeLab.Audio
         [SerializeField, Range(2, 16)] private int uiVoices = 6;
 
         [Header("Default levels (linear 0-1)")]
-        [SerializeField, Range(0f, 1f)] private float masterVolume = 1f;
+        // Master at 0.5, on the user's instruction ("볼륨 크기 50%로 줄여줘").
+        //
+        // The cut is applied to MASTER alone and the per-bus balance below is left exactly as
+        // it was. That balance is a mix — music sitting under effects, ambience under both —
+        // and scaling every bus by half would have preserved nothing except the arithmetic
+        // while making each slider mean something different from what it says. Halving the one
+        // bus that everything passes through turns the whole game down and keeps the mix.
+        //
+        // These are DEFAULTS, not the live values: LoadVolume reads PlayerPrefs over the top
+        // of them in Awake, so a player who has moved a slider is not reset by this.
+        [SerializeField, Range(0f, 1f)] private float masterVolume = 0.5f;
         [SerializeField, Range(0f, 1f)] private float musicVolume = 0.72f;
         [SerializeField, Range(0f, 1f)] private float sfxVolume = 0.85f;
         [SerializeField, Range(0f, 1f)] private float ambienceVolume = 0.6f;
@@ -160,11 +170,17 @@ namespace PokeLab.Audio
             EnsureListener();
             ResolveGroups();
 
-            _busVolume[AudioBus.Master] = masterVolume;
-            _busVolume[AudioBus.Music] = musicVolume;
-            _busVolume[AudioBus.Sfx] = sfxVolume;
-            _busVolume[AudioBus.Ambience] = ambienceVolume;
-            _busVolume[AudioBus.Ui] = uiVolume;
+            DropStaleOverrides();
+
+            // The serialized fields are DEFAULTS; a value the player has actually chosen wins.
+            // Without this the settings screen would move the mixer for one session and forget
+            // everything the moment the game was reopened, which is worse than having no
+            // settings screen at all — it looks like it worked.
+            _busVolume[AudioBus.Master] = LoadVolume(AudioBus.Master, masterVolume);
+            _busVolume[AudioBus.Music] = LoadVolume(AudioBus.Music, musicVolume);
+            _busVolume[AudioBus.Sfx] = LoadVolume(AudioBus.Sfx, sfxVolume);
+            _busVolume[AudioBus.Ambience] = LoadVolume(AudioBus.Ambience, ambienceVolume);
+            _busVolume[AudioBus.Ui] = LoadVolume(AudioBus.Ui, uiVolume);
 
             _sfxPool = new AudioSourcePool(transform, "SfxVoices", sfxVoices, GroupFor(AudioBus.Sfx));
             _spatialPool = new AudioSourcePool(transform, "SpatialVoices", spatialVoices,
@@ -296,6 +312,76 @@ namespace PokeLab.Audio
             linear01 = Mathf.Clamp01(linear01);
             _busVolume[bus] = linear01;
             ApplyBusVolume(bus, linear01);
+            SaveVolume(bus, linear01);
+        }
+
+        /// <summary>Where one bus's chosen level is remembered between sessions.</summary>
+        private static string PrefKeyFor(AudioBus bus) => "pokelab.audio.volume." + bus;
+
+        /// <summary>
+        /// Bumped whenever the shipped default levels change. See <see cref="DropStaleOverrides"/>.
+        /// </summary>
+        private const int DefaultsVersion = 2;
+
+        private const string DefaultsVersionKey = "pokelab.audio.defaultsVersion";
+
+        /// <summary>
+        /// Forgets remembered levels that were remembered against DIFFERENT defaults.
+        ///
+        /// A stored preference always beating the serialized value is right until the shipped
+        /// value moves, and then it is exactly wrong: master went to 0.5 because the user asked
+        /// for 볼륨 크기 50%, and every player who had already opened the game once had 1.0
+        /// sitting in PlayerPrefs from the first boot — so the change did nothing for the only
+        /// people it was made for, and the game stayed loud. That is not a hypothetical; it is
+        /// what the report 메인 메뉴 사운드가 너무 큼. 50% 줄인게 맞나 was describing, on a build
+        /// where the new default was in the source and in five scenes.
+        ///
+        /// Clearing rather than rewriting: the point is to make the fields authoritative again,
+        /// and LoadVolume already falls back to them. A player who has since dragged a slider
+        /// loses that drag once, at the version bump, which is the cost of shipping a new
+        /// default at all.
+        /// </summary>
+        private static void DropStaleOverrides()
+        {
+            if (PlayerPrefs.GetInt(DefaultsVersionKey, 0) == DefaultsVersion) return;
+
+            foreach (AudioBus bus in System.Enum.GetValues(typeof(AudioBus)))
+                PlayerPrefs.DeleteKey(PrefKeyFor(bus));
+
+            PlayerPrefs.SetInt(DefaultsVersionKey, DefaultsVersion);
+            PlayerPrefs.Save();
+        }
+
+        private static float LoadVolume(AudioBus bus, float fallback) =>
+            Mathf.Clamp01(PlayerPrefs.GetFloat(PrefKeyFor(bus), fallback));
+
+        /// <summary>
+        /// Written on every change rather than on quit.
+        ///
+        /// A settings screen is dragged, not committed — there is no OK button to hang a save
+        /// on — and the web build has no reliable quit at all: a browser tab can be closed
+        /// without OnApplicationQuit ever running. Writing a float per drag is cheap and is the
+        /// only version of this that survives the way the game is actually left.
+        /// </summary>
+        private static void SaveVolume(AudioBus bus, float linear01)
+        {
+            PlayerPrefs.SetFloat(PrefKeyFor(bus), linear01);
+            PlayerPrefs.Save();
+        }
+
+        /// <summary>
+        /// Puts every bus back to the value the build shipped with, and forgets the overrides.
+        ///
+        /// The settings screen needs this because a player who has dragged master to zero has
+        /// no way to hear their way back — silence gives no feedback that anything is moving.
+        /// </summary>
+        public void ResetVolumesToDefaults()
+        {
+            SetBusVolume(AudioBus.Master, masterVolume);
+            SetBusVolume(AudioBus.Music, musicVolume);
+            SetBusVolume(AudioBus.Sfx, sfxVolume);
+            SetBusVolume(AudioBus.Ambience, ambienceVolume);
+            SetBusVolume(AudioBus.Ui, uiVolume);
         }
 
         public float GetBusVolume(AudioBus bus) =>

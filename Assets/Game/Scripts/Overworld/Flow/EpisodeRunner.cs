@@ -258,8 +258,13 @@ namespace PokeLab.Overworld
                  "drawing them, or relocate them to their landing mark. The old rule was 'out " +
                  "of frame', and under the free camera that is just a player mid-turn: the " +
                  "professor popped out of existence eight metres from a player who had merely " +
-                 "glanced away, and turned back.")]
-        [SerializeField] private float _exitDespawnDistanceMetres = 25f;
+                 "glanced away, and turned back. Twelve rather than the twenty-five it was: " +
+                 "the question this asks is 'could they still be looking at them', and the " +
+                 "answer to that is the OFFSCREEN half below. Distance is only here to stop a " +
+                 "vanish happening at conversational range, and twenty-five metres of it made " +
+                 "Kes walk the length of the lake in plain sight to earn a despawn nobody was " +
+                 "waiting for -- 'was still in view and only 14.6m from the player after 24.0s'.")]
+        [SerializeField] private float _exitDespawnDistanceMetres = 12f;
         [Tooltip("Seconds an exiting actor must be continuously out of the camera's view " +
                  "before ExitActor believes nobody is watching. This AND the distance above " +
                  "must both hold before anybody despawns or teleports.")]
@@ -324,10 +329,28 @@ namespace PokeLab.Overworld
         public bool IsPlaying => _running != null;
         public event Action<string> EpisodeFinished;
 
+        /// <summary>
+        /// The runner in the loaded scenes, or null. Exists so per-frame callers — anything
+        /// asking "is a scene playing right now?" from Update — do not each pay for a
+        /// FindFirstObjectByType every frame. Set and cleared by the runner itself rather than
+        /// treated as a singleton: a second one standing up simply becomes the one that is
+        /// found, which is the same answer FindFirstObjectByType gave.
+        /// </summary>
+        public static EpisodeRunner Live { get; private set; }
+
+        /// <summary>Cleared with the rest of this assembly's statics — see OverworldLifecycle.</summary>
+        internal static void ResetLive() => Live = null;
+
         private void Awake()
         {
+            Live = this;
             LoadBook();
             _dialogue = DialogueBook.Load(_dialoguePath);
+        }
+
+        private void OnDestroy()
+        {
+            if (Live == this) Live = null;
         }
 
         private void Start()
@@ -1511,9 +1534,8 @@ reachedTheEnd = true;
                     PlaceActor(body, locomotion, next,
                         facing.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(facing) : body.rotation);
 
-                    if (Physics.Raycast(body.position + Vector3.up * 3f, Vector3.down,
-                                        out var underfoot, 30f, ~0, QueryTriggerInteraction.Ignore))
-                        body.position = new Vector3(body.position.x, underfoot.point.y, body.position.z);
+                    if (TryGroundUnder(body, out var groundY))
+                        body.position = new Vector3(body.position.x, groundY, body.position.z);
 
                     if (Flatten(destination - body.position).magnitude <= _arriveDistance)
                     {
@@ -1730,9 +1752,8 @@ reachedTheEnd = true;
                     PlaceActor(body, locomotion, step,
                         facing.sqrMagnitude > 1e-4f ? Quaternion.LookRotation(facing) : body.rotation);
 
-                    if (Physics.Raycast(body.position + Vector3.up * 3f, Vector3.down,
-                                        out var underfoot, 30f, ~0, QueryTriggerInteraction.Ignore))
-                        body.position = new Vector3(body.position.x, underfoot.point.y, body.position.z);
+                    if (TryGroundUnder(body, out var groundY))
+                        body.position = new Vector3(body.position.x, groundY, body.position.z);
 
                     if (Flatten(destination - body.position).magnitude <= 0.4f)
                     {
@@ -1892,6 +1913,54 @@ reachedTheEnd = true;
                 ? new Vector3(point.x, hit.point.y, point.z)
                 : point;
         }
+
+        /// <summary>
+        /// The ground under a scripted walker, ignoring the walker.
+        ///
+        /// <b>The bug this replaces.</b> Both scripted legs used to re-seat the actor with a
+        /// bare <c>Physics.Raycast</c> from three metres overhead, down thirty, against every
+        /// layer. An NPC has a collider, that collider is between the ray's origin and the
+        /// floor, and it is the first thing the ray hits — so the "ground" came back at the top
+        /// of the actor's own capsule and the actor was moved up to stand on his own head. The
+        /// next step raised the origin with him and did it again. Kes climbed out of the world
+        /// one body-height per frame and then despawned for being off camera, which the user saw
+        /// as 캐스가 갑자기 하늘 날라가면서 사라짐.
+        ///
+        /// It only ever showed at the town gate because that is the one place the walk falls
+        /// back to the scripted leg at all: everywhere else the navmesh carries him and this
+        /// code never runs.
+        ///
+        /// So the cast collects every hit and takes the nearest one that is not part of the
+        /// walker. Sorted rather than filtered-then-min because RaycastAll does not promise an
+        /// order. Triggers stay ignored — a region volume is not a floor.
+        /// </summary>
+        private static bool TryGroundUnder(Transform body, out float y)
+        {
+            y = body.position.y;
+
+            var origin = body.position + Vector3.up * GroundProbeRise;
+            var hits = Physics.RaycastAll(origin, Vector3.down, GroundProbeReach, ~0,
+                                          QueryTriggerInteraction.Ignore);
+            if (hits.Length == 0) return false;
+
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+            for (int i = 0; i < hits.Length; i++)
+            {
+                var hit = hits[i].transform;
+                if (hit == body || hit.IsChildOf(body)) continue;
+                y = hits[i].point.y;
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Metres above the walker the ground probe starts. Clears a step or a kerb.</summary>
+        private const float GroundProbeRise = 3f;
+
+        /// <summary>Metres the ground probe reaches. Long enough to find the floor of a gorge.</summary>
+        private const float GroundProbeReach = 30f;
 
         /// <summary>
         /// One step of a scripted walk, steered around whatever stands in the way.

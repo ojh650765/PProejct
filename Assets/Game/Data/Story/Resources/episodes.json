@@ -235,43 +235,9 @@
           "Id": "NPC_Rival",
           "Target": "Mark_Exit_RampDown>Mark_Rival_BagSide",
           "Seconds": 24.0,
-          "Speed": 2.8,
-          "Value": false,
-          "Note": "Down the ramp and gone -- and now the route SAYS down the ramp. A single field-side mark gave the walk a bearing that cuts east through the fence beside the gatekeeper, and the baked StoryGate hole in the town mesh (fixed in the 2026-08-20 rebake; the gate now blocks only the player) meant his agent could not even reach the ramp: the partial path's end was the fence, which is the veer-right the play reports describe. Two legs now: Mark_Exit_RampDown is the point ON the ramp the walk must pass through (the user supplied the coordinate), Mark_Rival_BagSide is the landing -- he beats the player to the lake and is standing at the professor's bag when they arrive, which is what '먼저 도착' costs him. Speed 2.8 whichever way a leg runs, agent or scripted -- he has just shouted he is counting, and 1.4 m/s is a stroll. Value false: he stays drawn, and the relocation onto the landing waits until he has been out of the player's view for the runner's grace AND is past its despawn distance -- or he simply runs the whole way there, watched, and no teleport happens at all. 53 m of route at 2.8 m/s is 19 s against the 24 s ceiling."
-        }
-      ]
-    },
-    {
-      "Id": "gate_opens",
-      "DisplayName": "Bram steps aside",
-      "CompletionFlag": "story.gate_acknowledged",
-      "Trigger": {
-        "kind": "proximity",
-        "actorId": "npc_gate_01",
-        "sceneObject": "Trigger_GateOpen",
-        "requiresFlag": "story.kes_summons_done",
-        "forbidsFlag": "story.gate_acknowledged",
-        "radius": 3.5,
-        "approachSeconds": 0.0
-      },
-      "Note": "Two lines at the top of the ramp on the way out. Deliberately load-bearing for nothing: the gate is already open by the time this plays, so a player who never triggers it loses a beat and not the act. It hangs off its own trigger object because Bram's one StoryEncounter slot is spent on gate_wait_for_kes -- see the Trigger note in the schema. Target length ~10s.",
-      "Beats": [
-        {
-          "Kind": 5,
-          "KindName": "TakeControl",
-          "Seconds": 0.0
-        },
-        {
-          "Kind": 4,
-          "KindName": "Dialogue",
-          "Id": "gate_open_after_kes",
-          "Seconds": 0.0,
-          "Note": "2 lines. The second is the only warning the player gets about the grass, and the thing in the grass is the next battle they fight."
-        },
-        {
-          "Kind": 6,
-          "KindName": "GiveControl",
-          "Seconds": 0.0
+          "Speed": 7.0,
+          "Value": true,
+          "Note": "Down the ramp and gone -- and now the route SAYS down the ramp. A single field-side mark gave the walk a bearing that cuts east through the fence beside the gatekeeper, and the baked StoryGate hole in the town mesh (fixed in the 2026-08-20 rebake; the gate now blocks only the player) meant his agent could not even reach the ramp: the partial path's end was the fence, which is the veer-right the play reports describe. Two legs now: Mark_Exit_RampDown is the point ON the ramp the walk must pass through (the user supplied the coordinate), Mark_Rival_BagSide is the landing -- he beats the player to the lake and is standing at the professor's bag when they arrive, which is what '먼저 도착' costs him. Speed 2.8 whichever way a leg runs, agent or scripted -- he has just shouted he is counting, and 1.4 m/s is a stroll. VALUE FLIPPED TO TRUE (2026-08-20, third revision), and the reason is the user-s: -- 그냥 걸어가다가 시야에 사라질때 사라지게 만들고 ... 가는 모습만 보여주는 거지. -- The walk out of town is the shot; the fifty-metre journey after it is not, and a boy jogging the length of the lake in the player-s peripheral vision while they are still talking to Bram is worse than no departure at all. So he is taken off the screen once the despawn rule is genuinely satisfied -- out of the camera for the runner-s offscreen grace AND past its despawn distance, defaults 2 s and 25 m -- and the Kes the player meets at the bag is NOT this walk arriving. He is placed there by StoryPresence the moment story.kes_summons_done is set, from Mark_Rival_BagSide in cast.json, which is what makes 캐시를 가방 옆에 미리 배치 true on a save that never watched him leave and after any scene reload. The route below is unchanged and still authored, because it is what he walks while he can be seen. 53 m of route at 2.8 m/s is 19 s against the 24 s ceiling. SPEED 2.8 -> 7.0 (user: 걸어가는 속도 빠르게해. 플레이어 뛰는 속도보다 빠르게). PlayerLocomotion._runSpeed is 6.0, so 2.8 was less than half the pace of a player who simply held run -- the boy who has just shouted that he is counting was being overtaken by the person he is racing, and the departure read as a stroll. 7.0 is above the player's own ceiling, so he cannot be followed at his own speed. It drives the NavMeshAgent and the scripted straight leg alike (agent.speed is set from this and restored afterwards), and it shortens the visible exit from about 19s to about 8s -- which also cuts how long he is on screen for the stretch of route that crosses the water."
         }
       ]
     },

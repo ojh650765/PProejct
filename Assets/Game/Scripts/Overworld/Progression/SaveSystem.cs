@@ -30,6 +30,83 @@ namespace PokeLab.Overworld
         public static bool SaveExists() => File.Exists(SavePath);
 
         /// <summary>Serializes the profile and the world snapshot. Returns false on an I/O failure.</summary>
+        /// <summary>
+        /// The save as a string, without touching a disk.
+        ///
+        /// <b>This is the game's save path now.</b> The file-based <see cref="Save"/> and
+        /// <see cref="Load"/> below are no longer called by the game: the target is the web,
+        /// where <c>Application.persistentDataPath</c> is IndexedDB — wiped whenever the player
+        /// clears browsing data, scoped to one browser on one machine, and silently lost
+        /// without an explicit filesystem flush. That is not a save file; it is a cache that
+        /// looks like one, which is worse, because the player only finds out it was not a save
+        /// at the moment they needed it to be. The user's call: 웹이라서 로컬저장은 싫어.
+        ///
+        /// So the bytes go to the account instead (see <c>CloudSave</c>), and this is the seam:
+        /// the same <see cref="Capture"/> that fed the file, stopping short of writing one.
+        /// </summary>
+        public static string Serialise(PlayerProfile profile, WorldSave world)
+        {
+            if (profile == null) return null;
+            try
+            {
+                return JsonUtility.ToJson(Capture(profile, world), prettyPrint: false);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[SaveSystem] Could not serialise the save: {ex}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Loads a save out of a string into the profile. Null on any failure, so a caller can
+        /// tell "no save" from "loaded" exactly as the file path did.
+        ///
+        /// Runs the same validation and migration the file path runs, and for the same reasons:
+        /// <see cref="JsonUtility"/> returns a default-constructed object for malformed input
+        /// rather than throwing, and a save from a newer build must be refused rather than
+        /// half-read and then written back over the original.
+        /// </summary>
+        public static WorldSave Deserialise(string json, PlayerProfile profile)
+        {
+            if (profile == null || string.IsNullOrWhiteSpace(json)) return null;
+
+            SaveGame save;
+            try { save = JsonUtility.FromJson<SaveGame>(json); }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[SaveSystem] Cloud save would not parse: {ex.Message}");
+                return null;
+            }
+
+            // Version can never legitimately be zero; that is what a default-constructed
+            // SaveGame looks like when JsonUtility was handed something that was not a save.
+            if (save == null || save.Version <= 0)
+            {
+                Debug.LogError("[SaveSystem] Cloud save parsed to nothing usable; refusing it.");
+                return null;
+            }
+
+            if (save.Version > SaveGame.CurrentVersion)
+            {
+                Debug.LogError($"[SaveSystem] Cloud save is version {save.Version}, this build "
+                               + $"understands {SaveGame.CurrentVersion}. Refusing to load it "
+                               + "rather than corrupting it on the next save.");
+                return null;
+            }
+
+            if (save.Version < SaveGame.CurrentVersion && !Migrate(save)) return null;
+
+            Apply(save, profile);
+            return save.World ?? new WorldSave();
+        }
+
+        /// <summary>
+        /// LEGACY. Writes the save to disk.
+        ///
+        /// Kept for the editor and for tooling — it is how a test state is set up without a
+        /// server — but it is NOT what the game does any more. See <see cref="Serialise"/>.
+        /// </summary>
         public static bool Save(PlayerProfile profile, WorldSave world)
         {
             if (profile == null) return false;

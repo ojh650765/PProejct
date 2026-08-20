@@ -217,6 +217,79 @@ namespace PokeLab.UI
             return TypesDeep[index];
         }
 
+        // ------------------------------------------------- front end (title / gacha)
+
+        /// <summary>
+        /// The front end's register: deep translucent navy glass, white type, one bright
+        /// accent per state.
+        ///
+        /// <b>Why it is separate from the scanner block above.</b> Everything above is a device
+        /// readout — near-black, slate, a hairline of cyan — which is right for a battle HUD
+        /// read at a glance over a lit 3D scene and wrong for the screens the player sits and
+        /// browses. Those screens are the shop window, and this is what a modern creature game
+        /// looks like there: layered blue glass over a lit backdrop, white bold labels, and a
+        /// selected row that inverts to near-white with a lime cursor stuck to its left edge.
+        ///
+        /// <b>The rules that hold the set together.</b> One night colour is the ground and
+        /// every panel is the same blue at a different alpha over it, so depth comes from
+        /// stacking rather than from six invented greys. Text is white or, on an inverted
+        /// surface, <see cref="AceInk"/> — never a mid grey. Accents are used one at a time:
+        /// lime means "this is where you are", cyan means "this is live", gold and magenta
+        /// belong to the gacha's tiers.
+        ///
+        /// Nothing above changes; the dark gameplay screens keep their palette and these names
+        /// are only reached for by the screens that want the shop window.
+        /// </summary>
+        public static readonly Color AceNight = Hex("#071227");
+        /// <summary>One step up from the ground — the column behind a list.</summary>
+        public static readonly Color AceDepth = Hex("#0C1E3E");
+        /// <summary>Glass panel fill. Always drawn with an alpha under 1: the layering is the look.</summary>
+        public static readonly Color AceGlass = Hex("#17386A");
+        /// <summary>Glass one step brighter, for a row sitting on a panel.</summary>
+        public static readonly Color AceGlassLift = Hex("#1F4A85");
+        /// <summary>The hairline along a panel's edge. This is what separates two translucent blues.</summary>
+        public static readonly Color AceRim = new Color(1f, 1f, 1f, 0.16f);
+        /// <summary>Sheen laid over the top of a panel so the glass has a direction to it.</summary>
+        public static readonly Color AceSheen = new Color(1f, 1f, 1f, 0.07f);
+        /// <summary>Soft blue light behind everything. Two of these are the whole background.</summary>
+        public static readonly Color AceHalo = Hex("#2C7BD6");
+
+        /// <summary>The fill of a selected row. Near-white, warmed a shade so it is not a hole in the screen.</summary>
+        public static readonly Color AceSelect = Hex("#F2F7FF");
+        /// <summary>Text on <see cref="AceSelect"/>. The only dark text in the register.</summary>
+        public static readonly Color AceInk = Hex("#0E2044");
+
+        public static readonly Color AceText = Hex("#EEF5FF");
+        public static readonly Color AceTextDim = new Color(0.933f, 0.961f, 1f, 0.62f);
+        public static readonly Color AceTextFaint = new Color(0.933f, 0.961f, 1f, 0.34f);
+
+        /// <summary>"You are here." The cursor, and nothing else.</summary>
+        public static readonly Color AceLime = Hex("#9BE73E");
+        /// <summary>"This is live." Headers, online state, the glow on an active element.</summary>
+        public static readonly Color AceCyan = Hex("#4FD8FF");
+        public static readonly Color AceMint = Hex("#35E5B4");
+        public static readonly Color AceMagenta = Hex("#FF63A5");
+        public static readonly Color AceGold = Hex("#FFC948");
+        public static readonly Color AceRed = Hex("#FF5B4E");
+        public static readonly Color AceViolet = Hex("#A98BFF");
+
+        /// <summary>Drop shadow under a floating panel. Deep and soft, because these panels are glass over light.</summary>
+        public static readonly Color AceShadow = new Color(0.008f, 0.031f, 0.078f, 0.55f);
+
+        /// <summary>
+        /// The five gacha tiers. Brighter and further apart than the scanner semantics they
+        /// used to borrow, and tuned to sit on navy rather than on slate. Rank 0-4; anything
+        /// outside clamps.
+        /// </summary>
+        public static Color Rarity(int rank) => rank switch
+        {
+            4 => Hex("#FFC948"),
+            3 => Hex("#C08BFF"),
+            2 => Hex("#4FD8FF"),
+            1 => Hex("#9BE73E"),
+            _ => Hex("#9FB6D4"),
+        };
+
         // ----------------------------------------------------------------- helpers
 
         /// <summary>Same colour at a different alpha, without mutating the source.</summary>

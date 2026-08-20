@@ -127,3 +127,16 @@ Assets/Screenshots.meta
 **/*Harness.cs.meta
 **/TEMP_*
 **/Temp_*
+
+# Python bytecode from the Tools scripts. Regenerated on every run.
+__pycache__/
+*.pyc
+
+# Scratch space for salvaged assets during a repair. Never part of a build: the
+# user's call -- "recovery는 올릴필요없을것같고".
+/Assets/_Recovery/
+/Assets/_Recovery.meta
+
+# Cygwin/Git-Bash crash dumps. Noise, and they land in the repo root.
+bash.exe.stackdump
+*.stackdump

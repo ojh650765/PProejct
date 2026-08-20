@@ -70,11 +70,28 @@ namespace PokeLab.Cinematics
         // experience line, the level-up and the opponent's replacement all landing in the
         // log before "쓰러졌다!", which reads as the turn order tangling.
         private readonly HashSet<BattleEvent> _unobserved = new HashSet<BattleEvent>();
+
+        // Damage whose reaction has already been played, at the frame of contact inside the
+        // attacking beat rather than one event later. See <see cref="ContactMoment"/>: the
+        // DamageDealtEvent still gets its own beat, but that beat is the settle, not the hit.
+        private readonly HashSet<BattleEvent> _reactedEarly = new HashSet<BattleEvent>();
+
+        // Events whose EventPerformed was raised ahead of the pump, for the same reason. The
+        // performed tap is contracted to fire exactly once per event, so the pump has to know
+        // which ones have already been announced.
+        private readonly HashSet<BattleEvent> _performedEarly = new HashSet<BattleEvent>();
+
         private readonly Dictionary<BattleSide, CreatureInstance> _active = new Dictionary<BattleSide, CreatureInstance>();
 
         private Coroutine _pump;
         private MoveDeclaredEvent _declaredMove;
         private BattleOutcome _outcome = BattleOutcome.InProgress;
+
+        // What kind of battle this is, taken from the opening event. Trainer until a battle
+        // says otherwise, because that is the conservative answer: showing a ball for a
+        // creature that has one is right, and the wild case is the exception that has to be
+        // stated rather than assumed.
+        private BattleKind _kind = BattleKind.Trainer;
 
         private Simulation _simulation;
         private Coroutine _driver;
@@ -180,6 +197,10 @@ namespace PokeLab.Cinematics
         private void ReleaseSimulation()
         {
             if (_driver != null) { CinematicRunner.Halt(_driver); _driver = null; }
+
+            // Halting the driver can cut a send-out between the throw and the dismiss, and a
+            // ball spawned into the level scene outlives the arena that was using it.
+            ReapBalls();
 
             if (_simulation == null) return;
             _simulation.EventsProduced -= OnBattleEvents;
@@ -348,44 +369,43 @@ namespace PokeLab.Cinematics
             // resolving a turn, and the contract says handlers must not block.
             _pending.Add(evt);
 
-            // Handed on unqueued, because the HUD is reporting state rather than performing it:
-            // a health bar that only moved once the camera had finished its shot would be
-            // showing the player a number that stopped being true several seconds ago. Two
-            // exceptions: an event that carries the result — see <see cref="RevealsOutcome"/> —
-            // and anything queued BEHIND one, because observation must stay in stream order.
-            // The engine keeps emitting after a faint (experience, level-ups, the opponent's
-            // replacement), and relaying those on arrival printed them all before the faint
-            // line they follow from.
-            if (!RevealsOutcome(evt) && _unobserved.Count == 0) EventObserved?.Invoke(evt);
+            // Almost everything waits for its beat. See <see cref="ObserveOnArrival"/> for the
+            // one exception and for why the old arrival-clock default was the bug behind "the
+            // health bar drains before the hit lands".
+            if (ObserveOnArrival(evt) && _unobserved.Count == 0) EventObserved?.Invoke(evt);
             else _unobserved.Add(evt);
             if (_pump == null && isActiveAndEnabled) _pump = CinematicRunner.Run(Pump());
         }
 
         /// <summary>
-        /// Whether relaying this event on arrival would tell the player something the
-        /// performance has not shown yet.
+        /// Whether an event may be relayed to the HUD the instant it arrives, rather than
+        /// waiting for the beat that performs it.
         ///
-        /// The engine resolves a whole turn in one frame, so the hit, the faint and the end of
-        /// the battle all arrive together while the pump is still seconds away from performing
-        /// the first of them. For state — damage, HP, status — arriving early is the point. For
-        /// the result it is the spoiler the split exists to prevent: the victory card goes up
-        /// while the losing creature is still on its feet. So a result waits for its own beat.
+        /// <b>This used to be the other way round and that was a bug.</b> The engine resolves a
+        /// whole turn in one synchronous frame, so a turn's declaration, its hit, its damage,
+        /// its faint and the experience that follows all arrive together while the pump is
+        /// still a second or more away from performing the first of them. Relaying state on
+        /// arrival meant the health bar had finished draining, and the log had finished
+        /// narrating the damage, before the attacker had so much as leaned forward. The
+        /// justification on record — "a bar that moved only once the camera had finished its
+        /// shot shows a number that stopped being true seconds ago" — assumed the player reads
+        /// the plate for truth while the performance plays. They do not: they read the
+        /// performance, and the plate is part of it. The number is authoritative again by the
+        /// time it is ever acted on, because the turn loop waits for the queue to drain before
+        /// asking for the next command.
         ///
-        /// A predicate rather than a type test at the call site, so the next event that carries
-        /// a result joins the paced half by name.
+        /// So the default is now the paced half, and observation happens in
+        /// <see cref="Pump"/> as each beat opens — in stream order, exactly once.
         ///
-        /// The battle's end qualifies because the engine emits it last and emits nothing after
-        /// it, so holding it back cannot reorder the HUD's view of anything else in the stream.
-        ///
-        /// A faint qualifies as the same spoiler at a smaller scale: "쓰러졌다" printed while the
-        /// creature is still standing is what the player actually reads. Nothing is lost by
-        /// waiting — the health bar already emptied on the DamageDealt event ahead of it. But
-        /// unlike the battle's end, a faint is NOT last in its stream: experience, level-ups
-        /// and the replacement send-out follow it, so everything queued behind a held event is
-        /// held too (see <see cref="OnBattleEvent"/>) or those lines overtake the faint.
+        /// The single exception is the battle's opening. It arrives while the transition still
+        /// has the screen covered and the performance deliberately held, and one listener keys
+        /// off it for state rather than performance: the music director picks the battle theme
+        /// from <see cref="BattleStartedEvent.Kind"/>, and a theme chosen when the hold expires
+        /// is a wild theme playing over the first second of a trainer battle. Nothing is
+        /// spoiled by it — it is the first event of the stream, so nothing can overtake
+        /// anything.
         /// </summary>
-        private static bool RevealsOutcome(BattleEvent evt) =>
-            evt is BattleEndedEvent || evt is CreatureFaintedEvent;
+        private static bool ObserveOnArrival(BattleEvent evt) => evt is BattleStartedEvent;
 
         /// <summary>Queues an entire turn's worth of events at once.</summary>
         public void OnBattleEvents(IReadOnlyList<BattleEvent> events)
@@ -413,7 +433,12 @@ namespace PokeLab.Cinematics
         {
             _pending.Clear();
             _unobserved.Clear();
+            _reactedEarly.Clear();
+            _performedEarly.Clear();
             if (_pump != null) { CinematicRunner.Halt(_pump); _pump = null; }
+            // The pump was just halted, possibly in the middle of a throw. Anything it had in
+            // the air belongs to a battle that no longer exists.
+            ReapBalls();
             ReleasePerformance();
         }
 
@@ -451,11 +476,12 @@ namespace PokeLab.Cinematics
                 // The paced half of the split in OnBattleEvent. Raised as the beat opens rather
                 // than after it, so the result card is up for the celebration it belongs to
                 // instead of arriving once the camera has already left.
-                if (_unobserved.Remove(evt)) EventObserved?.Invoke(evt);
-
-                // The performed tap. Beat-open rather than beat-close, so a cue fired by a
-                // listener lands with the wind-up of the thing it scores instead of trailing it.
-                EventPerformed?.Invoke(evt);
+                //
+                // Both taps go through the early-raise sets: an event the attacking beat
+                // already announced at its frame of contact must not be announced a second
+                // time here, or the HUD would drain the same hit twice.
+                RaiseObserved(evt);
+                RaisePerformed(evt);
 
                 float startedAt = Time.unscaledTime;
                 yield return Perform(evt);
@@ -474,6 +500,62 @@ namespace PokeLab.Cinematics
 
             _pump = null;
             Drained?.Invoke();
+        }
+
+        // --- Balls -------------------------------------------------------------------------
+
+        /// <summary>
+        /// Every ball this presenter has spawned and not yet dismissed.
+        ///
+        /// A ball is created by a beat and destroyed by the same beat a few lines later, so in
+        /// steady state this holds one entry for well under a second. It exists for the case
+        /// where those few lines never run.
+        /// </summary>
+        private readonly List<BallActor> _liveBalls = new List<BallActor>();
+
+        /// <summary>
+        /// Spawns a ball and remembers it.
+        ///
+        /// <b>Why remembering matters.</b> <see cref="BallActor.Spawn"/> creates a bare
+        /// GameObject in the <i>active</i> scene, and during a battle the active scene is the
+        /// level, not the additively-loaded arena. So a ball that outlives its beat is not
+        /// cleaned up when the arena unloads: it stays in the overworld at arena coordinates,
+        /// and the next battle staged into the same arena opens with a ball already lying on
+        /// the grass beside the creature being sent out — which is exactly the report.
+        ///
+        /// Anything that halts the performance between the spawn and the dismiss orphans one:
+        /// <see cref="FlushQueue"/> halts the pump mid-beat, and the arena being deactivated
+        /// halts the driver. Four beats spawn balls and every one of them had the same
+        /// exposure, so the fix is a register and a reaper rather than a fifth
+        /// <c>Dismiss</c> call that the next beat to be written will forget.
+        /// </summary>
+        private BallActor SpawnBall(Vector3 origin)
+        {
+            var ball = BallActor.Spawn(ballPrefab, origin);
+            if (ball != null) _liveBalls.Add(ball);
+            return ball;
+        }
+
+        /// <summary>Dismisses a ball and forgets it. Safe on a ball already gone.</summary>
+        private void DismissBall(BallActor ball, float vfxLinger = 1.2f)
+        {
+            if (ball == null) return;
+            _liveBalls.Remove(ball);
+            ball.Dismiss(vfxLinger);
+        }
+
+        /// <summary>
+        /// Destroys every ball still standing. Called from each path that can cut a beat off
+        /// partway through, which is the only way one is ever left behind.
+        /// </summary>
+        private void ReapBalls()
+        {
+            for (int i = 0; i < _liveBalls.Count; i++)
+            {
+                var ball = _liveBalls[i];
+                if (ball != null) ball.Dismiss(0.1f);
+            }
+            _liveBalls.Clear();
         }
 
         // --- Lookahead --------------------------------------------------------------------
@@ -504,7 +586,39 @@ namespace PokeLab.Cinematics
         private void ConsumePeeked(BattleEvent evt)
         {
             if (evt == null) return;
-            if (_pending.Remove(evt) && _unobserved.Remove(evt)) EventObserved?.Invoke(evt);
+            if (_pending.Remove(evt)) RaiseObserved(evt);
+        }
+
+        /// <summary>
+        /// Raises <see cref="EventObserved"/> for an event, at most once, ever.
+        ///
+        /// Membership of <c>_unobserved</c> is the token: an event that has already been
+        /// announced is not in the set, and one that was dropped by <see cref="FlushQueue"/>
+        /// is not in it either — which is what makes it safe for a forked beat to call this
+        /// after the battle it belonged to has been torn down.
+        /// </summary>
+        private void RaiseObserved(BattleEvent evt)
+        {
+            if (evt == null) return;
+            if (_unobserved.Remove(evt)) EventObserved?.Invoke(evt);
+        }
+
+        /// <summary>
+        /// Raises <see cref="EventPerformed"/> for an event, at most once. Beats that perform
+        /// an event ahead of the pump call <see cref="PerformEarly"/> instead, which marks it.
+        /// </summary>
+        private void RaisePerformed(BattleEvent evt)
+        {
+            if (evt == null) return;
+            if (!_performedEarly.Remove(evt)) EventPerformed?.Invoke(evt);
+        }
+
+        /// <summary>Announces an event on both taps from inside another event's beat.</summary>
+        private void PerformEarly(BattleEvent evt)
+        {
+            if (evt == null) return;
+            RaiseObserved(evt);
+            if (_performedEarly.Add(evt)) EventPerformed?.Invoke(evt);
         }
 
         // --- Dispatch ---------------------------------------------------------------------
@@ -548,17 +662,52 @@ namespace PokeLab.Cinematics
         private IEnumerator PlayBattleStarted(BattleStartedEvent e)
         {
             _outcome = BattleOutcome.InProgress;
+            // Stashed for the rest of the battle. Whether the creature opposite belongs to
+            // anybody changes what may be shown happening to it — a wild one is never thrown
+            // out of a ball and is never recalled into one. Reset per battle in
+            // ResetForNewBattle, or a wild encounter would leave a trainer battle believing
+            // its opponent has nobody behind it.
+            _kind = e.Kind;
             Stage.FaceOff(0.5f);
-            Rig.SetRestingShot(BattleShot.Field);
-            Rig.Show(BattleShot.Field);
+
+            // The opening frame is the battle framing, aimed at the opponent — not a wide
+            // establishing shot of the arena.
+            //
+            // It used to be <c>Field</c>, held for 0.6s, on the argument that it "reads as the
+            // camera taking in the arena". It does not: nothing is standing in the arena yet.
+            // The send-out beats are what call <c>SetSubject</c>, so at this moment the rig has
+            // no subjects at all and its solve runs against empty marks — which is exactly the
+            // report, that the first camera is not looking at where the opponent is. The
+            // opponent is not there to be looked at.
+            //
+            // Snapped, not shown. The position the field shot solves is right — that was
+            // checked — but <see cref="BattleCameraRig.Show"/> raises a priority and lets the
+            // brain blend, and the field profile damps its aim for 0.8s on top of that. The
+            // battle therefore opened with the camera still rotating toward the fight while
+            // the fight was already running. Snap cancels both for this one activation, so the
+            // first frame of a battle is the settled frame; every shot after it blends as
+            // authored.
+            //
+            // Skipped entirely when the transition already did it behind the cover, which is
+            // the normal path — see PrepareOpeningShot. Snapping a second time on the frame the
+            // player can see would be a cut from the correct shot to the same correct shot,
+            // which costs a frame of Cinemachine state for nothing. This branch is the fallback
+            // for a battle staged without a transition at all: the debug harness, a test scene.
+            if (!_openingShotSettled)
+            {
+                Rig.SetRoles(BattleSide.Player, BattleSide.Opponent);
+                Rig.SetRestingShot(BattleShot.Field);
+                Rig.Snap(BattleShot.Field);
+            }
 
             CinematicHooks.HudBeat("battle_start", 1f);
             CinematicHooks.Audio(CinematicAudioCues.EncounterSting, Stage.Center.position);
 
-            // A beat held on the field shot while nothing else is happening. It reads as the
-            // camera taking in the arena, and it covers the frame where the HUD arrives.
-            yield return CinematicRunner.Wait(0.6f);
-            Rig.Release();
+            // Short, and deliberately not released. BattleStartedEvent carries a 1.2s floor
+            // that the pump honours whatever this returns, so releasing here would hand that
+            // whole second back to the wide resting shot the opening is trying to avoid. The
+            // send-out beat that follows sets its own shot on its first frame.
+            yield return CinematicRunner.Wait(0.25f);
         }
 
         // --- Send-out ----------------------------------------------------------------------
@@ -608,13 +757,13 @@ namespace PokeLab.Cinematics
                 // hands and then a ball would appear.
                 CinematicRunner.Fork(thrower.PlayThrow(timing.BallFlight * scale * 0.9f));
 
-                var ball = BallActor.Spawn(ballPrefab, trainer.position + Vector3.up * 1.25f);
+                var ball = SpawnBall(trainer.position + Vector3.up * 1.25f);
                 yield return ball.Throw(burstPoint, timing.BallFlight * scale, 1.3f);
                 yield return ball.Open(timing.BallOpen * scale);
 
                 view.SetModelVisible(true);
                 view.Play(CreatureAnimation.SentOut, 0f);
-                ball.Dismiss();
+                DismissBall(ball);
 
                 CinematicHooks.Vfx(CinematicVfxKeys.BallBurst, burstPoint, Quaternion.identity);
 
@@ -663,9 +812,9 @@ namespace PokeLab.Cinematics
             yield return view.FaceTowardsAndWait(Stage.TrainerMarkOf(e.Side).position, 0.26f);
             view.PlayAuthored(CreatureAnimation.Recalled);
 
-            var ball = BallActor.Spawn(ballPrefab, Stage.TrainerMarkOf(e.Side).position + Vector3.up * 1.2f);
+            var ball = SpawnBall(Stage.TrainerMarkOf(e.Side).position + Vector3.up * 1.2f);
             yield return ball.Recall(view, timing.RecallBeam);
-            ball.Dismiss(0.6f);
+            DismissBall(ball, 0.6f);
 
             yield return CinematicRunner.Wait(timing.RecallHold);
             Rig.Release();
@@ -872,9 +1021,20 @@ namespace PokeLab.Cinematics
         }
 
         /// <summary>
-        /// The frame the attack lands: impact VFX, audio, and the push-in. Damage numbers and
-        /// recoil are not applied here — those belong to the <see cref="DamageDealtEvent"/>
-        /// that the engine emits next, and doing them twice would double the reaction.
+        /// The frame the attack lands, and now the whole of it.
+        ///
+        /// This used to be impact VFX and a camera cut, with the reaction — the flinch, the
+        /// knock-back, the health bar — left to the <see cref="DamageDealtEvent"/> that the
+        /// engine emits next. Measured, that put 0.76s between the two: the lunge finishes
+        /// (0.20s), the attacker recovers (<c>MoveRecovery</c>, 0.30s), and the pump waits out
+        /// the executed event's 0.9s floor before opening the damage beat. Nothing was struck
+        /// on the frame of contact; the target stood still through the impact and flinched
+        /// three quarters of a second later.
+        ///
+        /// So the reaction is performed here, on the frame the attack actually connects, and
+        /// the damage event's own beat becomes the settle. The event is announced on both taps
+        /// from here too, which is what puts the health bar, the damage figure and the log line
+        /// on the landing frame rather than on the dequeue frame.
         /// </summary>
         private IEnumerator ContactMoment(MoveExecutedEvent e, CreatureView target, bool willMiss)
         {
@@ -888,11 +1048,24 @@ namespace PokeLab.Cinematics
             // on the frame of contact rather than one event later. A critical takes the push;
             // anything else stays on a pan, because spending the rig's whole zoom range on
             // every hit leaves nothing to escalate with.
-            bool crit = PeekNext<DamageDealtEvent>(out var incoming, 2) && incoming.Critical;
+            //
+            // Matched on target and on being direct: a queued burn tick or a recoil hit on the
+            // attacker is not what this lunge is landing, and reacting to it here would play
+            // the wrong creature's flinch inside the wrong beat.
+            bool lands = PeekNext<DamageDealtEvent>(out var incoming, 2)
+                         && incoming.Target == e.Target
+                         && string.IsNullOrEmpty(incoming.IndirectSourceId);
 
             Rig.SetRoles(e.Attacker, e.Target);
-            Rig.Show(crit ? BattleShot.FieldPush : BattleCameraRig.FocusOn(e.Target));
-            yield break;
+            Rig.Show(lands && incoming.Critical ? BattleShot.FieldPush : BattleCameraRig.FocusOn(e.Target));
+
+            if (!lands) yield break;
+
+            // Claimed before it is announced, so a damage beat that somehow opens while this
+            // fork is still running finds the flag already set and plays the settle only.
+            _reactedEarly.Add(incoming);
+            PerformEarly(incoming);
+            yield return PlayDamageImpact(incoming, target);
         }
 
         private IEnumerator DodgeRoutine(CreatureView target, Vector3 evadeDirection)
@@ -946,15 +1119,12 @@ namespace PokeLab.Cinematics
         private IEnumerator PlayDamage(DamageDealtEvent e)
         {
             CreatureView target = Stage.ViewOf(e.Target);
-            float fraction = e.MaxHp > 0 ? Mathf.Clamp01(e.Amount / (float)e.MaxHp) : 0.2f;
 
             Rig.SetRoles(BattleStage.Opposite(e.Target), e.Target);
 
             // Indirect damage — burn, weather, recoil — gets a quieter treatment. Using the
             // full impact language for a poison tick makes every real hit feel smaller.
-            bool indirect = !string.IsNullOrEmpty(e.IndirectSourceId);
-
-            if (indirect)
+            if (!string.IsNullOrEmpty(e.IndirectSourceId))
             {
                 Rig.Show(BattleCameraRig.FocusOn(e.Target));
                 CinematicHooks.Vfx(CinematicVfxKeys.ImpactGeneric, Rig.ImpactPointOf(e.Target), Quaternion.identity);
@@ -963,15 +1133,46 @@ namespace PokeLab.Cinematics
                 yield break;
             }
 
+            // The normal path: the attacking beat already struck this creature on its frame of
+            // contact, so what is left here is the aftermath — the held shot, the extra breath
+            // a super-effective hit earns, and standing back up. Skipping straight to the
+            // settle is not a shortened beat: the pump still honours the event's own floor, and
+            // that floor is now the pause the health bar drains through.
+            if (!_reactedEarly.Remove(e)) yield return PlayDamageImpact(e, target);
+
+            yield return PlayDamageSettle(e, target);
+        }
+
+        /// <summary>
+        /// The hit itself: the shot, the rig punch, the cues, the flinch and the knock-back.
+        ///
+        /// Called from <see cref="ContactMoment"/> on the frame the attack connects, and from
+        /// <see cref="PlayDamage"/> for damage that no attack beat staged — an ability that
+        /// hurts on contact, a move whose category never reaches a contact moment.
+        /// </summary>
+        private IEnumerator PlayDamageImpact(DamageDealtEvent e, CreatureView target)
+        {
+            if (target == null) yield break;
+
+            float fraction = e.MaxHp > 0 ? Mathf.Clamp01(e.Amount / (float)e.MaxHp) : 0.2f;
+
             // Hold the shot ContactMoment chose rather than always pushing in. ContactMoment
             // deliberately spends the rig's zoom range only on a critical — a push on every
             // ordinary hit flattens that escalation until a crit looks like any other landing.
             // So the non-crit path stays on the focus pan the contact frame already cut to,
             // and FieldPush (with the hitch below) is reserved for criticals.
+            Rig.SetRoles(BattleStage.Opposite(e.Target), e.Target);
             Rig.Show(e.Critical ? BattleShot.FieldPush : BattleCameraRig.FocusOn(e.Target));
             Rig.PunchForDamage(e.Target, fraction, e.Critical, e.Effectiveness);
 
             CinematicHooks.Audio(EffectivenessCue(e.Effectiveness), target.transform.position);
+
+            // The HUD's own impact punctuation, scaled by the share of the bar this took. The
+            // plate shake, the damage figure and the colour flash all hang off this one beat,
+            // and the side is named because a critical landing on the player used to punch the
+            // opponent's plate.
+            CinematicHooks.HudBeat(e.Target == BattleSide.Player ? "hit_player" : "hit_opponent", fraction);
+
             if (e.Critical)
             {
                 CinematicHooks.Audio(CinematicAudioCues.Critical, target.transform.position);
@@ -999,7 +1200,11 @@ namespace PokeLab.Cinematics
             {
                 yield return recoil;
             }
+        }
 
+        /// <summary>The aftermath of a hit: the held shot, the extra beat, standing back up.</summary>
+        private IEnumerator PlayDamageSettle(DamageDealtEvent e, CreatureView target)
+        {
             float hold = e.Critical ? timing.PunchInHoldCritical : timing.PunchInHold;
             yield return CinematicRunner.Wait(hold);
 
@@ -1010,7 +1215,7 @@ namespace PokeLab.Cinematics
             // for one frame before a collapse is the single most obvious animation pop in a
             // battle, and the fainted event is always the next one when it happens.
             bool faintNext = PeekNext<CreatureFaintedEvent>(out var faint, 1) && faint.Side == e.Target;
-            if (!faintNext) target.PlayAuthored(CreatureAnimation.IdleBattle);
+            if (!faintNext && target != null) target.PlayAuthored(CreatureAnimation.IdleBattle);
 
             Rig.Release();
         }
@@ -1158,28 +1363,59 @@ namespace PokeLab.Cinematics
 
         // --- Faint ------------------------------------------------------------------------------
 
+        /// <summary>
+        /// A creature going down, staged two completely different ways depending on whether
+        /// anybody owns it.
+        ///
+        /// <b>Owned — the player's, or a trainer's.</b> Straight into the ball. No collapse, no
+        /// held silence over the body. Its trainer is standing right there and recalls it the
+        /// moment it is beaten; a Pokémon that lies on the field first while its own trainer
+        /// watches is the version of this beat nobody asked for.
+        ///
+        /// <b>Wild.</b> The exact opposite, and for the same reason. There is no ball and
+        /// nobody to throw one, so the collapse <i>is</i> the exit: it drops, the dust goes up,
+        /// the frame holds on empty ground. A ball conjured at a trainer mark with nobody on it
+        /// was the bug this pair replaced.
+        ///
+        /// The cue and the HUD beat are common to both, because "it went down" is the same
+        /// piece of news either way and the player needs it before the exit, not after.
+        /// </summary>
         private IEnumerator PlayFainted(CreatureFaintedEvent e)
         {
             CreatureView view = Stage.ViewOf(e.Side);
             Rig.SetRoles(BattleStage.Opposite(e.Side), e.Side);
             Rig.Show(BattleShot.Faint);
 
-            view.Play(CreatureAnimation.Faint, CreatureView.DefaultCrossfade(CreatureAnimation.Faint));
             CinematicHooks.Audio(CinematicAudioCues.Faint, view.transform.position);
             CinematicHooks.HudBeat("faint", 1f);
 
-            yield return view.Motion.Collapse(timing.FaintCollapse);
+            bool owned = !(_kind == BattleKind.Wild && e.Side == BattleSide.Opponent);
 
-            CinematicHooks.Vfx(CinematicVfxKeys.FaintCollapse, view.transform.position, Quaternion.identity);
-            Rig.Shake?.Bump(view.transform.position, Mathf.Clamp(view.DisplayHeight * 0.5f, 0.15f, 0.8f));
+            if (owned)
+            {
+                var ball = SpawnBall(Stage.TrainerMarkOf(e.Side).position + Vector3.up * 1.2f);
+                yield return ball.Recall(view, timing.FaintRecall);
+                DismissBall(ball, 0.6f);
 
-            // The held beat. Nothing moves, nothing cuts. Shortening this is the difference
-            // between a knockout and a despawn.
-            yield return CinematicRunner.Wait(timing.FaintHold);
+                // The breath the collapse used to carry, spent after the recall instead of on
+                // a body on the ground. Half length: the beam is itself a held moment, so the
+                // full FaintHold on top of it reads as the battle stopping rather than pausing.
+                yield return CinematicRunner.Wait(timing.FaintHold * 0.5f);
+            }
+            else
+            {
+                view.Play(CreatureAnimation.Faint, CreatureView.DefaultCrossfade(CreatureAnimation.Faint));
 
-            var ball = BallActor.Spawn(ballPrefab, Stage.TrainerMarkOf(e.Side).position + Vector3.up * 1.2f);
-            yield return ball.Recall(view, timing.FaintRecall);
-            ball.Dismiss(0.6f);
+                yield return view.Motion.Collapse(timing.FaintCollapse);
+
+                CinematicHooks.Vfx(CinematicVfxKeys.FaintCollapse, view.transform.position, Quaternion.identity);
+                Rig.Shake?.Bump(view.transform.position, Mathf.Clamp(view.DisplayHeight * 0.5f, 0.15f, 0.8f));
+
+                // The held beat. Nothing moves, nothing cuts. Shortening this is the difference
+                // between a knockout and a despawn.
+                yield return CinematicRunner.Wait(timing.FaintHold);
+                view.SetModelVisible(false);
+            }
 
             view.Motion.ResetLayer();
             Rig.Release();
@@ -1227,7 +1463,7 @@ namespace PokeLab.Cinematics
 
             if (thrown) CinematicRunner.Fork(thrower.PlayThrow(timing.CaptureFlight * 0.9f));
 
-            var ball = BallActor.Spawn(ballPrefab, trainer.position + Vector3.up * 1.3f);
+            var ball = SpawnBall(trainer.position + Vector3.up * 1.3f);
             yield return ball.Throw(target.BodyAnchor != null ? target.BodyAnchor.position : groundPoint + Vector3.up,
                 timing.CaptureFlight, 1.7f);
 
@@ -1260,12 +1496,12 @@ namespace PokeLab.Cinematics
                 CinematicHooks.HudBeat("capture_success", 1f);
                 target.SetModelVisible(false);
                 yield return CinematicRunner.Wait(timing.CaptureCelebrate);
-                ball.Dismiss(2f);
+                DismissBall(ball, 2f);
             }
             else
             {
                 yield return ball.BurstOut();
-                ball.Dismiss(0.8f);
+                DismissBall(ball, 0.8f);
 
                 // The creature comes back out, and it comes back out angry: visible, upright,
                 // facing the player. A break-out that just re-enables the renderer wastes the
@@ -1287,12 +1523,29 @@ namespace PokeLab.Cinematics
 
         // --- Outro ------------------------------------------------------------------------------
 
+        /// <summary>
+        /// Experience, and the level-up if there was one.
+        ///
+        /// The two used to run back to back: a flat <c>ExperienceBeat</c> wait and then the
+        /// swell. They run together now, and the reason is a hard budget rather than taste.
+        /// The flow asks the transition to cover the moment the <i>engine</i> finishes, which
+        /// is while the knockout, the experience and the victory pose are all still queued;
+        /// the outro waits out the performance, but only for <c>TransitionDirector.outroDrain</c>
+        /// — eight seconds — and its watchdog fires at twelve. Measured, the old tail was
+        /// about ten: the result card was never reached and the player never saw it. Every
+        /// overlap here and in <see cref="PlayBattleEnded"/> is buying that card its place,
+        /// and none of them removes anything from the screen — they only stop one held beat
+        /// waiting for another to finish first.
+        /// </summary>
         private IEnumerator PlayExperience(ExperienceGainedEvent e)
         {
             CinematicHooks.HudBeat("experience", e.Amount);
-            yield return CinematicRunner.Wait(timing.ExperienceBeat);
 
-            if (!e.LeveledUp) yield break;
+            if (!e.LeveledUp)
+            {
+                yield return CinematicRunner.Wait(timing.ExperienceBeat);
+                yield break;
+            }
 
             CreatureView view = Stage.ViewOf(BattleSide.Player);
             Rig.SetRoles(BattleSide.Player, BattleSide.Opponent);
@@ -1301,7 +1554,13 @@ namespace PokeLab.Cinematics
             CinematicHooks.HudBeat("levelup", e.NewLevel);
             CinematicHooks.Vfx(CinematicVfxKeys.StatUp, view.transform.position, Quaternion.identity);
 
-            yield return view.Motion.Swell(timing.LevelUpBeat);
+            // The swell rides the experience beat instead of following it. The HUD is filling
+            // the bar and shouting the level through the whole of both, so the arena's half
+            // has nothing to wait for.
+            yield return CinematicRunner.Parallel(
+                CinematicRunner.Wait(timing.ExperienceBeat),
+                view.Motion.Swell(timing.LevelUpBeat));
+
             Rig.Release();
         }
 
@@ -1334,12 +1593,20 @@ namespace PokeLab.Cinematics
                 CinematicHooks.Vfx(CinematicVfxKeys.CelebrateSparkle, winner.transform.position, Quaternion.identity);
                 CinematicHooks.HudBeat("victory", 1f);
 
-                yield return winner.Motion.Celebrate(3, 0.4f);
-                yield return CinematicRunner.Wait(timing.VictoryPose);
+                // The hop and the held pose together rather than one after the other. The pose
+                // is a hold on the shot, so there was never a reason for it to wait for the
+                // hopping to stop — and see PlayExperience for the eight seconds all of this
+                // has to fit inside before the outro covers it.
+                yield return CinematicRunner.Parallel(
+                    winner.Motion.Celebrate(3, 0.4f),
+                    CinematicRunner.Wait(timing.VictoryPose));
 
-                // Return to the trainer: walk back, then face them. The battle is over, so the
-                // creature stops being a combatant before the camera leaves.
-                yield return ReturnToTrainer(winner, BattleSide.Player);
+                // Return to the trainer: walk back, then face them. Forked, not awaited — the
+                // battle is decided, the result is on screen, and the walk is the creature
+                // stopping being a combatant rather than something the player is waiting on.
+                // Awaiting it spent a second and a half of the outro's budget on a beat that
+                // happens perfectly well underneath the card and the wipe.
+                CinematicRunner.Fork(ReturnToTrainer(winner, BattleSide.Player));
             }
             else
             {
@@ -1399,6 +1666,76 @@ namespace PokeLab.Cinematics
                 Stage.ViewOf(BattleSide.Opponent).DisplayHeight);
         }
 
+        /// <summary>True once <see cref="PrepareOpeningShot"/> has solved and applied the first shot.</summary>
+        public bool IsOpeningShotSettled => _openingShotSettled;
+
+        private bool _openingShotSettled;
+
+        /// <summary>
+        /// Puts the arena into its <b>final</b> layout and snaps the camera onto it, while the
+        /// transition still has the screen covered. Returns false until it has enough to do
+        /// that, so the caller can keep asking.
+        ///
+        /// <b>This is the real cause of "the battle camera is pointing somewhere wrong".</b>
+        /// The camera solve is a function of where the creature marks are, and the marks are
+        /// not where they will end up until <see cref="BattleStage.AdaptToCreatureSizes"/> has
+        /// seen the two creatures — a fixed separation cannot serve both a 0.3 m creature and a
+        /// 6 m one. That refit lives inside the send-out beat, which is deliberately performed
+        /// <i>after</i> the reveal, because the throw is the one beat the player only sees once
+        /// per encounter and spending it behind an opaque wipe wastes it.
+        ///
+        /// So the old order was: solve the camera against an un-refit stage, lift the cover,
+        /// then move the marks twice — once per send-out — and re-solve underneath the player.
+        /// The camera was never wrong about where it was pointing; it was pointing at where the
+        /// creatures were going to be before anything had told it where that was.
+        ///
+        /// The fix is not to delay the send-out but to separate the two things it does. The
+        /// opening events are already queued by the time the cover is up — the stage publishes
+        /// them before it raises <c>BattleStaged</c> — so the marks can be refit from them here,
+        /// with the models still hidden. The send-out beat then re-occupies the same views at
+        /// the same sizes and nothing moves: it keeps the throw and loses the lurch.
+        /// </summary>
+        public bool PrepareOpeningShot()
+        {
+            if (_openingShotSettled) return true;
+
+            CreatureSentOutEvent player = null;
+            CreatureSentOutEvent opponent = null;
+            for (int i = 0; i < _pending.Count; i++)
+            {
+                if (!(_pending[i] is CreatureSentOutEvent sent) || sent.Creature == null) continue;
+                if (sent.Side == BattleSide.Player) player ??= sent;
+                else opponent ??= sent;
+            }
+
+            // Both, or nothing. RefitStage reads both display heights, and refitting against
+            // one real creature and one stale placeholder puts the marks somewhere neither
+            // creature asked for — which is the same failure with an extra step.
+            if (player == null || opponent == null) return false;
+
+            StageQuietly(player);
+            StageQuietly(opponent);
+
+            RefitStage();
+            Rig.SetRoles(BattleSide.Player, BattleSide.Opponent);
+            Rig.SetRestingShot(BattleShot.Field);
+            Rig.Snap(BattleShot.Field);
+
+            _openingShotSettled = true;
+            return true;
+        }
+
+        /// <summary>
+        /// Stands a creature on its mark with the model hidden, so the arena has its real
+        /// dimensions without anything having visibly arrived yet.
+        /// </summary>
+        private void StageQuietly(CreatureSentOutEvent e)
+        {
+            CreatureView view = Stage.Occupy(e.Side, e.Creature);
+            view.SetModelVisible(false);
+            Rig.SetSubject(e.Side, view, view.DisplayHeight);
+        }
+
         // --- State queries ------------------------------------------------------------------------
 
         /// <summary>The creature currently staged on a side, or null.</summary>
@@ -1415,6 +1752,8 @@ namespace PokeLab.Cinematics
             _active.Clear();
             _declaredMove = null;
             _outcome = BattleOutcome.InProgress;
+            _kind = BattleKind.Trainer;
+            _openingShotSettled = false;
             // A flushed queue can strand a trainer mid-exit, and the arena is reused: the next
             // battle would open on somebody standing off to one side of the field.
             Stage.HideTrainers();

@@ -78,10 +78,29 @@ namespace PokeLab.UI
         /// Whether this device wants touch controls at all.
         ///
         /// Not "is it WebGL": a laptop opening the page has a keyboard, and drawing a
-        /// thumbstick over the game for someone holding a mouse is clutter. A touchscreen
-        /// device — or Unity reporting a mobile browser — is the actual question.
+        /// thumbstick over the game for someone holding a mouse is clutter.
+        ///
+        /// <b>And not "does a touchscreen exist" either</b>, which is what this used to ask and
+        /// why the user got a thumbstick on a desktop PC — 난 pc인데 가상 게임패드가 보여. Windows
+        /// laptops and all-in-ones report <c>navigator.maxTouchPoints &gt; 0</c> whether or not
+        /// anybody ever touches the glass, Unity's WebGL backend adds a <c>Touchscreen</c> device
+        /// on the strength of that, and every one of those machines drew the pad. The presence of
+        /// a digitiser says nothing about how the game is being played.
+        ///
+        /// What is being played on is what is being touched, so that is what is asked. A mobile
+        /// browser — where there is nothing else to play with — is taken on Unity's word. On
+        /// everything else the pad appears the first time a finger actually presses the screen,
+        /// and goes away again on the next keypress or click, so a hybrid device follows whichever
+        /// the player picked up last and a mouse-only session never sees it at all.
         /// </summary>
-        private static bool Wanted => Touchscreen.current != null || Application.isMobilePlatform;
+        private static bool Wanted => Application.isMobilePlatform || s_fingerDriven;
+
+        /// <summary>
+        /// Set by a real touch contact, cleared by a real keypress or mouse click. Static so it
+        /// survives the host being rebuilt, which nothing currently does — but the answer is a
+        /// property of the person at the machine, not of any object here.
+        /// </summary>
+        private static bool s_fingerDriven;
 
         private void Awake()
         {
@@ -117,12 +136,53 @@ namespace PokeLab.UI
         /// </summary>
         private void Update()
         {
+            FollowWhicheverIsBeingUsed();
+
             if (!_built) return;
             if (_flow == null && !ServiceHub.TryGet(out _flow)) return;
 
             var inBattle = _flow.Mode == GameMode.Battle || _flow.Mode == GameMode.BattleOutro;
             if (inBattle == _battleHidden) return;
             _battleHidden = inBattle;
+            Refresh();
+        }
+
+        /// <summary>
+        /// Watches for the player changing hands.
+        ///
+        /// Runs before the built check on purpose: on a desktop nothing is built yet, and the
+        /// first touch is exactly the event that has to build it.
+        ///
+        /// The hide half is skipped on a real mobile platform rather than merely being unlikely
+        /// to fire there. A browser on a phone synthesises compatibility mouse events from
+        /// touches, and a keyboard is a soft one that a text field brings up — so on a phone
+        /// both of these tests can be true because of the finger that is asking for the pad.
+        /// <c>Application.isMobilePlatform</c> already keeps Wanted true there, and this makes
+        /// sure the flag underneath it never thrashes.
+        /// </summary>
+        private void FollowWhicheverIsBeingUsed()
+        {
+            if (Application.isMobilePlatform) return;
+
+            var touch = Touchscreen.current;
+            if (touch != null && touch.primaryTouch.press.wasPressedThisFrame)
+            {
+                if (s_fingerDriven) return;
+                s_fingerDriven = true;
+                Refresh();
+                return;
+            }
+
+            if (!s_fingerDriven) return;
+
+            var mouse = Mouse.current;
+            var keyboard = Keyboard.current;
+            var clicked = mouse != null && (mouse.leftButton.wasPressedThisFrame ||
+                                            mouse.rightButton.wasPressedThisFrame);
+            var typed = keyboard != null && keyboard.anyKey.wasPressedThisFrame;
+            if (!clicked && !typed) return;
+
+            s_fingerDriven = false;
             Refresh();
         }
 

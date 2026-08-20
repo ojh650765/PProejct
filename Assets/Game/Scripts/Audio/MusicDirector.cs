@@ -197,9 +197,37 @@ namespace PokeLab.Audio
         {
             if (string.IsNullOrEmpty(biomeId)) return;
             var normalised = biomeId.Trim().ToLowerInvariant();
+
+            // Arriving anywhere is what makes the world the thing on screen. ZoneDirector
+            // raises this once as each playable scene boots, so a real place always sets it
+            // before anything asks for an exploration track.
+            _inWorld = true;
+
             if (normalised == _biome) return;
             _biome = normalised;
             if (CanStartWorldMusic()) PlayTrack(SelectExplorationTrack(), biomeFade);
+        }
+
+        /// <summary>
+        /// The player is on a menu, not in a place. Stops world music being chosen at all.
+        ///
+        /// The login screen and the title are scenes with no zone in them, and until this
+        /// existed that made them the route by default -- <see cref="_biome"/> started on
+        /// <c>route</c>, the world clock kept ticking underneath, and the first
+        /// TimeOfDayChanged after boot asked for the exploration track and got the route's
+        /// daytime theme. Playing over the title, that is a menu wearing the music of a place
+        /// the player has not been yet. The user reported it as 로그인 화면과 메인메뉴에서
+        /// 스토리모드의 배경음악이 들림.
+        ///
+        /// It does not stop what is already playing: the caller is a menu that is about to
+        /// start its OWN track and PlayTrack crossfades, so silencing here first would put a
+        /// hole between the two. <see cref="MainMenuPresenter"/> calls this immediately before
+        /// asking for the title piece.
+        /// </summary>
+        public void LeaveWorld()
+        {
+            _inWorld = false;
+            _biome = AudioIds.BiomeNone;
         }
 
         private void OnTimeOfDayChanged(TimeOfDay from, TimeOfDay to)
@@ -227,7 +255,11 @@ namespace PokeLab.Audio
                     // its own, so every dialogue beat inside one ends on a pop back to
                     // Exploring — and during the opening that pop was starting the town
                     // theme over the professor's cold open, under a black screen.
-                    if (!_cinematicHold) PlayTrack(SelectExplorationTrack(), outroFade);
+                    //
+                    // And by _inWorld, through the same gate the ambient arrivals use: a menu
+                    // scene can sit in Exploring before any zone has been entered, and this
+                    // branch would otherwise be a second door onto the bug LeaveWorld closes.
+                    if (CanStartWorldMusic()) PlayTrack(SelectExplorationTrack(), outroFade);
                     break;
 
                 case GameMode.EncounterIntro:
@@ -263,7 +295,14 @@ namespace PokeLab.Audio
         /// selection state above, and that memory is the whole of what it gets to do
         /// until the scene hands the pad back.
         /// </summary>
-        private bool CanStartWorldMusic() => !_cinematicHold && IsExplorationMode(_mode);
+        private bool CanStartWorldMusic() =>
+            _inWorld && !_cinematicHold && IsExplorationMode(_mode);
+
+        /// <summary>
+        /// Whether a place -- rather than a menu -- is on screen. False until the first
+        /// <see cref="GameEvents.BiomeEntered"/> of the session; see <see cref="LeaveWorld"/>.
+        /// </summary>
+        private bool _inWorld;
 
         /// <summary>
         /// The scripted-scene gate, driven by EpisodeRunner (by reflection — the overworld

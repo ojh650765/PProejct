@@ -275,7 +275,22 @@ namespace PokeLab.Boot.Editor
 
             // The first scene is what the player opens on, and the build settings' order is
             // not something anyone has deliberately curated — so it is stated here.
-            var start = scenes.FirstOrDefault(p => p.EndsWith("/Town.unity", StringComparison.Ordinal));
+            //
+            // MainMenu, and Town only if there is no menu yet. Until the title screen existed
+            // the build opened directly on the town, which meant a player launched the game
+            // already standing in the plaza mid-save, with no way to start over and no way to
+            // reach any other mode. Falling back to Town rather than failing keeps a checkout
+            // that has not run Tools/Poké Lab/Rebuild/Create Main Menu Scene buildable.
+            // Login, then MainMenu, then Town — the first one that exists wins.
+            //
+            // Login goes first because saving is now an account feature: story progress lives on
+            // the Worker rather than on disk, so a player who never signs in cannot keep
+            // anything. The screen lets them past without an account anyway — the point is that
+            // the choice is offered before they have spent an hour, not after.
+            var start = scenes.FirstOrDefault(p => p.EndsWith("/Login.unity", StringComparison.Ordinal))
+                        ?? scenes.FirstOrDefault(p => p.EndsWith("/MainMenu.unity", StringComparison.Ordinal))
+                        ?? scenes.FirstOrDefault(p => p.EndsWith("/Town.unity", StringComparison.Ordinal));
+
             if (!string.IsNullOrEmpty(start) && scenes[0] != start)
             {
                 scenes = new[] { start }.Concat(scenes.Where(p => p != start)).ToArray();

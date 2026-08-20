@@ -31,6 +31,19 @@ namespace PokeLab.Cinematics
 
         private void LateUpdate()
         {
+            // ActiveBrainCount FIRST. GetActiveBrain is a bare `s_ActiveBrains[index]` — it
+            // indexes a List with no bounds check of its own, so asking for brain 0 in a scene
+            // that has no brain does not return null, it throws ArgumentOutOfRangeException.
+            //
+            // This watcher installs itself into EVERY scene from a RuntimeInitializeOnLoadMethod,
+            // and the game now has scenes with no Cinemachine at all — the title screen and the
+            // login screen are a plain camera and a canvas. So it threw once per frame for the
+            // whole time either was open: sixty exceptions a second, an Editor.log that reached
+            // 11 MB in a session, every capture slowed, and a console so full that a real error
+            // would have been invisible in it. A diagnostic that drowns the channel it reports
+            // through is worse than no diagnostic.
+            if (CinemachineBrain.ActiveBrainCount == 0) return;
+
             var brain = CinemachineBrain.GetActiveBrain(0);
             if (brain == null) return;
             var live = brain.ActiveVirtualCamera;

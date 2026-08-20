@@ -126,6 +126,10 @@ namespace PokeLab.Cinematics
         private const int RestingPriority = 10;
         private const int ActivePriority = 40;
 
+        // Consumed by the next blend query. See Snap: the opening shot of a battle must be a
+        // cut, and every shot after it must not be.
+        private bool _snapNextBlend;
+
         /// <summary>The shot currently held. <see cref="BattleShot.None"/> means the rig is resting.</summary>
         public BattleShot Current => _current == BattleShot.None ? restingShot : _current;
 
@@ -266,6 +270,45 @@ namespace PokeLab.Cinematics
             _current = shot;
             Retarget();
             ApplyPriorities();
+        }
+
+        /// <summary>
+        /// Makes a shot live <b>with no blend and no damping</b> — the first frame is the
+        /// settled frame.
+        ///
+        /// For the opening of a battle, and only for it. <see cref="Show"/> deliberately never
+        /// moves the camera: it raises a priority and lets the brain blend, and every shot
+        /// profile damps its aim on top of that — the field shot for 0.8 seconds. That is
+        /// correct for a cut between two beats of a running battle and wrong for the very first
+        /// frame of one, where it reads as the camera still turning to look at the fight while
+        /// the fight has already started. Reported exactly that way: the position is right, the
+        /// rotation arrives late.
+        ///
+        /// Two separate easings have to be cancelled, which is why this is not one line.
+        /// <c>PreviousStateIsValid = false</c> tells each camera to treat its next update as
+        /// its first and skip position and aim damping; the brain's own blend from whatever was
+        /// live before is suppressed by <see cref="_snapNextBlend"/>, which
+        /// <see cref="OnGetBlendOverride"/> answers with a cut exactly once.
+        /// </summary>
+        public void Snap(BattleShot shot)
+        {
+            if (shot == BattleShot.None) return;
+            if (!_cameras.ContainsKey(shot)) shot = restingShot;
+
+            _current = shot;
+            Retarget();
+
+            _snapNextBlend = true;
+            ApplyPriorities();
+
+            foreach (var kv in _cameras)
+            {
+                if (kv.Value != null) kv.Value.PreviousStateIsValid = false;
+            }
+
+            // The brain caches the outgoing camera's state for its blend; without this the cut
+            // still starts from a stale frame and the first update visibly settles.
+            if (brain != null) brain.ResetState();
         }
 
         /// <summary>Drops back to the resting shot through its (deliberately slow) blend.</summary>
@@ -785,6 +828,15 @@ namespace PokeLab.Cinematics
 
             // Neither camera is ours: leave the transition alone.
             if (fromShot == BattleShot.None && toShot == BattleShot.None) return defaultBlend;
+
+            // The one cut this rig performs, armed by Snap and spent here. Claimed before the
+            // table is consulted so no authored rule can quietly reinstate a blend on the
+            // frame a battle opens.
+            if (_snapNextBlend)
+            {
+                _snapNextBlend = false;
+                return new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.Cut, 0f);
+            }
 
             foreach (var rule in blendRules)
             {

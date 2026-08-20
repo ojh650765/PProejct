@@ -40,6 +40,16 @@ namespace PokeLab.UI
         /// </summary>
         public static TMP_FontAsset Font;
 
+        /// <summary>
+        /// The bold cut of the same family, handed to the display roles by <see cref="Apply"/>.
+        ///
+        /// Null is a supported state and means "no real bold available"; the roles that want
+        /// weight then ask for <see cref="FontStyles.Bold"/> against <see cref="Font"/> and TMP
+        /// synthesises it, which is what the game did before Pretendard arrived. Assigning this
+        /// by hand overrides the lookup, the same as <see cref="Font"/>.
+        /// </summary>
+        public static TMP_FontAsset BoldFont;
+
         /// <summary>Point size for a role at the reference 1080p canvas height.</summary>
         /// <remarks>
         /// Raised by half again from the scale this started with, which was an application's
@@ -65,6 +75,16 @@ namespace PokeLab.UI
             _ => 28f,
         };
 
+        /// <summary>True for the roles that carry weight: the display and readout roles.</summary>
+        /// <remarks>
+        /// Five of the eight. That is deliberate — headings, buttons, section labels and
+        /// numbers are the parts of a screen a player scans rather than reads, and weight is
+        /// what separates them from the sentences around them.
+        /// </remarks>
+        private static bool WantsWeight(UiTextRole role) =>
+            role == UiTextRole.Metric || role == UiTextRole.Title || role == UiTextRole.Heading
+            || role == UiTextRole.Overline || role == UiTextRole.Numeric;
+
         /// <summary>
         /// Applies size, weight, tracking, casing and colour for a role.
         /// Tracking is opened up on the small all-caps roles because tight caps at 12pt
@@ -80,7 +100,29 @@ namespace PokeLab.UI
             // TMP's Latin-only default and drew its Korean as empty boxes. The search itself
             // runs at most once; see EnsureFont.
             EnsureFont();
-            if (Font != null) text.font = Font;
+
+            // The display roles take the bold face as their own asset rather than asking TMP
+            // for FontStyles.Bold against the regular one.
+            //
+            // Both routes reach real outlines — the regular asset's weight table has the bold
+            // cut parked at 700 — but they differ in one way that matters here. Resolving
+            // through the weight table makes those glyphs come from a second asset, so TMP
+            // splits the label into a submesh drawn with that asset's own material; anything
+            // set on this label's material, which is what ApplyShadow sets, then reaches the
+            // regular glyphs and not the bold ones. Handing the role the bold asset outright
+            // keeps a heading on one material, one submesh and one draw, with the underlay
+            // where it was put. The weight table stays wired for the views that set
+            // FontStyles.Bold by hand and for rich text.
+            var wantsWeight = WantsWeight(role);
+            var face = wantsWeight ? (EnsureBoldFont() ?? Font) : Font;
+            if (face != null) text.font = face;
+
+            // With a real bold face on the label there is nothing left to synthesise, so the
+            // Bold flag comes off — leaving it on would ask TMP to dilate a face that is
+            // already bold. It stays on only when the bold cut is missing, which is the old
+            // behaviour and the honest fallback.
+            var weight = wantsWeight && BoldFont != null ? FontStyles.Normal : FontStyles.Bold;
+
             text.fontSize = Size(role);
             text.color = color ?? DefaultColor(role);
             text.textWrappingMode = role == UiTextRole.Metric || role == UiTextRole.Numeric
@@ -92,19 +134,19 @@ namespace PokeLab.UI
             switch (role)
             {
                 case UiTextRole.Metric:
-                    text.fontStyle = FontStyles.Bold;
+                    text.fontStyle = weight;
                     text.characterSpacing = -4f;
                     break;
                 case UiTextRole.Title:
-                    text.fontStyle = FontStyles.Bold;
+                    text.fontStyle = weight;
                     text.characterSpacing = -1.5f;
                     break;
                 case UiTextRole.Heading:
-                    text.fontStyle = FontStyles.Bold;
+                    text.fontStyle = weight;
                     text.characterSpacing = -0.5f;
                     break;
                 case UiTextRole.Overline:
-                    text.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+                    text.fontStyle = weight | FontStyles.UpperCase;
                     text.characterSpacing = 9f;
                     break;
                 case UiTextRole.Caption:
@@ -112,7 +154,7 @@ namespace PokeLab.UI
                     text.characterSpacing = 2f;
                     break;
                 case UiTextRole.Numeric:
-                    text.fontStyle = FontStyles.Bold;
+                    text.fontStyle = weight;
                     text.characterSpacing = 0f;
                     break;
                 default:
@@ -129,14 +171,27 @@ namespace PokeLab.UI
         /// <summary>
         /// The shipped Korean face, relative to a Resources folder.
         ///
-        /// Nanum Gothic Regular (SIL OFL 1.1), committed at
-        /// Assets/Game/Art/Fonts/ and turned into this asset by
-        /// PokeLab.UI.Editor.KoreanFontAssetBuilder. Loaded through <see cref="Resources"/>
-        /// because that is the only asset lookup a player has — AssetDatabase does not exist
-        /// outside the editor, and nothing else in the project references the asset, so
-        /// without the Resources folder it would simply not be in the build.
+        /// Pretendard (SIL OFL 1.1), committed at Assets/Game/Art/Fonts/ and turned into these
+        /// assets by PokeLab.UI.Editor.KoreanFontAssetBuilder. Loaded through
+        /// <see cref="Resources"/> because that is the only asset lookup a player has —
+        /// AssetDatabase does not exist outside the editor, and nothing else in the project
+        /// references the assets, so without the Resources folder they would simply not be in
+        /// the build.
+        ///
+        /// Three weights are generated, not one. The game asks for bold on five of the eight
+        /// roles below; with a single regular face TMP has nothing to switch to and fakes the
+        /// weight by dilating the glyph's distance field, which closes the counters inside
+        /// ㅁ ㅂ ㅇ ㅎ and turns a Hangul syllable into a smudge. The bold cut exists so that
+        /// never happens. It replaced Nanum Gothic, which was a body face pressed into
+        /// interface duty and had no bold committed at all.
         /// </summary>
-        public const string KoreanFontResourcePath = "Fonts/NanumGothic SDF";
+        public const string KoreanFontResourcePath = "Fonts/Pretendard SDF";
+
+        /// <summary>The 600 cut, reachable from rich text as <c>&lt;font-weight=600&gt;</c>.</summary>
+        public const string KoreanSemiBoldFontResourcePath = "Fonts/Pretendard SemiBold SDF";
+
+        /// <summary>The 700 cut. <see cref="BoldFont"/>, and slot 700 of the regular asset's weight table.</summary>
+        public const string KoreanBoldFontResourcePath = "Fonts/Pretendard Bold SDF";
 
         /// <summary>
         /// Families tried, in order, when <see cref="EnsureFont"/> has to find one itself.
@@ -149,6 +204,7 @@ namespace PokeLab.UI
         private static readonly string[] FallbackFamilies =
         {
             "Malgun Gothic",     // ships with every Korean-capable Windows install
+            "Pretendard",
             "Noto Sans KR",
             "NanumGothic",
             "Nanum Gothic",
@@ -157,6 +213,7 @@ namespace PokeLab.UI
         };
 
         private static bool _fontSearched;
+        private static bool _boldFontSearched;
 
         /// <summary>
         /// Makes sure <see cref="Font"/> points at something that can actually draw the
@@ -232,6 +289,42 @@ namespace PokeLab.UI
         }
 
         /// <summary>
+        /// Resolves the bold cut, or leaves it null.
+        ///
+        /// There is deliberately no OS search behind this one. A missing bold is a downgrade —
+        /// TMP synthesises the weight and the screen looks the way it did before Pretendard —
+        /// whereas a missing regular is Korean rendered as boxes, which is why that one is
+        /// worth borrowing an installed family for. Borrowing a system bold would also silently
+        /// mix two families on one screen, which reads worse than a synthesised weight.
+        ///
+        /// The lookup runs once. A null result is cached as null: a Resources.Load that missed
+        /// will miss every frame, and this is called from Apply on every label built.
+        /// </summary>
+        public static TMP_FontAsset EnsureBoldFont()
+        {
+            if (BoldFont != null || _boldFontSearched) return BoldFont;
+            _boldFontSearched = true;
+
+            try
+            {
+                BoldFont = Resources.Load<TMP_FontAsset>(KoreanBoldFontResourcePath);
+                if (BoldFont == null)
+                    Debug.LogWarning("[UiType] No bold font asset at Resources/"
+                                     + KoreanBoldFontResourcePath + ". Headings and buttons will "
+                                     + "fall back to TextMesh Pro's synthesised bold, which "
+                                     + "dilates the glyph outline and closes the counters in "
+                                     + "Hangul. Run PokeLab > UI > Rebuild Korean Font Asset.");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[UiType] Bold font resolution failed; headings will use "
+                                 + "synthesised bold. " + e.Message);
+            }
+
+            return BoldFont;
+        }
+
+        /// <summary>
         /// Turns on TMP's material underlay so a label reads over a lit scene rather than
         /// only over a panel.
         ///
@@ -247,6 +340,15 @@ namespace PokeLab.UI
             if (text == null) return;
             try
             {
+                // A label that was told FontStyles.Bold by hand — the battle floaters, the
+                // dialogue speaker's subtitle — resolves its glyphs out of the bold asset
+                // through the weight table, and TMP draws those in a submesh with the bold
+                // asset's own material. The underlay set below lives on this label's material,
+                // so on such a label it would light up nothing at all. Moving the label onto
+                // the bold face outright collapses it back to one material, which is the one
+                // being written here. Same glyphs either way; this is about where they draw.
+                UseRealBoldFace(text);
+
                 var material = text.fontMaterial;
                 if (material == null || !material.HasProperty(UnderlayColorId)) return;
 
@@ -263,6 +365,30 @@ namespace PokeLab.UI
                 // losing the shadow is a cosmetic downgrade, not a reason to fail a line.
                 Debug.LogWarning("[UiType] Text shadow unavailable on this material: " + e.Message);
             }
+        }
+
+        /// <summary>
+        /// Swaps a bold-styled label onto the bold face and drops the Bold flag, so the whole
+        /// label draws from one font asset with one material.
+        ///
+        /// Only touches labels that are actually styled bold and are still sitting on the
+        /// regular face; a label already on the bold cut, or one that is not bold, is left
+        /// exactly as it is. Italics keep their flag — TMP shears them in the vertex pass
+        /// rather than swapping outlines, so the bold face carries an italic perfectly well.
+        /// </summary>
+        private static void UseRealBoldFace(TMP_Text text)
+        {
+            if (text == null) return;
+            if ((text.fontStyle & FontStyles.Bold) != FontStyles.Bold) return;
+            if (EnsureBoldFont() == null) return;
+
+            if (text.font != BoldFont) text.font = BoldFont;
+
+            // Cleared even when the face was already the bold one: a display role comes out of
+            // Apply on the bold cut with no Bold flag, and several views then set the flag back
+            // on regardless. The weight table catches that and hands the request straight back
+            // to this same asset, but clearing it here means the request is never made.
+            text.fontStyle &= ~FontStyles.Bold;
         }
 
         private static readonly int UnderlayColorId = Shader.PropertyToID("_UnderlayColor");

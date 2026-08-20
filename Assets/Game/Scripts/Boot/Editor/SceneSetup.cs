@@ -168,7 +168,15 @@ namespace PokeLab.Boot.Editor
                 if (File.Exists(path)) wanted.Add(path);
             }
 
-            foreach (var extra in new[] { SceneDir + "Boot.unity", SceneDir + "Battle.unity" })
+            // MainMenu is the game's first scene and Battle is loaded additively by both the
+            // overworld's transition and battle mode. Neither is reached by a LevelTransition,
+            // which is why they are listed here rather than falling out of the loops above.
+            foreach (var extra in new[]
+                     {
+                         SceneDir + "MainMenu.unity",
+                         SceneDir + "Boot.unity",
+                         SceneDir + "Battle.unity"
+                     })
                 if (File.Exists(extra)) wanted.Add(extra);
 
             var existing = new System.Collections.Generic.List<EditorBuildSettingsScene>(

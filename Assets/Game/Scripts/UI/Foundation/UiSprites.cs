@@ -156,6 +156,61 @@ namespace PokeLab.UI
             return Store(key, texture, new Vector4(inset, inset, inset, inset));
         }
 
+        /// <summary>
+        /// A filled circle, NOT nine-sliced.
+        ///
+        /// Every other sprite here is a nine-slice so it can stretch to any rect; a disc must
+        /// not be one, because stretching a nine-sliced circle produces a rounded rectangle
+        /// with a stretched middle rather than an ellipse. It is drawn once at a resolution
+        /// large enough for the biggest use (the gacha ball) and scaled down, which is the
+        /// right way round: a circle scaled up shows its own texels.
+        ///
+        /// Used with <c>Image.type = Filled</c> and <c>Radial180</c> it also gives clean half
+        /// discs, which is how the ball's red cap is drawn without a second sprite.
+        /// </summary>
+        public static Sprite Disc(int size = 256)
+        {
+            size = Mathf.Clamp(size, 8, 512);
+            var key = "disc:" + size;
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(size, size);
+            var centre = new Vector2(size * 0.5f, size * 0.5f);
+            var radius = size * 0.5f - 1f;
+
+            ForEachPixel(texture, p =>
+            {
+                var d = UiShapes.Circle(p, centre, radius);
+                return new Color(1f, 1f, 1f, UiShapes.Coverage(d));
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// An unfilled circle of the given thickness, for the glow rings the gacha reveal
+        /// throws outward. Not nine-sliced, for the same reason <see cref="Disc"/> is not.
+        /// </summary>
+        public static Sprite DiscRing(int size = 256, int thickness = 10)
+        {
+            size = Mathf.Clamp(size, 8, 512);
+            thickness = Mathf.Clamp(thickness, 1, size / 2);
+            var key = "discring:" + size + ":" + thickness;
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(size, size);
+            var centre = new Vector2(size * 0.5f, size * 0.5f);
+            var radius = size * 0.5f - thickness * 0.5f - 1f;
+
+            ForEachPixel(texture, p =>
+            {
+                var d = UiShapes.Ring(p, centre, radius, thickness);
+                return new Color(1f, 1f, 1f, UiShapes.Coverage(d));
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
         /// <summary>Flat 1x1 white. The only unstyled sprite, for dividers and solid washes.</summary>
         public static Sprite Solid()
         {
@@ -488,6 +543,435 @@ namespace PokeLab.UI
                     UiShapes.Segment(p, new Vector2(lo, lo), new Vector2(hi, hi), thickness),
                     UiShapes.Segment(p, new Vector2(lo, hi), new Vector2(hi, lo), thickness));
                 return new Color(1f, 1f, 1f, UiShapes.Coverage(d));
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        // ------------------------------------------------------------------ joy art
+
+        /// <summary>
+        /// A Poké Ball drawn as line art in alpha: outer rim, equator band, and the button's
+        /// two rings. One tint gives the whole thing, so it works as a huge translucent
+        /// watermark behind a title, as a 32px bullet, and as the cursor beside a menu row.
+        ///
+        /// Alpha-only rather than a coloured ball on purpose. The coloured ball is a composite
+        /// of five images (<see cref="Disc"/> plus a radial fill) because it has to be taken
+        /// apart and animated; this is the flat mark, and a mark that carries its own colours
+        /// cannot be recoloured to sit on whatever the screen behind it happens to be.
+        /// </summary>
+        public static Sprite BallGlyph(int size = 256, int stroke = 12)
+        {
+            size = Mathf.Clamp(size, 16, 512);
+            stroke = Mathf.Clamp(stroke, 1, size / 6);
+            var key = $"ballGlyph:{size}:{stroke}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(size, size);
+            var centre = new Vector2(size * 0.5f, size * 0.5f);
+            var outer = size * 0.5f - stroke * 0.5f - 1f;
+            var buttonOuter = size * 0.17f;
+            var buttonInner = size * 0.085f;
+
+            ForEachPixel(texture, p =>
+            {
+                var rim = UiShapes.Ring(p, centre, outer, stroke);
+                // The band is a full-width bar intersected with the ball's disc, which is what
+                // keeps its ends flush with the rim instead of poking through it.
+                var bar = UiShapes.RoundedBox(p, centre, new Vector2(size, stroke * 0.5f), 0f);
+                var band = UiShapes.Intersect(bar, UiShapes.Circle(p, centre, outer + stroke * 0.5f));
+                var ring = UiShapes.Ring(p, centre, buttonOuter, stroke);
+                var pip = UiShapes.Circle(p, centre, buttonInner);
+                var d = UiShapes.Union(UiShapes.Union(rim, band), UiShapes.Union(ring, pip));
+                return new Color(1f, 1f, 1f, UiShapes.Coverage(d));
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// A radial glow: opaque at the centre, gone at the edge, with no hard rim anywhere.
+        ///
+        /// <paramref name="gamma"/> is the whole character of it — 1 is a flat cone that reads
+        /// as a disc with soft edges, 3 is a tight core with a long haze, which is what a
+        /// burst of light actually looks like. Not nine-sliced; see <see cref="Disc"/>.
+        /// </summary>
+        public static Sprite Glow(int size = 256, float gamma = 2.4f)
+        {
+            size = Mathf.Clamp(size, 8, 512);
+            var key = $"glow:{size}:{gamma:0.00}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(size, size);
+            var centre = new Vector2(size * 0.5f, size * 0.5f);
+            var radius = size * 0.5f - 1f;
+
+            ForEachPixel(texture, p =>
+            {
+                var t = Mathf.Clamp01(1f - (p - centre).magnitude / radius);
+                return new Color(1f, 1f, 1f, Mathf.Pow(t, gamma));
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// A spiked star. <paramref name="points"/> spikes reaching the edge, with the valleys
+        /// at <paramref name="innerFraction"/> of the radius.
+        ///
+        /// Scaled up and spun slowly behind a gacha payoff it is the cartoon "ta-daa"; at eight
+        /// points and a deep valley it is a sunburst. The distance is polar rather than
+        /// Euclidean, so the antialiasing is approximate — acceptable because this shape is
+        /// only ever drawn large and moving.
+        /// </summary>
+        public static Sprite Starburst(int size = 256, int points = 8, float innerFraction = 0.46f)
+        {
+            size = Mathf.Clamp(size, 16, 512);
+            points = Mathf.Clamp(points, 3, 32);
+            innerFraction = Mathf.Clamp(innerFraction, 0.05f, 0.95f);
+            var key = $"starburst:{size}:{points}:{innerFraction:0.00}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(size, size);
+            var centre = new Vector2(size * 0.5f, size * 0.5f);
+            var radius = size * 0.5f - 1f;
+            var inner = radius * innerFraction;
+
+            ForEachPixel(texture, p =>
+            {
+                var v = p - centre;
+                var angle = Mathf.Atan2(v.y, v.x);
+                // Triangular wave over one spike period: 0 at a tip, 1 in a valley.
+                var phase = angle * points / (Mathf.PI * 2f);
+                var saw = phase - Mathf.Floor(phase);
+                var tri = Mathf.Abs(saw * 2f - 1f);
+                var bound = Mathf.Lerp(radius, inner, tri);
+                return new Color(1f, 1f, 1f, UiShapes.Coverage(v.magnitude - bound));
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// A four-point twinkle with concave sides — the sparkle that flies off a rare pull.
+        ///
+        /// Concave is the entire difference between a sparkle and a plus sign: the sides curve
+        /// inward as a power of the angle, so the arms taper to needle points.
+        /// </summary>
+        public static Sprite Sparkle(int size = 64, float sharpness = 2.6f)
+        {
+            size = Mathf.Clamp(size, 8, 256);
+            var key = $"sparkle:{size}:{sharpness:0.0}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(size, size);
+            var centre = new Vector2(size * 0.5f, size * 0.5f);
+            var radius = size * 0.5f - 1f;
+
+            ForEachPixel(texture, p =>
+            {
+                var v = p - centre;
+                var angle = Mathf.Atan2(v.y, v.x);
+                var phase = angle * 4f / (Mathf.PI * 2f);
+                var saw = phase - Mathf.Floor(phase);
+                var tri = Mathf.Abs(saw * 2f - 1f);
+                var bound = radius * Mathf.Pow(1f - tri, sharpness) + radius * 0.04f;
+                return new Color(1f, 1f, 1f, UiShapes.Coverage(v.magnitude - bound));
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// Radial speed lines: wedges thrown outward from the centre, narrow at the middle and
+        /// wide at the rim, fading in over the inner hole.
+        ///
+        /// Spun behind a reveal it is the one effect that turns a scaling image into an
+        /// arrival. The hole matters: without it the spokes converge into a solid blob exactly
+        /// where the subject has to be readable.
+        /// </summary>
+        public static Sprite SpeedLines(int size = 256, int spokes = 24, float holeFraction = 0.22f)
+        {
+            size = Mathf.Clamp(size, 32, 512);
+            spokes = Mathf.Clamp(spokes, 4, 64);
+            holeFraction = Mathf.Clamp(holeFraction, 0.02f, 0.9f);
+            var key = $"speedlines:{size}:{spokes}:{holeFraction:0.00}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(size, size);
+            var centre = new Vector2(size * 0.5f, size * 0.5f);
+            var radius = size * 0.5f - 1f;
+            var hole = radius * holeFraction;
+
+            ForEachPixel(texture, p =>
+            {
+                var v = p - centre;
+                var r = v.magnitude;
+                if (r >= radius) return new Color(1f, 1f, 1f, 0f);
+
+                var angle = Mathf.Atan2(v.y, v.x);
+                var phase = angle * spokes / (Mathf.PI * 2f);
+                var saw = phase - Mathf.Floor(phase);
+                var tri = Mathf.Abs(saw * 2f - 1f);
+
+                // The wedge takes a fixed angular share; the arc length that share covers grows
+                // with radius, which is what makes the spokes fan out.
+                var inside = Mathf.Clamp01((0.45f - tri) * spokes * 0.5f);
+                var fade = Mathf.Clamp01((r - hole) / Mathf.Max(1f, radius - hole));
+                return new Color(1f, 1f, 1f, inside * fade * (1f - fade * fade * 0.35f));
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// A cloud: four lobes smooth-unioned onto a flat base, so the top is bumpy and the
+        /// bottom is a straight line. Drawn once and reused at several scales, which is what
+        /// stops three clouds in the same sky from being three copies of one silhouette.
+        /// </summary>
+        public static Sprite CloudPuff(int width = 256, int seed = 0)
+        {
+            width = Mathf.Clamp(width, 32, 512);
+            var key = $"cloud:{width}:{seed}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var height = Mathf.Max(16, width / 2);
+            var texture = NewTexture(width, height);
+
+            // Deterministic per-seed lobe layout: same seed, same cloud, every run.
+            var rng = new System.Random(seed * 977 + 13);
+            var count = 4 + rng.Next(0, 2);
+            var lobes = new Vector3[count];
+            for (var i = 0; i < count; i++)
+            {
+                var t = count == 1 ? 0.5f : i / (float)(count - 1);
+                var x = Mathf.Lerp(width * 0.18f, width * 0.82f, t);
+                var bell = Mathf.Sin(t * Mathf.PI);
+                var r = height * (0.30f + 0.26f * bell) * (0.85f + (float)rng.NextDouble() * 0.3f);
+                var y = height * 0.42f + bell * height * 0.14f;
+                lobes[i] = new Vector3(x, y, r);
+            }
+            var baseHalf = new Vector2(width * 0.34f, height * 0.16f);
+            var baseCentre = new Vector2(width * 0.5f, height * 0.40f);
+
+            ForEachPixel(texture, p =>
+            {
+                var d = UiShapes.RoundedBox(p, baseCentre, baseHalf, height * 0.14f);
+                for (var i = 0; i < lobes.Length; i++)
+                {
+                    d = UiShapes.SmoothUnion(d, UiShapes.Circle(p, new Vector2(lobes[i].x, lobes[i].y), lobes[i].z),
+                                             height * 0.16f);
+                }
+                // Flat bottom: everything below the base line is cut away.
+                var floorPlane = height * 0.245f - p.y;
+                d = UiShapes.Subtract(d, floorPlane);
+                return new Color(1f, 1f, 1f, UiShapes.Coverage(d));
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// Seamless 45-degree candy stripes. The texture is square with side
+        /// <paramref name="period"/>, which is the only size at which <c>x + y</c> wraps
+        /// cleanly in both axes — any other aspect and the tiling shows a seam every repeat.
+        /// Draw it with <see cref="UnityEngine.UI.Image.Type.Tiled"/>.
+        /// </summary>
+        public static Sprite DiagonalStripes(int period = 24, float duty = 0.5f)
+        {
+            period = Mathf.Clamp(period, 4, 128);
+            duty = Mathf.Clamp(duty, 0.05f, 0.95f);
+            var key = $"stripes:{period}:{duty:0.00}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(period, period);
+            var band = period * duty;
+
+            ForEachPixel(texture, p =>
+            {
+                var s = Mathf.Repeat(p.x + p.y, period);
+                // Distance to the nearest band edge, so the stripe antialiases like every
+                // other shape here instead of stair-stepping.
+                var d = Mathf.Min(s, band - s);
+                return new Color(1f, 1f, 1f, UiShapes.Coverage(-d));
+            });
+
+            texture.wrapMode = TextureWrapMode.Repeat;
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>Seamless polka dots on a square lattice. Tiled, at low alpha, it gives a flat card a printed grain.</summary>
+        public static Sprite Dots(int cell = 32, float radiusFraction = 0.18f)
+        {
+            cell = Mathf.Clamp(cell, 6, 128);
+            radiusFraction = Mathf.Clamp(radiusFraction, 0.02f, 0.49f);
+            var key = $"dots:{cell}:{radiusFraction:0.00}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(cell, cell);
+            var centre = new Vector2(cell * 0.5f, cell * 0.5f);
+            var r = cell * radiusFraction;
+
+            ForEachPixel(texture, p => new Color(1f, 1f, 1f, UiShapes.Coverage(UiShapes.Circle(p, centre, r))));
+            texture.wrapMode = TextureWrapMode.Repeat;
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// A fat right-pointing arrowhead with rounded corners — the menu cursor.
+        ///
+        /// Rounded rather than sharp because a needle-sharp triangle at 40px reads as a
+        /// UI chevron, and this one has to read as a thing that was drawn by hand.
+        /// </summary>
+        public static Sprite ArrowGlyph(int size = 48, float round = 5f)
+        {
+            size = Mathf.Clamp(size, 8, 256);
+            var key = $"arrow:{size}:{round:0.0}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(size, size);
+            var inset = round + 1f;
+            var a = new Vector2(inset, inset);
+            var b = new Vector2(size - inset, size * 0.5f);
+            var c = new Vector2(inset, size - inset);
+
+            ForEachPixel(texture, p =>
+                new Color(1f, 1f, 1f, UiShapes.Coverage(UiShapes.Triangle(p, a, b, c) - round)));
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// A ribbon: a horizontal bar with a V cut out of each end. Nine-sliced across its
+        /// width only, so one sprite serves a 200px rarity banner and a 900px header at the
+        /// same notch depth.
+        /// </summary>
+        public static Sprite Banner(int height = 56, int notch = 20)
+        {
+            height = Mathf.Clamp(height, 8, 200);
+            notch = Mathf.Clamp(notch, 0, height);
+            var key = $"banner:{height}:{notch}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var width = notch * 2 + 16;
+            var texture = NewTexture(width, height);
+            var half = new Vector2(width * 0.5f, height * 0.5f - 1f);
+            var centre = new Vector2(width * 0.5f, height * 0.5f);
+
+            ForEachPixel(texture, p =>
+            {
+                var body = UiShapes.RoundedBox(p, centre, half, 1f);
+                if (notch > 0)
+                {
+                    var left = UiShapes.Triangle(p,
+                        new Vector2(-1f, -1f), new Vector2(notch, height * 0.5f), new Vector2(-1f, height + 1f));
+                    var right = UiShapes.Triangle(p,
+                        new Vector2(width + 1f, -1f), new Vector2(width - notch, height * 0.5f), new Vector2(width + 1f, height + 1f));
+                    body = UiShapes.Subtract(body, UiShapes.Union(left, right));
+                }
+                return new Color(1f, 1f, 1f, UiShapes.Coverage(body));
+            });
+
+            var inset = notch + 6;
+            return Store(key, texture, new Vector4(inset, 0f, inset, 0f));
+        }
+
+        /// <summary>
+        /// A rounded slab whose top half carries a bright gloss and whose bottom edge is
+        /// slightly darkened — the moulded-plastic look, in one nine-sliceable sprite.
+        ///
+        /// Drawn as alpha so a single white Image over the slab's fill produces the highlight
+        /// and the tint underneath still authors the colour. Nine-slices horizontally only:
+        /// the gradient runs vertically, so the middle row must not be stretched, which is why
+        /// the top and bottom insets are zero and the sprite is generated at the height it is
+        /// used at.
+        /// </summary>
+        public static Sprite Gloss(int height = 64, int radius = 18, float coverFraction = 0.46f)
+        {
+            height = Mathf.Clamp(height, 8, 256);
+            radius = Mathf.Clamp(radius, 2, height / 2);
+            coverFraction = Mathf.Clamp(coverFraction, 0.1f, 0.9f);
+            var key = $"gloss:{height}:{radius}:{coverFraction:0.00}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var width = radius * 2 + 8;
+            var texture = NewTexture(width, height);
+            var centre = new Vector2(width * 0.5f, height * 0.5f);
+            var half = new Vector2(width * 0.5f - 1f, height * 0.5f - 1f);
+            var top = height * (1f - coverFraction);
+
+            ForEachPixel(texture, p =>
+            {
+                var shape = UiShapes.Coverage(UiShapes.RoundedBox(p, centre, half, radius));
+                // Row 0 is the bottom in texture space; the gloss lives at the top.
+                var t = Mathf.Clamp01((p.y - top) / Mathf.Max(1f, height - top));
+                return new Color(1f, 1f, 1f, shape * t * t);
+            });
+
+            var inset = radius + 3;
+            return Store(key, texture, new Vector4(inset, 0f, inset, 0f));
+        }
+
+        /// <summary>
+        /// The list cursor: a solid arrowhead with a bar standing behind it, pointing right.
+        ///
+        /// The bar is what makes it read as a cursor rather than as a play button — a bare
+        /// triangle beside a menu row is an expander, and this one has to say "you are here".
+        /// </summary>
+        public static Sprite ChevronCursor(int size = 64, float round = 3f)
+        {
+            size = Mathf.Clamp(size, 12, 256);
+            var key = $"cursor:{size}:{round:0.0}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(size, size);
+            var centre = new Vector2(size * 0.5f, size * 0.5f);
+            var barCentre = new Vector2(size * 0.16f, centre.y);
+            var barHalf = new Vector2(size * 0.075f, size * 0.34f);
+
+            var a = new Vector2(size * 0.36f, size * 0.13f);
+            var b = new Vector2(size * 0.94f, centre.y);
+            var c = new Vector2(size * 0.36f, size * 0.87f);
+
+            ForEachPixel(texture, p =>
+            {
+                var bar = UiShapes.RoundedBox(p, barCentre, barHalf, size * 0.06f);
+                var head = UiShapes.Triangle(p, a, b, c) - round;
+                return new Color(1f, 1f, 1f, UiShapes.Coverage(UiShapes.Union(bar, head)));
+            });
+
+            return Store(key, texture, Vector4.zero);
+        }
+
+        /// <summary>
+        /// A stack of rounded horizontal bars — the "menu" mark that sits beside a screen
+        /// title. <paramref name="bars"/> of them, evenly spread, the top one short.
+        /// </summary>
+        public static Sprite BarsGlyph(int size = 64, int bars = 3, float thickness = 0.13f)
+        {
+            size = Mathf.Clamp(size, 12, 256);
+            bars = Mathf.Clamp(bars, 2, 6);
+            var key = $"bars:{size}:{bars}:{thickness:0.00}";
+            if (Cache.TryGetValue(key, out var cached)) return cached;
+
+            var texture = NewTexture(size, size);
+            var half = size * thickness * 0.5f;
+            var span = size * 0.74f;
+            var top = size * 0.87f;
+            var step = bars > 1 ? span / (bars - 1) : 0f;
+
+            ForEachPixel(texture, p =>
+            {
+                var best = float.MaxValue;
+                for (var i = 0; i < bars; i++)
+                {
+                    // The first bar is shorter, which is the detail that stops the mark
+                    // reading as a hamburger button.
+                    var width = i == 0 ? size * 0.30f : size * 0.40f;
+                    var centre = new Vector2(size * 0.12f + width, top - i * step);
+                    best = Mathf.Min(best, UiShapes.RoundedBox(p, centre, new Vector2(width, half), half));
+                }
+                return new Color(1f, 1f, 1f, UiShapes.Coverage(best));
             });
 
             return Store(key, texture, Vector4.zero);

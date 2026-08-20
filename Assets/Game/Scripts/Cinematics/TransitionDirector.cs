@@ -84,6 +84,11 @@ namespace PokeLab.Cinematics
         [Tooltip("Held covered after the stage callback fires, so staging has frames to settle " +
                  "before the reveal catches it mid-assembly.")]
         [SerializeField] private float stagingHold = 0.4f;
+        [Tooltip("Longest the reveal will hold the cover waiting for the battle camera to solve and " +
+                 "apply its opening shot. A ceiling, not a duration: the wipe starts the moment the " +
+                 "rig reports settled, usually well inside this. Bounded because a reveal that never " +
+                 "fires strands the player behind an opaque screen with a live battle under it.")]
+        [SerializeField] private float openingShotTimeout = 1.5f;
 
         [Header("World freeze")]
         [Tooltip("Ramp world time to zero for the duration of a transition.")]
@@ -103,12 +108,28 @@ namespace PokeLab.Cinematics
         [Tooltip("Seconds the outro will wait for the presenter to finish its last beats before it " +
                  "covers. Capped well under the watchdog: an outro that waits too long is a bug, an " +
                  "outro that never fires strands the player.")]
-        [SerializeField] private float outroDrain = 8f;
+        // 8 -> 12, and this was cutting a whole beat off the game.
+        //
+        // MEASURED, not guessed: the victory tail — the winner turning to the lens, the
+        // celebration, the experience roll-up, the level-up card, the walk back to the trainer —
+        // runs about ten seconds, and the result card is the LAST thing in it. At an eight second
+        // cap the outro covered the screen before the card was ever reached, so on a win the
+        // player essentially never saw it. That is the real reason the result card read as
+        // "혼자 붕뜨는" — not that it was staged badly, but that in the one outcome anybody
+        // wants it was cut off entirely and only ever appeared after a loss.
+        //
+        // The tail has since been shortened to about 8.9 s, which fits eight only if nothing
+        // ever runs slow. Twelve leaves the beat room to land on a frame that hitched.
+        [SerializeField] private float outroDrain = 12f;
 
         [Header("Safety")]
         [Tooltip("Seconds after which a sequence releases the flow regardless of its own progress. " +
                  "Generous — this is a last resort, not a pacing control.")]
-        [SerializeField] private float watchdogSeconds = 12f;
+        // Moved with outroDrain and kept clear of it. The drain is a pacing cap the outro is
+        // expected to reach; this is the failure catch underneath it. If they meet, a slow but
+        // healthy outro starts tripping the watchdog and logging errors at a player who is
+        // simply watching their creature celebrate.
+        [SerializeField] private float watchdogSeconds = 18f;
 
         // --- Runtime state ---------------------------------------------------------------
 
@@ -250,28 +271,33 @@ namespace PokeLab.Cinematics
 
                 yield return CinematicRunner.Wait(stagingHold);
 
-                // The rig is retargeted while still covered, so the first visible frame is
-                // correctly framed rather than damping toward correct over half a second.
                 var presenter = Presenter;
-                if (presenter != null)
-                {
-                    presenter.Rig.SetRigActive(true);
-                    presenter.Rig.Show(BattleShot.Field);
-                    presenter.Rig.Retarget();
-                }
+                if (presenter != null) presenter.Rig.SetRigActive(true);
+
                 if (_swingCamera != null)
                 {
                     _swingCamera.Priority = 0;
                     _swingCamera.gameObject.SetActive(false);
                 }
 
-                // Cut to the battle rig rather than blending onto it. The arena stands a long
-                // way from the map, and the authored None-to-Field blend is 0.95 s against a
-                // 0.55 s wipe — so the reveal would open on a camera still flying in across the
-                // world. A cut is free here because the screen is opaque, which is the one moment
-                // the "never teleport the camera" rule is not about anything the player can see.
-                if (brain != null) brain.ResetState();
-                yield return null;
+                // The cover comes off on a CONDITION, not on a schedule.
+                //
+                // It used to be the schedule: retarget the rig, reset the brain, wait one
+                // frame, wipe. Every part of that was reasonable and it still opened on a
+                // camera that was pointing at the wrong place, because the thing being waited
+                // for was time rather than the thing that actually had to happen. The rig
+                // solves against the creature marks; the marks are not in their final
+                // positions until the stage has been refit to the two creatures, and that refit
+                // lives in the send-out beat, which runs after the reveal by design. So the
+                // shot solved under the cover was a solve against a stage that was about to
+                // move, and the player watched it correct itself.
+                //
+                // WaitForOpeningShot asks the presenter to do the refit early from the events
+                // already queued, then waits for the rig to report the first shot solved and
+                // applied. Bounded, and it gives up rather than holding: a reveal that can hang
+                // leaves the player behind an opaque screen with a live battle underneath,
+                // which is a far worse failure than a camera that settles in view.
+                yield return WaitForOpeningShot(presenter);
 
                 yield return overlay.CoverOut(revealDuration, WipeStyle.SplitWipe);
 
@@ -301,6 +327,69 @@ namespace PokeLab.Cinematics
                 // the object being destroyed, the flow is still released rather than frozen.
                 stageReady.Fire("sequence ended without reaching the cover");
                 IsTransitioning = false;
+            }
+        }
+
+        /// <summary>
+        /// Holds the cover until the battle camera has actually arrived at its opening shot.
+        ///
+        /// Two waits, and they are different things. The first is for the arena to have its
+        /// final dimensions: <see cref="BattlePresenter.PrepareOpeningShot"/> refits the marks
+        /// to the two creatures that are about to be sent out and snaps the rig onto the
+        /// result, and it answers false until the opening events it needs have been published.
+        /// The second is for Cinemachine to have written that solve into the actual camera —
+        /// a priority change and a brain reset both land on a later update, so lifting the
+        /// cover on the same frame shows the frame before them.
+        ///
+        /// Both are capped by <see cref="openingShotTimeout"/> and both fall through rather
+        /// than block. If the presenter never reports ready the old behaviour is performed
+        /// instead, which is a correctly-framed-eventually camera rather than no reveal at all.
+        /// </summary>
+        private IEnumerator WaitForOpeningShot(BattlePresenter presenter)
+        {
+            if (presenter == null)
+            {
+                if (brain != null) brain.ResetState();
+                yield return null;
+                yield break;
+            }
+
+            float budget = Mathf.Max(0.1f, openingShotTimeout);
+            float elapsed = 0f;
+
+            while (!presenter.PrepareOpeningShot() && elapsed < budget)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            if (!presenter.IsOpeningShotSettled)
+            {
+                // The opening events never arrived. Frame what there is and go: an unlifted
+                // cover is the one outcome worse than a wrong camera.
+                Debug.LogWarning($"[TransitionDirector] The battle camera did not report a settled " +
+                                 $"opening shot within {budget:0.0}s; revealing on the unrefit stage.", this);
+                presenter.Rig.Show(BattleShot.Field);
+                presenter.Rig.Retarget();
+            }
+
+            // Cut rather than blend onto the battle rig. The arena stands a long way from the
+            // map and the authored None-to-Field blend is 0.95s against a 0.55s wipe, so a
+            // blend would open the reveal on a camera still flying in across the world. A cut
+            // is free here: the screen is opaque, which is the one moment the "never teleport
+            // the camera" rule is not about anything the player can see.
+            if (brain != null) brain.ResetState();
+
+            // Two frames, then the blend state. One frame is enough for the priority to be
+            // read and not always enough for the brain to have written the resulting transform.
+            yield return null;
+            yield return null;
+
+            float settle = 0f;
+            while (brain != null && brain.IsBlending && settle < budget)
+            {
+                settle += Time.unscaledDeltaTime;
+                yield return null;
             }
         }
 

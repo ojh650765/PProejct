@@ -96,7 +96,23 @@ namespace PokeLab.Audio.Editor
                     continue;
                 }
 
-                if (Mathf.Abs(asset.length - clip.duration) > 0.02f)
+                // 20 ms for a sample-exact source, 120 ms for MP3.
+                //
+                // The tight bound is the one that catches what this check is for: a manifest
+                // entry describing a file that has since been regenerated. It works for WAV
+                // because a WAV's length is its sample count.
+                //
+                // It cannot work for MP3. The format encodes in frames of 1152 samples and
+                // carries encoder delay and padding, so a decoder rounds up to a frame boundary
+                // and Unity reports a length 50-80 ms longer than the duration ffprobe reads off
+                // the same file. Every music track warned on import for that reason alone, which
+                // trains everyone to ignore a warning that is meant to be rare. Widened only for
+                // the format that needs it, rather than raised for everything.
+                var mp3 = clip.path != null &&
+                          clip.path.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase);
+                var tolerance = mp3 ? 0.12f : 0.02f;
+
+                if (Mathf.Abs(asset.length - clip.duration) > tolerance)
                     Debug.LogWarning($"[PokeLab.Audio] {clip.name}: imported length {asset.length:0.000}s " +
                                      $"differs from manifest {clip.duration:0.000}s. Stale import?");
 

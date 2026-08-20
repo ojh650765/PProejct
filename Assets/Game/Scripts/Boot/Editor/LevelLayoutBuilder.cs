@@ -74,6 +74,11 @@ namespace PokeLab.Boot.Editor
             var band = string.IsNullOrEmpty(sceneName) ? open : sceneName;
             var layoutPath = LayoutFor(band);
 
+            // Dropped at the top of every build, not held for the session: an editor with the
+            // domain reload switched off would otherwise keep serving a cast.json somebody has
+            // since edited, and the marker positions in it are what places the cast.
+            _castCache = null;
+
             if (!File.Exists(layoutPath))
             {
                 Debug.LogError($"[Level] {layoutPath} not found. Run Tools/Level/emit_unity_layout.py first.");
@@ -114,6 +119,9 @@ namespace PokeLab.Boot.Editor
                 // After BuildCast, which is what stands the professor up: an encounter armed
                 // on an actor the previous step has not created yet finds nothing to hang on.
                 BuildStoryTriggers();
+                // After the triggers, and for the same reason: presence is configured on the
+                // objects the two steps above create.
+                BuildStoryPresence();
                 BuildStoryGate(layout, root.transform, parents);
                 BuildNavigation(root);
             }
@@ -1982,10 +1990,11 @@ namespace PokeLab.Boot.Editor
             new StoryTrigger("Trigger_Square", "kes_summons",
                              "story.gate_refused", "story.kes_summons_done", 5.0f, 0f),
 
-            // Bram's second beat, on its own marker for the same one-slot-per-actor reason.
-            // Tight radius: it sits at the top of the ramp and must not fire from the street.
-            new StoryTrigger("Trigger_GateOpen", "gate_opens",
-                             "story.kes_summons_done", "story.gate_acknowledged", 3.5f, 0f),
+            // Bram's second beat used to have a trigger here, on its own marker. Both are gone
+            // with the episode: it fired the moment the player came back up the ramp after
+            // talking to Kes and played "얘기했나 보군. 그럼 다녀오게." at them unprompted, and the
+            // user cut it. A trigger left behind would stand up an object in every generated
+            // town naming an episode the runner no longer has.
 
             // Linden on the lake bank, in the Field. Gated on story.gate_open rather than on
             // the acknowledgement, because gate_opens is deliberately skippable -- the ramp is
@@ -2037,6 +2046,153 @@ namespace PokeLab.Boot.Editor
         }
 
         /// <summary>
+        /// Who is in the world, and where, once the flags have moved on.
+        ///
+        /// <b>The problem this table solves.</b> A generated scene records one truth about its
+        /// cast: where they stand at the start of the game. Everything that happens afterwards
+        /// lives in <c>EpisodeRunner</c>'s memory — the actor it hid when they walked off, the
+        /// mark it walked them to — and memory does not survive a scene load. So the player
+        /// whites out, the recovery puts them back in the town, and Kes is standing in the
+        /// square he left twenty minutes ago on his way to the cave. The flags knew; the scene
+        /// did not, because nothing had ever asked it to.
+        ///
+        /// <see cref="StoryPresence"/> is that question, asked at every load. This table is the
+        /// authored answer, and it lives here for the same reason
+        /// <see cref="StoryTriggers"/> does: it is a binding between scene objects and story
+        /// flags, not a narrative position, and anything hung on generated content by hand is
+        /// gone at the next rebuild.
+        ///
+        /// Unlike the trigger table there is no one-per-actor rule — a presence is a component
+        /// with three authored states on it, not a slot.
+        /// </summary>
+        private readonly struct StoryPresenceRule
+        {
+            public readonly string Actor;
+            public readonly string LeavesOnFlag;
+            public readonly string MovesOnFlag;
+            public readonly string PostMarker;
+            public readonly bool HidesImmediately;
+
+            public StoryPresenceRule(string actor, string leavesOnFlag, string movesOnFlag,
+                                     string postMarker, bool hidesImmediately)
+            {
+                Actor = actor;
+                LeavesOnFlag = leavesOnFlag;
+                MovesOnFlag = movesOnFlag;
+                PostMarker = postMarker;
+                HidesImmediately = hidesImmediately;
+            }
+        }
+
+        private static readonly StoryPresenceRule[] StoryPresences =
+        {
+            // Kes. Two states after the square, and between them they are the whole of
+            // "게임오버했을 때 캐시가 마을에 있음".
+            //
+            // MOVES on story.kes_summons_done — the flag the runner sets when his send-off has
+            // genuinely run to its end, exit beat included. From that instant he is not a
+            // townsperson: he is standing beside the professor's bag on the lake bank, which is
+            // where the act needs to find him and where the user asked him to already be
+            // ("케스 가방 옆에 있는 걸로 배치. 멀리서 걸어오지 않고"). Pre-placed rather than
+            // walked in, so the bag scene works even on a save that never watched him leave.
+            //
+            // LEAVES on story.pokedex — the flag the prologue ends on, set only after his run
+            // for Aster Grotto has finished. He said he would see the player at the cave; from
+            // then on he is not in the overworld at all, and a whiteout that carries the player
+            // back to town cannot find him standing in it.
+            new StoryPresenceRule("NPC_Rival", "story.pokedex", "story.kes_summons_done",
+                                  "Mark_Rival_BagSide", false),
+
+            // The professor's bag. "야생포켓몬과 대전하고 나면, 월드에 배치된 가방의
+            // visibility 안보이게 처리해줘" — the ambush is the wild battle, story.ambush_done
+            // is its completion flag, and after it the bag has been opened, emptied of the ball
+            // the player took and picked back up by the man who owns it.
+            //
+            // Not hidden immediately, and that is the important half: field_ambush chains
+            // straight into field_professor_returns with its flag already set, and Linden's
+            // whole return is played standing over this object. StoryPresence refuses to remove
+            // anything while an episode is running or while a camera can see it, so the bag
+            // survives his scene and goes the first moment the player looks away.
+            new StoryPresenceRule("Prop_ProfessorBag", "story.ambush_done", "", "", false),
+        };
+
+        /// <summary>Tells the generated cast what the flags say about them.</summary>
+        private static void BuildStoryPresence()
+        {
+            var configured = 0;
+            foreach (var rule in StoryPresences)
+            {
+                // Absent is normal, not an error: the table covers the whole slice and each
+                // scene holds only its own half of the cast.
+                var actor = GameObject.Find(rule.Actor);
+                if (actor == null) continue;
+
+                var post = Vector3.zero;
+                var hasPost = !string.IsNullOrEmpty(rule.PostMarker)
+                              && TryFindCastMarker(rule.PostMarker, out post);
+
+                if (!string.IsNullOrEmpty(rule.PostMarker) && !hasPost)
+                {
+                    Debug.LogWarning($"[Level] Presence: '{rule.Actor}' should stand at " +
+                                     $"'{rule.PostMarker}' once {rule.MovesOnFlag} is set, but " +
+                                     "cast.json has no such marker. They will stay where the " +
+                                     "scene built them.");
+                }
+
+                var presence = actor.GetComponent<StoryPresence>();
+                if (presence == null) presence = actor.AddComponent<StoryPresence>();
+                presence.Configure(rule.LeavesOnFlag, rule.MovesOnFlag, post, hasPost,
+                                   rule.HidesImmediately);
+                configured++;
+            }
+
+            if (configured > 0)
+                Debug.Log($"[Level] Story: {configured} presence rule(s) configured.");
+        }
+
+        /// <summary>
+        /// A marker's authored world position, straight out of cast.json.
+        ///
+        /// Read from the file rather than from the built GameObject because a post is almost
+        /// always in the OTHER band — Kes is Town content and his post after the send-off is a
+        /// Field marker — and when this runs on the Town scene that object does not exist in
+        /// the editor at all. Both bands are emitted into one world space, so the coordinate is
+        /// valid across the seam; that is the same property WorldStreamer relies on.
+        ///
+        /// Cached for the length of a build. A rebuild of both scenes calls this a handful of
+        /// times and the file is thirty kilobytes, but the cache also guarantees the two bands
+        /// are configured from one identical read.
+        /// </summary>
+        private static Cast _castCache;
+
+        private static bool TryFindCastMarker(string markerName, out Vector3 position)
+        {
+            position = Vector3.zero;
+            if (string.IsNullOrEmpty(markerName)) return false;
+
+            if (_castCache == null)
+            {
+                var path = Path.Combine(Directory.GetCurrentDirectory(), CastPath);
+                if (!File.Exists(path)) return false;
+                try { _castCache = JsonUtility.FromJson<Cast>(File.ReadAllText(path)); }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[Level] cast.json would not parse: {e.Message}");
+                    return false;
+                }
+            }
+
+            foreach (var marker in _castCache?.markers ?? Array.Empty<CastMarker>())
+            {
+                if (marker == null || marker.name != markerName) continue;
+                position = ToVector(marker.position);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Closes the way out of town until the story opens it.
         ///
         /// Built from the scene link rather than from a hand-written position, so it stays
@@ -2072,28 +2228,29 @@ namespace PokeLab.Boot.Editor
                 ToVector(link.position) + facing * Vector3.back * 1.0f);
             go.transform.localRotation = facing;
 
-            // Wider than the doorway it closes. Sized exactly to the link, a player who hugs
-            // the cliff walks around the end of it, and a gate with a gap beside it is worse
-            // than no gate: it reads as a bug rather than as a rule.
-            var opening = ToVector(link.size, new Vector3(5f, 3f, 1.6f));
+            // Width ZERO, which StoryGate reads as "no lateral limit".
+            //
+            // It was the doorway's width plus a margin, and that was wrong for a measured
+            // reason rather than a stylistic one: the north fence ends 4.2 m west of the ramp
+            // mouth and the ground beyond it is open, so a boxed refusal was walked up to,
+            // slid along, and rounded — 24 m west of the gate, on the route, verified in play.
+            // A wider box only moves the hole. What is actually being closed is the town's
+            // northern boundary, so the refusal is the whole line and not a panel in it.
             go.AddComponent<StoryGate>().Configure("story.gate_open",
-                keeper.GetComponent<NpcController>(),
-                new Vector3(opening.x + 1.5f, 4f, 0.6f));
+                keeper.GetComponent<NpcController>(), 0f, 0.6f);
 
-            // Kept OUT of the navmesh bake. The gate sits on Environment, a layer
-            // BuildNavigation collects, so the closed wall was baked into the town mesh as
-            // permanent geometry: the ramp under it was a hole no runtime flag could heal, and
-            // every agent asked to leave town pathed around it into the fence — that is Kes
-            // veering right at the gatekeeper. The wall blocks the PLAYER's body and nothing
-            // else, by design ("플레이어만 못 지나가게 하고 에이전트는 괜찮도록"): agents
-            // ignore physics colliders, the mesh stays continuous through the gate, and there
-            // is deliberately no NavMeshObstacle either — see the note in StoryGate.
-            var navmesh = go.AddComponent<NavMeshModifier>();
-            navmesh.ignoreFromBuild = true;
-
-            SetLayer(go, "Environment");
-            Debug.Log("[Level] Story: the town ramp is closed until story.gate_open, and the " +
-                      "wall no longer bakes a hole in the navmesh.");
+            // NOTHING IS ADDED HERE. No collider, no NavMeshObstacle, no NavMeshModifier and no
+            // layer — the gate is an empty transform carrying a rule, and that is the whole
+            // point of the 2026-08-20 revision. Every previous era of this object put a solid
+            // on the ramp and then tried to hide it from the navmesh: baked in it carved the
+            // ramp permanently and sent every departing agent into the fence beside Bram;
+            // excluded from the bake it still left a serialized carve-era obstacle behind. An
+            // object with no bounds cannot be collected by BuildNavigation, so there is no
+            // longer anything to exclude, and the mesh under the ramp is simply continuous.
+            // The player is held back by coordinate in StoryGate.LateUpdate — the user's
+            // instruction, "플레이어를 이 콜리전으로 막는게 아니라 좌표값으로 막도록".
+            Debug.Log("[Level] Story: the town ramp is closed until story.gate_open, by " +
+                      "coordinate. The gate puts nothing in the physics scene or the navmesh.");
         }
 
         [Serializable] private sealed class Cast

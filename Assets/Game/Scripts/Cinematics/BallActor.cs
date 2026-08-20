@@ -17,9 +17,33 @@ namespace PokeLab.Cinematics
     /// </summary>
     public sealed class BallActor : MonoBehaviour
     {
+        /// <summary>
+        /// Longest a ball may exist without being dismissed, in unscaled seconds.
+        ///
+        /// A backstop, not a mechanism: the presenter registers every ball it spawns and reaps
+        /// the register on each path that can cut a beat short, and that is the real fix. This
+        /// catches the case that register cannot — a caller outside the presenter, or a path
+        /// nobody has thought of yet — because the failure it prevents is not a leaked object
+        /// in a profiler, it is a Poké Ball lying on the grass of the overworld for the rest of
+        /// the session. Comfortably longer than the capture set piece, which at roughly seven
+        /// seconds is the longest a ball is ever legitimately alive.
+        /// </summary>
+        private const float MaxLifetime = 40f;
+
         private Transform _visual;
         private GameObject _attachedVfx;
         private float _radius = 0.11f;
+        private float _spawnedAt;
+
+        private void Awake() => _spawnedAt = Time.unscaledTime;
+
+        private void Update()
+        {
+            if (Time.unscaledTime - _spawnedAt < MaxLifetime) return;
+            Debug.LogWarning($"[BallActor] A ball outlived {MaxLifetime:0}s without being dismissed and " +
+                             "has been reaped. Something halted the beat that threw it.", this);
+            Dismiss(0.1f);
+        }
 
         /// <summary>World position of the ball, for VFX and camera targeting.</summary>
         public Vector3 Position => transform.position;
