@@ -92,6 +92,36 @@ namespace PokeLab.Online
             _token = PlayerPrefs.GetString(TokenKey, "");
             TrainerName = PlayerPrefs.GetString(NameKey, "");
             AccountId = PlayerPrefs.GetString(AccountKey, "");
+
+            // A restored token has to fetch the roster too, and this is the bug that cost a
+            // player their team.
+            //
+            // FetchRoster used to run in exactly one place -- at the end of Authenticate --
+            // which covers signing in and creating an account and nothing else. The common
+            // path is neither: the token comes back out of PlayerPrefs here, in Awake, the
+            // login screen sees IsSignedIn and skips itself, and the session goes to the title
+            // with Roster still Array.Empty. Everything downstream reads that as the truth.
+            // HasTeam is false, so the menu offers a first roll; the Worker knows better and
+            // answers already_rolled; and the player is told both that they have no team and
+            // that they may not have one -- "내가 선택한 팀 정보도 날라갔고, 이미 팀을 뽑은
+            // 계정이래". Their six were on the server the whole time.
+            //
+            // Started here rather than left to a screen because every screen that cares would
+            // otherwise have to remember, and the one that forgot is how this happened.
+            if (IsSignedIn) StartCoroutine(RestoreRoster());
+        }
+
+        /// <summary>
+        /// Pulls the roster for a token restored from disk, and tells the screens when it lands.
+        ///
+        /// Failure is deliberately quiet: an expired token or a dead network is not a reason to
+        /// interrupt a player who has not asked for anything yet, and every screen that needs
+        /// the roster re-reads it from <see cref="Changed"/> anyway.
+        /// </summary>
+        private IEnumerator RestoreRoster()
+        {
+            yield return FetchRoster(null);
+            Changed?.Invoke();
         }
 
         private void OnDestroy()

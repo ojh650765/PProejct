@@ -1,0 +1,484 @@
+{
+  "schema": 1,
+  "resourceRoot": "CreaturePortraits",
+  "source": "PokeAPI sprites repo, raw: all 53 portraits came from sprites/pokemon/other/home/<dexNumber>.png (512x512, RGBA); no entry needed the official-artwork fallback. Files are byte-for-byte as downloaded -- no resample, recompress or crop. The URL is keyed by dexNumber, never speciesId: the two collide (speciesId 25 is Rattata, dexNumber 25 is Pikachu).",
+  "portraits": [
+    {
+      "speciesId": 1,
+      "dexNumber": 1,
+      "nameEn": "Bulbasaur",
+      "resource": "CreaturePortraits/bulbasaur",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 2,
+      "dexNumber": 2,
+      "nameEn": "Ivysaur",
+      "resource": "CreaturePortraits/ivysaur",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 5,
+      "dexNumber": 4,
+      "nameEn": "Charmander",
+      "resource": "CreaturePortraits/charmander",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 6,
+      "dexNumber": 5,
+      "nameEn": "Charmeleon",
+      "resource": "CreaturePortraits/charmeleon",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 10,
+      "dexNumber": 7,
+      "nameEn": "Squirtle",
+      "resource": "CreaturePortraits/squirtle",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 11,
+      "dexNumber": 8,
+      "nameEn": "Wartortle",
+      "resource": "CreaturePortraits/wartortle",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 12,
+      "dexNumber": 9,
+      "nameEn": "Blastoise",
+      "resource": "CreaturePortraits/blastoise",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 14,
+      "dexNumber": 10,
+      "nameEn": "Caterpie",
+      "resource": "CreaturePortraits/caterpie",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 15,
+      "dexNumber": 11,
+      "nameEn": "Metapod",
+      "resource": "CreaturePortraits/metapod",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 16,
+      "dexNumber": 12,
+      "nameEn": "Butterfree",
+      "resource": "CreaturePortraits/butterfree",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 17,
+      "dexNumber": 13,
+      "nameEn": "Weedle",
+      "resource": "CreaturePortraits/weedle",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 18,
+      "dexNumber": 14,
+      "nameEn": "Kakuna",
+      "resource": "CreaturePortraits/kakuna",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 19,
+      "dexNumber": 15,
+      "nameEn": "Beedrill",
+      "resource": "CreaturePortraits/beedrill",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 21,
+      "dexNumber": 16,
+      "nameEn": "Pidgey",
+      "resource": "CreaturePortraits/pidgey",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 23,
+      "dexNumber": 18,
+      "nameEn": "Pidgeot",
+      "resource": "CreaturePortraits/pidgeot",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 25,
+      "dexNumber": 19,
+      "nameEn": "Rattata",
+      "resource": "CreaturePortraits/rattata",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 26,
+      "dexNumber": 20,
+      "nameEn": "Raticate",
+      "resource": "CreaturePortraits/raticate",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 27,
+      "dexNumber": 21,
+      "nameEn": "Spearow",
+      "resource": "CreaturePortraits/spearow",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 29,
+      "dexNumber": 23,
+      "nameEn": "Ekans",
+      "resource": "CreaturePortraits/ekans",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 31,
+      "dexNumber": 25,
+      "nameEn": "Pikachu",
+      "resource": "CreaturePortraits/pikachu",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 32,
+      "dexNumber": 26,
+      "nameEn": "Raichu",
+      "resource": "CreaturePortraits/raichu",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 33,
+      "dexNumber": 27,
+      "nameEn": "Sandshrew",
+      "resource": "CreaturePortraits/sandshrew",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 41,
+      "dexNumber": 35,
+      "nameEn": "Clefairy",
+      "resource": "CreaturePortraits/clefairy",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 47,
+      "dexNumber": 41,
+      "nameEn": "Zubat",
+      "resource": "CreaturePortraits/zubat",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 49,
+      "dexNumber": 43,
+      "nameEn": "Oddish",
+      "resource": "CreaturePortraits/oddish",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 50,
+      "dexNumber": 44,
+      "nameEn": "Gloom",
+      "resource": "CreaturePortraits/gloom",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 51,
+      "dexNumber": 45,
+      "nameEn": "Vileplume",
+      "resource": "CreaturePortraits/vileplume",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 52,
+      "dexNumber": 46,
+      "nameEn": "Paras",
+      "resource": "CreaturePortraits/paras",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 54,
+      "dexNumber": 48,
+      "nameEn": "Venonat",
+      "resource": "CreaturePortraits/venonat",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 56,
+      "dexNumber": 50,
+      "nameEn": "Diglett",
+      "resource": "CreaturePortraits/diglett",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 60,
+      "dexNumber": 54,
+      "nameEn": "Psyduck",
+      "resource": "CreaturePortraits/psyduck",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 62,
+      "dexNumber": 56,
+      "nameEn": "Mankey",
+      "resource": "CreaturePortraits/mankey",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 64,
+      "dexNumber": 58,
+      "nameEn": "Growlithe",
+      "resource": "CreaturePortraits/growlithe",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 66,
+      "dexNumber": 60,
+      "nameEn": "Poliwag",
+      "resource": "CreaturePortraits/poliwag",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 67,
+      "dexNumber": 61,
+      "nameEn": "Poliwhirl",
+      "resource": "CreaturePortraits/poliwhirl",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 69,
+      "dexNumber": 63,
+      "nameEn": "Abra",
+      "resource": "CreaturePortraits/abra",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 73,
+      "dexNumber": 66,
+      "nameEn": "Machop",
+      "resource": "CreaturePortraits/machop",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 74,
+      "dexNumber": 67,
+      "nameEn": "Machoke",
+      "resource": "CreaturePortraits/machoke",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 75,
+      "dexNumber": 68,
+      "nameEn": "Machamp",
+      "resource": "CreaturePortraits/machamp",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 76,
+      "dexNumber": 69,
+      "nameEn": "Bellsprout",
+      "resource": "CreaturePortraits/bellsprout",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 81,
+      "dexNumber": 74,
+      "nameEn": "Geodude",
+      "resource": "CreaturePortraits/geodude",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 82,
+      "dexNumber": 75,
+      "nameEn": "Graveler",
+      "resource": "CreaturePortraits/graveler",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 83,
+      "dexNumber": 76,
+      "nameEn": "Golem",
+      "resource": "CreaturePortraits/golem",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 86,
+      "dexNumber": 79,
+      "nameEn": "Slowpoke",
+      "resource": "CreaturePortraits/slowpoke",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 95,
+      "dexNumber": 87,
+      "nameEn": "Dewgong",
+      "resource": "CreaturePortraits/dewgong",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 100,
+      "dexNumber": 92,
+      "nameEn": "Gastly",
+      "resource": "CreaturePortraits/gastly",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 102,
+      "dexNumber": 94,
+      "nameEn": "Gengar",
+      "resource": "CreaturePortraits/gengar",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 107,
+      "dexNumber": 98,
+      "nameEn": "Krabby",
+      "resource": "CreaturePortraits/krabby",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 126,
+      "dexNumber": 116,
+      "nameEn": "Horsea",
+      "resource": "CreaturePortraits/horsea",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 128,
+      "dexNumber": 118,
+      "nameEn": "Goldeen",
+      "resource": "CreaturePortraits/goldeen",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 130,
+      "dexNumber": 120,
+      "nameEn": "Staryu",
+      "resource": "CreaturePortraits/staryu",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 140,
+      "dexNumber": 129,
+      "nameEn": "Magikarp",
+      "resource": "CreaturePortraits/magikarp",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    },
+    {
+      "speciesId": 145,
+      "dexNumber": 133,
+      "nameEn": "Eevee",
+      "resource": "CreaturePortraits/eevee",
+      "width": 512,
+      "height": 512,
+      "origin": "home"
+    }
+  ]
+}

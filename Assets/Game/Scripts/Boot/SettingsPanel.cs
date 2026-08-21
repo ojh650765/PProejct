@@ -85,7 +85,7 @@ namespace PokeLab.Boot
 
             var title = UiBuilder.Text("Title", card, Loc.Pick("Settings", "설정"), UiTextRole.Title,
                 UiPalette.TextPrimary, TextAlignmentOptions.Left);
-            UiBuilder.Anchor(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            UiBuilder.Anchor(title.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(40f, -30f), new Vector2(760f, 64f));
 
             var y = -110f;
@@ -102,7 +102,7 @@ namespace PokeLab.Boot
                 var none = UiBuilder.Text("NoAudio", card,
                     Loc.Pick("No audio director in this scene.", "이 씬에는 오디오 디렉터가 없어요."),
                     UiTextRole.Secondary, UiPalette.TextMuted, TextAlignmentOptions.Left);
-                UiBuilder.Anchor(none.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                UiBuilder.Anchor(none.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                     new Vector2(0f, 1f), new Vector2(40f, y), new Vector2(760f, 40f));
                 y -= 56f;
             }
@@ -114,7 +114,7 @@ namespace PokeLab.Boot
 
             _status = UiBuilder.Text("Status", card, "", UiTextRole.Caption,
                 UiPalette.TextMuted, TextAlignmentOptions.Left);
-            UiBuilder.Anchor(_status.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
+            UiBuilder.Anchor(_status.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f),
                 new Vector2(0f, 0f), new Vector2(40f, 110f), new Vector2(760f, 34f));
 
             Button(card, Loc.Pick("Reset", "기본값"), UiPalette.SurfaceRaised, UiPalette.TextPrimary,
@@ -140,16 +140,16 @@ namespace PokeLab.Boot
         {
             var caption = UiBuilder.Text("Label_" + bus, card, label, UiTextRole.Overline,
                 UiPalette.ScannerCyan, TextAlignmentOptions.Left);
-            UiBuilder.Anchor(caption.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            UiBuilder.Anchor(caption.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(40f, y), new Vector2(400f, 28f));
 
             var readout = UiBuilder.Text("Value_" + bus, card, "", UiTextRole.Body,
                 UiPalette.TextPrimary, TextAlignmentOptions.Right);
-            UiBuilder.Anchor(readout.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            UiBuilder.Anchor(readout.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(40f, y - 2f), new Vector2(760f, 34f));
 
             var track = UiBuilder.Rect("Track_" + bus, card, false);
-            UiBuilder.Anchor(track, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f),
+            UiBuilder.Anchor(track, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(40f, y - 36f), new Vector2(760f, 26f));
 
             var groove = UiBuilder.Panel("Groove", track, UiPalette.SurfaceSunken, 12);
@@ -221,12 +221,12 @@ namespace PokeLab.Boot
         {
             var caption = UiBuilder.Text("Label_" + label, card, label, UiTextRole.Overline,
                 UiPalette.ScannerCyan, TextAlignmentOptions.Left);
-            UiBuilder.Anchor(caption.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            UiBuilder.Anchor(caption.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(40f, y), new Vector2(400f, 28f));
 
             var hint = UiBuilder.Text("Hint_" + label, card, detail, UiTextRole.Caption,
                 UiPalette.TextMuted, TextAlignmentOptions.Left);
-            UiBuilder.Anchor(hint.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+            UiBuilder.Anchor(hint.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(0f, 1f), new Vector2(40f, y - 30f), new Vector2(500f, 28f));
 
             var state = value;

@@ -44,6 +44,7 @@ namespace PokeLab.UI
         [DllImport("__Internal")] private static extern int PokeLabImeRead(byte[] buffer, int size);
         [DllImport("__Internal")] private static extern int PokeLabImeCaret();
         [DllImport("__Internal")] private static extern int PokeLabImeComposing();
+        [DllImport("__Internal")] private static extern int PokeLabImeFocused();
 
         /// <summary>Bytes. A trainer name is 16 characters and an answer is a short phrase;
         /// this is four times the longest either could be in UTF-8 and is allocated once.</summary>
@@ -86,11 +87,6 @@ namespace PokeLab.UI
                 Release();
                 _field = selected;
                 if (_field == null) return;
-
-                // Unity stops seeing keys from here until the field is dropped, which is what
-                // lets the overlay have them.
-                WebGLInput.captureAllKeyboardInput = false;
-                _captureSuspended = true;
             }
 
             if (_field == null) return;
@@ -103,7 +99,25 @@ namespace PokeLab.UI
             PokeLabImeOpen((int)rect.x, (int)rect.y, (int)rect.width, (int)rect.height,
                            _field.text ?? "", _field.caretPosition);
 
-            PullFromBrowser();
+            // Hand the keyboard over ONLY once the overlay has actually taken focus, and take it
+            // straight back if it ever loses it.
+            //
+            // The first version suspended Unity's capture the moment a field was selected, on
+            // the assumption that focus would follow. When it does not -- a browser that will
+            // not focus a transparent element, a window that is not frontmost, an automation
+            // harness -- that assumption costs the player every keystroke: Unity has stopped
+            // listening and the overlay was never listening, so the field takes nothing at all.
+            // That is strictly worse than the bug this class exists to fix, which at least let
+            // Latin text through. Tying the suspension to the measured state instead means the
+            // failure mode is "Korean does not work", not "typing does not work".
+            var focused = PokeLabImeFocused() != 0;
+            if (focused != _captureSuspended)
+            {
+                WebGLInput.captureAllKeyboardInput = !focused;
+                _captureSuspended = focused;
+            }
+
+            if (focused) PullFromBrowser();
         }
 
         /// <summary>

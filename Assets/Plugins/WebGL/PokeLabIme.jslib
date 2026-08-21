@@ -95,6 +95,8 @@ var PokeLabImeLib = {
     PLIme.place(x, y, w, h);
 
     if (document.activeElement !== el) {
+      // Seeding the field is the ONE moment Unity's text wins: the player may be returning to
+      // a field that already had something in it.
       el.value = text;
       // preventScroll: focusing an element the browser thinks is off-view scrolls the page,
       // and the page here is a full-bleed game canvas that must not move.
@@ -103,12 +105,12 @@ var PokeLabImeLib = {
       return 1;
     }
 
-    // Unity is the owner of the text ONLY while nothing is being composed. Writing during a
-    // composition tears the half-built syllable out from under the IME.
-    if (!PLIme.composing && el.value !== text) {
-      el.value = text;
-      try { el.setSelectionRange(caret, caret); } catch (e) { /* ignore */ }
-    }
+    // AND NEVER AGAIN WHILE IT HAS FOCUS. This used to overwrite el.value with Unity's text on
+    // every frame the two differed, which is every frame after a keystroke -- the browser puts
+    // the new character in, and a frame later this put Unity's older text back over it before
+    // the C# side had read it. The field stayed empty no matter what was typed, which is the
+    // whole failure this plugin exists to fix. While the element has focus the DOM is the
+    // author and Unity is the reader; the only writer is the person at the keyboard.
     return 0;
   },
 

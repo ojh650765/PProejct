@@ -107,6 +107,37 @@ namespace PokeLab.Boot
         {
             EnsureSystems();
             RebindSceneObjects();
+
+            // A single-mode load has just replaced everything: the previous scene's canvases,
+            // creatures and their textures are all unreferenced now and none of them will be
+            // freed unless somebody says so. This host already owns the scene callbacks, so
+            // it is the one place the reclaim can live without every screen remembering.
+            //
+            // Additive loads are skipped deliberately -- the battle scene arrives that way,
+            // over a world that is still needed, and the pass would cost its hitch for
+            // nothing.
+            // NOT reclaiming on a scene load any more, and the measurement is why.
+            //
+            // Driving the deployed build through login and into the menu, the wasm heap went
+            // 1024 -> 1475 MB across that one transition while Unity reported "Unloading 0
+            // unused Assets" three times and the managed heap sat at 13.8 MB. The pass freed
+            // nothing and the heap grew by 450 MB. A WebAssembly heap never shrinks -- every
+            // byte it takes is permanent for the session -- so a sweep that walks seven
+            // thousand objects to build a live-object map is not free here even when it
+            // reclaims nothing: whatever it allocated to do the walk raises the floor forever.
+            //
+            // The reclaim is kept where it can actually pay for itself: immediately before a
+            // battle, where CreatureThumbnail's cache really is holding atlases open. See
+            // BattleModeLauncher.
+            if (mode == LoadSceneMode.Single)
+                MemoryRelief.Report("loaded " + scene.name);
+            else
+                // Additive loads are the ones that kill the web build -- the arena goes on top
+                // of whatever was already there -- so they are reported even though nothing is
+                // reclaimed. Every path that can reach a battle passes through here, which the
+                // instrumentation in BattleModeLauncher does not: the story's battles come in
+                // through TransitionDirector instead.
+                MemoryRelief.Report("additive load of " + scene.name);
         }
 
         private void OnSceneUnloaded(Scene scene)
@@ -115,10 +146,36 @@ namespace PokeLab.Boot
             // than waiting for the next load is what clears the VFX view bindings before
             // anything can play an effect on a destroyed creature.
             RebindSceneObjects();
+
+            // And its art goes with it. A battle is where the most texture is touched at once
+            // -- two creatures' atlases plus the arena -- and the moment it unloads is the
+            // moment the player is watching a transition, so the pass is free.
+            //
+            // The thumbnail cache is KEPT here: the menu or HUD underneath may still be
+            // drawing from it, and blanking a picture the player can see is worse than
+            // holding a few megabytes.
+            MemoryRelief.Report("unloaded " + scene.name);
         }
+
+        /// <summary>
+        /// Seconds between memory samples while <see cref="MemoryRelief.Trace"/> is on.
+        /// </summary>
+        private const float MemorySampleSeconds = 2f;
+
+        private float _nextMemorySample;
 
         private void Update()
         {
+            // A time series, because a single reading says nothing. The arena's cost is the
+            // DIFFERENCE across the load, and in the editor the absolute figure is mostly the
+            // editor itself. Off unless somebody asks for it; two Profiler calls every two
+            // seconds is cheap but not free.
+            if (MemoryRelief.Trace && Time.unscaledTime >= _nextMemorySample)
+            {
+                _nextMemorySample = Time.unscaledTime + MemorySampleSeconds;
+                MemoryRelief.Report($"t={Time.unscaledTime:F0}s");
+            }
+
             // Cheap self-healing for the two scene-owned dependencies. A destroyed
             // presenter or player is detected by Unity's fake-null while the managed
             // reference is still held, which is exactly the state that needs an unbind.

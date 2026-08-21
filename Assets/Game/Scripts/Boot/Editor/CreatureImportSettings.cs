@@ -30,6 +30,16 @@ namespace PokeLab.Boot.Editor
         private const string PortraitRoot = "Assets/Game/Art/Sprites/Resources/Portraits/";
 
         /// <summary>
+        /// The 512 px creature renders the UI draws, one still per species.
+        ///
+        /// Confusingly adjacent to <see cref="PortraitRoot"/>, which holds PEOPLE — the
+        /// gardener, the hiker, the professor. Different art, different rules, similar name;
+        /// the longer one wins because it is tested first.
+        /// </summary>
+        private const string CreaturePortraitRoot =
+            "Assets/Game/Art/Sprites/Resources/CreaturePortraits/";
+
+        /// <summary>
         /// Which hand-authored material each art family is bound to.
         ///
         /// Every one of these families was arriving on URP/Lit, because that is what the
@@ -356,6 +366,14 @@ namespace PokeLab.Boot.Editor
             // file sitting in the folder, the box fell back to the walking sprite, and a
             // hand-written .meta could not fix it because the importer rewrites the meta from
             // its own settings after every import. The rule has to change, not the file.
+            // Tested BEFORE the people-portrait root and before the sprite root, because both
+            // of those would apply the pixel-art rules to art that is not pixel art.
+            if (assetPath.StartsWith(CreaturePortraitRoot, StringComparison.Ordinal))
+            {
+                ApplyCreaturePortraitRules(importer);
+                return;
+            }
+
             if (assetPath.StartsWith(PortraitRoot, StringComparison.Ordinal))
             {
                 ApplyPixelArtRules(importer);
@@ -385,6 +403,53 @@ namespace PokeLab.Boot.Editor
                 importer.anisoLevel = 8;
                 importer.mipmapEnabled = true;
                 importer.filterMode = FilterMode.Trilinear;
+            }
+        }
+
+        /// <summary>
+        /// Import rules for the 512 px creature renders.
+        ///
+        /// The opposite of <see cref="ApplyPixelArtRules"/> at every point, and deliberately so.
+        /// Those rules exist because the battle sheets are a thirteen-colour indexed palette
+        /// with hard cutout edges, where a mip is a blur and a DXT block is a stipple. These
+        /// files are Pokémon HOME renders: smooth, shaded, thousands of colours, and drawn at
+        /// wildly different sizes — a 96 px team slot and a 420 px gacha reveal from the same
+        /// texture.
+        ///
+        /// So: <b>mipmaps on</b>, because a 512 px render sampled into a 96 px slot without them
+        /// aliases into sparkling noise on every edge; <b>trilinear</b>, so the step between mips
+        /// is not a visible seam as a card scales during a reveal; and <b>compressed</b>, which
+        /// costs nothing legible on smooth shaded art and takes the whole set from 55 MB to 14.
+        ///
+        /// Sprite rather than Default: unlike the sheets, nothing slices these — the UI loads
+        /// one whole image per species through Resources.Load and draws it.
+        /// </summary>
+        private static void ApplyCreaturePortraitRules(TextureImporter importer)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = 100f;
+            importer.sRGBTexture = true;
+            importer.alphaIsTransparency = true;
+            importer.alphaSource = TextureImporterAlphaSource.FromInput;
+
+            importer.mipmapEnabled = true;
+            importer.filterMode = FilterMode.Trilinear;
+            importer.anisoLevel = 1;
+            importer.wrapMode = TextureWrapMode.Clamp;
+
+            importer.textureCompression = TextureImporterCompression.CompressedHQ;
+            foreach (var platform in new[] { "Standalone", "WebGL", "Android", "iPhone" })
+            {
+                var settings = importer.GetPlatformTextureSettings(platform);
+                settings.overridden = true;
+                settings.textureCompression = TextureImporterCompression.CompressedHQ;
+                settings.compressionQuality = 100;
+                settings.format = platform == "Android" || platform == "iPhone"
+                    ? TextureImporterFormat.ASTC_6x6
+                    : TextureImporterFormat.DXT5;
+                settings.maxTextureSize = 512;
+                importer.SetPlatformTextureSettings(settings);
             }
         }
 
@@ -420,9 +485,23 @@ namespace PokeLab.Boot.Editor
             importer.anisoLevel = 0;
             importer.wrapMode = TextureWrapMode.Clamp;
 
-            // Uncompressed on every platform, not just the default one. A per-platform
-            // override is what was compressing these while the default said otherwise, so
-            // setting the default alone would have looked fixed and changed nothing.
+            // Uncompressed on every platform, and that is a decision this file has now made
+            // twice -- once by accident.
+            //
+            // These sheets are official Gen 5 artwork: flat fields of a thirteen-colour indexed
+            // palette with hard cutout edges. DXT bleeds colour across each 4x4 cell, so those
+            // flat fields band and the outlines stipple. The sheet manifest states the rule as
+            // policy -- "No resampling, no re-quantisation, no filtering is applied to the
+            // artwork at any point" -- and it is the reason this block exists at all.
+            //
+            // It was briefly switched to DXT5 to cut the web build's texture budget, which is
+            // real: 124 sheets at up to 4 MB is most of why the wasm heap sits over 600 MB
+            // before the player has pressed anything. But compressing 96 px art buys that
+            // memory with the one thing the player actually complains about, and the user was
+            // explicit that compression only ships alongside more pixels, never instead of
+            // them. The memory is being found elsewhere: the UI no longer draws creatures from
+            // these sheets at all (it uses the 512 px portraits under Resources/
+            // CreaturePortraits), so nothing pins a sheet open once a battle is over.
             importer.textureCompression = TextureImporterCompression.Uncompressed;
             foreach (var platform in new[] { "Standalone", "WebGL", "Android", "iPhone" })
             {

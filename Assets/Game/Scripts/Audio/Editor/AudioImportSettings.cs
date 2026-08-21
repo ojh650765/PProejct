@@ -21,7 +21,15 @@ namespace PokeLab.Audio.Editor
     ///   * Ambience is up to ten simultaneous looping layers, which is too many streams,
     ///     so it is Vorbis held compressed in memory -- one decoder per layer, no disk.
     ///   * Music is at most three simultaneous decks of long stereo material, which is
-    ///     exactly what streaming is for.
+    ///     exactly what streaming is for -- ON A DESKTOP. The build target here is WebGL,
+    ///     where Unity does not implement the Streaming load type at all: the clip ends up
+    ///     behind an HTML media element that is handed something the browser will not decode,
+    ///     and the whole player dies with "NotSupportedError: Failed to load because no
+    ///     supported source was found" at the moment the first track is asked for. That
+    ///     moment is entering story mode, because the prologue opens on the professor's
+    ///     introduction. So music is held compressed in memory instead, which WebGL does
+    ///     implement; preloadAudioData stays false, so a track still costs nothing until
+    ///     somebody asks for it.
     ///   * Nothing is resampled: the whole set is authored at 44.1 kHz and the verifier
     ///     asserts it.
     ///
@@ -62,7 +70,9 @@ namespace PokeLab.Audio.Editor
 
             if (isMusic)
             {
-                settings.loadType = AudioClipLoadType.Streaming;
+                // NOT Streaming. See the class comment: WebGL has no implementation of it and
+                // the player aborts on the first track rather than degrading.
+                settings.loadType = AudioClipLoadType.CompressedInMemory;
                 settings.compressionFormat = AudioCompressionFormat.Vorbis;
                 settings.quality = 0.7f;
                 importer.forceToMono = false;

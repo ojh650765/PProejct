@@ -64,6 +64,9 @@ namespace PokeLab.Boot
     {
         private const string BattleSceneName = "Battle";
 
+        /// <summary>Where a battle-mode fight came from, and where Finish sends the player back.</summary>
+        private const string MenuSceneName = "MainMenu";
+
         private bool _running;
         private Canvas _canvas;
         private TextMeshProUGUI _status;
@@ -168,12 +171,54 @@ namespace PokeLab.Boot
             EnsureComponent<BattleHudPresenter>();
             EnsureComponent<AvPresenterHost>();
 
-            // 4. The arena. Additive, exactly as TransitionDirector loads it, so the title
-            //    screen stays underneath and there is somewhere to come back to.
+            // 4. The arena. SINGLE, which is the opposite of what this used to do and the
+            //    reason the web build could not enter a battle.
+            //
+            //    It was additive, "exactly as TransitionDirector loads it, so the title screen
+            //    stays underneath and there is somewhere to come back to". That reasoning is
+            //    right for a story battle -- the town has to be there afterwards, with the
+            //    player standing where they left. It is wrong here. The title screen is not a
+            //    place; it is a menu, and coming back to it means building it again, which is
+            //    all it ever does. Keeping it underneath bought nothing and cost everything it
+            //    had loaded: every canvas, the roster, the six team portraits, and whatever the
+            //    gacha reveal touched on the way in.
+            //
+            //    On a desktop that is untidy. On the web it is fatal, because Unity keeps the
+            //    whole data file resident and the heap can only grow by allocating a bigger
+            //    contiguous block and copying -- a move that fails once the block is large
+            //    enough, and that failure is abort("OOM"). The arena itself only wants 14 MB of
+            //    textures; it was dying on top of everything it did not need.
+            //
+            //    Safe because this session is DontDestroyOnLoad and its status canvas is
+            //    parented to it, so both survive the load. Finish() puts the menu back.
             Say(Loc.Pick("Loading the arena…", "경기장을 불러오는 중…"));
+
+            // The web build aborts with OOM somewhere in here and the browser's stack says
+            // nothing about which allocation did it. These three lines bracket the load, so the
+            // console shows what the engine was holding just before it died -- and whether the
+            // arena is one fat allocation or a slow climb.
+            MemoryRelief.Report("before arena load");
+
+            // Give back what the menu is holding, immediately before the peak.
+            //
+            // The arena is loaded additively so the title screen survives underneath and there
+            // is somewhere to come back to -- but "survives" is not "is being looked at". The
+            // menu behind a battle is covered completely, and everything it had loaded to draw
+            // itself is dead weight for the length of the fight: six team portraits, whatever
+            // the gacha reveal touched on the way here, every creature the roster screen showed.
+            // On the web that weight is the difference between the arena fitting and the heap
+            // asking to grow, and a grow that fails is the abort("OOM") this whole path keeps
+            // dying on.
+            //
+            // dropCreatureArt is safe here for the same reason: the pictures it blanks are
+            // behind the arena, and the menu rebuilds them from its own Refresh when the battle
+            // hands control back.
+            MemoryRelief.Reclaim("entering a battle", dropCreatureArt: true);
+            MemoryRelief.Report("after pre-battle reclaim");
+
             if (!SceneManager.GetSceneByName(BattleSceneName).isLoaded)
             {
-                var load = SceneManager.LoadSceneAsync(BattleSceneName, LoadSceneMode.Additive);
+                var load = SceneManager.LoadSceneAsync(BattleSceneName, LoadSceneMode.Single);
                 if (load == null)
                 {
                     Say(Loc.Pick("The battle scene is not in the build settings.",
@@ -182,14 +227,29 @@ namespace PokeLab.Boot
                     Finish();
                     yield break;
                 }
-                while (!load.isDone) yield return null;
+                // Reported as it goes, because a load that dies at 60% and one that dies on the
+                // last activation frame are different problems.
+                var nextMark = 0.25f;
+                while (!load.isDone)
+                {
+                    if (load.progress >= nextMark)
+                    {
+                        MemoryRelief.Report($"arena load {load.progress:P0}");
+                        nextMark += 0.25f;
+                    }
+                    yield return null;
+                }
             }
+
+            MemoryRelief.Report("after arena load");
 
             // A frame for the arena's own Awake/Start to run and for BattlePresenter to claim
             // the stage. Beginning in the same frame is the race that makes a battle resolve
             // itself in one synchronous loop with nothing drawn.
             yield return null;
             yield return null;
+
+            MemoryRelief.Report("arena awake done");
 
             if (!ServiceHub.TryGet<IBattleStage>(out var stage))
             {
@@ -424,8 +484,11 @@ namespace PokeLab.Boot
             _previousProfile = null;
             _previousTrainers = null;
 
+            // The arena replaced the menu rather than covering it, so leaving is a load and
+            // not an unload. Loading the menu also drops the arena -- and a single-mode load is
+            // what AvPresenterHost reclaims on, so the battle's textures actually go back.
             if (SceneManager.GetSceneByName(BattleSceneName).isLoaded)
-                SceneManager.UnloadSceneAsync(BattleSceneName);
+                SceneManager.LoadScene(MenuSceneName, LoadSceneMode.Single);
 
             if (_canvas != null) Destroy(_canvas.gameObject);
             _canvas = null;

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using PokeLab.Cinematics;
 using UnityEngine;
@@ -41,6 +42,65 @@ namespace PokeLab.Boot
         private static readonly Dictionary<int, Sprite> Cache = new Dictionary<int, Sprite>(64);
 
         /// <summary>
+        /// The species whose cached Sprite this class MADE, rather than loaded.
+        ///
+        /// The two kinds have opposite disposal rules and mixing them up is a real bug in each
+        /// direction. A sliced-atlas thumbnail comes from Sprite.Create and belongs to nobody,
+        /// so dropping the handle leaks it and it has to be Destroyed. A portrait is a Resources
+        /// asset that the engine owns; Destroying one removes it from the whole session, and the
+        /// next screen that asks for it gets null.
+        /// </summary>
+        private static readonly HashSet<int> Owned = new HashSet<int>();
+
+        /// <summary>Species id to Resources path, from portrait_manifest.json. Null until read.</summary>
+        private static Dictionary<int, string> s_portraits;
+
+        [Serializable]
+        private sealed class PortraitEntry
+        {
+            public int speciesId;
+            public string resource;
+        }
+
+        [Serializable]
+        private sealed class PortraitManifest
+        {
+            public PortraitEntry[] portraits;
+        }
+
+        /// <summary>
+        /// Reads the portrait index once.
+        ///
+        /// An empty table is a valid outcome and not an error worth shouting about: a build
+        /// without the portraits still runs, it just draws creatures from the battle sheets the
+        /// way it always did.
+        /// </summary>
+        private static Dictionary<int, string> Portraits()
+        {
+            if (s_portraits != null) return s_portraits;
+            s_portraits = new Dictionary<int, string>(64);
+
+            var asset = Resources.Load<TextAsset>("portrait_manifest");
+            if (asset == null) return s_portraits;
+
+            PortraitManifest manifest = null;
+            try { manifest = JsonUtility.FromJson<PortraitManifest>(asset.text); }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[Art] portrait_manifest.json did not parse: " + ex.Message +
+                                 ". UI creatures will come from the battle sheets instead.");
+            }
+
+            if (manifest?.portraits == null) return s_portraits;
+
+            foreach (var entry in manifest.portraits)
+                if (entry != null && entry.speciesId > 0 && !string.IsNullOrEmpty(entry.resource))
+                    s_portraits[entry.speciesId] = entry.resource;
+
+            return s_portraits;
+        }
+
+        /// <summary>
         /// The front view of a species, or null when the manifest has no usable entry.
         ///
         /// Null is a legitimate answer and callers must draw around it — a name with no picture
@@ -64,8 +124,60 @@ namespace PokeLab.Boot
             return sprite;
         }
 
+        /// <summary>
+        /// Forgets every thumbnail, and destroys the Sprite objects that held them.
+        ///
+        /// <b>This is the half that actually frees memory.</b> Each entry is a Sprite made with
+        /// Sprite.Create over a shared atlas texture, so while the entry lives the atlas is
+        /// referenced — and <c>Resources.UnloadUnusedAssets</c> frees nothing that is
+        /// referenced. Clearing the dictionary alone is not enough either: Sprite.Create mints a
+        /// new UnityEngine.Object that belongs to nobody, and dropping the last managed handle to
+        /// it leaks it rather than collecting it. Both have to go, in that order.
+        ///
+        /// Only safe when nothing on screen is drawing one. <see cref="MemoryRelief"/> calls this
+        /// on a single-mode scene load, where every canvas is being torn down anyway; calling it
+        /// under a live menu would blank the pictures on it. Rebuilding is cheap — one
+        /// Sprite.Create against a texture that is usually still resident.
+        /// </summary>
+        public static void Clear()
+        {
+            foreach (var pair in Cache)
+            {
+                // Only what this class minted. A portrait is the engine's; destroying one would
+                // take it out of the session for everybody.
+                if (pair.Value != null && Owned.Contains(pair.Key))
+                    UnityEngine.Object.Destroy(pair.Value);
+            }
+
+            Cache.Clear();
+            Owned.Clear();
+        }
+
         private static Sprite Build(int speciesId)
         {
+            // The 512 px render first, and this is the whole reason this class changed.
+            //
+            // A battle sheet's cell is 96x96, and 96 px is every pixel the player has ever been
+            // given -- which is fine on a billboard across an arena and falls apart on a gacha
+            // card four hundred pixels tall. The user put it plainly: 확대했을 때 화질 나쁜게
+            // 너무 티나. These portraits are the same creatures at 512, so the UI is drawing
+            // roughly twenty-eight times the pixels it had.
+            //
+            // It is also most of a memory fix. Slicing a sheet meant every species the UI had
+            // ever shown held its multi-megabyte atlas open forever, through a Sprite this class
+            // cached and never released -- five gacha pulls in a row is thirty atlases that
+            // nothing can free, and that is what the OOM reports were. A portrait is a single
+            // 512 texture the UI can be the only owner of.
+            if (Portraits().TryGetValue(speciesId, out var resource))
+            {
+                var portrait = Resources.Load<Sprite>(resource);
+                if (portrait != null) return portrait;
+
+                Debug.LogWarning($"[Art] portrait_manifest.json points species {speciesId} at " +
+                                 $"'{resource}', which Resources.Load could not find. Falling " +
+                                 "back to the battle sheet.");
+            }
+
             var library = CreatureSpriteLibrary.Shared;
             var entry = library?.Entry(speciesId);
             if (entry == null) return null;
@@ -93,6 +205,7 @@ namespace PokeLab.Boot
 
             var sprite = Sprite.Create(texture, rect, new Vector2(0.5f, 0.5f), cellHeight);
             sprite.name = "~Thumb_" + speciesId;
+            Owned.Add(speciesId);
             return sprite;
         }
     }
