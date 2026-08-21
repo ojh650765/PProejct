@@ -200,6 +200,47 @@ def _report_findings(findings):
 # The gate itself
 # ---------------------------------------------------------------------------
 
+def _wait_until_written(build_dir, quiet_seconds=20, budget=900):
+    """Blocks until the player's files have stopped changing size.
+
+    Unity's build menu item returns -- and the request runner writes its "ok" -- before the
+    player is finished being written to disk. Deploying in that window publishes a truncated
+    WebGL.data.unityweb, and the gate then fails at step 3 with a 404 on a file that is right
+    there, which reads as a mystery rather than a race. It has cost three runs.
+
+    So the shape of the build is what is waited on, not a fixed sleep: every file under Build/
+    has to hold the same size for a stretch, and the four the loader needs have to exist.
+    """
+    build = os.path.join(build_dir, "Build")
+    if not os.path.isdir(build):
+        return
+
+    needed = ("WebGL.loader.js", "WebGL.data.unityweb",
+              "WebGL.framework.js.unityweb", "WebGL.wasm.unityweb")
+
+    previous, steady_since = None, None
+    deadline = time.time() + budget
+    while time.time() < deadline:
+        try:
+            sizes = {n: os.path.getsize(os.path.join(build, n))
+                     for n in os.listdir(build)}
+        except OSError:
+            sizes = {}
+
+        complete = all(sizes.get(n, 0) > 0 for n in needed)
+        if complete and sizes == previous:
+            if steady_since is None:
+                steady_since = time.time()
+            elif time.time() - steady_since >= quiet_seconds:
+                return
+        else:
+            steady_since = None
+        previous = sizes
+        time.sleep(4)
+
+    print("      (still being written after %ds; deploying anyway)" % budget)
+
+
 def step_preflight(build_dir, force):
     """Step 1. Returns 'deploy', 'nothing', or raises GateFailure."""
     if not os.path.isdir(build_dir):
@@ -220,6 +261,8 @@ def step_preflight(build_dir, force):
     branch = r.stdout.strip()
     if branch != "gh-pages":
         raise GateFailure("Build/WebGL is on branch '%s', expected 'gh-pages'." % branch)
+    _wait_until_written(build_dir)
+
     r = _git(build_dir, "status", "--porcelain")
     if r.stdout.strip():
         changed = len(r.stdout.strip().splitlines())
