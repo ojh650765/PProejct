@@ -117,6 +117,7 @@ namespace PokeLab.Boot.Editor
             }
 
             ConfigureForPages();
+            if (!FontCoverageIsCurrent()) return;
 
             var folder = Path.Combine(Directory.GetCurrentDirectory(), PagesRoot);
             ClearPreviousWebPlayer(folder);
@@ -171,6 +172,34 @@ namespace PokeLab.Boot.Editor
         /// put the whole player behind LFS pointers, and Pages serves the pointer text rather
         /// than the file it points at.
         /// </summary>
+        /// <summary>
+        /// Refuses to build when the game can display a character no font atlas carries.
+        ///
+        /// The atlases are Static — that is the fix for a gigabyte of FreeType rasterisation —
+        /// and Static means an unbaked glyph draws as an empty box rather than falling back to
+        /// anything. A build is therefore only as correct as the last bake, and the failure is
+        /// silent: 648 Korean move names went into moves.json after a bake and 88 syllables
+        /// reached players as tofu, because nothing rescanned and nothing complained. This is
+        /// what complains.
+        /// </summary>
+        private static bool FontCoverageIsCurrent()
+        {
+            bool ok;
+            var report = PokeLab.UI.Editor.StaticFontAtlasBaker.VerifyCoverage(out ok);
+            if (ok)
+            {
+                Debug.Log(report);
+                return true;
+            }
+
+            Debug.LogError(report +
+                           "[Build] Stopped: the font atlases are older than the text this build " +
+                           "would show, and a Static atlas renders a glyph it does not carry as " +
+                           "an empty box. Run Tools/Poké Lab/Rebuild/Bake Static Font Atlases " +
+                           "and build again.");
+            return false;
+        }
+
         private static void ConfigureForPages()
         {
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;

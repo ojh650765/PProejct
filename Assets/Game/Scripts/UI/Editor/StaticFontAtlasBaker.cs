@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using TMPro;
@@ -31,23 +32,26 @@ namespace PokeLab.UI.Editor
     /// FreeType on first draw. Switching the whole Canvas off was the only prevention that
     /// worked, which is exactly the signature of a cost owned by the font rather than the label.
     ///
-    /// <b>What this does.</b> Adds the character set the game actually uses — measured from its
-    /// own JSON and source, 926 glyphs of which 798 are Hangul — to each font asset, then marks
-    /// the asset Static so the player treats the baked atlas as final. One 2048x2048 Alpha8
-    /// atlas holds all of it at the current 48pt sampling size: four megabytes in place of a
+    /// <b>What this does.</b> Scans the game for every character it can display, adds that set to
+    /// each font asset, then marks the asset Static so the player treats the baked atlas as
+    /// final. One 2048x2048 atlas holds the current set at 48pt: a few megabytes in place of a
     /// gigabyte.
     ///
-    /// <b>The bound this introduces, stated plainly.</b> Static means a glyph that was not baked
-    /// does not render. The game's own text is fully covered by construction. Player-typed text
-    /// — the trainer name — is not, and needs a deliberate policy: either a wider baked set or a
-    /// small dynamic fallback whose cost is proportional to the handful of glyphs a name
-    /// contains. That decision is not this tool's to make, and it is why the report below prints
-    /// what was covered rather than claiming the job is finished.
+    /// <b>Why the scan lives here and not in a file.</b> It used to read a character list written
+    /// out beforehand, and that is precisely how the atlas went stale: 648 Korean move names were
+    /// added to moves.json AFTER a bake, nothing rescanned, and 88 syllables — 뚫, 뿜 and 휘 among
+    /// them — reached the skill menu as empty boxes. Static means an unbaked glyph does not
+    /// render at all, so the character set has to be derived from the data at bake time and
+    /// re-checked at build time. <see cref="VerifyCoverage"/> is that check, and the deploy path
+    /// calls it, so data added after a bake fails the build instead of shipping as tofu.
+    ///
+    /// <b>The bound this introduces, stated plainly.</b> The game's own text is covered by
+    /// construction. Player-typed text — the trainer name — is not, and needs a deliberate
+    /// policy: either a wider baked set or a small dynamic fallback whose cost is proportional to
+    /// the handful of glyphs a name contains. That decision is not this tool's to make.
     /// </summary>
     public static class StaticFontAtlasBaker
     {
-        private const string CharsetPath = "Temp/pokelab_charset.txt";
-
         private static readonly string[] FontAssets =
         {
             "Assets/Game/Art/Fonts/Resources/Fonts/Pretendard SDF.asset",
@@ -56,30 +60,44 @@ namespace PokeLab.UI.Editor
             "Assets/Game/Art/Fonts/Resources/Fonts/NanumGothic SDF.asset",
         };
 
-        /// <summary>One atlas, big enough for the whole set at 48pt with 5px padding.</summary>
-        private const int AtlasDimension = 2048;
+        /// <summary>
+        /// Where displayable text comes from, and nowhere else.
+        ///
+        /// The server's sources are in this list because its replies are shown verbatim — a
+        /// rejected login prints the Worker's own Korean message. <c>.asset</c> is deliberately
+        /// NOT in it: the NavMesh blobs under Assets/Game/Data/Navigation hold binary that
+        /// decodes as Hangul (좂 쳫 츹 쿅 쿙 쿮) and would fill the atlas with glyphs nothing will
+        /// ever display. Scenes and prefabs are absent for the opposite reason — they were
+        /// checked and author no Korean at all.
+        /// </summary>
+        private static readonly string[][] Sources =
+        {
+            new[] { "Assets/Game/Data", "*.json" },
+            new[] { "Assets/StreamingAssets", "*.json" },
+            new[] { "Assets/Game/Scripts", "*.cs" },
+            new[] { "Server/pokelab-online/src", "*.ts" },
+        };
 
         [MenuItem("Tools/Poké Lab/Rebuild/Bake Static Font Atlases", priority = 15)]
         public static void Bake()
         {
-            var charsetFile = Path.Combine(Directory.GetCurrentDirectory(), CharsetPath);
-            if (!File.Exists(charsetFile))
-            {
-                Debug.LogError($"[FontBake] {CharsetPath} is missing. It is written by the " +
-                               "charset scan; without it this tool would have to guess which " +
-                               "glyphs the game needs, and a guess here is a missing glyph.");
-                return;
-            }
-
-            var charset = File.ReadAllText(charsetFile, Encoding.UTF8).Trim();
+            int scanned;
+            var charset = ScanCharset(out scanned);
             if (charset.Length == 0)
             {
-                Debug.LogError("[FontBake] The charset file is empty; nothing would be baked.");
+                Debug.LogError("[FontBake] The scan found no characters. Nothing would be baked, " +
+                               "and baking nothing over a working atlas would blank the game.");
                 return;
             }
 
+            // 2048 holds roughly 1,225 glyphs at 48pt with padding. Stepping up is cheap next to
+            // what this replaces — 16 MB against a gigabyte — and far cheaper than a glyph that
+            // does not render, so headroom wins over tightness.
+            var dimension = charset.Length <= 1100 ? 2048 : 4096;
+
             var report = new StringBuilder();
-            report.Append("[FontBake] ").Append(charset.Length).Append(" glyphs requested\n");
+            report.Append("[FontBake] ").Append(charset.Length).Append(" glyphs from ")
+                  .Append(scanned).Append(" files -> ").Append(dimension).Append(" atlas\n");
 
             foreach (var path in FontAssets)
             {
@@ -93,8 +111,8 @@ namespace PokeLab.UI.Editor
                 // atlasWidth, atlasHeight and clearDynamicDataOnBuild are read-only or private
                 // on TMP_FontAsset, so the serialised fields are the only way in.
                 var so = new SerializedObject(font);
-                so.FindProperty("m_AtlasWidth").intValue = AtlasDimension;
-                so.FindProperty("m_AtlasHeight").intValue = AtlasDimension;
+                so.FindProperty("m_AtlasWidth").intValue = dimension;
+                so.FindProperty("m_AtlasHeight").intValue = dimension;
                 // One atlas, deliberately. Multi-atlas is what lets a dynamic font grow without
                 // limit at runtime, and an asset that can still grow is one that can still
                 // rasterise.
@@ -106,7 +124,8 @@ namespace PokeLab.UI.Editor
                 so.ApplyModifiedPropertiesWithoutUndo();
 
                 font.ClearFontAssetData(setAtlasSizeToZero: true);
-                var added = font.TryAddCharacters(charset, out var missing);
+                string missing;
+                var added = font.TryAddCharacters(charset, out missing);
 
                 // Static from here on: the player treats the baked atlas as the whole truth and
                 // never opens the source face.
@@ -132,6 +151,131 @@ namespace PokeLab.UI.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log(report.ToString());
+        }
+
+        [MenuItem("Tools/Poké Lab/Rebuild/Verify Font Coverage", priority = 16)]
+        public static void VerifyCoverageMenu()
+        {
+            bool ok;
+            var report = VerifyCoverage(out ok);
+            if (ok) Debug.Log(report);
+            else Debug.LogError(report + "  Run Tools/Poké Lab/Rebuild/Bake Static Font Atlases.");
+        }
+
+        /// <summary>
+        /// Reports characters the game can display that no baked atlas carries — the exact
+        /// failure that put 뚫 and 뿜 on screen as empty boxes. <paramref name="ok"/> comes back
+        /// false only for a glyph the source face CAN draw but the atlas lacks, because that is
+        /// the one a rebake would fix; a character absent from the face itself is a font choice,
+        /// not a stale bake, and failing a build over it would be crying wolf.
+        /// </summary>
+        public static string VerifyCoverage(out bool ok)
+        {
+            int scanned;
+            var charset = ScanCharset(out scanned);
+            var report = new StringBuilder();
+            report.Append("[FontCoverage] ").Append(charset.Length)
+                  .Append(" glyphs from ").Append(scanned).Append(" files\n");
+
+            ok = true;
+            foreach (var path in FontAssets)
+            {
+                var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(path);
+                if (font == null) continue;
+
+                var absent = new StringBuilder();
+                foreach (var ch in charset)
+                    if (!font.HasCharacter(ch)) absent.Append(ch);
+
+                var name = Path.GetFileNameWithoutExtension(path);
+                if (absent.Length == 0)
+                {
+                    report.Append("  ok       ").Append(name).Append('\n');
+                    continue;
+                }
+
+                var stale = new StringBuilder();
+                foreach (var ch in absent.ToString())
+                    if (FaceHasGlyph(font, ch)) stale.Append(ch);
+
+                if (stale.Length > 0)
+                {
+                    ok = false;
+                    report.Append("  STALE    ").Append(name).Append("  ").Append(stale.Length)
+                          .Append(" glyph(s) the face has but the atlas does not: ")
+                          .Append(stale.ToString().Substring(0, Mathf.Min(40, stale.Length)))
+                          .Append('\n');
+                }
+                else
+                {
+                    report.Append("  ok       ").Append(name).Append("  (")
+                          .Append(absent.Length).Append(" absent from the face itself: ")
+                          .Append(absent.ToString().Substring(0, Mathf.Min(12, absent.Length)))
+                          .Append(")\n");
+                }
+            }
+
+            return report.ToString();
+        }
+
+        /// <summary>
+        /// Whether the source face can draw a character, independent of what is baked. Answered
+        /// by briefly opening the face — a Static asset never touches it at runtime, so this is
+        /// an editor-only question that costs the player nothing.
+        /// </summary>
+        private static bool FaceHasGlyph(TMP_FontAsset font, char ch)
+        {
+            var face = font.sourceFontFile;
+            if (face == null) return false;
+            if (FontEngine.LoadFontFace(face, 48) != FontEngineError.Success) return false;
+
+            uint index;
+            var has = FontEngine.TryGetGlyphIndex(ch, out index) && index != 0;
+            FontEngine.UnloadFontFace();
+            return has;
+        }
+
+        /// <summary>
+        /// Every character the game can put on screen, gathered from the data and code that
+        /// produce its text. Sorted, so the same inputs always give the same atlas and a rebake
+        /// that changed nothing stays out of the diff.
+        /// </summary>
+        private static string ScanCharset(out int filesScanned)
+        {
+            var ascii = new SortedSet<char>();
+            var hangul = new SortedSet<char>();
+            var other = new SortedSet<char>();
+
+            filesScanned = 0;
+            var root = Directory.GetCurrentDirectory();
+
+            foreach (var source in Sources)
+            {
+                var full = Path.Combine(root, source[0]);
+                if (!Directory.Exists(full)) continue;
+
+                foreach (var file in Directory.GetFiles(full, source[1], SearchOption.AllDirectories))
+                {
+                    string text;
+                    try { text = File.ReadAllText(file, Encoding.UTF8); }
+                    catch (IOException) { continue; }
+
+                    filesScanned++;
+                    foreach (var ch in text)
+                    {
+                        if (ch >= 32 && ch < 127) ascii.Add(ch);
+                        else if (ch >= 0xAC00 && ch <= 0xD7A3) hangul.Add(ch);
+                        else if (ch > 127 && !char.IsControl(ch) && !char.IsWhiteSpace(ch)
+                                 && !char.IsSurrogate(ch)) other.Add(ch);
+                    }
+                }
+            }
+
+            var sb = new StringBuilder();
+            foreach (var ch in ascii) sb.Append(ch);
+            foreach (var ch in hangul) sb.Append(ch);
+            foreach (var ch in other) sb.Append(ch);
+            return sb.ToString();
         }
     }
 }

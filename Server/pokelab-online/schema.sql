@@ -23,7 +23,13 @@ CREATE TABLE IF NOT EXISTS accounts (
   answer_hash    TEXT NOT NULL,
   answer_salt    TEXT NOT NULL,
   created_at     INTEGER NOT NULL,
-  last_seen_at   INTEGER NOT NULL
+  last_seen_at   INTEGER NOT NULL,
+  -- How many gacha rolls this account has spent.
+  --
+  -- Server-side because the client cannot remember it across a reconnect, and did not: the
+  -- panel counted its own list of draws, so signing back in restored the full five and the
+  -- limit meant nothing. A cap the player can reset by refreshing is not a cap.
+  rolls_used     INTEGER NOT NULL DEFAULT 0
 );
 
 -- A device's claim to be an account. Deleted on sign-out, expired by TOKEN_TTL_SECONDS.

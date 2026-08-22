@@ -243,8 +243,16 @@ namespace PokeLab.Boot
             }
 
             var hasTeam = _draws.Count > 0 || (session != null && session.HasTeam);
-            var spent = _draws.Count;
-            var left = Mathf.Max(0, MaxDraws - spent);
+
+            // The SERVER's count, not this panel's list.
+            //
+            // _draws only holds what was rolled since this screen opened, so a player who spent
+            // five, closed the tab and came back was offered five more -- the limit lasted as
+            // long as the page did. The session carries the account's real spend now; the local
+            // list stays only as the fallback for a session that has not answered yet.
+            var counted = session != null && session.ServerCountsRolls;
+            var spent = counted ? session.RollsUsed : _draws.Count;
+            var left = counted ? session.RollsLeft : Mathf.Max(0, MaxDraws - spent);
 
             _rollLabel.text = left <= 0
                 ? Loc.Pick("No draws left", "뽑기 기회를 다 썼어요")
@@ -486,7 +494,13 @@ namespace PokeLab.Boot
 
         private void RefreshGroupsButton()
         {
-            if (_drawsLabel != null) _drawsLabel.text = _draws.Count + "/" + MaxDraws;
+            if (_drawsLabel != null)
+            {
+                var session = OnlineSession.Instance;
+                _drawsLabel.text = session != null && session.ServerCountsRolls
+                    ? session.RollsUsed + "/" + session.RollsMax
+                    : _draws.Count + "/" + MaxDraws;
+            }
             // Nothing drawn, nothing to compare: the button would be a door onto an empty room.
             if (_groupsButton != null) _groupsButton.gameObject.SetActive(_draws.Count > 0);
         }

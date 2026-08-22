@@ -94,7 +94,30 @@ var PokeLabImeLib = {
 
     PLIme.place(x, y, w, h);
 
-    if (document.activeElement !== el) {
+    var active = document.activeElement;
+
+    // NEVER take focus off another text field.
+    //
+    // Unity's own on-screen keyboard is a real <input> in a fixed bar at the bottom of the
+    // page, and it carries a blur handler that calls _JS_MobileKeyboard_Hide(true). Focusing
+    // this overlay while that field has focus therefore does not merely move the caret -- it
+    // dismisses the keyboard 200 ms later. Since this runs from LateUpdate, once per frame,
+    // the keyboard was torn down the frame after it opened: 키보드가 나오다가 다시 들어가서
+    // 입력을 못함.
+    //
+    // The C# side already declines to run this bridge at all on a client where TMP hands the
+    // field to Unity's keyboard, so in principle the two are never on the page together. This
+    // is here because that decision rests on TouchScreenKeyboard.isInPlaceEditingAllowed
+    // reporting honestly on a real phone, which could not be verified from a desktop -- and
+    // the cost of being wrong is that typing is impossible, while the cost of this guard is
+    // nothing. On a client with no competing field, activeElement is the canvas or the body
+    // and this changes no behaviour at all.
+    if (active && active !== el &&
+        (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+      return 0;
+    }
+
+    if (active !== el) {
       // Seeding the field is the ONE moment Unity's text wins: the player may be returning to
       // a field that already had something in it.
       el.value = text;

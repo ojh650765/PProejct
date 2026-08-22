@@ -17,7 +17,7 @@ MonoBehaviour:
     Clip: {fileID: 8300000, guid: 48444e7c13f457c4aad123d7fa57914f, type: 3}
     Bus: 3
     Loop: 1
-    Gain: 1
+    Gain: 0.2
   - Name: Amb_CaveDrips
     Clip: {fileID: 8300000, guid: 9ce955d6eaec2e947869f43c636a01cf, type: 3}
     Bus: 3

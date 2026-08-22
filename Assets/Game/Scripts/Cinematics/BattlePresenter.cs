@@ -407,6 +407,21 @@ namespace PokeLab.Cinematics
         /// </summary>
         private static bool ObserveOnArrival(BattleEvent evt) => evt is BattleStartedEvent;
 
+        /// <summary>
+        /// Events whose announcement must wait for the beat to REACH its result, rather than
+        /// going out as the beat opens.
+        ///
+        /// Opening-frame announcement is right for almost everything — a result card wants to
+        /// be up for the celebration it belongs to. It is wrong for a beat that is itself the
+        /// suspense. A capture carries <c>Succeeded</c> in the event, and the HUD writes
+        /// "포켓몬을 잡았다!" the moment it sees it, so the log answered the question several
+        /// seconds before the ball stopped shaking. The player was told the outcome and then
+        /// shown the wait for it.
+        ///
+        /// <see cref="PlayCapture"/> announces these itself, at the frame the ball settles.
+        /// </summary>
+        private static bool AnnounceAtResult(BattleEvent evt) => evt is CaptureAttemptEvent;
+
         /// <summary>Queues an entire turn's worth of events at once.</summary>
         public void OnBattleEvents(IReadOnlyList<BattleEvent> events)
         {
@@ -480,7 +495,7 @@ namespace PokeLab.Cinematics
                 // Both taps go through the early-raise sets: an event the attacking beat
                 // already announced at its frame of contact must not be announced a second
                 // time here, or the HUD would drain the same hit twice.
-                RaiseObserved(evt);
+                if (!AnnounceAtResult(evt)) RaiseObserved(evt);
                 RaisePerformed(evt);
 
                 float startedAt = Time.unscaledTime;
@@ -1489,6 +1504,10 @@ namespace PokeLab.Cinematics
                 yield return ball.Shake(tension);
                 CinematicHooks.HudBeat("capture_shake", i + 1);
             }
+
+            // The shakes are over; the answer is about to be visible either way. This is the
+            // frame the HUD may have it -- see AnnounceAtResult.
+            RaiseObserved(e);
 
             if (e.Succeeded)
             {

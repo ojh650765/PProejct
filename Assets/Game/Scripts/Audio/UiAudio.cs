@@ -52,6 +52,38 @@ namespace PokeLab.Audio
             ServiceHub.Register<IUiSoundBank>(this);
         }
 
+        private void Start() => WarmClips();
+
+        /// <summary>
+        /// Kicks the load of the six UI clips so the first press of each is audible.
+        ///
+        /// <c>AudioDirector.ClipReady</c> starts a load on a clip it finds unloaded and returns
+        /// false for that attempt — deliberately, so a menu blip never blocks a frame — which
+        /// means the FIRST use of every UI sound is silently dropped and only the second is
+        /// heard. Nothing preloads audio in this project (preloadAudioData is off on all 153
+        /// clips, for reasons the importer explains), so that first drop is permanent per clip
+        /// per session, and pressing six different buttons once each is six silences.
+        ///
+        /// Six short clips, kicked once at boot: the same thing MusicDirector already does for
+        /// the opening cue, for the same reason.
+        /// </summary>
+        private void WarmClips()
+        {
+            if (!Ready() || _audio.Catalog == null) return;
+
+            foreach (var id in new[]
+            {
+                AudioIds.UiNavigate, AudioIds.UiConfirm, AudioIds.UiCancel,
+                AudioIds.UiError, AudioIds.UiMenuOpen, AudioIds.UiMenuClose,
+                AudioIds.UiTypewriter,
+            })
+            {
+                var clip = _audio.Catalog.GetClip(id);
+                if (clip != null && clip.loadState == AudioDataLoadState.Unloaded)
+                    clip.LoadAudioData();
+            }
+        }
+
         private void OnDestroy()
         {
             if (_instance != this) return;

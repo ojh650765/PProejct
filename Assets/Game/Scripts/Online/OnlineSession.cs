@@ -58,6 +58,31 @@ namespace PokeLab.Online
         public bool HasTeam => Roster != null && Roster.Length > 0;
 
         /// <summary>
+        /// Rolls spent and the cap, as the SERVER counts them.
+        ///
+        /// The gacha panel used to count its own list of draws, which is a number that cannot
+        /// survive a reconnect — signing back in offered a full five to an account that had
+        /// spent them. These come back on every sign-in and after every roll, so the limit is
+        /// the account's rather than the page's.
+        /// </summary>
+        public int RollsUsed { get; private set; }
+        public int RollsMax { get; private set; } = 5;
+
+        /// <summary>
+        /// True once a server has actually reported a roll count.
+        ///
+        /// Without this the client is UNSAFE against a Worker that predates the field: the
+        /// response deserialises with rollsMax 0 and rollsUsed 0, the panel reads "none spent"
+        /// forever, and the five-roll limit becomes no limit at all — a worse bug than the one
+        /// being fixed. Until a server says otherwise the panel keeps counting its own draws,
+        /// which is wrong across a reconnect but right within a session.
+        /// </summary>
+        public bool ServerCountsRolls { get; private set; }
+
+        /// <summary>Rolls the account may still spend. Never negative.</summary>
+        public int RollsLeft => Mathf.Max(0, RollsMax - RollsUsed);
+
+        /// <summary>
         /// Stands the session up if nothing has yet, and returns it.
         ///
         /// Called by whichever screen needs it first rather than placed in a scene, because the
@@ -198,6 +223,12 @@ namespace PokeLab.Online
             _token = response.token ?? "";
             TrainerName = response.trainerName ?? name;
             AccountId = response.accountId ?? "";
+            if (response.rollsMax > 0)
+            {
+                ServerCountsRolls = true;
+                RollsMax = response.rollsMax;
+                RollsUsed = response.rollsUsed;
+            }
             Persist();
 
             // The roster is fetched rather than assumed empty: a returning player signing in on
@@ -286,6 +317,12 @@ namespace PokeLab.Online
             }
 
             Roster = response.roster ?? Roster;
+            if (response.rollsMax > 0)
+            {
+                ServerCountsRolls = true;
+                RollsMax = response.rollsMax;
+                RollsUsed = response.rollsUsed;
+            }
             Changed?.Invoke();
             done?.Invoke(response);
         }

@@ -25,6 +25,15 @@ import { BY_RARITY, POOL, PoolEntry, RARITY_ORDER, Rarity, TIER_WEIGHT, rarityRa
 
 const TEAM_SIZE = 6;
 
+/**
+ * How many times an account may roll, ever.
+ *
+ * Authoritative here and nowhere else. The client used to own this by counting its own list of
+ * draws, which meant the limit lasted exactly as long as the page did -- sign back in and all
+ * five were available again. A cap the player can reset by refreshing is not a cap.
+ */
+export const MAX_ROLLS = 5;
+
 /** Level every drawn creature starts at, and the experience floor that matches it. */
 const START_LEVEL = 5;
 
@@ -107,6 +116,16 @@ export async function handleRoll(request: Request, env: Env): Promise<Response> 
 
   if (existing.length >= TEAM_SIZE && !reroll) return fail("already_rolled");
 
+  // Read the spend before drawing, and refuse at the cap. Checked against the row rather than
+  // against anything the client sent, because the client is where the old bug lived.
+  const spentRow = await env.DB.prepare(`SELECT rolls_used FROM accounts WHERE id = ?`)
+    .bind(account.id)
+    .first<{ rolls_used: number }>();
+  const spent = spentRow?.rolls_used ?? 0;
+  if (spent >= MAX_ROLLS) {
+    return json({ ok: false, error: "no_rolls_left", rollsUsed: spent, rollsMax: MAX_ROLLS }, 409);
+  }
+
   const wanted = Math.max(1, Math.min(TEAM_SIZE, Math.floor(body.pulls ?? TEAM_SIZE)));
   const pulls = draw(wanted);
 
@@ -138,6 +157,12 @@ export async function handleRoll(request: Request, env: Env): Promise<Response> 
     );
   });
 
+  // In the same batch as the draw: a roll that inserted a roster but failed to record itself
+  // would hand back a free extra one, which is the bug in the other direction.
+  statements.push(
+    env.DB.prepare(`UPDATE accounts SET rolls_used = rolls_used + 1 WHERE id = ?`).bind(account.id)
+  );
+
   await env.DB.batch(statements);
 
   const roster = await rosterFor(env, account.id);
@@ -150,7 +175,9 @@ export async function handleRoll(request: Request, env: Env): Promise<Response> 
       rarity: entry.rarity,
       rarityRank: rarityRank(entry.rarity)
     })),
-    roster: toWire(roster)
+    roster: toWire(roster),
+    rollsUsed: spent + 1,
+    rollsMax: MAX_ROLLS
   });
 }
 

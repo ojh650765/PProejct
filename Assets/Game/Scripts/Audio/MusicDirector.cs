@@ -379,7 +379,16 @@ namespace PokeLab.Audio
             bool fading = _fade != null;
 
             // Settled on it already, with nothing in flight that needs correcting.
-            if (!fading && trackName == _currentTrack && Active != null && Active.isPlaying) return;
+            //
+            // Still retire the sting on the way out. Returning to the title screen asks for the
+            // title track, and when that track never stopped -- which is what happens when a
+            // battle failed to switch the music at all -- this early-out skipped BeginFade and
+            // with it the one place a fanfare was ever silenced.
+            if (!fading && trackName == _currentTrack && Active != null && Active.isPlaying)
+            {
+                RetireSting(fadeSeconds);
+                return;
+            }
 
             // Everything a blend needs is resolved before one is started, so the coroutine
             // has no early exit of its own to strand the fade state on.
@@ -443,6 +452,19 @@ namespace PokeLab.Audio
         private void BeginFade(AudioSource incoming, AudioSource outgoing, string trackName,
                                float fadeSeconds, bool restartIncoming)
         {
+            // A new loop ends whatever one-shot is still ringing.
+            //
+            // Nothing used to do this. PlaySting starts the deck and loop = false lets it run
+            // to its own end, and there was no path that stopped it early -- so the victory
+            // fanfare held full level straight over the exploration theme that replaced the
+            // battle. The deck trace caught it in one line:
+            //
+            //   play Music_Route_Day -> A:silent B:Music_Route_Day@0.00 sting:Music_Victory_Fanfare@1.00
+            //
+            // Faded rather than cut, over the same span as the crossfade, so a fanfare that is
+            // nearly over still finishes as a fanfare and does not click.
+            RetireSting(fadeSeconds);
+
             // Whatever the outgoing deck holds is the track being left, and that is what a
             // request to come back mid-blend has to match against. After a retarget it may
             // be the track the previous blend was heading for rather than the settled one.
@@ -471,6 +493,27 @@ namespace PokeLab.Audio
         /// Off the web, a Streaming clip is the one kind that buffers for itself and must
         /// not be asked to load.
         /// </summary>
+        /// <summary>
+        /// Names every music source that is audible right now.
+        ///
+        /// Two reports say the music is wrong in ways this class should make impossible: no
+        /// track at all during the professor's introduction, and several playing over each
+        /// other after the first wild battle. There are only ever three sources here — two
+        /// decks and a sting — and every path that starts one is supposed to stop the last, so
+        /// reading the code says it cannot happen. Reading the code has been wrong repeatedly.
+        /// This prints what is actually playing, which settles it in one reproduction.
+        /// </summary>
+        private void LogDecks(string because)
+        {
+            string Describe(AudioSource source, string label) =>
+                source == null ? label + ":-" :
+                !source.isPlaying ? label + ":silent" :
+                $"{label}:{(source.clip != null ? source.clip.name : "<none>")}@{source.volume:0.00}";
+
+            Debug.Log($"[Music] {because} -> {Describe(_deckA, "A")} {Describe(_deckB, "B")} " +
+                      $"{Describe(_stingDeck, "sting")}");
+        }
+
         private static bool NeedsLoadGate(AudioClip clip) =>
             clip != null &&
             clip.loadState != AudioDataLoadState.Loaded &&
@@ -516,6 +559,7 @@ namespace PokeLab.Audio
                 if (incoming.clip != null && incoming.clip.loadState == AudioDataLoadState.Loaded)
                     incoming.time = 0f;
                 incoming.Play();
+                LogDecks("play " + trackName);
             }
 
             // Both ends ramp from where they already are rather than from a fixed 0 and 1,
@@ -565,6 +609,11 @@ namespace PokeLab.Audio
 
         public void FadeOutAll(float seconds)
         {
+            // The one-shot goes with the loop. FadeOutAll is what BattleOutro calls, so
+            // without this a victory fanfare outlived the battle it belonged to and was still
+            // ringing on the title screen.
+            RetireSting(seconds);
+
             _pendingTrack = null;
             _currentTrack = null;
             // Cleared as well as stopped: a fade handle left behind is one ApplyLevels
@@ -627,6 +676,45 @@ namespace PokeLab.Audio
         }
 
         /// <summary>
+        /// Takes the sting deck down over <paramref name="seconds"/>, cancelling any sting that
+        /// was still waiting for its clip to load.
+        ///
+        /// The pending start has to be cancelled as well as the playing one: a fanfare whose
+        /// data lands after the next track has begun would otherwise start at full level into
+        /// a loop that is already established, which is the same overlap arriving late.
+        /// </summary>
+        private void RetireSting(float seconds)
+        {
+            if (_stingStart != null) { StopCoroutine(_stingStart); _stingStart = null; }
+            if (_stingDeck == null || !_stingDeck.isPlaying) return;
+
+            if (_stingRetire != null) StopCoroutine(_stingRetire);
+            _stingRetire = StartCoroutine(FadeStingOut(Mathf.Max(0.05f, seconds)));
+        }
+
+        private Coroutine _stingRetire;
+
+        private IEnumerator FadeStingOut(float seconds)
+        {
+            var deck = _stingDeck;
+            var from = deck.volume;
+            var t = 0f;
+            while (t < seconds && deck != null && deck.isPlaying)
+            {
+                t += Time.unscaledDeltaTime;
+                deck.volume = Mathf.Lerp(from, 0f, Mathf.Clamp01(t / seconds));
+                yield return null;
+            }
+
+            if (deck != null)
+            {
+                deck.Stop();
+                deck.volume = 0f;
+            }
+            _stingRetire = null;
+        }
+
+        /// <summary>
         /// Starts the sting deck under the same rule as the crossfade decks: never on an
         /// unloaded clip. A loaded clip plays synchronously, exactly as before; one still
         /// decoding plays the frame its data lands. A newer sting cancels a pending one —
@@ -635,6 +723,8 @@ namespace PokeLab.Audio
         private void StartSting(AudioClip clip, bool fadeLoopUnder)
         {
             if (_stingStart != null) { StopCoroutine(_stingStart); _stingStart = null; }
+            // A retire still running would fade the sting that is only just arriving.
+            if (_stingRetire != null) { StopCoroutine(_stingRetire); _stingRetire = null; }
             _stingStart = StartCoroutine(StartStingWhenLoaded(clip, fadeLoopUnder));
         }
 

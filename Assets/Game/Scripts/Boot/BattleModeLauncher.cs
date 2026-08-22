@@ -161,8 +161,17 @@ namespace PokeLab.Boot
             foreach (var creature in playerParty) profile.TryAddToParty(creature);
             ServiceHub.Register<IPlayerProfile>(profile);
 
+            // Who the player is about to face, and what they look like.
+            //
+            // A PvP opponent is a real person with a real name already fetched from the room, so
+            // only the AI's title is ours to give -- overwriting a human's name with "등산가"
+            // would be worse than the generic "도전자" it replaces.
+            var look = BattleModeOpponents.Pick();
+            var opponentArt = pvp == null ? look.ArtKey : BattleModeOpponents.PvpArtKey;
+            if (pvp == null) opponentName = look.Title;
+
             var trainers = new BattleModeTrainers(BattleModeTrainers.OpponentId,
-                opponentName, opponent);
+                opponentName, opponent, opponentArt);
             ServiceHub.Register<ITrainerRegistry>(trainers);
 
             // 3. The stage has to be registered before the arena's presenter wakes, or the
@@ -218,29 +227,37 @@ namespace PokeLab.Boot
             MemoryRelief.Report("after pre-battle reclaim");
             if (MemoryRelief.Trace) MemoryCensus.Dump("after pre-battle reclaim");
 
-            // The menu's canvas goes dark for the length of the fight, and this is the part
-            // that actually pays.
+            // Before the load, not after: BattleCameraRig caches its brain in Awake, and Awake
+            // runs while the arena scene is loading. The host object is DontDestroyOnLoad, so
+            // it survives the single-mode load that is about to replace everything else.
+            PokeLab.Cinematics.BattleCameraHost.Ensure();
+
+            // Tell the world the mode changed, because nothing else here will.
             //
-            // Measured on the web build: a main menu with its Canvas enabled costs 798.5 MB
-            // more than the same menu with the Canvas component switched off -- same objects,
-            // same 147 CanvasRenderers, only the drawing prevented. So a battle loaded over a
-            // live menu is paying for two canvases at once, which is what the OOM reports have
-            // been. Disabling is not destroying: the menu is still there to come back to, and
-            // Finish turns it on again.
-            DimTheMenu();
+            // MusicDirector switches to the battle theme on GameMode.Battle, and the only
+            // caller of GameEvents.RaiseModeChanged in the project is GameFlowController --
+            // an OVERWORLD component that a battle launched from the title screen never
+            // touches. So the director was never told, and the menu's title track played
+            // straight through the fight. The kind (wild vs trainer) still comes from
+            // BattleStartedEvent, which BattleAudioPresenter relays; this is the transition
+            // that comment refers to when it says "the music director owns the transition".
+            GameEvents.RaiseModeChanged(GameMode.Menu, GameMode.Battle);
 
             if (!SceneManager.GetSceneByName(BattleSceneName).isLoaded)
             {
-                // ADDITIVE, and the camera is the reason.
+                // SINGLE, because there is nothing under the title screen worth keeping.
                 //
-                // Battle.unity contains no Camera at all -- it is built to be laid over a scene
-                // that has one, which is how the overworld uses it for wild encounters. Loading
-                // it single-mode takes the menu's camera down with the menu, BattleCameraRig
-                // falls back to Camera.main, Camera.main is null, and the battle renders
-                // nothing. That regression was mine, from an earlier attempt to save memory by
-                // unloading the menu; the saving is real but the way to take it is to stop the
-                // menu DRAWING, not to delete the camera the arena borrows.
-                var load = SceneManager.LoadSceneAsync(BattleSceneName, LoadSceneMode.Additive);
+                // Battle.unity carries no Camera -- it is built to be laid over a scene that
+                // has one, which is how the overworld uses it for wild encounters. That is why
+                // an earlier single-mode load here broke the battle: it took the menu's camera
+                // down with the menu. But MainMenu is an empty level whose UI is built in code,
+                // and its camera could not have drawn the arena anyway (no CinemachineBrain, and
+                // a culling mask of zero). Keeping it loaded underneath bought nothing at all.
+                //
+                // So the arena replaces it, and BattleCameraHost above supplies the camera the
+                // scene does not have. The menu costing nothing while a battle runs is the
+                // point; it is rebuilt from code on the way back.
+                var load = SceneManager.LoadSceneAsync(BattleSceneName, LoadSceneMode.Single);
                 if (load == null)
                 {
                     Say(Loc.Pick("The battle scene is not in the build settings.",
@@ -283,6 +300,17 @@ namespace PokeLab.Boot
 
             HideOverlay();
 
+            // 4b. Stand somebody at each mark.
+            //
+            // Every battle reached from the overworld gets this from TransitionDirector, and
+            // battle mode does not go through TransitionDirector -- it loads the arena itself,
+            // which is why the encounter already said BattleKind.Trainer and still played like
+            // a wild one. With nothing bound, the far TrainerView has no art, BattlePresenter
+            // skips the throw for that side, and the AI's creature simply appears while the
+            // player's is thrown by a person standing there. The asymmetry is the series'
+            // signal for "this one is wild", so a trainer battle wearing it reads as a bug.
+            BattleModeTrainerMarks.Bind(opponentArt);
+
             // 5. The fight.
             EncounterResult result = null;
             stage.BeginEncounter(new EncounterRequest
@@ -301,7 +329,18 @@ namespace PokeLab.Boot
                 yield return null;
             }
 
-            // 6. Report it and show what it earned.
+            // 6. Report it and show what it earned -- but not until the arena has finished
+            //    saying it.
+            //
+            // `result` is filled the moment the ENGINE ends the battle, which is several
+            // seconds before the presenter has played the last creature fainting. Going
+            // straight on from here put the whole team's experience summary on screen while
+            // the final knockout was still animating: the player was told what they had won
+            // before being shown the win. The presenter already knows when its queue is
+            // empty, so ask it.
+            var presenter = UnityEngine.Object.FindAnyObjectByType<PokeLab.Cinematics.BattlePresenter>();
+            if (presenter != null) yield return presenter.WaitUntilIdle(20f);
+
             ShowOverlay();
             var won = result != null && result.Outcome == BattleOutcome.PlayerVictory;
 
@@ -464,16 +503,40 @@ namespace PokeLab.Boot
             return party;
         }
 
+        /// <summary>
+        /// The species an AI opponent may be drawn from: the ones that can actually be SEEN.
+        ///
+        /// <b>The filter used to be a no-op.</b> It asked <c>ICreatureArtRegistry</c> whether a
+        /// species had a portrait and skipped it if not — but nothing in this project registers
+        /// that interface with real art. <c>BattleArena</c> registers a stub that answers heights
+        /// and returns null for every sprite, and the catalogue behind the real one has never
+        /// been built; the console says so on every battle: "No creature art registry was
+        /// registered". So `art` came back null, the guard short-circuited on `art != null`, and
+        /// the pool became all 721 species.
+        ///
+        /// Only 53 of those have battle sprites. The other 668 reached the arena, failed to
+        /// resolve a texture, and fell through to CreatureView's ellipsoid placeholder — the one
+        /// its own comment calls "never meant to reach a build". That is the row of grey blobs.
+        ///
+        /// So ask the thing that actually draws them. <see cref="CreatureSpriteLibrary"/> is the
+        /// path every battle billboard resolves through, and a species it has an entry for is a
+        /// species that will appear. The art registry is still consulted when one exists, since
+        /// a real catalogue would be the better answer.
+        /// </summary>
         private static List<int> DrawablePool()
         {
             var ids = new List<int>();
             if (!ServiceHub.TryGet<ISpeciesRegistry>(out var species)) return ids;
             ServiceHub.TryGet<ICreatureArtRegistry>(out var art);
 
+            var sprites = PokeLab.Cinematics.CreatureSpriteLibrary.Shared;
+            var haveManifest = sprites != null && sprites.HasManifest;
+
             foreach (var entry in species.All)
             {
                 if (entry == null) continue;
-                if (art != null && art.GetPortrait(entry.Id) == null) continue;
+                if (art != null && art.GetPortrait(entry.Id) != null) { ids.Add(entry.Id); continue; }
+                if (haveManifest && !sprites.Has(entry.Id)) continue;
                 ids.Add(entry.Id);
             }
 
@@ -506,11 +569,18 @@ namespace PokeLab.Boot
             _previousProfile = null;
             _previousTrainers = null;
 
-            // The arena covered the menu rather than replacing it, so leaving is an unload.
-            if (SceneManager.GetSceneByName(BattleSceneName).isLoaded)
-                SceneManager.UnloadSceneAsync(BattleSceneName);
+            // The arena replaced the menu rather than covering it, so leaving is a load.
+            // Released first: the battle camera must not outlive the scene it was made for, and
+            // the title screen brings its own back.
+            // Out of battle mode before anything else, so the outro fade starts while the
+            // arena is still up rather than after the menu has replaced it.
+            GameEvents.RaiseModeChanged(GameMode.Battle, GameMode.BattleOutro);
+            GameEvents.RaiseModeChanged(GameMode.BattleOutro, GameMode.Menu);
 
-            RestoreTheMenu();
+            PokeLab.Cinematics.BattleCameraHost.Release();
+
+            if (SceneManager.GetSceneByName(BattleSceneName).isLoaded)
+                SceneManager.LoadScene(MenuSceneName, LoadSceneMode.Single);
 
             if (_canvas != null) Destroy(_canvas.gameObject);
             _canvas = null;
@@ -622,6 +692,98 @@ namespace PokeLab.Boot
     /// surface: the stage is unchanged, and battle mode is simply a trainer it happens to know
     /// about.
     /// </summary>
+    /// <summary>
+    /// Stands both trainers at their marks for a battle-mode fight.
+    ///
+    /// The player's own sprite on the near mark and <paramref name="opponentArtKey"/> on the
+    /// far one, which is exactly what <c>TransitionDirector</c> does for a story trainer battle.
+    /// Reached through the presenter because the cinematic stage is the arena scene's, and this
+    /// runs after that scene has loaded and its presenter has claimed it.
+    /// </summary>
+    internal static class BattleModeTrainerMarks
+    {
+        internal static void Bind(string opponentArtKey)
+        {
+            var presenter = UnityEngine.Object.FindAnyObjectByType<PokeLab.Cinematics.BattlePresenter>();
+            var stage = presenter != null ? presenter.Stage : null;
+            if (stage == null)
+            {
+                // Not fatal: the battle still plays, the send-out just has nobody throwing.
+                // Said out loud because a silent miss here is indistinguishable from the bug
+                // this exists to fix.
+                Debug.LogWarning("[BattleMode] No cinematic stage to stand the trainers on; " +
+                                 "the send-out will play without them.");
+                return;
+            }
+
+            stage.SetTrainers(PlayerBody.SpriteKey, opponentArtKey);
+            Debug.Log("[BattleMode] Trainers bound: player='" + PlayerBody.SpriteKey +
+                      "' opponent='" + opponentArtKey + "'.");
+        }
+    }
+
+    /// <summary>
+    /// The face battle mode's opponent wears, drawn at random from the portraits the game
+    /// already ships.
+    ///
+    /// <b>Why random.</b> The arena is a queue of challengers rather than one opponent fought
+    /// over and over, and meeting the same silhouette on every entry reads as the mode not
+    /// having restarted. Seven faces is enough that a run of battles feels like a run of
+    /// different people.
+    ///
+    /// <b>Why these seven.</b> They are every portrait under <c>Resources/Portraits</c> that
+    /// depicts somebody who could plausibly challenge you. <c>professor</c> is a story
+    /// character, <c>research_terminal</c> is not a person at all, and <c>player</c>/
+    /// <c>player_f</c> are the player — standing any of them at the far mark would say
+    /// something the battle does not mean. No new art was needed for this.
+    ///
+    /// Only front views are used, which is why the lack of <c>_back</c> sheets for these keys
+    /// does not matter: the opponent is the one being looked at across the field, and
+    /// <see cref="PokeLab.Cinematics.TrainerView"/> only reaches for <c>_back</c> on the side
+    /// the camera stands behind.
+    /// </summary>
+    public static class BattleModeOpponents
+    {
+        /// <summary>
+        /// What a human opponent is drawn as.
+        ///
+        /// A PvP opponent is a real person whose look we do not know — the protocol carries a
+        /// name and a roster, not a body. <c>rival</c> is the honest choice among what exists:
+        /// unmistakably another trainer, and pointedly not the player's own sprite, which at the
+        /// far mark would read as fighting yourself.
+        /// </summary>
+        public const string PvpArtKey = "rival";
+
+        private static readonly string[][] Roster =
+        {
+            new[] { "youngster",  "Youngster",  "소년" },
+            new[] { "lass",       "Lass",       "소녀" },
+            new[] { "hiker",      "Hiker",      "등산가" },
+            new[] { "gardener",   "Gardener",   "정원사" },
+            new[] { "townsman",   "Townsfolk",  "마을 주민" },
+            new[] { "shopkeeper", "Shopkeeper", "상인" },
+            new[] { "rival",      "Rival",      "라이벌" },
+        };
+
+        /// <summary>Which face the last battle used, so the next one does not repeat it.</summary>
+        private static int _last = -1;
+
+        /// <summary>
+        /// A face and the title that goes with it. Never the same one twice running: with seven
+        /// entries a chance repeat lands often enough to look like a bug rather than like luck.
+        /// </summary>
+        public static (string ArtKey, string Title) Pick()
+        {
+            var index = UnityEngine.Random.Range(0, Roster.Length);
+            if (index == _last && Roster.Length > 1)
+                index = (index + 1 + UnityEngine.Random.Range(0, Roster.Length - 1)) % Roster.Length;
+            _last = index;
+
+            var entry = Roster[index];
+            return (entry[0], Loc.Pick(entry[1], entry[2]));
+        }
+    }
+
     public sealed class BattleModeTrainers : ITrainerRegistry
     {
         public const string OpponentId = "battlemode_opponent";
@@ -630,7 +792,8 @@ namespace PokeLab.Boot
         private readonly TrainerProfile _profile;
         private readonly List<CreatureInstance> _party;
 
-        public BattleModeTrainers(string id, string displayName, List<CreatureInstance> party)
+        public BattleModeTrainers(string id, string displayName, List<CreatureInstance> party,
+                                  string artKey = null)
         {
             _id = id;
             _party = party ?? new List<CreatureInstance>();
@@ -638,6 +801,10 @@ namespace PokeLab.Boot
             {
                 TrainerId = id,
                 DisplayName = displayName,
+                // What the opponent is drawn as. Left empty this used to reach
+                // TransitionDirector.OpponentPersonKey as "no art", and battle mode never asked
+                // it anything anyway — see BattleModeLauncher.BindTrainers.
+                ArtKey = artKey,
                 Reward = 0,
             };
         }

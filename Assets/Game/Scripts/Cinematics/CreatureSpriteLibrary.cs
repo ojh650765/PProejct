@@ -265,6 +265,16 @@ namespace PokeLab.Cinematics
             }
         }
 
+        /// <summary>
+        /// Whether this species has sprite art, without complaining that it does not.
+        ///
+        /// <see cref="Entry"/> warns on a miss, which is right when something is about to draw
+        /// a creature and cannot. It is wrong for a caller that is merely FILTERING — asking of
+        /// all 721 species which ones can be shown would log six hundred and sixty-eight
+        /// warnings about species nobody tried to draw.
+        /// </summary>
+        public bool Has(int speciesId) => _byId.ContainsKey(speciesId);
+
         /// <summary>The manifest entry for a species, or null.</summary>
         public CreatureSpriteEntry Entry(int speciesId)
         {

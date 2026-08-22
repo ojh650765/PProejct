@@ -17,7 +17,7 @@ import {
   randomToken,
   timingSafeEqual
 } from "./crypto";
-import { rosterFor } from "./gacha";
+import { MAX_ROLLS, rosterFor } from "./gacha";
 
 /**
  * The fixed recovery questions.
@@ -102,7 +102,9 @@ export async function handleCreate(request: Request, env: Env): Promise<Response
     accountId: id,
     token,
     trainerName: name,
-    needsGacha: true
+    needsGacha: true,
+    rollsUsed: 0,
+    rollsMax: MAX_ROLLS
   });
 }
 
@@ -164,12 +166,20 @@ export async function handleLogin(request: Request, env: Env): Promise<Response>
   const token = await issueToken(env, account.id);
   const roster = await rosterFor(env, account.id);
 
+  // Sent on sign-in because this is the moment the old bug happened: the client rebuilt its
+  // draw list from nothing and offered five fresh rolls to an account that had spent them.
+  const spent = await env.DB.prepare(`SELECT rolls_used FROM accounts WHERE id = ?`)
+    .bind(account.id)
+    .first<{ rolls_used: number }>();
+
   return json({
     ok: true,
     accountId: account.id,
     token,
     trainerName: account.name,
-    needsGacha: roster.length === 0
+    needsGacha: roster.length === 0,
+    rollsUsed: spent?.rolls_used ?? 0,
+    rollsMax: MAX_ROLLS
   });
 }
 

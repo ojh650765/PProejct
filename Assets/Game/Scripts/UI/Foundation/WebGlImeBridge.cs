@@ -30,6 +30,10 @@ namespace PokeLab.UI
     /// time the canvas is not the focused element, which is a much worse bug than the one being
     /// fixed. So it is off only while a text field is selected and back on the moment it is not.
     ///
+    /// <b>Only where TMP edits in place.</b> A client with no hardware keyboard takes a
+    /// different path through TMP entirely — see <see cref="Bootstrap"/> — and this bridge
+    /// stands down there rather than fight Unity's own on-screen keyboard for focus.
+    ///
     /// Outside WebGL this compiles to nothing: desktop and editor already route IME input into
     /// TMP through Unity's own <c>Input.compositionString</c>.
     /// </summary>
@@ -60,6 +64,52 @@ namespace PokeLab.UI
         private static void Bootstrap()
         {
             if (s_instance != null) return;
+
+            // Not where Unity's own keyboard is in charge. It already puts a real <input> on
+            // the page there, and two of them is worse than none.
+            //
+            // Where that is, is decided by isInPlaceEditingAllowed and NOT by isSupported. On
+            // WebGL isSupported is true for every client including a desktop one -- the
+            // JS_MobileKeyboard_* functions are compiled into the framework regardless of who
+            // runs it -- so branching on it stood this bridge down everywhere and would have
+            // traded a phone bug for the desktop Korean bug the class exists to fix. TMP asks
+            // the other flag, the one that means "no hardware keyboard here":
+            //
+            //     TMP_InputField.TouchScreenKeyboardShouldBeUsed()
+            //         case RuntimePlatform.WebGLPlayer:
+            //             return !TouchScreenKeyboard.isInPlaceEditingAllowed;
+            //
+            // On such a client TMP does not edit in place. It calls JS_MobileKeyboard_Show,
+            // which builds Unity's own <input> in a fixed bar across the bottom of the page and
+            // focuses it -- and that element carries
+            //
+            //     input.addEventListener("blur", function (e) { _JS_MobileKeyboard_Hide(true); ... })
+            //
+            // so ANY loss of focus tears the keyboard down 200 ms later. This class re-focuses
+            // its overlay from LateUpdate every frame the overlay is not the active element,
+            // which with Unity's input on the page is every frame. The keyboard opened on the
+            // tap and was dismissed by the very next one: 키보드가 나오다가 다시 들어가서
+            // 입력을 못함, on the trainer name, the login form and the professor's questions
+            // alike, because all three are TMP_InputFields and this bridge is global.
+            //
+            // Standing down leaves exactly one <input> on the page, and Unity's is a real DOM
+            // field -- the OS IME composes into it natively, which is the whole reason this
+            // class exists at all. Re-focusing from LateUpdate could not be salvaged instead:
+            // mobile browsers only open the keyboard for a focus() call made inside a trusted
+            // gesture, and by the time Unity has resolved which field a tap selected, that
+            // gesture is over.
+            if (!TouchScreenKeyboard.isInPlaceEditingAllowed)
+            {
+                // Logged rather than silent because "which keyboard is in charge" is the first
+                // thing worth knowing about a typing bug, and it cannot be read off a phone.
+                Debug.Log("[Ime] No in-place editing on this client: standing down so Unity's " +
+                          "own on-screen keyboard owns the focus. Korean composes in its DOM " +
+                          "input natively.");
+                return;
+            }
+
+            Debug.Log("[Ime] In-place editing available: overlay bridge active for IME input.");
+
             var go = new GameObject("PL_ImeBridge");
             DontDestroyOnLoad(go);
             go.AddComponent<WebGlImeBridge>();

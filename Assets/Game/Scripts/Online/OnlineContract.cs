@@ -93,6 +93,16 @@ namespace PokeLab.Online
         public string trainerName;
         /// <summary>True when this account has not yet drawn its team.</summary>
         public bool needsGacha;
+
+        /// <summary>
+        /// Rolls this account has already spent, and the cap.
+        ///
+        /// Both come from the server on every sign-in, because the client cannot remember them
+        /// across one: the gacha panel used to count its own list of draws, so signing back in
+        /// restored the full five to an account that had spent them all.
+        /// </summary>
+        public int rollsUsed;
+        public int rollsMax;
     }
 
     // --- Roster -----------------------------------------------------------------------------
@@ -155,6 +165,10 @@ namespace PokeLab.Online
         public string error;
         public GachaPull[] pulls;
         public RosterEntry[] roster;
+
+        /// <summary>The authoritative spend after this roll, and the cap.</summary>
+        public int rollsUsed;
+        public int rollsMax;
     }
 
     // --- Battle results ---------------------------------------------------------------------
