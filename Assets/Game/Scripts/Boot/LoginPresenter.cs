@@ -48,6 +48,16 @@ namespace PokeLab.Boot
 
         private void Start()
         {
+            // pl_skiplogin: straight to the title screen, signed out. Diagnostic only -- it
+            // exists so the desktop cross-check can reach the main menu without credentials,
+            // and it is off unless the command line or URL asks for it.
+            if (PokeLab.Core.Diag.SkipLogin)
+            {
+                Debug.Log("[Diag] pl_skiplogin: going straight to " + _titleScene);
+                SceneManager.LoadScene(_titleScene, LoadSceneMode.Single);
+                return;
+            }
+
             var session = OnlineSession.Ensure();
 
             // Already signed in: the token was restored from PlayerPrefs in the session's own

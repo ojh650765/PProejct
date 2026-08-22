@@ -117,7 +117,48 @@ namespace PokeLab.Vfx
             VfxApi.Bind(this);
         }
 
-        private void Start() => StartCoroutine(PrewarmOverFrames());
+        /// <summary>
+        /// Nothing is built here any more, and that is the point.
+        ///
+        /// This presenter is created once at boot by AvPresenterHost and never destroyed, so a
+        /// prewarm in Start ran on the login screen and the pool it built stayed for the rest of
+        /// the session. On the web build that measured as 636 ParticleSystems, 636 renderers and
+        /// 167 lights alive behind a menu that cannot play an effect, and roughly 800 MB of wasm
+        /// heap taken in the two seconds after the main menu appeared -- heap which, because a
+        /// WebAssembly heap never shrinks, was then a permanent floor under every battle that
+        /// followed. That is what the OOM reports were.
+        ///
+        /// Warming is now asked for by whoever is about to need it; see
+        /// <see cref="WarmPool"/> and <see cref="ReleasePool"/>.
+        /// </summary>
+        private void Start()
+        {
+        }
+
+        /// <summary>
+        /// Builds the pooled instances, a few per frame, for a scene that can actually play
+        /// effects. Cheap to call again once warm: the coroutine skips keys that already are.
+        /// </summary>
+        public void WarmPool()
+        {
+            if (!isActiveAndEnabled || _warming) return;
+            _warming = true;
+            StartCoroutine(PrewarmOverFrames());
+        }
+
+        /// <summary>
+        /// Gives the instances back. The registrations stay, so a later
+        /// <see cref="WarmPool"/> rebuilds without touching the catalogue.
+        /// </summary>
+        public void ReleasePool()
+        {
+            _warming = false;
+            ClearViews();
+            pool?.ReleaseInstances();
+        }
+
+        /// <summary>Guards against two prewarm coroutines running over each other.</summary>
+        private bool _warming;
 
         private void OnDestroy()
         {
@@ -175,6 +216,8 @@ namespace PokeLab.Vfx
                 }
                 if (budget <= 0) yield return null;
             }
+
+            _warming = false;
         }
 
         // ---------------------------------------------------------------------

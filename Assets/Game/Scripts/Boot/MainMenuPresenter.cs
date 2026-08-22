@@ -60,7 +60,8 @@ namespace PokeLab.Boot
         {
             var session = OnlineSession.Ensure();
             session.Changed += Refresh;
-            BuildCanvas();
+
+            if (!PokeLab.Core.Diag.NoUi) BuildCanvas();
             Refresh();
             PlayTitleMusic();
 
@@ -69,6 +70,10 @@ namespace PokeLab.Boot
             // than a whole save file. The answer raises Changed, which redraws the rows — so
             // 이어하기 appears when it is real, and never appears at all when it is not.
             if (session.IsSignedIn) StartCoroutine(session.FetchSaveInfo(null));
+
+            // Applied here because here is after the canvas exists and before the frame that
+            // draws it -- the gap the 806 MB lands in. No-op unless the page URL asks.
+            PokeLab.UI.UiDiagnostics.Apply(transform);
         }
 
         /// <summary>
@@ -88,7 +93,11 @@ namespace PokeLab.Boot
         /// screen for the same cue. Serialized rather than constant so it can be swapped
         /// without a recompile.
         /// </summary>
-        private void PlayTitleMusic() => FrontendAudio.TakeOver(_titleTrack);
+        private void PlayTitleMusic()
+        {
+            if (PokeLab.Core.Diag.NoMusic) return;
+            FrontendAudio.TakeOver(_titleTrack);
+        }
 
         private void OnDestroy()
         {

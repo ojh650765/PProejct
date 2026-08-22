@@ -198,6 +198,7 @@ namespace PokeLab.Boot
             // console shows what the engine was holding just before it died -- and whether the
             // arena is one fat allocation or a slow climb.
             MemoryRelief.Report("before arena load");
+            if (MemoryRelief.Trace) MemoryCensus.Dump("before arena load");
 
             // Give back what the menu is holding, immediately before the peak.
             //
@@ -215,10 +216,31 @@ namespace PokeLab.Boot
             // hands control back.
             MemoryRelief.Reclaim("entering a battle", dropCreatureArt: true);
             MemoryRelief.Report("after pre-battle reclaim");
+            if (MemoryRelief.Trace) MemoryCensus.Dump("after pre-battle reclaim");
+
+            // The menu's canvas goes dark for the length of the fight, and this is the part
+            // that actually pays.
+            //
+            // Measured on the web build: a main menu with its Canvas enabled costs 798.5 MB
+            // more than the same menu with the Canvas component switched off -- same objects,
+            // same 147 CanvasRenderers, only the drawing prevented. So a battle loaded over a
+            // live menu is paying for two canvases at once, which is what the OOM reports have
+            // been. Disabling is not destroying: the menu is still there to come back to, and
+            // Finish turns it on again.
+            DimTheMenu();
 
             if (!SceneManager.GetSceneByName(BattleSceneName).isLoaded)
             {
-                var load = SceneManager.LoadSceneAsync(BattleSceneName, LoadSceneMode.Single);
+                // ADDITIVE, and the camera is the reason.
+                //
+                // Battle.unity contains no Camera at all -- it is built to be laid over a scene
+                // that has one, which is how the overworld uses it for wild encounters. Loading
+                // it single-mode takes the menu's camera down with the menu, BattleCameraRig
+                // falls back to Camera.main, Camera.main is null, and the battle renders
+                // nothing. That regression was mine, from an earlier attempt to save memory by
+                // unloading the menu; the saving is real but the way to take it is to stop the
+                // menu DRAWING, not to delete the camera the arena borrows.
+                var load = SceneManager.LoadSceneAsync(BattleSceneName, LoadSceneMode.Additive);
                 if (load == null)
                 {
                     Say(Loc.Pick("The battle scene is not in the build settings.",
@@ -484,11 +506,11 @@ namespace PokeLab.Boot
             _previousProfile = null;
             _previousTrainers = null;
 
-            // The arena replaced the menu rather than covering it, so leaving is a load and
-            // not an unload. Loading the menu also drops the arena -- and a single-mode load is
-            // what AvPresenterHost reclaims on, so the battle's textures actually go back.
+            // The arena covered the menu rather than replacing it, so leaving is an unload.
             if (SceneManager.GetSceneByName(BattleSceneName).isLoaded)
-                SceneManager.LoadScene(MenuSceneName, LoadSceneMode.Single);
+                SceneManager.UnloadSceneAsync(BattleSceneName);
+
+            RestoreTheMenu();
 
             if (_canvas != null) Destroy(_canvas.gameObject);
             _canvas = null;
@@ -498,6 +520,46 @@ namespace PokeLab.Boot
             // running its sequence against a dead object.
             _summary = null;
             _running = false;
+        }
+
+        /// <summary>Canvases this session switched off on the way into a battle.</summary>
+        private readonly List<Canvas> _dimmed = new List<Canvas>();
+
+        /// <summary>
+        /// Switches off every canvas that is not ours, for the length of the fight.
+        ///
+        /// The arena is laid over the title screen, so the menu is still loaded and still
+        /// drawing itself underneath a view that covers it completely. On the web that is not
+        /// merely untidy: the measured cost of a canvas being enabled here is 798.5 MB, and the
+        /// heap never gives it back, so the battle then asks for its own on top.
+        ///
+        /// The camera is deliberately left alone -- Battle.unity has none and borrows this one.
+        /// </summary>
+        private void DimTheMenu()
+        {
+            _dimmed.Clear();
+            foreach (var canvas in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                if (canvas == null || !canvas.enabled) continue;
+                // Not our own status overlay: it is the thing telling the player what is
+                // happening while the arena loads.
+                if (_canvas != null && canvas.transform.IsChildOf(_canvas.transform)) continue;
+                if (canvas == _canvas) continue;
+
+                canvas.enabled = false;
+                _dimmed.Add(canvas);
+            }
+
+            if (_dimmed.Count > 0)
+                Debug.Log($"[BattleMode] {_dimmed.Count} canvas(es) dimmed for the battle.");
+        }
+
+        /// <summary>Turns back on whatever <see cref="DimTheMenu"/> switched off.</summary>
+        private void RestoreTheMenu()
+        {
+            for (var i = 0; i < _dimmed.Count; i++)
+                if (_dimmed[i] != null) _dimmed[i].enabled = true;
+            _dimmed.Clear();
         }
 
         // --- The little overlay ----------------------------------------------------------------

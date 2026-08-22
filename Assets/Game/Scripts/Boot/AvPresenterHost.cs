@@ -89,8 +89,25 @@ namespace PokeLab.Boot
             SceneManager.sceneLoaded += OnSceneLoaded;
             SceneManager.sceneUnloaded += OnSceneUnloaded;
 
+            // Started at boot, read much later: a ProfilerRecorder reports the frame AFTER it
+            // is created, and reading one immediately is what made the first counter run come
+            // back as twelve zeroes.
+            //
+            // Behind the flag because it is not free: it enumerates every profiler handle the
+            // player has -- 1,974 on the web, 2,476 on a desktop -- and then holds 145 live
+            // recorders for the session. Worth it while hunting; not worth it in a build a
+            // player runs.
+            if (PokeLab.Core.Diag.AutoCounters) MemoryCounters.Start();
+
             EnsureSystems();
             RebindSceneObjects();
+
+            // The scene that was already open when this host bootstrapped never raises
+            // sceneLoaded, so entering play straight into Town would otherwise leave the pool
+            // cold for the whole session.
+            ApplyVfxResidency(SceneManager.GetActiveScene().name);
+            if (MemoryRelief.Trace) _markFrames = 12;
+            if (PokeLab.Core.Diag.AutoCounters) _countersAt = Time.unscaledTime + 4f;
         }
 
         private void OnDestroy()
@@ -107,6 +124,9 @@ namespace PokeLab.Boot
         {
             EnsureSystems();
             RebindSceneObjects();
+            ApplyVfxResidency(scene.name);
+            if (MemoryRelief.Trace) _markFrames = 12;
+            if (PokeLab.Core.Diag.AutoCounters) _countersAt = Time.unscaledTime + 4f;
 
             // A single-mode load has just replaced everything: the previous scene's canvases,
             // creatures and their textures are all unreferenced now and none of them will be
@@ -130,7 +150,11 @@ namespace PokeLab.Boot
             // battle, where CreatureThumbnail's cache really is holding atlases open. See
             // BattleModeLauncher.
             if (mode == LoadSceneMode.Single)
+            {
                 MemoryRelief.Report("loaded " + scene.name);
+                if (PokeLab.Core.Diag.AutoCounters) MemoryCounters.Dump("loaded " + scene.name);
+                if (MemoryRelief.Trace) MemoryCensus.Dump("loaded " + scene.name);
+            }
             else
                 // Additive loads are the ones that kill the web build -- the arena goes on top
                 // of whatever was already there -- so they are reported even though nothing is
@@ -138,6 +162,43 @@ namespace PokeLab.Boot
                 // instrumentation in BattleModeLauncher does not: the story's battles come in
                 // through TransitionDirector instead.
                 MemoryRelief.Report("additive load of " + scene.name);
+        }
+
+        /// <summary>
+        /// Scenes that can never play a particle effect, and so have no business paying for a
+        /// warm effect pool.
+        ///
+        /// Named rather than inferred: "does this scene contain a battle" is not something the
+        /// host can ask, and getting it wrong in the permissive direction only costs a prewarm.
+        /// Getting it wrong the other way would leave a battle cold.
+        /// </summary>
+        private static bool IsFrontendScene(string sceneName) =>
+            sceneName == "Login" || sceneName == "MainMenu" || sceneName == "Boot";
+
+        /// <summary>
+        /// Keeps the effect pool resident only where effects can happen.
+        ///
+        /// <b>This is the OOM fix.</b> BattleVfxPresenter used to warm its whole catalogue in
+        /// Start, and this host creates that presenter once at boot and never destroys it — so
+        /// the pool was built during the login screen and held for the session. The census of
+        /// the running web player counted 636 ParticleSystems, 636 renderers, 167 lights and
+        /// 1,103 GameObjects alive behind the main menu, against 167 MB of actual loaded assets
+        /// and 1,343 MB the engine said it had allocated. Two A/Bs in the live build ruled out
+        /// the alternatives: a full collect plus asset unload freed 0.0 MB, and unloading the
+        /// decoded audio of all 153 clips freed 0.0 MB.
+        ///
+        /// The cost is not the objects, it is what a ParticleSystem reserves — every emitter
+        /// takes a particle buffer sized for its maximum count (up to 900 here) plus the
+        /// renderer's vertex buffers, none of which appears in an asset census. And on the web
+        /// the damage outlives the menu: a WebAssembly heap only ever grows, so 800 MB taken at
+        /// the main menu is 800 MB still taken when the arena asks for its own.
+        /// </summary>
+        private void ApplyVfxResidency(string sceneName)
+        {
+            if (_battleVfx == null) return;
+
+            if (IsFrontendScene(sceneName)) _battleVfx.ReleasePool();
+            else _battleVfx.WarmPool();
         }
 
         private void OnSceneUnloaded(Scene scene)
@@ -158,14 +219,105 @@ namespace PokeLab.Boot
         }
 
         /// <summary>
+        /// Takes a memory census on demand, from outside the player.
+        ///
+        /// The web build can only be driven from the browser, and by the time an OOM aborts
+        /// there is nothing left to inspect -- so the census has to be taken at a chosen moment
+        /// DURING the run, at whichever step of the flow is under suspicion. This is the only
+        /// entry point that can be reached from there:
+        ///
+        ///     unityInstance.SendMessage('PL_AvPresenterHost', 'CensusNow', 'after the gacha')
+        ///
+        /// It lives on this host because this host is the one GameObject that survives every
+        /// scene change (DontDestroyOnLoad, created before the first scene), so the name is
+        /// valid at every step of the flow. SendMessage silently does nothing when the target
+        /// name is wrong, which would look exactly like a census that found nothing.
+        ///
+        /// Tools/probe_web_memory.py drives it.
+        /// </summary>
+        public void CensusNow(string where)
+        {
+            MemoryRelief.Report(where);
+            MemoryCounters.Dump(where);
+            MemoryCensus.Dump(where);
+            MemoryCensus.AudioBreakdown(where);
+        }
+
+        /// <summary>
+        /// Runs the drop-audio experiment. Reached the same way as <see cref="CensusNow"/>:
+        ///
+        ///     unityInstance.SendMessage('PL_AvPresenterHost', 'DropAudioNow', 'main menu')
+        ///
+        /// Deliberate only — it silences the game for the rest of the session.
+        /// </summary>
+        public void DropAudioNow(string where)
+        {
+            MemoryCensus.DropAudio(where);
+        }
+
+        /// <summary>
+        /// Collects and unloads on demand, and reports both sides.
+        ///
+        /// The second half of the same question the audio drop asks. Unity says it has a
+        /// gigabyte allocated that the object table cannot account for; either that gigabyte is
+        /// live, or it is garbage nobody has swept. A full collect plus an asset unload
+        /// separates those two, and they want completely different fixes.
+        ///
+        ///     unityInstance.SendMessage('PL_AvPresenterHost', 'ReclaimNow', 'main menu')
+        /// </summary>
+        public void ReclaimNow(string where)
+        {
+            MemoryRelief.Report(where + " before reclaim");
+            System.GC.Collect();
+            System.GC.WaitForPendingFinalizers();
+            Resources.UnloadUnusedAssets();
+            MemoryRelief.Report(where + " after reclaim");
+        }
+
+        /// <summary>
         /// Seconds between memory samples while <see cref="MemoryRelief.Trace"/> is on.
         /// </summary>
         private const float MemorySampleSeconds = 2f;
 
         private float _nextMemorySample;
 
+        /// <summary>
+        /// Frames still to be marked one at a time after a scene load.
+        ///
+        /// The 800 MB lands between the last Start on the new scene and the first Update, and a
+        /// quarter-second trace cannot see inside a gap that holds one frame. Marking Update and
+        /// LateUpdate separately for a dozen frames splits that gap into its parts: anything
+        /// that appears between one frame's LateUpdate and the next frame's Update happened
+        /// during rendering, which is the only thing that runs in between.
+        /// </summary>
+        private int _markFrames;
+
+        /// <summary>When to take the settled counter sample, or 0 for never.</summary>
+        private float _countersAt;
+
+        private void LateUpdate()
+        {
+            if (_markFrames > 0) MemoryRelief.Mark($"frame {Time.frameCount} late");
+        }
+
         private void Update()
         {
+            if (_markFrames > 0)
+            {
+                _markFrames--;
+                MemoryRelief.Mark($"frame {Time.frameCount} update");
+
+                // pl_nocamera: the 802 MB arrives between one frame's LateUpdate and the next
+                // frame's Update, and rendering is the only thing that runs in that gap. This
+                // takes the camera out before the first frame is drawn, which is the prevention
+                // test for "rendering is what spends it".
+                if (PokeLab.Core.Diag.NoCamera && Camera.main != null)
+                {
+                    Camera.main.enabled = false;
+                    Debug.Log("[Diag] camera disabled: " + Camera.main.name);
+                }
+            }
+
             // A time series, because a single reading says nothing. The arena's cost is the
             // DIFFERENCE across the load, and in the editor the absolute figure is mostly the
             // editor itself. Off unless somebody asks for it; two Profiler calls every two
@@ -174,6 +326,15 @@ namespace PokeLab.Boot
             {
                 _nextMemorySample = Time.unscaledTime + MemorySampleSeconds;
                 MemoryRelief.Report($"t={Time.unscaledTime:F0}s");
+            }
+
+            // A scene's cost is not visible on the frame it loads: the canvas has not drawn yet,
+            // and drawing is where the 797 MB lands. Sampling a few seconds in is what makes the
+            // desktop table comparable with the web one, which the probe takes at the same point.
+            if (PokeLab.Core.Diag.AutoCounters && _countersAt > 0f && Time.unscaledTime >= _countersAt)
+            {
+                _countersAt = 0f;
+                MemoryCounters.Dump("settled in " + SceneManager.GetActiveScene().name);
             }
 
             // Cheap self-healing for the two scene-owned dependencies. A destroyed

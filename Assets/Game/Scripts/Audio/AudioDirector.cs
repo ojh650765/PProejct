@@ -112,6 +112,10 @@ namespace PokeLab.Audio
         /// loading happens.
         /// </summary>
         public AudioClipCatalog Catalog =>
+            // pl_noaudio: prevention, not a feature. See PokeLab.Core.Diag -- loading this one
+            // asset loads every clip it references, so skipping it is the only way to measure
+            // what the audio system is actually costing a web build.
+            PokeLab.Core.Diag.NoAudio ? null :
             catalog != null ? catalog : (catalog = Resources.Load<AudioClipCatalog>(CatalogResourceName));
 
         /// <summary>Name the catalogue is loaded under. It lives in a Resources folder because

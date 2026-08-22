@@ -73,8 +73,29 @@ namespace PokeLab.Boot
             var allocated = UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong();
             var mono = GC.GetTotalMemory(false);
 
+            // The managed heap's RESERVED size, which GC.GetTotalMemory does not report -- it
+            // answers what is in use. A collector holding a gigabyte to store fourteen
+            // megabytes looks identical to no leak at all through the used figure, and on a
+            // heap that can never shrink that distinction decides whether the page survives.
+            var monoHeap = UnityEngine.Profiling.Profiler.GetMonoHeapSizeLong();
+
             Debug.Log($"[Memory] {where}: reserved {Mb(reserved)} MB, " +
-                      $"allocated {Mb(allocated)} MB, mono {Mb(mono)} MB");
+                      $"allocated {Mb(allocated)} MB, mono {Mb(mono)} MB, " +
+                      $"mono heap {Mb(monoHeap)} MB");
+        }
+
+        /// <summary>
+        /// One number, one line, for bisecting a screen's cost.
+        ///
+        /// <see cref="Report"/> is three figures and a sentence; sprinkling twenty of those
+        /// through a startup path buries the sequence in its own text. This is the same
+        /// reserved figure and nothing else, which under a LINEAR growth policy tracks the wasm
+        /// heap to within one 16 MB step — so a run of these reads as a profile of where the
+        /// memory actually went.
+        /// </summary>
+        public static void Mark(string label)
+        {
+            Debug.Log($"[Mark] {label}: {Mb(UnityEngine.Profiling.Profiler.GetTotalReservedMemoryLong())} MB");
         }
 
         /// <summary>

@@ -76,8 +76,22 @@ namespace PokeLab.Boot.Editor
         /// was built last time, and a web build that silently serves stale bytes is the same
         /// class of failure as a scene that was never added to the build settings.
         /// </summary>
+        [MenuItem("Tools/Poké Lab/Build/WebGL (development)", priority = 311)]
+        public static void BuildWebGLDevelopment() => BuildWebGL(development: true);
+
         [MenuItem("Tools/Poké Lab/Build/WebGL", priority = 310)]
-        public static void BuildWebGL()
+        public static void BuildWebGL() => BuildWebGL(development: false);
+
+        /// <summary>
+        /// <paramref name="development"/> compiles the profiler into the player.
+        ///
+        /// It exists for one reason: most of Unity's memory counters answer 0 in a release
+        /// build, and a silent 0 reads exactly like "this subsystem holds nothing". The hunt for
+        /// the canvas's 798 MB has already been misled once by a profiler API that returns 0
+        /// without saying so, and a development build is the difference between the counters
+        /// being evidence and being decoration. Slower and larger; never what ships.
+        /// </summary>
+        private static void BuildWebGL(bool development)
         {
             var scenes = ResolveScenes();
             if (scenes == null) return;
@@ -115,7 +129,9 @@ namespace PokeLab.Boot.Editor
                 // TemplateData beside it, and Pages serves the folder as the site root.
                 locationPathName = folder,
                 target = BuildTarget.WebGL,
-                options = BuildOptions.None,
+                options = development
+                    ? BuildOptions.Development | BuildOptions.AllowDebugging
+                    : BuildOptions.None,
             };
 
             Debug.Log($"[Build] WebGL: {scenes.Length} scene(s), starting on '{scenes[0]}' → {folder}");
@@ -163,6 +179,53 @@ namespace PokeLab.Boot.Editor
             // Kept on: it caches the data file in IndexedDB so a return visit does not
             // re-download a payload this size, which matters far more here than usual.
             PlayerSettings.WebGL.dataCaching = true;
+
+            ConfigureHeap();
+        }
+
+        /// <summary>
+        /// The heap policy, set here rather than left in the inspector because it is the
+        /// setting the OOM reports actually turned on and it needs its reasoning attached.
+        ///
+        /// <b>Growth mode is the whole story.</b> A WebAssembly heap grows when an allocation
+        /// cannot be satisfied, and Geometric mode grows it by a share of the WHOLE heap —
+        /// twenty percent, capped at 256 MB. So a request for one more 16 MB block that does
+        /// not fit costs up to 256 MB of address space, and the next one costs another. Every
+        /// heap reading taken from the live build lands on that ladder rather than on anything
+        /// resembling demand:
+        ///
+        ///     256 → 307 → 369 → 442 → 531 → 637 → 764 → 917 → 1101 → 1321 → 1577 → 1833
+        ///
+        /// The login screen measured 637.2 MB against a rung of 637.0, and the main menu
+        /// 1579.9 against 1576.9 — while a census of every loaded object in that same player
+        /// came to 167 MB. Five failed allocations between those two screens, and the heap grew
+        /// by 940 MB to serve them. A wasm heap never shrinks, so all of it is a permanent
+        /// floor under everything that follows, which is why a battle that needs a few hundred
+        /// megabytes of its own was ending at 2.9 GB and aborting on the way.
+        ///
+        /// Linear with a small step trades a few more grow calls for a heap that tracks what
+        /// the game is really holding. Growth is cheap when a maximum is declared: the engine
+        /// reserves the address range up front and a grow commits pages rather than copying.
+        ///
+        /// The initial size stays small for the same reason. A large one is not free
+        /// insurance — it is a contiguous commitment the browser has to honour before the first
+        /// frame, and it hides the real figure from every measurement taken afterwards.
+        /// </summary>
+        private static void ConfigureHeap()
+        {
+            PlayerSettings.WebGL.initialMemorySize = 256;
+
+            // Back to Unity's own default, and the reason it can be is the point.
+            //
+            // This was raised to 4096 while the game genuinely needed 2.6 GB to reach a battle,
+            // which was never a fix -- it only let the browser supply what the game should not
+            // have been asking for. With the font atlases baked static the same run never grows
+            // the heap past its initial 256 MB at all, so the ceiling is back where Unity puts
+            // it. If a future change pushes past 2048 again, that is a bug to find, not a
+            // number to raise.
+            PlayerSettings.WebGL.maximumMemorySize = 2048;
+            PlayerSettings.WebGL.memoryGrowthMode = WebGLMemoryGrowthMode.Linear;
+            PlayerSettings.WebGL.linearMemoryGrowthStep = 16;
         }
 
         /// <summary>

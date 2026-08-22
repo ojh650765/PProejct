@@ -348,6 +348,45 @@ namespace PokeLab.Vfx
             };
         }
 
+        /// <summary>
+        /// Destroys every pooled instance but keeps the registrations, so the same pool can be
+        /// warmed again later without rebuilding the catalogue.
+        ///
+        /// <b>Why a second teardown next to Dispose.</b> Dispose ends the pool's life; this ends
+        /// only its residency. The presenter that owns this pool is created once at boot and
+        /// never destroyed, so Dispose runs when the game quits and at no other moment -- which
+        /// meant the full warm pool sat in memory through the login screen, the main menu and
+        /// the gacha, none of which can play an effect. Measured on the web build, that was
+        /// 636 ParticleSystems and 167 lights resident before the player had typed a name, and
+        /// the wasm heap it forced never came back down.
+        ///
+        /// Registrations survive because they are just recipes in a dictionary; rebuilding them
+        /// would mean rebuilding the catalogue, and the instances are the part that costs.
+        /// </summary>
+        public void ReleaseInstances()
+        {
+            foreach (var kv in buckets)
+            {
+                var bucket = kv.Value;
+
+                foreach (var handle in bucket.Idle) DestroyHandle(handle);
+                bucket.Idle.Clear();
+
+                for (int i = 0; i < bucket.Active.Count; i++)
+                {
+                    // Retire the stamp as well: a caller still holding one of these handles
+                    // must not be able to stop an instance that no longer exists.
+                    bucket.Active[i].Generation = 0;
+                    DestroyHandle(bucket.Active[i]);
+                }
+                bucket.Active.Clear();
+
+                bucket.Created = 0;
+            }
+
+            expiring.Clear();
+        }
+
         /// <summary>Destroys every instance. Called on presenter teardown.</summary>
         public void Dispose()
         {
