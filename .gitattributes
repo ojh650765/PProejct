@@ -1,0 +1,3 @@
+# The published web player. GitHub Pages serves bytes and cannot resolve Git LFS
+# pointers, so nothing on this branch may be tracked by LFS.
+* -filter -diff -merge -text

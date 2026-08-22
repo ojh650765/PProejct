@@ -1,0 +1,151 @@
+/*
+ * The page is the game. Nothing else is on it.
+ *
+ * Unity's stock template lays the canvas out as a 960x600 block inside a container, with a
+ * footer strip under it holding a logo, a build title and a fullscreen button. On a desktop
+ * that reads as a game embedded in a web page from 2009 — a small box floating on white, with
+ * chrome around it that the player has to use before the game is watchable.
+ *
+ * Here the canvas is the viewport, the background is the game's own backdrop colour so a
+ * letterbox or a load never flashes white, and the only two things that can appear over it are
+ * the loading bar and the error banner — both of which the deploy gate reads.
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0e14;            /* UiPalette.Backdrop */
+  color: #f2f5fa;                 /* UiPalette.TextPrimary */
+  font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", system-ui, -apple-system, sans-serif;
+  overscroll-behavior: none;      /* no rubber-banding under the canvas on touch */
+}
+
+/*
+ * fixed + inset rather than width/height on a static element: the canvas must not participate
+ * in layout at all, or a stray margin from a UA stylesheet reintroduces a scrollbar and with it
+ * a one-pixel jiggle every frame the game resizes.
+ *
+ * 100dvh, with 100vh behind it, because mobile browsers report vh as the height WITHOUT the
+ * address bar collapsed — the canvas would be taller than the visible area and the bottom of
+ * the touch controls would sit under the browser's own UI.
+ */
+#unity-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  display: block;
+  background: #0b0e14;
+  outline: none;
+  /* The sprites are 96px pixel art. Letting the browser smooth them on scale-up is the one
+     thing that would undo the art pipeline's no-resampling policy at the very last step. */
+  image-rendering: pixelated;
+  touch-action: none;             /* the game owns every touch; no double-tap zoom */
+}
+
+#unity-canvas.unity-mobile {
+  /* Same rules; kept as its own selector so the mobile case can diverge without a rewrite. */
+  width: 100%;
+  height: 100dvh;
+}
+
+/* --- loading ------------------------------------------------------------------------- */
+
+#unity-loading-bar {
+  display: none;                  /* switched to flex by the template script */
+  position: fixed;
+  inset: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: #0b0e14;
+  z-index: 20;
+}
+
+#unity-logo {
+  width: 154px;
+  height: 130px;
+  background: url('unity-logo-dark.png') no-repeat center;
+  background-size: contain;
+  opacity: 0.55;
+}
+
+#unity-progress-bar-empty {
+  width: min(420px, 62vw);
+  height: 12px;
+  border-radius: 999px;
+  background: #1e2635;            /* UiPalette.SurfaceRaised */
+  overflow: hidden;
+}
+
+/*
+ * The width of this element IS the progress reading the deploy gate polls, so it is driven
+ * from JS in percent and must not be animated by a transition — a capture taken mid-transition
+ * would report a number the loader never actually held.
+ */
+#unity-progress-bar-full {
+  width: 0%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4fe8d2, #ffc24b);
+}
+
+#unity-loading-note {
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: rgba(242, 245, 250, 0.44);   /* UiPalette.TextMuted */
+}
+
+/* --- messages ------------------------------------------------------------------------ */
+
+#unity-warning {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  display: none;
+  z-index: 30;
+  max-width: min(720px, 92vw);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* --- the fullscreen hint -------------------------------------------------------------- */
+
+/*
+ * A hint and not a button, deliberately. The old footer button was a control the player had to
+ * find and press every session; this says what will happen on the click they were going to
+ * make anyway, then gets out of the way and never comes back.
+ */
+#unity-fullscreen-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 25;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(8, 13, 22, 0.62);
+  color: rgba(242, 245, 250, 0.72);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  pointer-events: none;           /* never eats the click it is describing */
+  opacity: 1;
+  transition: opacity 0.45s ease;
+}
+
+#unity-fullscreen-hint.gone {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #unity-fullscreen-hint { transition: none; }
+}

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0e14">
+    <title>PProejct</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  </head>
+  <body>
+    <!--
+      The canvas fills the viewport, and that is the whole point of this template.
+
+      Unity's stock template hard-codes `canvas.style.width = "960px"` on desktop and hangs a
+      footer bar under it carrying a fullscreen button, so the game opens as a small box in the
+      middle of a white page and every session starts by hunting for that button. There is no
+      setting for this — the size is written into the template's own script — so the fix is a
+      template of our own.
+
+      The four ids below are load-bearing beyond the page: Tools/deploy_webgl.py serves the
+      build locally and drives Tools/capture_web.py, which polls #unity-progress-bar-full,
+      #unity-warning, #unity-canvas, and waits for #unity-loading-bar to reach
+      style.display === 'none' before it screenshots and triages the console. Renaming or
+      removing any of them does not break the page — it breaks the deploy gate, silently, in a
+      way that looks like the loader hanging.
+    -->
+    <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+
+    <div id="unity-loading-bar">
+      <div id="unity-logo"></div>
+      <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
+      </div>
+      <div id="unity-loading-note">불러오는 중…</div>
+    </div>
+
+    <div id="unity-warning"> </div>
+
+    <!-- Fades out on the first interaction. It is a hint, not a control. -->
+    <div id="unity-fullscreen-hint">화면을 클릭하면 전체화면</div>
+
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or a permanent error
+      // message on top of the canvas if type=='error'. The deploy gate reads this element,
+      // so errors must keep landing in it.
+      function unityShowBanner(msg, type) {
+        var warningBanner = document.querySelector("#unity-warning");
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: #b91c1c; color: #fff; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: #f59e0b; color: #111; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/WebGL.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/WebGL.data.unityweb",
+        frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb",
+        codeUrl: buildUrl + "/WebGL.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "PProejct",
+        productVersion: "0.1.0",
+        showBanner: unityShowBanner,
+      };
+
+      var params = new URLSearchParams(window.location.search);
+
+      /**
+       * Whether the first click should take the game to true fullscreen.
+       *
+       * IT CANNOT HAPPEN ON LOAD, and that is a browser rule rather than a Unity one:
+       * requestFullscreen() is only honoured inside a user gesture, so a page that asks for it
+       * from onload is refused in every current browser. The first click is therefore the
+       * earliest legal moment, and since the player has to click the canvas to give it focus
+       * anyway, it costs them nothing they were not already doing.
+       *
+       * Add ?nofs=1 to the URL to keep the browser chrome — useful when debugging with
+       * devtools open, where fullscreen is a nuisance.
+       */
+      var autoFullscreen = !params.has('nofs');
+
+      /**
+       * Cap the render resolution.
+       *
+       * Unity matches the WebGL render target to the canvas's DOM size scaled by
+       * devicePixelRatio. Now that the canvas is the whole window, a 4K or Retina display would
+       * ask the GPU for four times the pixels of a 1080p one — for a game drawn from 96px pixel
+       * sprites, which gains nothing visible and costs a great deal of frame time. Two is the
+       * ceiling because 1 visibly softens the sprite edges on a Retina panel.
+       */
+      config.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+      var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        canvas.className = "unity-mobile";
+        // The touch build already fills the screen; the extra pixels of a modern phone are
+        // more expensive than they are worth, so it renders at 1x.
+        config.devicePixelRatio = 1;
+      }
+
+      document.querySelector("#unity-loading-bar").style.display = "flex";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+        }).then((unityInstance) => {
+          // The gate waits on exactly this line. Keep it.
+          document.querySelector("#unity-loading-bar").style.display = "none";
+
+          // Published so the heap can be measured from outside the page.
+          //
+          // The build aborts with OOM when emscripten_resize_heap fails, and the only number
+          // that says how close it is running is the wasm memory's own byteLength -- which
+          // lives on the instance's Module and is otherwise sealed inside this closure. Every
+          // attempt to size the initial heap without it is a guess. Tools/probe_web_memory.py
+          // reads exactly these two fields.
+          window.unityInstance = unityInstance;
+          window.plHeapBytes = () => unityInstance.Module.HEAP8.byteLength;
+
+          var hint = document.querySelector("#unity-fullscreen-hint");
+          if (hint && !autoFullscreen) hint.style.display = "none";
+
+          var went = false;
+          function goFullscreen() {
+            if (hint) hint.classList.add("gone");
+            if (went || !autoFullscreen) return;
+            went = true;
+            try { unityInstance.SetFullscreen(1); } catch (e) { /* refused; the canvas already fills the window */ }
+          }
+
+          // Once, on the first real gesture. pointerdown rather than click so it fires before
+          // the game consumes the press, and keydown so a keyboard player is not left out.
+          window.addEventListener("pointerdown", goFullscreen, { once: true });
+          window.addEventListener("keydown", goFullscreen, { once: true });
+
+          // Nothing has been touched after a few seconds: the hint has said its piece.
+          setTimeout(() => { if (hint) hint.classList.add("gone"); }, 6000);
+        }).catch((message) => {
+          unityShowBanner(message, 'error');
+        });
+      };
+
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
