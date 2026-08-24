@@ -66,15 +66,40 @@ namespace PokeLab.UI
             return SpeciesName(creature.SpeciesId);
         }
 
-        /// <summary>Species display name, falling back to an id when the registry is absent.</summary>
+        /// <summary>
+        /// Species display name, falling back to an id when the registry is absent.
+        ///
+        /// <b>The empty case is checked, not assumed.</b> This used to return
+        /// <c>data.DisplayName</c> the moment a row was found, and DisplayName is
+        /// <c>Loc.Pick(NameEn, NameKo)</c> — a field, not a computation, so a row whose name
+        /// column did not survive the export comes back as an empty string and every screen
+        /// drawing it renders a blank where a creature's name should be. That is a much worse
+        /// failure than the missing-registry one this method was written for, because it looks
+        /// like a layout bug rather than a data one and sends you looking in the wrong file.
+        /// A blank is turned into the id and said out loud once, so the next report names the
+        /// species instead of the symptom.
+        /// </summary>
         public static string SpeciesName(int speciesId)
         {
             var registry = Species;
             if (registry != null && registry.TryGet(speciesId, out var data) && data != null)
             {
-                return data.DisplayName;
+                var name = data.DisplayName;
+                if (!string.IsNullOrWhiteSpace(name)) return name;
+                WarnOnce(speciesId);
             }
             return speciesId > 0 ? "Species #" + speciesId : "Unknown";
+        }
+
+        private static readonly HashSet<int> NamelessReported = new HashSet<int>();
+
+        private static void WarnOnce(int speciesId)
+        {
+            if (!NamelessReported.Add(speciesId)) return;
+            Debug.LogWarning($"[UiServices] Species {speciesId} is in the registry with an EMPTY " +
+                             "display name, so every list showing it would have drawn a blank. " +
+                             "Showing the id instead. Check NameEn/NameKo for that row in " +
+                             "species.json.");
         }
 
         /// <summary>Both types of a species. Returns <see cref="ElementType.None"/> pairs when unknown.</summary>

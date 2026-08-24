@@ -75,6 +75,17 @@ namespace PokeLab.Battle.Tests
 
         public IReadOnlyList<MoveData> MovesFor(int speciesId, int level) =>
             _learnsets.TryGetValue(speciesId, out var list) ? list : new List<MoveData>();
+
+        /// <summary>
+        /// The whole assigned learnset, ignoring level.
+        ///
+        /// The fake stores a flat list per species with no levels on it, so "everything ever"
+        /// and "everything by now" are the same list here. That is fine for what this answers
+        /// in the tests — whether a species could be taught a move at all — and it is the same
+        /// list <see cref="MovesFor"/> already hands back.
+        /// </summary>
+        public IReadOnlyList<MoveData> LearnableBy(int speciesId) =>
+            _learnsets.TryGetValue(speciesId, out var list) ? list : new List<MoveData>();
     }
 
     /// <summary>

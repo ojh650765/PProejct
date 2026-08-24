@@ -17,7 +17,19 @@ import {
   randomToken,
   timingSafeEqual
 } from "./crypto";
-import { MAX_ROLLS, rosterFor } from "./gacha";
+import { PULL_COST } from "./economy";
+import { purseFor, rosterFor } from "./gacha";
+
+/**
+ * Free pulls a new account starts with.
+ *
+ * Six, because that is a team, and the first team should not be a wall at the front door. They
+ * are spendable one at a time rather than in one go — 무조건 6개가 아니라 1개도 뽑을 수도 있고 —
+ * which is the only thing about the opening that changed. The schema carries the same number as
+ * its own DEFAULT and is the authority; this constant exists so the create reply can state it
+ * before the row has been read back.
+ */
+const FREE_PULLS_AT_SIGNUP = 6;
 
 /**
  * The fixed recovery questions.
@@ -84,11 +96,20 @@ export async function handleCreate(request: Request, env: Env): Promise<Response
   const at = now();
 
   try {
+    // free_pulls is written explicitly rather than left to the column DEFAULT.
+    //
+    // The two databases disagree about that default and always will: schema.sql declares 6 for
+    // a fresh install, and migrations/0002 had to add the column with DEFAULT 0 so that the
+    // fifty-odd accounts that already had teams were not handed six more pulls. A live database
+    // is the migrated one, so every account created after the migration was silently born with
+    // nothing owed to it -- signed up, told it had six free pulls, and refused at the first one.
+    // Stating the number here makes the row right on either database.
     await env.DB.prepare(
-      `INSERT INTO accounts (id, name, name_key, question_id, answer_hash, answer_salt, created_at, last_seen_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO accounts (id, name, name_key, question_id, answer_hash, answer_salt,
+                             created_at, last_seen_at, coins, free_pulls)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`
     )
-      .bind(id, name, nameKey, questionId, hash, salt, at, at)
+      .bind(id, name, nameKey, questionId, hash, salt, at, at, FREE_PULLS_AT_SIGNUP)
       .run();
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -103,8 +124,12 @@ export async function handleCreate(request: Request, env: Env): Promise<Response
     token,
     trainerName: name,
     needsGacha: true,
-    rollsUsed: 0,
-    rollsMax: MAX_ROLLS
+    // A brand new account owns nothing and owes itself six pulls. The schema's own default is
+    // the authority — restated here only so the sign-in screen can say so before the first
+    // /roster lands.
+    coins: 0,
+    freePulls: FREE_PULLS_AT_SIGNUP,
+    pullCost: PULL_COST
   });
 }
 
@@ -164,22 +189,23 @@ export async function handleLogin(request: Request, env: Env): Promise<Response>
     .run();
 
   const token = await issueToken(env, account.id);
-  const roster = await rosterFor(env, account.id);
+  const [roster, purse] = await Promise.all([
+    rosterFor(env, account.id),
+    purseFor(env, account.id)
+  ]);
 
   // Sent on sign-in because this is the moment the old bug happened: the client rebuilt its
-  // draw list from nothing and offered five fresh rolls to an account that had spent them.
-  const spent = await env.DB.prepare(`SELECT rolls_used FROM accounts WHERE id = ?`)
-    .bind(account.id)
-    .first<{ rolls_used: number }>();
-
+  // own idea of what the account could afford from nothing. What it cannot remember across a
+  // reconnect, the server states on every one.
   return json({
     ok: true,
     accountId: account.id,
     token,
     trainerName: account.name,
     needsGacha: roster.length === 0,
-    rollsUsed: spent?.rolls_used ?? 0,
-    rollsMax: MAX_ROLLS
+    coins: purse.coins,
+    freePulls: purse.free_pulls,
+    pullCost: PULL_COST
   });
 }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace PokeLab.Online
@@ -54,33 +55,93 @@ namespace PokeLab.Online
         /// <summary>True when there is a token to send. Not proof the server still honours it.</summary>
         public bool IsSignedIn => !string.IsNullOrEmpty(_token);
 
-        /// <summary>True when the account holds a full team and is ready for a battle.</summary>
+        /// <summary>What is in the bag: rare candies and move discs, by item id.</summary>
+        public OwnedItem[] Items { get; private set; } = Array.Empty<OwnedItem>();
+
+        /// <summary>True when the account owns anything at all.</summary>
         public bool HasTeam => Roster != null && Roster.Length > 0;
 
         /// <summary>
-        /// Rolls spent and the cap, as the SERVER counts them.
+        /// The six that fight, in party order.
         ///
-        /// The gacha panel used to count its own list of draws, which is a number that cannot
-        /// survive a reconnect — signing back in offered a full five to an account that had
-        /// spent them. These come back on every sign-in and after every roll, so the limit is
-        /// the account's rather than the page's.
+        /// Falls back to the first six of the collection when nothing is assigned, exactly as
+        /// the Worker's own <c>partyOf</c> does — an account created before the party existed
+        /// has every row at partySlot -1, and a battle entrance that refused to open until a
+        /// team screen had been visited would be a wall in front of the only mode that pays.
+        /// The two implementations agree by construction, and this note is here so that stays
+        /// true if either moves.
         /// </summary>
-        public int RollsUsed { get; private set; }
-        public int RollsMax { get; private set; } = 5;
+        public RosterEntry[] Party
+        {
+            get
+            {
+                if (Roster == null || Roster.Length == 0) return Array.Empty<RosterEntry>();
+
+                var assigned = new List<RosterEntry>(PartySize);
+                foreach (var entry in Roster)
+                    if (entry != null && entry.InParty) assigned.Add(entry);
+
+                if (assigned.Count == 0)
+                {
+                    var head = new List<RosterEntry>(PartySize);
+                    foreach (var entry in Roster)
+                    {
+                        if (entry == null) continue;
+                        head.Add(entry);
+                        if (head.Count >= PartySize) break;
+                    }
+                    return head.ToArray();
+                }
+
+                assigned.Sort((a, b) => a.partySlot.CompareTo(b.partySlot));
+                if (assigned.Count > PartySize) assigned.RemoveRange(PartySize, assigned.Count - PartySize);
+                return assigned.ToArray();
+            }
+        }
+
+        /// <summary>How many fight at once. The party, not the collection.</summary>
+        public const int PartySize = 6;
 
         /// <summary>
-        /// True once a server has actually reported a roll count.
+        /// The purse, as the SERVER counts it.
         ///
-        /// Without this the client is UNSAFE against a Worker that predates the field: the
-        /// response deserialises with rollsMax 0 and rollsUsed 0, the panel reads "none spent"
-        /// forever, and the five-roll limit becomes no limit at all — a worse bug than the one
-        /// being fixed. Until a server says otherwise the panel keeps counting its own draws,
-        /// which is wrong across a reconnect but right within a session.
+        /// The gacha panel used to count its own draws against a lifetime cap, which is a number
+        /// that cannot survive a reconnect — signing back in offered a spent account a full
+        /// allowance. That cap is gone; a pull has a price now, because a collection you may
+        /// only draw five times is not a collection. These come back on every sign-in, after
+        /// every roll, after every battle and after every 강화, so what the screen shows is
+        /// always the answer to the last thing that changed it.
         /// </summary>
-        public bool ServerCountsRolls { get; private set; }
+        public int Coins { get; private set; }
 
-        /// <summary>Rolls the account may still spend. Never negative.</summary>
-        public int RollsLeft => Mathf.Max(0, RollsMax - RollsUsed);
+        /// <summary>Pulls owed rather than paid for. Six at signup, spendable one at a time.</summary>
+        public int FreePulls { get; private set; }
+
+        /// <summary>Coins for one paid pull, and the most that may be drawn at once.</summary>
+        public int PullCost { get; private set; } = 500;
+        public int MaxPulls { get; private set; } = 10;
+
+        /// <summary>Pulls affordable right now: the free ones plus what the coins buy.</summary>
+        public int AffordablePulls =>
+            FreePulls + (PullCost > 0 ? Coins / PullCost : 0);
+
+        /// <summary>How many of <paramref name="itemId"/> the bag holds.</summary>
+        public int ItemCount(string itemId)
+        {
+            if (Items == null || string.IsNullOrEmpty(itemId)) return 0;
+            foreach (var item in Items)
+                if (item != null && item.itemId == itemId) return item.count;
+            return 0;
+        }
+
+        /// <summary>The collection entry at a slot, or null.</summary>
+        public RosterEntry Owned(int slot)
+        {
+            if (Roster == null) return null;
+            foreach (var entry in Roster)
+                if (entry != null && entry.slot == slot) return entry;
+            return null;
+        }
 
         /// <summary>
         /// Stands the session up if nothing has yet, and returns it.
@@ -223,12 +284,9 @@ namespace PokeLab.Online
             _token = response.token ?? "";
             TrainerName = response.trainerName ?? name;
             AccountId = response.accountId ?? "";
-            if (response.rollsMax > 0)
-            {
-                ServerCountsRolls = true;
-                RollsMax = response.rollsMax;
-                RollsUsed = response.rollsUsed;
-            }
+            Coins = response.coins;
+            FreePulls = response.freePulls;
+            if (response.pullCost > 0) PullCost = response.pullCost;
             Persist();
 
             // The roster is fetched rather than assumed empty: a returning player signing in on
@@ -246,6 +304,9 @@ namespace PokeLab.Online
             TrainerName = "";
             AccountId = "";
             Roster = Array.Empty<RosterEntry>();
+            Items = Array.Empty<OwnedItem>();
+            Coins = 0;
+            FreePulls = 0;
             HasCloudSave = false;
             PlayerPrefs.DeleteKey(TokenKey);
             PlayerPrefs.DeleteKey(NameKey);
@@ -280,21 +341,45 @@ namespace PokeLab.Online
                 yield break;
             }
 
-            Roster = response.roster ?? Array.Empty<RosterEntry>();
-            Changed?.Invoke();
+            Absorb(response);
             done?.Invoke(true);
         }
 
         /// <summary>
-        /// Draws a team.
+        /// Takes everything an account-shaped reply carries.
         ///
-        /// Six pulls, no duplicates, weighted so the better creatures are rarer — the user's
-        /// specification, and every word of it is enforced on the Worker. The client sends how
-        /// many and whether this replaces an existing team; what comes back is the drawn
-        /// creatures in the order the presentation should reveal them, and the roster they
-        /// became.
+        /// Every growth route and the roster fetch answer with the same shape, on purpose: they
+        /// all move at least two of collection, purse and bag, and a screen that had to work out
+        /// which had changed would eventually get it wrong. One method reads all of them, so a
+        /// field added to the wire reaches every caller at once.
+        ///
+        /// pullCost and maxPulls are only taken when positive. A Worker that predates them
+        /// deserialises as zero, and a zero price would read as "pulls are free" — the same
+        /// class of bug as the old rollsMax-zero one, which is why the guard is here rather than
+        /// trusted to the caller.
         /// </summary>
-        public IEnumerator RollGacha(int pulls, bool reroll, Action<GachaResponse> done)
+        private void Absorb(RosterResponse response)
+        {
+            if (response == null) return;
+            Roster = response.roster ?? Array.Empty<RosterEntry>();
+            Items = response.items ?? Array.Empty<OwnedItem>();
+            Coins = response.coins;
+            FreePulls = response.freePulls;
+            if (response.pullCost > 0) PullCost = response.pullCost;
+            if (response.maxPulls > 0) MaxPulls = response.maxPulls;
+            Changed?.Invoke();
+        }
+
+        /// <summary>
+        /// Draws <paramref name="pulls"/> creatures into the collection.
+        ///
+        /// One to ten at a time — 무조건 6개가 아니라, 1개도 뽑을 수도 있고 ~n개를 뽑기 가능한거지
+        /// — weighted so the better creatures are rarer, and every word of that is enforced on
+        /// the Worker. What comes back is the drawn creatures in the order the presentation
+        /// should reveal them, marked where one was a duplicate that became a shard, and the
+        /// account they left behind.
+        /// </summary>
+        public IEnumerator RollGacha(int pulls, Action<GachaResponse> done)
         {
             if (!IsSignedIn) { LastError = "unauthorised"; done?.Invoke(null); yield break; }
             if (Busy) { done?.Invoke(null); yield break; }
@@ -304,7 +389,59 @@ namespace PokeLab.Online
 
             GachaResponse response = null;
             yield return OnlineClient.Post<GachaResponse>("/gacha/roll",
-                new GachaRequest { pulls = pulls, reroll = reroll }, _token, r => response = r);
+                new GachaRequest { pulls = pulls }, _token, r => response = r);
+
+            Busy = false;
+
+            if (response == null || !response.ok)
+            {
+                LastError = response?.error ?? "bad_response";
+                if (LastError == "unauthorised") SignOut();
+
+                // A refusal still carries the purse. "not_enough_coins" is only useful beside
+                // the number that was not enough, so it is taken even though the roll failed.
+                if (response != null && response.pullCost > 0)
+                {
+                    Coins = response.coins;
+                    FreePulls = response.freePulls;
+                    PullCost = response.pullCost;
+                    Changed?.Invoke();
+                }
+                done?.Invoke(null);
+                yield break;
+            }
+
+            Roster = response.roster ?? Roster;
+            Items = response.items ?? Items;
+            Coins = response.coins;
+            FreePulls = response.freePulls;
+            if (response.pullCost > 0) PullCost = response.pullCost;
+            if (response.maxPulls > 0) MaxPulls = response.maxPulls;
+            Changed?.Invoke();
+            done?.Invoke(response);
+        }
+
+        // --- 내 포켓몬 ------------------------------------------------------------
+
+        /// <summary>
+        /// The one shape every growth route shares.
+        ///
+        /// 강화, 돌파, 사탕, 기술 and the party all name a creature and change the account, and
+        /// they all answer with the whole account. Routing them through one method keeps that
+        /// promise in one place: whatever comes back, the session ends up describing the same
+        /// thing the server does, and every screen watching <see cref="Changed"/> redraws from
+        /// it. <paramref name="done"/> gets the reply so a caller can say what it cost.
+        /// </summary>
+        private IEnumerator Growth(string path, object body, Action<RosterResponse> done)
+        {
+            if (!IsSignedIn) { LastError = "unauthorised"; done?.Invoke(null); yield break; }
+            if (Busy) { done?.Invoke(null); yield break; }
+
+            Busy = true;
+            LastError = "";
+
+            RosterResponse response = null;
+            yield return OnlineClient.Post<RosterResponse>(path, body, _token, r => response = r);
 
             Busy = false;
 
@@ -316,16 +453,37 @@ namespace PokeLab.Online
                 yield break;
             }
 
-            Roster = response.roster ?? Roster;
-            if (response.rollsMax > 0)
-            {
-                ServerCountsRolls = true;
-                RollsMax = response.rollsMax;
-                RollsUsed = response.rollsUsed;
-            }
-            Changed?.Invoke();
+            Absorb(response);
             done?.Invoke(response);
         }
+
+        /// <summary>강화: buys one level's worth of experience with coins.</summary>
+        public IEnumerator Enhance(int slot, Action<RosterResponse> done) =>
+            Growth("/creature/enhance", new CreatureRequest { slot = slot }, done);
+
+        /// <summary>돌파: spends duplicate shards and coins to raise the level ceiling.</summary>
+        public IEnumerator Breakthrough(int slot, Action<RosterResponse> done) =>
+            Growth("/creature/breakthrough", new CreatureRequest { slot = slot }, done);
+
+        /// <summary>이상한 사탕: one level, straight out of the bag.</summary>
+        public IEnumerator FeedCandy(int slot, Action<RosterResponse> done) =>
+            Growth("/creature/candy", new CreatureRequest { slot = slot }, done);
+
+        /// <summary>
+        /// Teaches a move disc into one of the four slots.
+        ///
+        /// The Worker checks the species' learnset before it spends anything and answers
+        /// "cannot_learn" with the disc still in the bag. The screen checks the same thing first
+        /// so the usual outcome is a greyed row rather than a round trip — but the Worker's
+        /// check is the one that counts, because a taught move walks into a PvP match.
+        /// </summary>
+        public IEnumerator Teach(int slot, int moveSlot, string moveId, Action<RosterResponse> done) =>
+            Growth("/creature/teach",
+                   new TeachRequest { slot = slot, moveSlot = moveSlot, moveId = moveId }, done);
+
+        /// <summary>Sets which six of the collection fight, by collection slot, in party order.</summary>
+        public IEnumerator SetParty(int[] slots, Action<RosterResponse> done) =>
+            Growth("/party/set", new PartyRequest { slots = slots ?? Array.Empty<int>() }, done);
 
         // --- Progress ---------------------------------------------------------------------
 
@@ -362,9 +520,12 @@ namespace PokeLab.Online
                 yield break;
             }
 
-            // The gains carry the new levels, so the cached roster is brought up to date from
-            // them rather than costing a second round trip.
+            // The gains carry the new levels and the reply carries the purse and the bag, so the
+            // cached account is brought up to date from what already arrived rather than costing
+            // a second round trip.
             ApplyGains(response.gains);
+            Coins = response.coins;
+            if (response.items != null) Items = response.items;
             Changed?.Invoke();
             done?.Invoke(response);
         }

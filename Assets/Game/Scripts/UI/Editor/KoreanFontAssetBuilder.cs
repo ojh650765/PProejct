@@ -63,6 +63,28 @@ namespace PokeLab.UI.Editor
         /// survives a build, and it only sees what is under a Resources folder.
         /// </summary>
         public const string FontAssetPath = GeneratedFolder + UiType.KoreanFontResourcePath + ".asset";
+
+        /// <summary>
+        /// The last-resort face, and the only one left dynamic.
+        ///
+        /// <b>Why it exists.</b> The three assets above are baked STATIC by
+        /// <c>StaticFontAtlasBaker</c>, because rasterising a thousand glyphs at launch cost a
+        /// gigabyte of FontEngine and killed the web build. A static atlas draws a glyph it does
+        /// not carry as an empty box, with no fallback and no warning — and the set it carries
+        /// is the set the GAME authors, which is not the set the game can be asked to draw. A
+        /// player types their own trainer name. That was the report:
+        /// 유저 이름 ㅁ칸으로 뜨는 폰트가 존재함.
+        ///
+        /// So one asset stays dynamic and sits at the END of the global fallback list. Every
+        /// glyph the game authors is answered by a static atlas before this is ever consulted,
+        /// so the launch cost is unchanged; the handful of syllables in somebody name are
+        /// rasterised on demand, which is a frame of work rather than a gigabyte of it.
+        ///
+        /// <b>Order is the whole design.</b> Last, not first. In front of the static atlases it
+        /// would answer for every character they were missing for any reason and quietly become
+        /// the font the game is drawn in — which is the state that caused the OOM.
+        /// </summary>
+        public const string DynamicFallbackPath = GeneratedFolder + UiType.KoreanDynamicFallbackResourcePath + ".asset";
         public const string SemiBoldFontAssetPath = GeneratedFolder + UiType.KoreanSemiBoldFontResourcePath + ".asset";
         public const string BoldFontAssetPath = GeneratedFolder + UiType.KoreanBoldFontResourcePath + ".asset";
 
@@ -97,6 +119,17 @@ namespace PokeLab.UI.Editor
         private const int SamplingPointSize = 48;
         private const int AtlasPadding = 5;
         private const int AtlasDimension = 1024;
+
+        /// <summary>
+        /// Page size for the dynamic last-resort face.
+        ///
+        /// Half the linear size of the authored atlases, a quarter of the area, because what
+        /// reaches it is text nobody authored -- a trainer name is at most sixteen syllables and
+        /// a security answer a short phrase. 512 at 48pt sampling holds roughly sixty Hangul
+        /// syllables per page, and multi-atlas adds a page rather than failing if that is ever
+        /// not enough.
+        /// </summary>
+        private const int DynamicFallbackDimension = 512;
 
         /// <summary>A real authored line, used to prove the face actually carries Hangul.</summary>
         private const string ProbeLine = "안 오면 벌금 100만원!";
@@ -147,6 +180,10 @@ namespace PokeLab.UI.Editor
 
             LinkWeights(regular, semiBold, bold);
             RegisterAsGlobalFallback(regular);
+
+            // Built after the three weights and registered behind them, so it is only ever
+            // reached for a character none of them carry.
+            BuildDynamicFallback();
 
             // CreateFontAsset copies this off TMP_Settings, and the asset's own flag is
             // internal to TMP, so the project setting is the only place it can be enforced.
@@ -315,6 +352,101 @@ namespace PokeLab.UI.Editor
         /// gives it a new GUID, which would leave a hand-written reference silently pointing
         /// at nothing — the same invisible breakage in a new place.
         /// </summary>
+        /// <summary>
+        /// Builds the dynamic last-resort face and parks it at the end of the fallback list.
+        ///
+        /// A smaller page than the static atlases carry, on purpose: what reaches this face is
+        /// text nobody authored — a trainer name, an answer to a security question — which is
+        /// tens of glyphs, not a thousand. Multi-atlas is on anyway, because the alternative
+        /// when a page fills is a silent box, which is the exact failure this asset exists to
+        /// remove.
+        ///
+        /// It is NOT cross-linked into the weight table. A fallback consulted for a bold label
+        /// answers with regular outlines; that is the right trade for a name that would
+        /// otherwise not render at all, but wiring it into the weight table as well would let it
+        /// answer for text the static bold atlas can draw perfectly.
+        /// </summary>
+        [MenuItem("PokeLab/UI/Rebuild Dynamic Fallback")]
+        public static void BuildDynamicFallback()
+        {
+            // A menu item in its own right, so it cannot assume Build just ran.
+            FontEngine.InitializeFontEngine();
+
+            var font = AssetDatabase.LoadAssetAtPath<Font>(RegularSourcePath);
+            if (font == null)
+            {
+                Debug.LogError("[KoreanFont] No source face at " + RegularSourcePath
+                               + "; the dynamic fallback cannot be built and player-typed "
+                               + "Korean will render as empty boxes.");
+                return;
+            }
+
+            // Rebuilt from scratch every time rather than reused. A dynamic asset accumulates
+            // whatever was rasterised into it while the editor was playing, and TMP only clears
+            // that at BUILD time -- so an asset carried over from the last rebuild would drag a
+            // stale atlas into git.
+            var asset = TMP_FontAsset.CreateFontAsset(
+                font, SamplingPointSize, AtlasPadding, GlyphRenderMode.SDFAA,
+                DynamicFallbackDimension, DynamicFallbackDimension, AtlasPopulationMode.Dynamic,
+                enableMultiAtlasSupport: true);
+
+            if (asset == null)
+            {
+                Debug.LogError("[KoreanFont] TMP could not build the dynamic fallback from "
+                               + RegularSourcePath + ".");
+                return;
+            }
+
+            AssetDatabase.DeleteAsset(DynamicFallbackPath);
+            AssetDatabase.CreateAsset(asset, DynamicFallbackPath);
+
+            var assetName = Path.GetFileNameWithoutExtension(DynamicFallbackPath);
+            if (asset.atlasTextures != null && asset.atlasTextures.Length > 0 && asset.atlasTextures[0] != null)
+            {
+                asset.atlasTextures[0].name = assetName + " Atlas";
+                AssetDatabase.AddObjectToAsset(asset.atlasTextures[0], asset);
+            }
+            if (asset.material != null)
+            {
+                asset.material.name = assetName + " Atlas Material";
+                AssetDatabase.AddObjectToAsset(asset.material, asset);
+            }
+
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.ImportAsset(DynamicFallbackPath, ImportAssetOptions.ForceUpdate);
+
+            var reloaded = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(DynamicFallbackPath);
+            AppendAsGlobalFallback(reloaded);
+
+            Debug.Log("[KoreanFont] Dynamic last-resort fallback at " + DynamicFallbackPath
+                      + " (" + DynamicFallbackDimension + "x" + DynamicFallbackDimension
+                      + ", multi-atlas). Anything the static atlases do not carry -- a player's "
+                      + "own trainer name, above all -- is rasterised from it on demand.");
+        }
+
+        /// <summary>
+        /// Puts an asset at the END of the global fallback list, replacing any stale copy.
+        ///
+        /// The mirror of <see cref="RegisterAsGlobalFallback"/>, and the difference is the whole
+        /// point: that one inserts at the head so the project face answers first, this one
+        /// appends so the dynamic face answers LAST. A list with those two the wrong way round
+        /// still renders every character correctly, and rasterises the entire game at runtime
+        /// doing it.
+        /// </summary>
+        private static void AppendAsGlobalFallback(TMP_FontAsset asset)
+        {
+            if (asset == null) return;
+
+            var fallbacks = TMP_Settings.fallbackFontAssets ?? new List<TMP_FontAsset>();
+            fallbacks.RemoveAll(f => f == null || f.name == asset.name);
+            fallbacks.Add(asset);
+
+            TMP_Settings.fallbackFontAssets = fallbacks;
+            EditorUtility.SetDirty(TMP_Settings.instance);
+            AssetDatabase.SaveAssets();
+        }
+
         private static void RegisterAsGlobalFallback(TMP_FontAsset asset)
         {
             if (asset == null) return;

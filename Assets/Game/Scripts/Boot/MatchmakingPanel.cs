@@ -244,7 +244,12 @@ namespace PokeLab.Boot
         private void BuildVersus()
         {
             var session = OnlineSession.Instance;
-            var mine = session != null ? session.Roster : Array.Empty<RosterEntry>();
+
+            // The PARTY, because the party is what is about to fight. The opponent's side of
+            // this board is already only their six -- the Worker sends partyOf() to the room --
+            // so showing the whole collection on our side would put a board of fifty against a
+            // board of six and tell the player they were bringing creatures they are not.
+            var mine = session != null ? session.Party : Array.Empty<RosterEntry>();
 
             BuildTeam(_body, mine,
                 session != null && !string.IsNullOrEmpty(session.TrainerName)

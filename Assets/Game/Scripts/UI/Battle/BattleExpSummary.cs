@@ -101,7 +101,16 @@ namespace PokeLab.UI
         /// the one thing that must never happen is the teardown starting while the summary is
         /// still on screen.
         /// </summary>
-        public IEnumerator Play(bool won, IReadOnlyList<ExperienceSummaryEntry> entries, string failureNote = null)
+        /// <param name="reward">
+        /// What the battle paid, beside the experience: coins, and anything it dropped. Shown in
+        /// place of the stock subtitle, because a payout the player is never shown is a payout
+        /// they have no reason to believe in — and coins on a LOSS especially, which is the half
+        /// of the rule that has to be visible to do its job.
+        /// A failure note still wins over it: when the report never landed there is nothing to
+        /// announce, and announcing it anyway would be the worse lie.
+        /// </param>
+        public IEnumerator Play(bool won, IReadOnlyList<ExperienceSummaryEntry> entries,
+                                string failureNote = null, string reward = null)
         {
             _skipRequested = false;
             gameObject.SetActive(true);
@@ -121,11 +130,14 @@ namespace PokeLab.UI
             }
             if (_subtitle != null)
             {
-                _subtitle.SetText(string.IsNullOrEmpty(failureNote)
-                    ? (won ? Loc.Pick("The field is yours.", "상대 팀을 모두 쓰러뜨렸다!")
-                           : Loc.Pick("Your team was beaten.", "우리 팀이 모두 쓰러졌다…"))
-                    : failureNote);
-                _subtitle.color = string.IsNullOrEmpty(failureNote) ? UiPalette.TextSecondary : UiPalette.Caution;
+                var stock = won ? Loc.Pick("The field is yours.", "상대 팀을 모두 쓰러뜨렸다!")
+                                : Loc.Pick("Your team was beaten.", "우리 팀이 모두 쓰러졌다…");
+                _subtitle.SetText(!string.IsNullOrEmpty(failureNote) ? failureNote
+                                  : !string.IsNullOrEmpty(reward) ? reward
+                                  : stock);
+                _subtitle.color = !string.IsNullOrEmpty(failureNote)
+                    ? UiPalette.Caution
+                    : !string.IsNullOrEmpty(reward) ? BattleSkin.Lime : UiPalette.TextSecondary;
             }
             if (_prompt != null) _prompt.gameObject.SetActive(false);
 

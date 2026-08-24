@@ -1,7 +1,14 @@
 import { handleCreate, handleLogin, authenticate } from "./accounts";
 import { handleBattleResult } from "./battle";
 import { Env, assertEnv, fail, json } from "./env";
-import { handleRoll, handleRoster, odds, poolSize, rosterFor } from "./gacha";
+import { handleRoll, handleRoster, odds, partyOf, poolSize, rosterFor } from "./gacha";
+import {
+  handleBreakthrough,
+  handleCandy,
+  handleEnhance,
+  handleSetParty,
+  handleTeach
+} from "./growth";
 import { handleSaveDelete, handleSaveGet, handleSaveInfo, handleSavePut } from "./saves";
 import { MatchRoom } from "./MatchRoom";
 
@@ -55,6 +62,29 @@ export default {
         return await handleBattleResult(request, env);
       }
 
+      // 내 포켓몬. Everything that changes what a collected creature IS lives behind these five,
+      // and every one of them answers with the whole account — collection, purse and bag — so
+      // the screen redraws from one reply instead of three.
+      if (request.method === "POST" && path === "/creature/enhance") {
+        return await handleEnhance(request, env);
+      }
+
+      if (request.method === "POST" && path === "/creature/breakthrough") {
+        return await handleBreakthrough(request, env);
+      }
+
+      if (request.method === "POST" && path === "/creature/candy") {
+        return await handleCandy(request, env);
+      }
+
+      if (request.method === "POST" && path === "/creature/teach") {
+        return await handleTeach(request, env);
+      }
+
+      if (request.method === "POST" && path === "/party/set") {
+        return await handleSetParty(request, env);
+      }
+
       // Story-mode cloud save. Written only when the player presses 리포트 — see saves.ts for
       // why that makes last-write-wins the right rule here.
       if (request.method === "POST" && path === "/save/put") {
@@ -102,7 +132,10 @@ async function routeToRoom(request: Request, env: Env, url: URL, path: string): 
   const account = await authenticate(request, env) ?? (await authenticateByQuery(request, env, url));
   if (!account) return fail("unauthorised", 401);
 
-  const roster = await rosterFor(env, account.id);
+  // The PARTY, not the collection. A room handed fifty creatures would build a team out of
+  // whichever six it happened to read first, and the two clients would not agree about which
+  // six those were.
+  const roster = partyOf(await rosterFor(env, account.id));
   if (roster.length === 0) return fail("no_team");
 
   const lobby = path === "/pvp/queue";
@@ -124,7 +157,14 @@ async function routeToRoom(request: Request, env: Env, url: URL, path: string): 
         level: row.level,
         experience: row.experience,
         rarity: row.rarity,
-        slot: row.slot
+        slot: row.slot,
+        partySlot: row.party_slot ?? -1,
+        // Stars and the taught moveset travel with the opponent because the client builds the
+        // creature from them. Two clients that disagree about a stat bonus or a fourth move
+        // disagree about who won, and that disagreement only shows up as a desync.
+        stars: row.stars ?? 0,
+        shards: 0,
+        moves: row.moves ?? ""
       }))
     )
   );

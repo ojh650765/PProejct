@@ -94,7 +94,13 @@ namespace PokeLab.Boot
             Say(Loc.Pick("Preparing the battle…", "대전을 준비하는 중…"));
 
             var session = OnlineSession.Instance;
-            var roster = session.Roster;
+
+            // The PARTY, not the collection. Once the gacha started drawing into a collection
+            // rather than a team, "the first six rows" stopped being an answer to "who fights" --
+            // it would field whichever six happened to be drawn earliest and silently ignore
+            // every choice made on the 내 포켓몬 screen. `Party` is the same rule the Worker's own
+            // partyOf applies, so the team here and the team a PvP opponent is handed agree.
+            var roster = session.Party;
 
             // 1. Who we are fighting, resolved BEFORE either party is built.
             //
@@ -380,11 +386,11 @@ namespace PokeLab.Boot
             // reached there are no gains to show, and a results screen full of zeroes would be
             // a worse lie than a sentence saying so.
             Say(string.Empty);
-            var entries = BuildSummary(report, profile);
+            var entries = BuildSummary(report, profile, roster);
 
             if (reported && report != null && entries.Count > 0)
             {
-                yield return Summary().Play(won, entries);
+                yield return Summary().Play(won, entries, null, RewardLine(report));
             }
             else
             {
@@ -405,7 +411,43 @@ namespace PokeLab.Boot
         /// the one place that can see both. The party is only consulted for the nickname and
         /// the species: every number on screen is the server's.
         /// </summary>
-        private static List<ExperienceSummaryEntry> BuildSummary(BattleResultResponse report, PlayerProfile profile)
+        /// <summary>
+        /// What the battle paid beyond experience, as one line.
+        ///
+        /// Coins always — both outcomes pay, and the loss half of that rule only does its job if
+        /// the player can see it happen. Drops only when there were any, because "가끔식
+        /// 획득가능하게" means most battles have nothing to add and a line reading
+        /// "dropped: nothing" every time would drown the times it did.
+        /// </summary>
+        private static string RewardLine(BattleResultResponse report)
+        {
+            if (report == null) return null;
+
+            var line = Loc.Pick($"+{report.coinsGained:N0} coins", $"코인 +{report.coinsGained:N0}");
+
+            var drops = report.drops;
+            if (drops == null || drops.Length == 0) return line;
+
+            var names = new List<string>(drops.Length);
+            foreach (var itemId in drops)
+            {
+                if (string.IsNullOrEmpty(itemId)) continue;
+                names.Add(itemId == "candy"
+                    ? Loc.Pick("Rare Candy", "이상한 사탕")
+                    : itemId.StartsWith("disc:")
+                        ? Loc.Pick($"{UiServices.MoveName(itemId.Substring(5))} disc",
+                                   $"{UiServices.MoveName(itemId.Substring(5))} 디스크")
+                        : itemId);
+            }
+
+            if (names.Count == 0) return line;
+            return line + Loc.Pick("   ·   found " + string.Join(", ", names),
+                                   "   ·   " + string.Join(", ", names) + " 획득!");
+        }
+
+        private static List<ExperienceSummaryEntry> BuildSummary(BattleResultResponse report,
+                                                                 PlayerProfile profile,
+                                                                 RosterEntry[] party)
         {
             var entries = new List<ExperienceSummaryEntry>();
             var gains = report?.gains;
@@ -416,11 +458,22 @@ namespace PokeLab.Boot
                 var gain = gains[i];
                 if (gain == null) continue;
 
-                // The slot is the server's index into the roster, which is the order the party
-                // was built in — so it is also the party index, and the two only disagree if a
-                // roster entry failed to build, in which case the name is simply omitted.
-                var member = profile != null && gain.slot >= 0 && gain.slot < profile.Party.Count
-                    ? profile.Party[gain.slot]
+                // The slot is the server's COLLECTION index, which stopped being the party index
+                // the moment the gacha started drawing into a collection: a party built from
+                // slots 3, 9 and 40 would have read those straight off profile.Party and shown
+                // the wrong creature's name, or none. So it is looked up in the same party array
+                // the profile was built from, in the same order.
+                var partyIndex = -1;
+                if (party != null)
+                {
+                    for (var p = 0; p < party.Length; p++)
+                    {
+                        if (party[p] != null && party[p].slot == gain.slot) { partyIndex = p; break; }
+                    }
+                }
+
+                var member = profile != null && partyIndex >= 0 && partyIndex < profile.Party.Count
+                    ? profile.Party[partyIndex]
                     : null;
 
                 entries.Add(new ExperienceSummaryEntry
@@ -457,13 +510,80 @@ namespace PokeLab.Boot
                 var entry = roster[i];
                 if (entry == null) continue;
                 // The instance is rebuilt from species and level rather than stored: the server
-                // owns the two numbers that matter and everything else about a creature — its
-                // IVs, its moves — is derived, so there is nothing else to persist.
-                party.Add(CreatureFactory.Create(entry.speciesId, entry.level,
-                    entry.speciesId * 7919 + entry.slot + seedSalt, ordinal: i));
+                // owns the numbers that matter and everything else about a creature -- its
+                // IVs, its ability -- is derived from the seed, so there is nothing else to
+                // persist. What the server DOES own beyond the level is the growth the player
+                // paid for, and those two lines below are it.
+                var creature = CreatureFactory.Create(entry.speciesId, entry.level,
+                    entry.speciesId * 7919 + entry.slot + seedSalt, ordinal: i);
+
+                ApplyTaughtMoves(creature, entry.moves);
+                ApplyStars(creature, entry.stars);
+
+                party.Add(creature);
             }
 
             return party;
+        }
+
+        /// <summary>
+        /// Replaces the derived moveset with the one the player taught, when there is one.
+        ///
+        /// Empty is the normal state and means "whatever the level-up learnset gives at this
+        /// level", which both runtimes derive identically -- so nothing is written down until a
+        /// disc is actually taught. Once it is, the server's list is the only one that counts,
+        /// because it is the list a PvP opponent's copy of this creature will be built from too.
+        ///
+        /// A move id the local registry does not know is dropped rather than faked. That can
+        /// only happen if the Worker's learnsets and moves.json have drifted apart, and a slot
+        /// carrying a move the engine cannot look up would throw mid-turn.
+        /// </summary>
+        private static void ApplyTaughtMoves(CreatureInstance creature, string taught)
+        {
+            if (creature == null || string.IsNullOrWhiteSpace(taught)) return;
+            if (!ServiceHub.TryGet<IMoveRegistry>(out var moves) || moves == null) return;
+
+            var ids = taught.Split(',');
+            var resolved = new List<MoveData>(4);
+            foreach (var raw in ids)
+            {
+                var id = raw.Trim();
+                if (id.Length == 0) continue;
+                if (moves.TryGet(id, out var move) && move != null) resolved.Add(move);
+            }
+
+            if (resolved.Count == 0)
+            {
+                Debug.LogWarning($"[BattleMode] {creature.SpeciesId} was taught \"{taught}\" but the " +
+                                 "move registry knows none of it; keeping the learnset moveset. " +
+                                 "The Worker's learnsets.ts and moves.json have drifted.");
+                return;
+            }
+
+            CreatureFactory.FillMoves(creature, resolved);
+        }
+
+        /// <summary>
+        /// 돌파: +4% to every stat per star.
+        ///
+        /// Applied here rather than inside CreatureFactory because stars belong to an ONLINE
+        /// collection and the factory is what the story mode builds wild encounters with -- a
+        /// stat bonus reaching into that would strengthen creatures nobody had broken through.
+        ///
+        /// HP is scaled with the rest and CurrentHp is set from the new maximum, because a
+        /// creature is built at full health here and a bonus that raised the ceiling without
+        /// raising the fill would send it into the arena already hurt.
+        /// </summary>
+        private static void ApplyStars(CreatureInstance creature, int stars)
+        {
+            if (creature?.Stats == null || stars <= 0) return;
+
+            var multiplier = 1f + 0.04f * Mathf.Clamp(stars, 0, 5);
+            for (var i = 0; i < creature.Stats.Length; i++)
+                creature.Stats[i] = Mathf.Max(1, Mathf.RoundToInt(creature.Stats[i] * multiplier));
+
+            creature.MaxHp = creature.Stats[(int)StatKind.Hp];
+            creature.CurrentHp = creature.MaxHp;
         }
 
         /// <summary>

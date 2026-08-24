@@ -41,6 +41,7 @@ namespace PokeLab.Boot
         private MainMenuView _view;
         private AccountPanel _account;
         private GachaPanel _gacha;
+        private MyCreaturesPanel _creatures;
         private SettingsPanel _settings;
         private MatchmakingPanel _matchmaking;
         private Canvas _canvas;
@@ -128,6 +129,11 @@ namespace PokeLab.Boot
             gachaHost.transform.SetParent(host.transform, false);
             _gacha = gachaHost.AddComponent<GachaPanel>();
             _gacha.Closed = () => { Refresh(); };
+
+            var creaturesHost = new GameObject("MyCreatures", typeof(RectTransform));
+            creaturesHost.transform.SetParent(host.transform, false);
+            _creatures = creaturesHost.AddComponent<MyCreaturesPanel>();
+            _creatures.Closed = () => { Refresh(); };
 
             var settingsHost = new GameObject("Settings", typeof(RectTransform));
             settingsHost.transform.SetParent(host.transform, false);
@@ -231,15 +237,41 @@ namespace PokeLab.Boot
                         ? Loc.Pick("Sign in to draw. Opens the account screen.",
                                    "로그인이 필요해요. 계정 화면으로 가요.")
                         : OnlineSession.Instance.HasTeam
-                            ? Loc.Pick("Your team is drawn. Look at it, or draw again.",
-                                       "팀이 완성되어 있어요. 확인하거나 다시 뽑을 수 있어요.")
-                            : Loc.Pick("Draw your team of six.", "여섯 마리를 뽑아 팀을 만들어요."),
+                            ? Loc.Pick($"Draw one at a time, or ten. {OnlineSession.Instance.Coins:N0} coins.",
+                                       $"한 번에 한 마리씩도, 열 마리씩도 뽑아요. 코인 {OnlineSession.Instance.Coins:N0}.")
+                            : Loc.Pick("Six free pulls to start your collection.",
+                                       "무료 여섯 번으로 수집을 시작해요."),
                 UiPalette.AceViolet, online));
             _actions.Add(() =>
             {
                 var session = OnlineSession.Instance;
                 if (session == null || !session.IsSignedIn) OpenAccount();
                 else OpenGacha();
+            });
+
+            // Between the gacha and the account, because that is the order the loop runs in:
+            // draw somebody, grow them, then go and fight. A row for a collection that does not
+            // exist yet would be a door onto an empty room, so it opens the gacha instead — the
+            // same rule the battle rows follow.
+            rows.Add(new MainMenuView.Entry(
+                Loc.Pick("My Pokémon", "내 포켓몬"),
+                !online
+                    ? Loc.Pick("No server configured.", "서버가 설정되지 않았어요.")
+                    : !signedIn
+                        ? Loc.Pick("Sign in to see your collection. Opens the account screen.",
+                                   "로그인이 필요해요. 계정 화면으로 가요.")
+                        : !OnlineSession.Instance.HasTeam
+                            ? Loc.Pick("Nothing collected yet. Opens the gacha.",
+                                       "아직 모은 포켓몬이 없어요. 가챠로 가요.")
+                            : Loc.Pick("Enhance, break through, teach discs, feed candy, set your party.",
+                                       "강화·돌파하고, 기술 디스크를 가르치고, 사탕을 주고, 파티를 짜요."),
+                UiPalette.AceCyan, online));
+            _actions.Add(() =>
+            {
+                var session = OnlineSession.Instance;
+                if (session == null || !session.IsSignedIn) OpenAccount();
+                else if (!session.HasTeam) OpenGacha();
+                else OpenMyCreatures();
             });
 
             rows.Add(new MainMenuView.Entry(
@@ -346,8 +378,11 @@ namespace PokeLab.Boot
             var session = OnlineSession.Instance;
             if (session == null || !session.HasTeam) return null;
 
+            // The PARTY, not the collection. The card has six sockets and a collection can hold
+            // fifty; showing the first six drawn would put whoever was pulled earliest on the
+            // trainer card and quietly ignore every choice made on 내 포켓몬.
             var slots = new List<MainMenuView.TeamSlot>(6);
-            foreach (var entry in session.Roster)
+            foreach (var entry in session.Party)
             {
                 if (entry == null) continue;
                 slots.Add(new MainMenuView.TeamSlot(
@@ -419,15 +454,19 @@ namespace PokeLab.Boot
                                 "로그인하지 않았어요.\n가챠와 온라인 대전에는 계정이 필요해요.");
 
             if (!session.HasTeam)
-                return Loc.Pick("Signed in. No team drawn yet.\nOpen Gacha to draw six.",
-                                "로그인됨. 아직 팀이 없어요.\n가챠에서 여섯 마리를 뽑아 주세요.");
+                return Loc.Pick("Signed in. Nothing collected yet.\nOpen Gacha — the first six pulls are free.",
+                                "로그인됨. 아직 모은 포켓몬이 없어요.\n가챠에서 무료 여섯 번을 뽑아 보세요.");
 
+            // The party is what the card shows and what fights; the collection size and the
+            // purse are the two numbers a player checks before deciding whether to go and pull.
+            var party = session.Party;
             var levels = 0;
-            foreach (var entry in session.Roster) if (entry != null) levels += entry.level;
-            var average = session.Roster.Length > 0 ? levels / session.Roster.Length : 0;
+            foreach (var entry in party) if (entry != null) levels += entry.level;
+            var average = party.Length > 0 ? levels / party.Length : 0;
 
-            return Loc.Pick($"Signed in.\nTeam of {session.Roster.Length}, average level {average}.",
-                            $"로그인됨.\n{session.Roster.Length}마리 편성, 평균 레벨 {average}.");
+            return Loc.Pick(
+                $"Signed in.\nParty of {party.Length}, average level {average}. {session.Roster.Length} collected, {session.Coins:N0} coins.",
+                $"로그인됨.\n파티 {party.Length}마리, 평균 레벨 {average}. 모은 포켓몬 {session.Roster.Length}마리, 코인 {session.Coins:N0}.");
         }
 
         // --- Doing things -------------------------------------------------------------------
@@ -497,6 +536,12 @@ namespace PokeLab.Boot
         {
             _view.SetFooter("");
             _gacha.Open();
+        }
+
+        private void OpenMyCreatures()
+        {
+            _view.SetFooter("");
+            _creatures.Open();
         }
 
         private void OpenSettings()
@@ -581,6 +626,7 @@ namespace PokeLab.Boot
             if (_confirming) return;
             if (_account != null && _account.IsOpen) return;
             if (_gacha != null && _gacha.IsOpen) return;
+            if (_creatures != null && _creatures.IsOpen) return;
             if (_settings != null && _settings.IsOpen) return;
             if (_matchmaking != null && _matchmaking.IsOpen) return;
 

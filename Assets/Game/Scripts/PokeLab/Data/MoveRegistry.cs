@@ -20,6 +20,7 @@ namespace PokeLab.Intelligence.Data
         private readonly Dictionary<string, MoveData> _byId;
         private readonly Dictionary<int, LearnsetEntry[]> _learnsets;
         private readonly Dictionary<long, MoveData[]> _learnsetCache = new Dictionary<long, MoveData[]>();
+        private readonly Dictionary<int, MoveData[]> _learnableCache = new Dictionary<int, MoveData[]>();
 
         private readonly struct LearnsetEntry
         {
@@ -74,6 +75,38 @@ namespace PokeLab.Intelligence.Data
             }
 
             _learnsetCache[cacheKey] = result;
+            return result;
+        }
+
+        /// <summary>
+        /// Every move the species can ever learn, in level order, with relearns collapsed.
+        ///
+        /// The whole learnset rather than the four it currently knows, because that is the
+        /// question a move disc asks: a disc is interesting precisely when it teaches something
+        /// the creature has not reached yet, and useless when the species could never learn it
+        /// at all. Cached on the same rule as <see cref="MovesFor"/> and for the same reason:
+        /// the screen that asks this asks it once per row, per redraw.
+        /// </summary>
+        public IReadOnlyList<MoveData> LearnableBy(int speciesId)
+        {
+            if (_learnableCache.TryGetValue(speciesId, out var cached)) return cached;
+
+            MoveData[] result;
+            if (!_learnsets.TryGetValue(speciesId, out var entries))
+            {
+                result = Array.Empty<MoveData>();
+            }
+            else
+            {
+                var seen = new List<MoveData>(entries.Length);
+                foreach (var entry in entries)
+                {
+                    if (!seen.Contains(entry.Move)) seen.Add(entry.Move);
+                }
+                result = seen.ToArray();
+            }
+
+            _learnableCache[speciesId] = result;
             return result;
         }
 

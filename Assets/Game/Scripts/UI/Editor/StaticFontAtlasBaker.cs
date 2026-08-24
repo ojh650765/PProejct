@@ -45,10 +45,18 @@ namespace PokeLab.UI.Editor
     /// re-checked at build time. <see cref="VerifyCoverage"/> is that check, and the deploy path
     /// calls it, so data added after a bake fails the build instead of shipping as tofu.
     ///
-    /// <b>The bound this introduces, stated plainly.</b> The game's own text is covered by
-    /// construction. Player-typed text — the trainer name — is not, and needs a deliberate
-    /// policy: either a wider baked set or a small dynamic fallback whose cost is proportional to
-    /// the handful of glyphs a name contains. That decision is not this tool's to make.
+    /// <b>The bound this introduces, and how it is answered.</b> The game's own text is covered
+    /// by construction. Player-typed text — the trainer name — is not, and a static atlas draws
+    /// what it does not carry as an empty box with no fallback of its own; a player who typed a
+    /// Korean name got 유저 이름 ㅁ칸으로 뜨는 폰트가 존재함. The answer is a SMALL DYNAMIC FACE
+    /// at the end of TMP's global fallback list — see
+    /// <c>KoreanFontAssetBuilder.BuildDynamicFallback</c> — rather than a wider bake. Every glyph
+    /// the game authors is answered by one of the static atlases below before that face is ever
+    /// consulted, so the launch cost this tool exists to remove stays removed; the cost that is
+    /// paid is proportional to the handful of syllables in somebody's name.
+    ///
+    /// Which is why the four assets below are a LIST and not "every font asset in the project":
+    /// baking the dynamic fallback static would undo the fix and put the boxes back.
     /// </summary>
     public static class StaticFontAtlasBaker
     {

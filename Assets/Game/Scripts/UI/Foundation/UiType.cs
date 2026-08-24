@@ -194,6 +194,18 @@ namespace PokeLab.UI
         public const string KoreanBoldFontResourcePath = "Fonts/Pretendard Bold SDF";
 
         /// <summary>
+        /// The dynamic last-resort face, reached only through TMP global fallback list.
+        ///
+        /// Nothing assigns this to a label. It exists so that text the game did not author --
+        /// a player own trainer name, above all -- has somewhere to come from, now that the
+        /// three faces above are baked STATIC to stop the launch rasterising a gigabyte of
+        /// glyphs. A static atlas draws what it does not carry as an empty box and has no
+        /// fallback of its own; this is that fallback. See
+        /// <c>KoreanFontAssetBuilder.DynamicFallbackPath</c>.
+        /// </summary>
+        public const string KoreanDynamicFallbackResourcePath = "Fonts/Pretendard Dynamic SDF";
+
+        /// <summary>
         /// Families tried, in order, when <see cref="EnsureFont"/> has to find one itself.
         /// Every entry must carry Hangul as well as Latin — the dialogue writes both, often
         /// in the same line.

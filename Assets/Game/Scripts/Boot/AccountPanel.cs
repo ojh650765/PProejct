@@ -197,10 +197,10 @@ namespace PokeLab.Boot
             y -= 82f;
 
             y = Hint(card, y, session.HasTeam
-                ? Loc.Pick($"Team of {session.Roster.Length} drawn.",
-                           $"{session.Roster.Length}마리로 팀이 편성되어 있어요.")
-                : Loc.Pick("No team drawn yet. Open Gacha from the title screen.",
-                           "아직 팀이 없어요. 타이틀 화면의 가챠에서 뽑아 주세요."));
+                ? Loc.Pick($"{session.Roster.Length} collected, {session.Party.Length} in the party. {session.Coins:N0} coins.",
+                           $"모은 포켓몬 {session.Roster.Length}마리, 파티 {session.Party.Length}마리. 코인 {session.Coins:N0}.")
+                : Loc.Pick("Nothing collected yet. Open Gacha from the title screen — the first six pulls are free.",
+                           "아직 모은 포켓몬이 없어요. 타이틀 화면의 가챠에서 무료 여섯 번을 뽑아 보세요."));
 
             y -= 20f;
 

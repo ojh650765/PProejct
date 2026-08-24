@@ -145,11 +145,53 @@
           var hint = document.querySelector("#unity-fullscreen-hint");
           if (hint && !autoFullscreen) hint.style.display = "none";
 
+          /*
+           * Fullscreen on the DOCUMENT, not on the canvas.
+           *
+           * THIS IS THE ANDROID KEYBOARD BUG, and the mechanism is worth writing down because
+           * nothing about the symptom points at fullscreen. The report: 아이폰에서는 되는데
+           * 안드로이드에서 전체화면으로하게되면 키보드가 안나오게되는것같음.
+           *
+           * On a client with no hardware keyboard, TMP does not edit in place: it calls
+           * Unity's JS_MobileKeyboard_Show, which builds its own <input> in a fixed bar and
+           * appends it to DOCUMENT.BODY, then focuses it. Meanwhile SetFullscreen(1) asks for
+           * fullscreen on Module.canvas. While an element is fullscreen the browser renders
+           * ONLY that element's subtree — everything else in the document is still there and
+           * still focusable in theory, but it is not painted and Android will not raise the
+           * soft keyboard for it. So the keyboard bar exists, is focused, and does nothing.
+           *
+           * iPhone escapes it for an unrelated reason: Safari on iOS does not implement
+           * Element.requestFullscreen outside <video>, so SetFullscreen is a no-op there and
+           * the page was never in fullscreen to begin with. That is exactly the split the user
+           * saw, and it is why this only ever reproduced on one of the two.
+           *
+           * Asking the document element instead puts the WHOLE page in the fullscreen subtree,
+           * Unity's keyboard bar included, and the problem cannot happen. The canvas does not
+           * care: it is `position: fixed; inset: 0` in style.css, so it fills whatever the
+           * viewport becomes, and Unity resizes its framebuffer from the canvas's client size
+           * either way. SetFullscreen stays as the fallback for a browser that refuses the
+           * document — a fullscreen canvas is still better than none, and a client that
+           * refuses one will usually refuse both.
+           */
           var went = false;
           function goFullscreen() {
             if (hint) hint.classList.add("gone");
             if (went || !autoFullscreen) return;
             went = true;
+
+            var target = document.documentElement;
+            var request = target.requestFullscreen || target.webkitRequestFullscreen;
+            if (request) {
+              try {
+                var result = request.call(target);
+                if (result && result.catch) result.catch(fallbackFullscreen);
+                return;
+              } catch (e) { /* fall through */ }
+            }
+            fallbackFullscreen();
+          }
+
+          function fallbackFullscreen() {
             try { unityInstance.SetFullscreen(1); } catch (e) { /* refused; the canvas already fills the window */ }
           }
 
@@ -157,6 +199,43 @@
           // the game consumes the press, and keydown so a keyboard player is not left out.
           window.addEventListener("pointerdown", goFullscreen, { once: true });
           window.addEventListener("keydown", goFullscreen, { once: true });
+
+          // Leaving fullscreen re-arms it, so a player who backed out with the system gesture
+          // can get it back with the next tap instead of having to reload the page.
+          document.addEventListener("fullscreenchange", function () {
+            if (document.fullscreenElement) return;
+            went = false;
+            window.addEventListener("pointerdown", goFullscreen, { once: true });
+          });
+
+          /*
+           * Keep Unity's keyboard bar above the on-screen keyboard.
+           *
+           * The bar is `position: fixed; bottom: 0`, which is the bottom of the LAYOUT viewport.
+           * In fullscreen Android does not shrink that viewport when the keyboard opens, so the
+           * bar — and the text being typed into it — sits underneath the keys. visualViewport
+           * is the only thing that reports where the visible region actually ends, so the bar is
+           * pinned to it while a keyboard is up and released when it goes down.
+           *
+           * Written as a transform rather than by changing `bottom`, because the element belongs
+           * to Unity and moving it in the layout would fight whatever Unity does to it next.
+           */
+          var vv = window.visualViewport;
+          if (vv) {
+            var pinKeyboardBar = function () {
+              var bar = null;
+              var inputs = document.body.children;
+              for (var i = inputs.length - 1; i >= 0; i--) {
+                var node = inputs[i];
+                if (node.tagName === "DIV" && node.input && node.okButton) { bar = node; break; }
+              }
+              if (!bar) return;
+              var lift = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+              bar.style.transform = lift > 1 ? "translateY(-" + lift + "px)" : "";
+            };
+            vv.addEventListener("resize", pinKeyboardBar);
+            vv.addEventListener("scroll", pinKeyboardBar);
+          }
 
           // Nothing has been touched after a few seconds: the hint has said its piece.
           setTimeout(() => { if (hint) hint.classList.add("gone"); }, 6000);
