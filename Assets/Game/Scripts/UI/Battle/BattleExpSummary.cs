@@ -499,7 +499,13 @@ namespace PokeLab.UI
 
             summary._subtitle = UiBuilder.Text("Subtitle", card, string.Empty, UiTextRole.Body,
                 UiPalette.TextSecondary, TextAlignmentOptions.Center);
-            UiBuilder.Size(summary._subtitle.rectTransform, preferredHeight: 42f, minHeight: 42f, flexibleWidth: 1f);
+            // No fixed preferred height: this line carries the reward, and a reward with a disc
+            // in it -- "코인 +140   ·   화염방사 디스크 획득!" -- is longer than one line at this
+            // width. Pinned at 42 it wrapped and the second line drew outside the card. TMP
+            // reports its own preferred height through ILayoutElement, so the group gives this
+            // row exactly the room the text needs; the floor keeps the short case looking the
+            // way it did.
+            UiBuilder.Size(summary._subtitle.rectTransform, minHeight: 42f, flexibleWidth: 1f);
 
             var caption = UiBuilder.Text("Caption", card, Loc.Pick("EXPERIENCE", "획득 경험치"),
                 UiTextRole.Overline, BattleSkin.Cyan.WithAlpha(0.85f), TextAlignmentOptions.Center);

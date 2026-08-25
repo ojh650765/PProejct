@@ -177,9 +177,12 @@ namespace PokeLab.Boot
                 new Vector2(0.5f, 0.5f), new Vector2(0f, 4f), new Vector2(1406f, CardHeight));
             UiBuilder.Grid(_teamRoot, new Vector2(CardWidth, CardHeight), new Vector2(22f, 22f), 6);
 
+            // Stacked up the screen from the bottom edge, and the numbers have to stay in
+            // that order: the roll button occupies 30..118, the pull chips 128..190, and this
+            // sits above both. It used to sit at 150, which put it straight through the chips.
             _statusPill = UiBuilder.Rect("Status", safe, false);
             UiBuilder.Anchor(_statusPill, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0.5f, 0f), new Vector2(0f, 150f), new Vector2(940f, 54f));
+                new Vector2(0.5f, 0f), new Vector2(0f, 206f), new Vector2(940f, 54f));
             var statusBack = UiBuilder.Image("Pill", _statusPill, UiSprites.Pill(46),
                 UiPalette.AceGlass.WithAlpha(0.72f));
             UiBuilder.Stretch(statusBack.rectTransform);
@@ -242,25 +245,35 @@ namespace PokeLab.Boot
             // they own lives on 내 포켓몬, which is the screen built for a list that grows.
             var showing = _lastPulls != null && _lastPulls.Length > 0
                 ? AsCards(_lastPulls)
-                : session != null ? session.Party : Array.Empty<RosterEntry>();
+                : Array.Empty<RosterEntry>();
 
             UiBuilder.ClearChildren(_teamRoot);
 
-            // After a roll, exactly what was drawn. Otherwise six sockets, filled or empty.
+            // Exactly what was drawn, and nothing at all before that.
             //
-            // The empty sockets are only honest for the PARTY, where six is the shape and a gap
-            // means something. Padding a one-pull out to six blanks would say "you have five
-            // slots left", which is what the screen used to mean and no longer does.
+            // This band used to fall back to the player's team, which made the screen look like
+            // it was reporting a pull whenever it was opened -- six creatures laid out as cards,
+            // indistinguishable from a result, hours after the last one was drawn. The team has
+            // its own screen now. Here, cards mean "you just got these" or there are no cards.
             var afterRoll = _lastPulls != null && _lastPulls.Length > 0;
             var cells = afterRoll
                 ? Mathf.Min(showing.Length, PullCounts[PullCounts.Length - 1])
-                : TeamSize;
+                : 0;
 
             // Ten pulls do not fit one row of six, so the grid grows a second row and the block
             // is re-centred on it. The band between the odds pill and the status pill is about
             // 690 reference units; two 300pt rows and a 22pt gutter is 622.
             var rows = Mathf.Max(1, Mathf.CeilToInt(cells / 6f));
             _teamRoot.sizeDelta = new Vector2(1406f, rows * CardHeight + (rows - 1) * 22f);
+
+            // Before the first pull of a visit the band is simply empty.
+            //
+            // It carried a caption for one revision -- "뽑은 포켓몬이 여기에 나와요" -- and that was
+            // a manual sentence explaining a space nobody was confused by: the screen is titled
+            // 가챠, the odds are stated above it and the button below says 1회 뽑기 · 500. Writing
+            // out what the middle is for is the kind of line that reads as translated, so the
+            // band keeps its height and says nothing.
+            if (cells == 0) _teamRoot.sizeDelta = new Vector2(1406f, CardHeight);
 
             for (var slot = 0; slot < cells; slot++)
             {

@@ -34,7 +34,6 @@ namespace PokeLab.Battle
 
         private Action<EncounterResult> _onResolved;
         private TrainerProfile _trainerProfile;
-        private int _prizeMoney;
 
         /// <inheritdoc />
         public bool IsBattleActive { get; private set; }
@@ -108,7 +107,6 @@ namespace PokeLab.Battle
             _onResolved = onResolved;
             CurrentRequest = request;
             _trainerProfile = null;
-            _prizeMoney = 0;
             LastFailureReason = null;
 
             if (!TryStage(request, out var reason))
@@ -173,7 +171,6 @@ namespace PokeLab.Battle
         {
             Engine = null;
             _trainerProfile = null;
-            _prizeMoney = 0;
             _playerParty.Clear();
             _opponentParty.Clear();
         }
@@ -285,7 +282,6 @@ namespace PokeLab.Battle
             if (trainers.TryGetProfile(request.TrainerId, out var profile))
             {
                 _trainerProfile = profile;
-                _prizeMoney = profile?.Reward ?? 0;
             }
 
             // The registry contracts to return a fresh list every call, which matters
@@ -358,23 +354,21 @@ namespace PokeLab.Battle
             Resolve(callback, result);
         }
 
-        private int MoneyFor(BattleOutcome outcome)
-        {
-            if (outcome != BattleOutcome.PlayerVictory) return 0;
+        /// <summary>
+        /// Always zero, and the zero is the honest answer.
+        ///
+        /// The overworld's ₽ wallet is retired: a story battle is paid in account coins by the
+        /// Worker, from the kind of battle rather than from a number the client proposes. This
+        /// used to return a trainer's authored prize, which the result overlay then counted up
+        /// on screen -- so the player watched "상금 ₽400" land in a wallet that no longer exists
+        /// and nothing spends. A number nobody receives is worse than no number.
+        ///
+        /// Kept as a method rather than deleted with EncounterResult.MoneyDelta because that
+        /// field is on a contract the whole overworld reads, and a currency that may come back
+        /// -- an in-story shop, say -- would come back through here.
+        /// </summary>
+        private int MoneyFor(BattleOutcome outcome) => 0;
 
-            // A trainer's authored reward wins over the engine's level-derived estimate,
-            // because the overworld balanced its economy against those numbers.
-            if (_prizeMoney > 0) return _prizeMoney;
-            return Engine != null && Engine.State.Kind == BattleKind.Trainer ? EngineAwardedMoney() : 0;
-        }
-
-        private int EngineAwardedMoney()
-        {
-            var highest = 0;
-            for (var i = 0; i < _opponentParty.Count; i++)
-                if (_opponentParty[i] != null && _opponentParty[i].Level > highest) highest = _opponentParty[i].Level;
-            return highest * 24;
-        }
 
         /// <summary>
         /// The opponent species the player actually met, so the overworld can mark the dex.
