@@ -61,14 +61,38 @@ namespace PokeLab.Boot
         private const string CandyItem = "candy";
         private const string DiscPrefix = "disc:";
 
-        private RectTransform _listContent;
+        /// <summary>Height of the battle-team strip, chrome included.</summary>
+        private const float TeamFrameHeight = 202f;
+
+        /// <summary>Creatures per row in the collection box.</summary>
+        private const int BoxColumns = 5;
+
+        private RectTransform _teamRoot;
+        private RectTransform _boxContent;
         private RectTransform _detail;
         private RectTransform _discsRoot;
         private TextMeshProUGUI _status;
         private TextMeshProUGUI _purse;
+        private TextMeshProUGUI _reorderLabel;
 
         /// <summary>The collection slot being looked at. -1 before anything is selected.</summary>
         private int _selected = -1;
+
+        /// <summary>
+        /// Whether the team strip is being reordered, and who is currently lifted.
+        ///
+        /// <b>Why a mode rather than a drag.</b> The order of the six IS the battle order --
+        /// slot 1 leads, and the rest come in as the leader faints -- so it has to be editable.
+        /// A drag would be the obvious gesture and is the wrong one here: the strip lives inside
+        /// a scrolling screen on a touch device, where a press that moves is already spoken for,
+        /// and a mis-scroll that silently reshuffles the team is worse than one more button. So
+        /// the strip has a stated mode, the lifted tile says it is lifted, and the status line
+        /// says what the next tap will do.
+        /// </summary>
+        private bool _reordering;
+
+        /// <summary>The collection slot lifted for a move, or -1 when nobody is held.</summary>
+        private int _carry = -1;
 
         private void Awake() => gameObject.SetActive(false);
 
@@ -77,6 +101,8 @@ namespace PokeLab.Boot
             OnlineSession.Ensure();
             gameObject.SetActive(true);
             IsOpen = true;
+            _reordering = false;
+            _carry = -1;
             UiSound.MenuOpen();
 
             Build();
@@ -121,17 +147,19 @@ namespace PokeLab.Boot
 
             BuildPurse(safe);
 
-            // Left column: the collection.
-            var listFrame = UiBuilder.Rect("ListFrame", safe, false);
-            UiBuilder.Anchor(listFrame, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f),
+            // Left column: the six that fight, above everything that is owned.
+            //
+            // The split is the point of the screen. A collection screen that is one long list
+            // makes the party an attribute of a row -- a little badge you have to read each
+            // entry to find -- when the party is the thing the player is actually maintaining.
+            // Lifting it out gives the six a fixed place with their order written on them, and
+            // leaves the box below free to grow to any length without ever pushing them away.
+            var left = UiBuilder.Rect("Left", safe, false);
+            UiBuilder.Anchor(left, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f),
                 new Vector2(0f, -70f), new Vector2(560f, -260f));
-            UiJuice.Pane("Pane", listFrame, UiPalette.AceGlass.WithAlpha(0.6f), 18,
-                true, true, true, UiPalette.AceRim, 200);
 
-            UiBuilder.ScrollList("List", listFrame, out _listContent, 10f,
-                new RectOffset(14, 14, 14, 14), 18);
-            var scroll = listFrame.GetComponentInChildren<ScrollRect>();
-            if (scroll != null) UiBuilder.Stretch((RectTransform)scroll.transform, 6f);
+            BuildTeamFrame(left);
+            BuildBoxFrame(left);
 
             // Right column: the one creature.
             _detail = UiBuilder.Rect("Detail", safe, false);
@@ -167,6 +195,72 @@ namespace PokeLab.Boot
             _discsRoot = UiBuilder.Rect("Discs", root, false);
             UiBuilder.Stretch(_discsRoot);
             _discsRoot.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// The battle team: six fixed places, numbered, with the reorder switch on the header.
+        /// </summary>
+        private void BuildTeamFrame(RectTransform left)
+        {
+            var frame = UiBuilder.Rect("TeamFrame", left, false);
+            UiBuilder.Anchor(frame, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
+                Vector2.zero, new Vector2(0f, TeamFrameHeight));
+            UiJuice.Pane("Pane", frame, UiPalette.AceGlass.WithAlpha(0.62f), 18,
+                true, true, true, UiPalette.AceRim, 120);
+
+            var label = UiBuilder.Text("Label", frame, Loc.Pick("Battle team", "배틀 팀"),
+                UiTextRole.Overline, UiPalette.AceTextDim, TextAlignmentOptions.Left);
+            UiBuilder.Anchor(label.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0f, 1f), new Vector2(18f, -14f), new Vector2(-230f, 30f));
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+
+            var toggle = UiBuilder.Rect("Reorder", frame, false);
+            UiBuilder.Anchor(toggle, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(-14f, -10f), new Vector2(184f, 44f));
+            var togglePane = UiJuice.Pane("Pane", toggle, UiPalette.AceGlass.WithAlpha(0.8f), 14,
+                true, true, true, UiPalette.AceRim, 44);
+            _reorderLabel = UiBuilder.Text("Label", toggle, "", UiTextRole.Caption,
+                UiPalette.AceText, TextAlignmentOptions.Center);
+            UiBuilder.Anchor(_reorderLabel.rectTransform, Vector2.zero, Vector2.one,
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-16f, -10f));
+            _reorderLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            UiButtonMotion.Attach(toggle, 14);
+            UiBuilder.Button("Take", toggle, togglePane.Fill, ToggleReorder);
+
+            _teamRoot = UiBuilder.Rect("Team", frame, false);
+            UiBuilder.Anchor(_teamRoot, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, Vector2.zero);
+            _teamRoot.offsetMin = new Vector2(14f, 14f);
+            _teamRoot.offsetMax = new Vector2(-14f, -58f);
+            UiBuilder.Horizontal(_teamRoot, 8f, null, TextAnchor.MiddleCenter, true, true);
+        }
+
+        /// <summary>Everything owned, six to a row, scrolling under the team.</summary>
+        private void BuildBoxFrame(RectTransform left)
+        {
+            var frame = UiBuilder.Rect("BoxFrame", left, false);
+            UiBuilder.Anchor(frame, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, Vector2.zero);
+            frame.offsetMin = Vector2.zero;
+            frame.offsetMax = new Vector2(0f, -(TeamFrameHeight + 12f));
+            UiJuice.Pane("Pane", frame, UiPalette.AceGlass.WithAlpha(0.6f), 18,
+                true, true, true, UiPalette.AceRim, 200);
+
+            var label = UiBuilder.Text("Label", frame, Loc.Pick("Box", "보관함"),
+                UiTextRole.Overline, UiPalette.AceTextDim, TextAlignmentOptions.Left);
+            UiBuilder.Anchor(label.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0f, 1f), new Vector2(18f, -14f), new Vector2(-36f, 30f));
+
+            var list = UiBuilder.Rect("ListHost", frame, false);
+            UiBuilder.Anchor(list, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, Vector2.zero);
+            list.offsetMin = new Vector2(8f, 8f);
+            list.offsetMax = new Vector2(-8f, -52f);
+
+            UiBuilder.ScrollList("List", list, out _boxContent, 8f,
+                new RectOffset(8, 8, 8, 8), 16);
+            var scroll = list.GetComponentInChildren<ScrollRect>();
+            if (scroll != null) UiBuilder.Stretch((RectTransform)scroll.transform);
         }
 
         private void BuildPurse(Transform safe)
@@ -208,7 +302,13 @@ namespace PokeLab.Boot
             if (_selected >= 0 && (session == null || session.Owned(_selected) == null)) _selected = -1;
             if (_selected < 0 && roster.Length > 0) _selected = roster[0].slot;
 
-            BuildList(roster);
+            if (_reorderLabel != null)
+                _reorderLabel.text = _reordering
+                    ? Loc.Pick("Done", "완료")
+                    : Loc.Pick("Reorder", "순서 바꾸기");
+
+            BuildTeam(session);
+            BuildBox(session, roster);
             BuildDetail(session, _selected >= 0 && session != null ? session.Owned(_selected) : null);
         }
 
@@ -221,22 +321,201 @@ namespace PokeLab.Boot
             return total;
         }
 
-        private void BuildList(RosterEntry[] roster)
+        // --- The battle team --------------------------------------------------------------------
+
+        /// <summary>
+        /// Six places, always six, whether or not somebody is standing in them.
+        ///
+        /// The empty ones are drawn rather than omitted because "you have four" is information,
+        /// and a strip that simply got shorter would read as the screen having fewer slots
+        /// rather than the team having fewer members.
+        /// </summary>
+        private void BuildTeam(OnlineSession session)
         {
-            UiBuilder.ClearChildren(_listContent);
+            if (_teamRoot == null) return;
+            UiBuilder.ClearChildren(_teamRoot);
+
+            var party = session != null ? session.Party : Array.Empty<RosterEntry>();
+            for (var i = 0; i < OnlineSession.PartySize; i++)
+                BuildTeamTile(i < party.Length ? party[i] : null, i);
+        }
+
+        private void BuildTeamTile(RosterEntry entry, int index)
+        {
+            var cell = UiBuilder.Rect("Team_" + index, _teamRoot);
+            UiBuilder.Size(cell, flexibleWidth: 1f, flexibleHeight: 1f, minWidth: 60f);
+
+            var lifted = entry != null && _carry == entry.slot;
+            var selected = entry != null && entry.slot == _selected && !_reordering;
+            var target = _reordering && _carry >= 0 && !lifted;
+
+            var face = lifted ? UiPalette.AceGold.WithAlpha(0.9f)
+                : selected ? UiPalette.AceCyan.WithAlpha(0.88f)
+                : target ? UiPalette.AceCyan.WithAlpha(0.26f)
+                : UiPalette.AceGlass.WithAlpha(entry != null ? 0.66f : 0.28f);
+            var rim = lifted ? UiPalette.AceGold
+                : selected ? UiPalette.AceCyan
+                : target ? UiPalette.AceCyan.WithAlpha(0.7f)
+                : UiPalette.AceRim.WithAlpha(entry != null ? 1f : 0.3f);
+
+            var pane = UiJuice.Pane("Pane", cell, face, 14, true, true, true, rim, 120);
+            var ink = lifted || selected ? UiPalette.AceInk : UiPalette.AceText;
+
+            // The ordinal IS the battle order, so it is the one thing on the tile that is never
+            // allowed to be subtle.
+            var badge = UiBuilder.Rect("Order", cell, false);
+            UiBuilder.Anchor(badge, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(8f, -8f), new Vector2(30f, 26f));
+            var badgeFace = UiBuilder.Image("Face", badge, UiSprites.Pill(22),
+                entry != null ? UiPalette.AceGold : UiPalette.AceRim.WithAlpha(0.35f));
+            UiBuilder.Stretch(badgeFace.rectTransform);
+            var badgeText = UiBuilder.Text("Text", badge, (index + 1).ToString(),
+                UiTextRole.Caption, UiPalette.AceInk, TextAlignmentOptions.Center);
+            UiBuilder.Stretch(badgeText.rectTransform);
+
+            if (entry == null)
+            {
+                var empty = UiBuilder.Text("Empty", cell, Loc.Pick("empty", "비어 있음"),
+                    UiTextRole.Caption, UiPalette.AceTextFaint, TextAlignmentOptions.Center);
+                UiBuilder.Anchor(empty.rectTransform, Vector2.zero, Vector2.one,
+                    new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-8f, -8f));
+                empty.textWrappingMode = TextWrappingModes.NoWrap;
+
+                // An empty place is still a destination: moving somebody onto it is how a team
+                // of four is reordered at all.
+                if (_reordering && _carry >= 0)
+                {
+                    var to = index;
+                    UiButtonMotion.Attach(cell, 14);
+                    UiBuilder.Button("Take", cell, pane.Fill, () => MoveCarried(to));
+                }
+                return;
+            }
+
+            var portrait = Portraits.Of(entry.speciesId);
+            if (portrait != null)
+            {
+                var image = UiBuilder.Image("Portrait", cell, portrait, Color.white, Image.Type.Simple);
+                UiBuilder.Anchor(image.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                    new Vector2(0.5f, 1f), new Vector2(0f, -28f), new Vector2(70f, 70f));
+                image.preserveAspect = true;
+            }
+
+            var level = UiBuilder.Text("Level", cell, "Lv " + entry.level, UiTextRole.Caption,
+                ink, TextAlignmentOptions.Center);
+            UiBuilder.Anchor(level.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 30f), new Vector2(-8f, 26f));
+            level.textWrappingMode = TextWrappingModes.NoWrap;
+
+            var stars = UiBuilder.Text("Stars", cell, Stars(entry.stars), UiTextRole.Caption,
+                lifted || selected ? UiPalette.AceInk.WithAlpha(0.72f) : UiPalette.AceGold,
+                TextAlignmentOptions.Center);
+            UiBuilder.Anchor(stars.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(-8f, 22f));
+            stars.textWrappingMode = TextWrappingModes.NoWrap;
+
+            var slot = entry.slot;
+            UiButtonMotion.Attach(cell, 14);
+            UiBuilder.Button("Take", cell, pane.Fill, () => TapTeam(slot, index));
+        }
+
+        // --- Reordering -------------------------------------------------------------------------
+
+        private void ToggleReorder()
+        {
+            _reordering = !_reordering;
+            _carry = -1;
+            UiSound.Navigate();
+            Say(_reordering
+                ? Loc.Pick("Pick the one to move.", "옆길 포켓몬을 고르세요. 1번이 선두예요.")
+                : "");
+            Refresh();
+        }
+
+        /// <summary>A tap on an occupied team tile: select it, lift it, or land on it.</summary>
+        private void TapTeam(int slot, int index)
+        {
+            if (!_reordering) { Select(slot); return; }
+
+            if (_carry < 0)
+            {
+                _carry = slot;
+                UiSound.Navigate();
+                Say(Loc.Pick("Now pick where it goes.", "이제 놓을 자리를 고르세요."));
+                Refresh();
+                return;
+            }
+
+            if (_carry == slot)
+            {
+                _carry = -1;
+                UiSound.Navigate();
+                Say(Loc.Pick("Pick the one to move.", "옆길 포켓몬을 고르세요."));
+                Refresh();
+                return;
+            }
+
+            MoveCarried(index);
+        }
+
+        /// <summary>
+        /// Moves the lifted creature to <paramref name="index"/> and commits the whole order.
+        ///
+        /// A move, not a swap. Dropping 5 onto 1 with a swap would send 1 to the back, which is
+        /// not what dragging a name to the top of a list has ever meant; the rest shuffle down
+        /// by one instead. The full order is posted because that is the shape /party/set takes,
+        /// and because a party rewritten wholesale cannot half-apply into two creatures both
+        /// claiming to lead.
+        /// </summary>
+        private void MoveCarried(int index)
+        {
+            var session = OnlineSession.Instance;
+            if (session == null || _carry < 0) return;
+
+            var order = new List<int>(OnlineSession.PartySize);
+            foreach (var member in session.Party) if (member != null) order.Add(member.slot);
+
+            var from = order.IndexOf(_carry);
+            if (from < 0) { _carry = -1; Refresh(); return; }
+
+            var to = Mathf.Clamp(index, 0, order.Count - 1);
+            if (to == from) { _carry = -1; Refresh(); return; }
+
+            order.RemoveAt(from);
+            order.Insert(to, _carry);
+
+            _selected = _carry;
+            _carry = -1;
+            Act((s, done) => s.SetParty(order.ToArray(), done),
+                Loc.Pick("Order changed.", "전투 순서를 바꿠어요."));
+        }
+
+        // --- The box --------------------------------------------------------------------------
+
+        /// <summary>
+        /// Everything owned, party included, laid out as tiles.
+        ///
+        /// The party is not hidden from the box. A collection screen that showed only the bench
+        /// would make the six disappear from the count a player is looking at, and the tiles are
+        /// where the shard and star marks live -- which is exactly what you consult before
+        /// deciding who to bring.
+        /// </summary>
+        private void BuildBox(OnlineSession session, RosterEntry[] roster)
+        {
+            if (_boxContent == null) return;
+            UiBuilder.ClearChildren(_boxContent);
 
             if (roster == null || roster.Length == 0)
             {
-                var empty = UiBuilder.Text("Empty", _listContent,
-                    Loc.Pick("Nothing collected yet. Open the gacha.", "아직 아무도 없어요. 가챠에서 뽑아 보세요."),
+                var empty = UiBuilder.Text("Empty", _boxContent,
+                    Loc.Pick("Nothing collected yet. Open the gacha.",
+                             "아직 아무도 없어요. 가챠에서 뽑아 보세요."),
                     UiTextRole.Secondary, UiPalette.AceTextFaint, TextAlignmentOptions.Center);
                 UiBuilder.Size(empty.rectTransform, preferredHeight: 120f, minHeight: 120f);
                 return;
             }
 
-            // Party first, then the bench, each in slot order. The six that fight are the six a
-            // player is here to look after, and a collection sorted only by draw order buries
-            // them under whatever was pulled last.
+            // Party first and in battle order, then the bench by draw order.
             var ordered = new List<RosterEntry>(roster);
             ordered.Sort((a, b) =>
             {
@@ -246,67 +525,87 @@ namespace PokeLab.Boot
                 return a.slot.CompareTo(b.slot);
             });
 
-            foreach (var entry in ordered) BuildListRow(entry);
+            RectTransform row = null;
+            for (var i = 0; i < ordered.Count; i++)
+            {
+                if (i % BoxColumns == 0)
+                {
+                    row = UiBuilder.Rect("Row_" + (i / BoxColumns), _boxContent);
+                    UiBuilder.Horizontal(row, 8f, null, TextAnchor.MiddleLeft, true, true);
+                    UiBuilder.Size(row, preferredHeight: 132f, minHeight: 132f, flexibleWidth: 1f);
+                }
+                BuildBoxTile(row, ordered[i]);
+            }
+
+            // The last row is padded to a full width of tiles so four creatures do not stretch
+            // into four billboards.
+            var remainder = ordered.Count % BoxColumns;
+            if (remainder != 0 && row != null)
+                for (var i = remainder; i < BoxColumns; i++)
+                {
+                    var filler = UiBuilder.Rect("Filler_" + i, row);
+                    UiBuilder.Size(filler, flexibleWidth: 1f, flexibleHeight: 1f);
+                }
         }
 
-        private void BuildListRow(RosterEntry entry)
+        private void BuildBoxTile(RectTransform row, RosterEntry entry)
         {
+            var cell = UiBuilder.Rect("Box_" + entry.slot, row);
+            UiBuilder.Size(cell, flexibleWidth: 1f, flexibleHeight: 1f, minWidth: 60f);
+
             var selected = entry.slot == _selected;
-
-            var row = UiBuilder.Rect("Row_" + entry.slot, _listContent);
-            UiBuilder.Size(row, preferredHeight: 84f, minHeight: 84f);
-
-            var pane = UiJuice.Pane("Pane", row,
+            var pane = UiJuice.Pane("Pane", cell,
                 selected ? UiPalette.AceCyan.WithAlpha(0.88f) : UiPalette.AceGlass.WithAlpha(0.66f),
-                14, true, true, true,
-                selected ? UiPalette.AceCyan : UiPalette.AceRim, 84);
-
+                14, true, true, true, selected ? UiPalette.AceCyan : UiPalette.AceRim, 120);
             var ink = selected ? UiPalette.AceInk : UiPalette.AceText;
 
             var portrait = Portraits.Of(entry.speciesId);
             if (portrait != null)
             {
-                var image = UiBuilder.Image("Portrait", row, portrait, Color.white, Image.Type.Simple);
-                UiBuilder.Anchor(image.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                    new Vector2(0.5f, 0.5f), new Vector2(48f, 0f), new Vector2(64f, 64f));
+                var image = UiBuilder.Image("Portrait", cell, portrait, Color.white, Image.Type.Simple);
+                UiBuilder.Anchor(image.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                    new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(64f, 64f));
                 image.preserveAspect = true;
             }
 
-            var name = UiBuilder.Text("Name", row, Names.Of(entry.speciesId), UiTextRole.Body,
-                ink, TextAlignmentOptions.Left);
-            UiBuilder.Anchor(name.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(0f, 0.5f), new Vector2(90f, 12f), new Vector2(-260f, 34f));
+            var name = UiBuilder.Text("Name", cell, Names.Of(entry.speciesId), UiTextRole.Caption,
+                ink, TextAlignmentOptions.Center);
+            UiBuilder.Anchor(name.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 34f), new Vector2(-6f, 24f));
             name.textWrappingMode = TextWrappingModes.NoWrap;
 
-            var sub = UiBuilder.Text("Sub", row,
-                Stars(entry.stars) + (entry.shards > 0 ? "   ◆ " + entry.shards : ""),
-                UiTextRole.Caption,
+            var level = UiBuilder.Text("Level", cell, "Lv " + entry.level, UiTextRole.Caption,
                 selected ? UiPalette.AceInk.WithAlpha(0.72f) : UiPalette.AceTextDim,
-                TextAlignmentOptions.Left);
-            UiBuilder.Anchor(sub.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(0f, 0.5f), new Vector2(90f, -16f), new Vector2(-260f, 28f));
-            sub.textWrappingMode = TextWrappingModes.NoWrap;
-
-            var level = UiBuilder.Text("Level", row, "Lv " + entry.level, UiTextRole.Numeric,
-                ink, TextAlignmentOptions.Right);
-            UiBuilder.Anchor(level.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(1f, 0.5f), new Vector2(-22f, 0f), new Vector2(150f, 40f));
+                TextAlignmentOptions.Center);
+            UiBuilder.Anchor(level.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 10f), new Vector2(-6f, 22f));
+            level.textWrappingMode = TextWrappingModes.NoWrap;
 
             if (entry.InParty)
             {
-                var badge = UiBuilder.Rect("Party", row, false);
+                var badge = UiBuilder.Rect("Party", cell, false);
                 UiBuilder.Anchor(badge, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                    new Vector2(0f, 1f), new Vector2(10f, -8f), new Vector2(34f, 26f));
-                var badgeFace = UiBuilder.Image("Face", badge, UiSprites.Pill(22), UiPalette.AceGold);
+                    new Vector2(0f, 1f), new Vector2(6f, -6f), new Vector2(28f, 24f));
+                var badgeFace = UiBuilder.Image("Face", badge, UiSprites.Pill(20), UiPalette.AceGold);
                 UiBuilder.Stretch(badgeFace.rectTransform);
                 var badgeText = UiBuilder.Text("Text", badge, (entry.partySlot + 1).ToString(),
                     UiTextRole.Caption, UiPalette.AceInk, TextAlignmentOptions.Center);
                 UiBuilder.Stretch(badgeText.rectTransform);
             }
 
+            if (entry.shards > 0)
+            {
+                var shards = UiBuilder.Text("Shards", cell, "◆ " + entry.shards, UiTextRole.Caption,
+                    selected ? UiPalette.AceInk.WithAlpha(0.8f) : UiPalette.AceViolet,
+                    TextAlignmentOptions.Right);
+                UiBuilder.Anchor(shards.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f),
+                    new Vector2(1f, 1f), new Vector2(-8f, -6f), new Vector2(60f, 24f));
+                shards.textWrappingMode = TextWrappingModes.NoWrap;
+            }
+
             var slot = entry.slot;
-            UiButtonMotion.Attach(row, 14);
-            UiBuilder.Button("Take", row, pane.Fill, () => Select(slot));
+            UiButtonMotion.Attach(cell, 14);
+            UiBuilder.Button("Take", cell, pane.Fill, () => Select(slot));
         }
 
         private void Select(int slot)
@@ -832,6 +1131,7 @@ namespace PokeLab.Boot
             {
                 // Innermost surface first: the disc list, then the panel.
                 if (_discsRoot != null && _discsRoot.gameObject.activeSelf) CloseDiscs();
+                else if (_reordering) ToggleReorder();
                 else Close();
             }
         }

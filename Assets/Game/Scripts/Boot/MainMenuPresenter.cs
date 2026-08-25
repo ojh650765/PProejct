@@ -57,6 +57,9 @@ namespace PokeLab.Boot
                  "would have chosen for a scene with no biome in it.")]
         [SerializeField] private string _titleTrack = PokeLab.Audio.AudioIds.MusicTitle;
 
+        /// <summary>The rows currently on screen, so an identical redraw can be skipped.</summary>
+        private string _rowSignature;
+
         private void Start()
         {
             var session = OnlineSession.Ensure();
@@ -159,18 +162,60 @@ namespace PokeLab.Boot
             _actions.Clear();
             var rows = _page == Page.Root ? BuildRootRows() : BuildBattleRows();
 
-            _view.Build(
-                Loc.Pick("POKÉ LAB", "포켓랩"),
-                _page == Page.Root
-                    ? Loc.Pick("Aster Field", "아스터 필드")
-                    : Loc.Pick("Battle", "대전 모드"),
-                rows);
+            // Rebuild the rows only when they are actually different.
+            //
+            // Refresh runs on every OnlineSession.Changed, and the title screen raises that at
+            // least twice before the player has touched anything: once when /save/info answers
+            // (which is what makes 이어하기 appear) and again when the roster lands. Build tears
+            // every row down and constructs it again, so those answers arriving read on screen
+            // as the menu redrawing itself two or three times -- a flicker with no cause the
+            // player can see, on the first screen of the game.
+            //
+            // The data still refreshes every time; only the reconstruction is skipped. The card,
+            // the team strip and the footer below are cheap setters and always run, so a coin
+            // total or a party change lands immediately without the rows blinking.
+            var signature = _page + "|" + Signature(rows);
+            if (signature != _rowSignature)
+            {
+                _rowSignature = signature;
+                _view.Build(
+                    Loc.Pick("POKÉ LAB", "포켓랩"),
+                    _page == Page.Root
+                        ? Loc.Pick("Aster Field", "아스터 필드")
+                        : Loc.Pick("Battle", "대전 모드"),
+                    rows);
+            }
 
             _view.SetCard(CardName(), CardStatus());
             _view.SetTeam(BuildTeamSlots());
             _view.SetFooter(Loc.Pick(
                 "↑↓ move    Enter select    Esc back",
                 "↑↓ 이동    Enter 선택    Esc 뒤로"));
+        }
+
+        /// <summary>
+        /// What the rows are made of, as one string. Two refreshes with the same signature
+        /// would build the same rows, so the second one has nothing to say.
+        ///
+        /// The separator is a character no label can contain, so two different row sets
+        /// cannot collide by concatenation -- "AB" + "C" and "A" + "BC" are different
+        /// signatures, which is the whole job of a separator here.
+        /// </summary>
+        private static string Signature(List<MainMenuView.Entry> rows)
+        {
+            if (rows == null) return string.Empty;
+
+            const char unit = '\u001f';
+            const char record = '\u001e';
+
+            var builder = new System.Text.StringBuilder(rows.Count * 32);
+            for (var i = 0; i < rows.Count; i++)
+            {
+                builder.Append(rows[i].Label).Append(unit)
+                       .Append(rows[i].Detail).Append(unit)
+                       .Append(rows[i].Enabled ? '1' : '0').Append(record);
+            }
+            return builder.ToString();
         }
 
         private List<MainMenuView.Entry> BuildRootRows()

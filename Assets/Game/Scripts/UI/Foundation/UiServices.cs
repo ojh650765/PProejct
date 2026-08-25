@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using PokeLab.Core;
@@ -128,11 +129,31 @@ namespace PokeLab.UI
 
         private static readonly int[] EmptyStats = new int[StatKinds.BaseCount];
 
+        /// <summary>
+        /// Where a species portrait comes from when no art registry answers for it.
+        ///
+        /// <b>Why this hook exists.</b> The battle screens ask <see cref="ICreatureArtRegistry"/>
+        /// for portraits, and nothing in this project registers one with real art -- the arena
+        /// installs a stub that answers heights and returns null for every sprite. Meanwhile the
+        /// menu screens draw the same creatures perfectly, because they go through the sprite
+        /// sheet loader in PokeLab.Boot instead. The two could not simply be joined up: Boot
+        /// references this assembly, so this assembly cannot reference Boot back.
+        ///
+        /// So Boot pushes the resolver in at startup and every screen in the game, including the
+        /// battle swap list, draws the creature rather than a type glyph. Left unset -- in a test
+        /// fixture, or a scene opened on its own -- the behaviour is exactly what it used to be.
+        /// </summary>
+        public static Func<int, Sprite> PortraitResolver;
+
         /// <summary>Portrait sprite, or null. Callers show the type glyph as a stand-in.</summary>
         public static Sprite PortraitOf(int speciesId)
         {
             var art = Art;
-            return art != null ? art.GetPortrait(speciesId) : null;
+            var fromRegistry = art != null ? art.GetPortrait(speciesId) : null;
+            if (fromRegistry != null) return fromRegistry;
+
+            var resolver = PortraitResolver;
+            return resolver != null ? resolver(speciesId) : null;
         }
 
         /// <summary>Move definition, or null when the move registry has not landed.</summary>

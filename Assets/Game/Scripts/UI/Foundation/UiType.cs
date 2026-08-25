@@ -62,6 +62,23 @@ namespace PokeLab.UI
         /// letters stacked into one glyph — so a size that is merely small in Latin becomes
         /// genuinely unreadable in Korean, and this game is Korean first.
         /// </remarks>
+        /// <summary>
+        /// Layout room granted above and below every label, as a fraction of its point size.
+        ///
+        /// <b>Why a fraction and not a constant.</b> The shortfall a rect can impose grows with
+        /// the line, so no constant covers the ramp: 12px per edge rescues a 28pt Body in a 32px
+        /// row and still loses a 96pt Metric in an 82px one, which is a real row in the scanner.
+        /// At 0.6 the guarantee is arithmetic rather than empirical -- a line of 1.193x the point
+        /// size fits in (rect + 1.2x) for every rect down to zero -- so no row anyone adds later
+        /// can fall through it.
+        ///
+        /// Measured, not reasoned: Tools/Poké Lab/Diagnostics/Probe text fit renders the case and
+        /// counts the vertices TMP emits. With no slack every rect shorter than its line reported
+        /// zero. At this value every one of them draws, and preferredHeight is unchanged in all
+        /// three arms -- which is what makes this safe to apply to every label in the game.
+        /// </summary>
+        private const float VerticalSlack = 0.6f;
+
         public static float Size(UiTextRole role) => role switch
         {
             UiTextRole.Metric => 96f,
@@ -129,6 +146,27 @@ namespace PokeLab.UI
                 ? TextWrappingModes.NoWrap
                 : TextWrappingModes.Normal;
             text.overflowMode = TextOverflowModes.Ellipsis;
+
+            // Vertical slack, and the reason it has to exist.
+            //
+            // Ellipsis does not only trim a long line horizontally: it also DROPS a line that
+            // does not fit the rect vertically, and it drops it whole, with no ellipsis to show
+            // for it. Pretendard's line height is 1.193x the point size, so a 28pt Body label
+            // needs 33.4px -- and rows all over this game are built at 32, 30, 24. Those labels
+            // did not truncate. They vanished, while the Caption beside them at 19pt rendered
+            // fine, which is exactly the shape of the bug that had 대전모드's swap list showing
+            // levels and health but no names, and 내 포켓몬's action rows showing the price of a
+            // button but not what the button was.
+            //
+            // Fixed here rather than by widening nineteen rows, because the rows are not wrong --
+            // an 8px band around a 28pt line is a normal thing to author -- and because the next
+            // row somebody adds would have the same trap under it. A negative margin expands the
+            // region TMP lays the text into without moving the drawn line: the glyphs stay
+            // centred where they were, TMP stops deciding they do not fit, and preferredHeight
+            // comes back unchanged, so nothing that sizes itself to its text moves.
+            var slack = Size(role) * VerticalSlack;
+            text.margin = new Vector4(0f, -slack, 0f, -slack);
+
             text.raycastTarget = false;
 
             switch (role)
