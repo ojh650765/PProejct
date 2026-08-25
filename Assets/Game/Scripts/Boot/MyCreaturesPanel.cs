@@ -79,26 +79,20 @@ namespace PokeLab.Boot
         private int _selected = -1;
 
         /// <summary>
-        /// The creature picked up, or -1 when nobody is held.
+        /// Nothing is ever "held" on this screen any more, and that is the fix.
         ///
-        /// <b>One rule for the whole screen: tap who moves, tap where they go.</b> This started
-        /// out with two mechanisms -- a 순서 바꾸기 mode for the strip and 파티에 넣기/빼기 on the
-        /// detail panel -- and they did the same job by different means, so the screen had two
-        /// answers to "how do I change my team" and neither was obviously the one to use.
+        /// <b>What went wrong.</b> A tap used to do two jobs: pick a creature up, and show it on
+        /// the right. Viewing is the thing a player does constantly -- open the screen, look
+        /// through the box, read a moveset -- and moving is rare. Overloading the frequent action
+        /// with the rare one means the second tap of an ordinary browse silently rearranged the
+        /// battle order. Reported exactly that way: "순서를 바꾸지 않고 각 포켓몬 그냥 선택해서
+        /// 기술 보려고한건데 순서가 바뀜."
         ///
-        /// There is one now, and it is the one Pokémon HOME's team screen uses: pick a creature
-        /// up, put it down somewhere. Putting somebody into an occupied place swaps the two,
-        /// which means reordering the team and replacing a member are not two features -- they
-        /// are the same gesture landing on a different tile. Nothing is ever added or removed,
-        /// because the team is always six.
-        ///
-        /// <b>Why not a drag,</b> which is the other obvious answer: the box scrolls vertically
-        /// on a touch screen, so a press that moves is already spoken for. Distinguishing a drag
-        /// from a scroll by direction works until the tile you want is at the top of the list,
-        /// and a mis-scroll that silently reshuffles the team is a worse failure than a tap that
-        /// needs a second tap. Tapping also survives a mouse, a finger and a keyboard equally.
+        /// <b>What replaced it.</b> A tap now only ever selects. Moving is done from the detail
+        /// panel, on a row of six numbered chips that say where this creature fights: tap 1 and it
+        /// leads. The destination is named rather than pointed at, which is what 전투 순서 actually
+        /// means, and there is no gesture that can move anybody by accident.
         /// </summary>
-        private int _carry = -1;
 
         private void Awake() => gameObject.SetActive(false);
 
@@ -107,7 +101,6 @@ namespace PokeLab.Boot
             OnlineSession.Ensure();
             gameObject.SetActive(true);
             IsOpen = true;
-            _carry = -1;
             UiSound.MenuOpen();
 
             Build();
@@ -302,9 +295,7 @@ namespace PokeLab.Boot
             if (_selected < 0 && roster.Length > 0) _selected = roster[0].slot;
 
             if (_reorderLabel != null)
-                _reorderLabel.text = _carry >= 0
-                    ? Loc.Pick("tap a place to put it", "놓을 자리를 탭하세요")
-                    : Loc.Pick("1 leads · tap to pick up", "1번이 선두 · 탭해서 집기");
+                _reorderLabel.text = Loc.Pick("1 leads", "1번이 선두로 싸워요");
 
             BuildTeam(session);
             BuildBox(session, roster);
@@ -344,24 +335,15 @@ namespace PokeLab.Boot
             var cell = UiBuilder.Rect("Team_" + index, _teamRoot);
             UiBuilder.Size(cell, flexibleWidth: 1f, flexibleHeight: 1f, minWidth: 60f);
 
-            var held = entry != null && _carry == entry.slot;
-            var selected = entry != null && entry.slot == _selected && !held;
+            var selected = entry != null && entry.slot == _selected;
 
-            // While somebody is held, every OTHER place is a destination and says so. That is the
-            // whole of the instruction: the lifted tile is gold, the places it can go are lit.
-            var target = _carry >= 0 && !held;
-
-            var face = held ? UiPalette.AceGold.WithAlpha(0.9f)
-                : target ? UiPalette.AceCyan.WithAlpha(0.3f)
-                : selected ? UiPalette.AceCyan.WithAlpha(0.88f)
+            var face = selected ? UiPalette.AceCyan.WithAlpha(0.88f)
                 : UiPalette.AceGlass.WithAlpha(entry != null ? 0.66f : 0.28f);
-            var rim = held ? UiPalette.AceGold
-                : target ? UiPalette.AceCyan.WithAlpha(0.75f)
-                : selected ? UiPalette.AceCyan
+            var rim = selected ? UiPalette.AceCyan
                 : UiPalette.AceRim.WithAlpha(entry != null ? 1f : 0.3f);
 
             var pane = UiJuice.Pane("Pane", cell, face, 14, true, true, true, rim, 120);
-            var ink = held || selected ? UiPalette.AceInk : UiPalette.AceText;
+            var ink = selected ? UiPalette.AceInk : UiPalette.AceText;
 
             // The ordinal IS the battle order, so it is the one thing on the tile that is never
             // allowed to be subtle.
@@ -403,7 +385,7 @@ namespace PokeLab.Boot
             level.textWrappingMode = TextWrappingModes.NoWrap;
 
             var stars = UiBuilder.Text("Stars", cell, Stars(entry.stars), UiTextRole.Caption,
-                held || selected ? UiPalette.AceInk.WithAlpha(0.72f) : UiPalette.AceGold,
+                selected ? UiPalette.AceInk.WithAlpha(0.72f) : UiPalette.AceGold,
                 TextAlignmentOptions.Center);
             UiBuilder.Anchor(stars.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
                 new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(-8f, 22f));
@@ -411,94 +393,63 @@ namespace PokeLab.Boot
 
             var slot = entry.slot;
             UiButtonMotion.Attach(cell, 14);
-            UiBuilder.Button("Take", cell, pane.Fill, () => Tap(slot));
+            UiBuilder.Button("Take", cell, pane.Fill, () => Select(slot));
         }
 
-        // --- Picking up and putting down ------------------------------------------------------
+        // --- Selecting, and changing the order ------------------------------------------------
 
         /// <summary>
-        /// Every tile on this screen does the same thing, whether it is in the team or the box.
+        /// A tap shows a creature. That is all it does, and that is deliberate.
         ///
-        /// Nothing held: pick this one up, and show it on the right. Holding somebody else: put
-        /// them here and send whoever was here to where they came from. Holding this one: put it
-        /// back down. That is the entire interaction model of the screen.
+        /// Selecting used to double as picking up, so browsing the box rearranged the team. The
+        /// two are separated now: this never writes anything, and the only thing that changes the
+        /// order is the numbered row on the detail panel, where the number you press is the place
+        /// the creature ends up in.
         /// </summary>
-        private void Tap(int slot)
+        private void Select(int slot)
+        {
+            if (_selected == slot) return;
+            _selected = slot;
+            UiSound.Navigate();
+            Say("");
+            Refresh();
+        }
+
+        /// <summary>
+        /// Puts <paramref name="slot"/> into party place <paramref name="index"/>.
+        ///
+        /// <b>Always a swap, so the team is always six.</b> Whoever is standing in that place
+        /// takes the mover's own place -- their team place if they had one, the bench otherwise.
+        /// Reordering the team and substituting a benched creature are therefore the same
+        /// operation, and neither can change how many creatures fight.
+        /// </summary>
+        private void PlaceAt(int slot, int index)
         {
             var session = OnlineSession.Instance;
             if (session == null) return;
 
-            if (_carry < 0)
-            {
-                _carry = slot;
-                _selected = slot;
-                UiSound.Navigate();
-                Say(Loc.Pick("Tap where it should go.", "놓을 자리를 탭하세요. 같은 것을 다시 탭하면 취소돼요."));
-                Refresh();
-                return;
-            }
-
-            if (_carry == slot)
-            {
-                _carry = -1;
-                UiSound.Navigate();
-                Say("");
-                Refresh();
-                return;
-            }
-
-            Place(session, _carry, slot);
-        }
-
-        /// <summary>
-        /// Puts <paramref name="moving"/> where <paramref name="onto"/> is standing.
-        ///
-        /// <b>Always a swap, and that is what makes the screen simple.</b> Two in the team swap
-        /// places, which is a reorder. One from the box onto a team place swaps them, which is a
-        /// substitution. Two in the box swap nothing that matters and the team is untouched. The
-        /// player does not have to know which of those they are doing, and the team is six before
-        /// and after every one of them -- so there is no 넣기, no 빼기, and no way to walk into a
-        /// battle with four.
-        /// </summary>
-        private void Place(OnlineSession session, int moving, int onto)
-        {
             var order = new List<int>(OnlineSession.PartySize);
             foreach (var member in session.Party) if (member != null) order.Add(member.slot);
 
-            var from = order.IndexOf(moving);
-            var to = order.IndexOf(onto);
+            if (index < 0 || index >= order.Count) return;
 
-            _selected = moving;
-            _carry = -1;
+            var from = order.IndexOf(slot);
+            if (from == index) return;
 
-            if (from < 0 && to < 0)
+            if (from >= 0)
             {
-                // Both on the bench. Nothing about the team changed, so nothing is posted.
-                UiSound.Navigate();
-                Say("");
-                Refresh();
-                return;
-            }
-
-            if (from >= 0 && to >= 0)
-            {
-                // Both fight. They trade places, which is how the battle order is edited.
-                order[from] = onto;
-                order[to] = moving;
-            }
-            else if (to >= 0)
-            {
-                // A benched creature takes a team place; the one standing there goes to the box.
-                order[to] = moving;
+                order[from] = order[index];
+                order[index] = slot;
             }
             else
             {
-                // A team member is put down on the bench; whoever was there takes their place.
-                order[from] = onto;
+                // Coming off the bench: the one being replaced goes there in exchange.
+                order[index] = slot;
             }
 
+            _selected = slot;
             Act((s, done) => s.SetParty(order.ToArray(), done),
-                Loc.Pick("Team updated.", "배틀 팀을 바꿨어요."));
+                Loc.Pick($"Now fights at {index + 1}.", $"{index + 1}번으로 보냈어요."));
         }
 
         // --- The box --------------------------------------------------------------------------
@@ -616,7 +567,7 @@ namespace PokeLab.Boot
 
             var slot = entry.slot;
             UiButtonMotion.Attach(cell, 14);
-            UiBuilder.Button("Take", cell, pane.Fill, () => Tap(slot));
+            UiBuilder.Button("Take", cell, pane.Fill, () => Select(slot));
         }
 
 
@@ -642,6 +593,8 @@ namespace PokeLab.Boot
                 atCap ? UiPalette.AceGold : UiPalette.AceTextDim, TextAlignmentOptions.Left);
             UiBuilder.Anchor(line.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0f, 1f), new Vector2(0f, -66f), new Vector2(0f, 40f));
+
+            BuildOrderRow(session, entry);
 
             var coins = session != null ? session.Coins : 0;
             var candies = session != null ? session.ItemCount(CandyItem) : 0;
@@ -694,10 +647,73 @@ namespace PokeLab.Boot
             // Written as a number rather than measured because the four actions are fixed and a
             // layout group here would fight the absolute anchoring the rows above use.
             UiBuilder.Anchor(movesLabel.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, 1f), new Vector2(0f, -380f), new Vector2(0f, 30f));
+                new Vector2(0f, 1f), new Vector2(0f, -MovesTop), new Vector2(0f, 30f));
 
             var known = KnownMoves(entry);
             for (var i = 0; i < MoveSlots; i++) BuildMoveSlot(entry, known, i);
+        }
+
+        /// <summary>Top of the first action row, below the header and the order chips.</summary>
+        private const float ActionsTop = 190f;
+
+        /// <summary>Top of the "기술" label. Three action rows of 76 with 10 between them.</summary>
+        private const float MovesTop = ActionsTop + 2f * 86f + 76f + 12f;
+
+        /// <summary>
+        /// Where this creature fights, as six numbered chips.
+        ///
+        /// <b>This is the only control on the screen that changes the team,</b> and that is the
+        /// point of it. Tapping a tile used to pick the creature up, so the second tap of an
+        /// ordinary browse moved somebody. Here the destination is a number you press on purpose:
+        /// 1 leads, 6 comes in last, and pressing one is the whole gesture.
+        ///
+        /// It reads as an answer to "몇 번째로 싸우나" rather than as a tool, which is why the
+        /// creature's own place is drawn as filled-in rather than as a pressed button. A benched
+        /// creature has no filled chip, and pressing one brings it in -- so there is no separate
+        /// 파티에 넣기 either.
+        /// </summary>
+        private void BuildOrderRow(OnlineSession session, RosterEntry entry)
+        {
+            var label = UiBuilder.Text("OrderLabel", _detail, Loc.Pick("Battle order", "전투 순서"),
+                UiTextRole.Overline, UiPalette.AceTextDim, TextAlignmentOptions.Left);
+            UiBuilder.Anchor(label.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                new Vector2(0f, 1f), new Vector2(0f, -112f), new Vector2(0f, 26f));
+
+            var row = UiBuilder.Rect("Order", _detail, false);
+            UiBuilder.Anchor(row, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f),
+                new Vector2(0f, -140f), new Vector2(0f, 46f));
+            UiBuilder.Horizontal(row, 8f, null, TextAnchor.MiddleLeft, true, true);
+
+            var party = session != null ? session.Party : Array.Empty<RosterEntry>();
+            for (var i = 0; i < OnlineSession.PartySize; i++)
+            {
+                var occupied = i < party.Length;
+                var mine = occupied && party[i] != null && party[i].slot == entry.slot;
+
+                var chip = UiBuilder.Rect("Place_" + i, row);
+                UiBuilder.Size(chip, flexibleWidth: 1f, flexibleHeight: 1f, minWidth: 40f);
+
+                var pane = UiJuice.Pane("Pane", chip,
+                    mine ? UiPalette.AceGold.WithAlpha(0.92f)
+                         : UiPalette.AceGlass.WithAlpha(occupied ? 0.7f : 0.3f),
+                    12, true, true, true,
+                    mine ? UiPalette.AceGold : UiPalette.AceRim.WithAlpha(occupied ? 1f : 0.35f), 46);
+
+                var text = UiBuilder.Text("Text", chip, (i + 1).ToString(), UiTextRole.Caption,
+                    mine ? UiPalette.AceInk : occupied ? UiPalette.AceText : UiPalette.AceTextFaint,
+                    TextAlignmentOptions.Center);
+                UiBuilder.Anchor(text.rectTransform, Vector2.zero, Vector2.one,
+                    new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-6f, -8f));
+
+                // Its own place does nothing, and an empty place cannot be reached: the team is
+                // six whenever six are owned, so an empty chip only exists in a new collection.
+                if (mine || !occupied) continue;
+
+                var target = i;
+                var slot = entry.slot;
+                UiButtonMotion.Attach(chip, 12);
+                UiBuilder.Button("Take", chip, pane.Fill, () => PlaceAt(slot, target));
+            }
         }
 
         /// <summary>
@@ -715,7 +731,7 @@ namespace PokeLab.Boot
 
             var row = UiBuilder.Rect("Action_" + index, parent, false);
             UiBuilder.Anchor(row, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, -(120f + index * (height + gap))), new Vector2(0f, height));
+                new Vector2(0f, -(ActionsTop + index * (height + gap))), new Vector2(0f, height));
 
             var pane = UiJuice.Pane("Pane", row,
                 enabled ? accent.WithAlpha(0.86f) : UiPalette.AceGlass.WithAlpha(0.34f), 16,
@@ -755,7 +771,7 @@ namespace PokeLab.Boot
 
             var row = UiBuilder.Rect("Move_" + index, _detail, false);
             UiBuilder.Anchor(row, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, -(416f + index * (height + gap))), new Vector2(0f, height));
+                new Vector2(0f, -(MovesTop + 36f + index * (height + gap))), new Vector2(0f, height));
 
             var pane = UiJuice.Pane("Pane", row, UiPalette.AceGlass.WithAlpha(0.6f), 14,
                 true, true, true, UiPalette.AceRim, (int)height);
@@ -1091,7 +1107,6 @@ namespace PokeLab.Boot
             {
                 // Innermost surface first: the disc list, then the panel.
                 if (_discsRoot != null && _discsRoot.gameObject.activeSelf) CloseDiscs();
-                else if (_carry >= 0) { _carry = -1; Say(""); Refresh(); }
                 else Close();
             }
         }
