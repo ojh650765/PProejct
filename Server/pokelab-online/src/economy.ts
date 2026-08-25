@@ -27,8 +27,25 @@ export const COINS_LOSS = 45;
 /** PvP is worth more, exactly as it is for experience. A real opponent is the harder thing. */
 export const COIN_MODE_MULTIPLIER: Record<string, number> = {
   ai: 1,
-  pvp: 1.8
+  pvp: 1.8,
+
+  // The story pays into the same purse, because the user's rule is that a coin is a coin:
+  // 스토리에서 얻는 코인이랑 아웃게임에서도 사용가능해야함. Two wallets is what made the
+  // overworld's 소지금 a number that could only ever be looked at.
+  //
+  // It pays LESS per battle, and the reason is frequency rather than worth. A patch of grass
+  // can be walked into all afternoon; the arena is one deliberate fight at a time. Priced so
+  // that a route of trainers is a real afternoon's income and a farmed wild encounter is not.
+  //
+  // Two tiers, and only two, because the tier is the one thing the client gets to say about
+  // what a battle was worth. A number would be the client pricing itself -- and this purse
+  // buys gacha pulls that walk into PvP.
+  story_wild: 0.25,
+  story_trainer: 0.7
 };
+
+/** Modes fought with the story party rather than the account's collection. */
+export const STORY_MODES = new Set(["story_wild", "story_trainer"]);
 
 // --- The gacha -----------------------------------------------------------------------------
 

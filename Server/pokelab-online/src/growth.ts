@@ -364,6 +364,21 @@ export async function handleSetParty(request: Request, env: Env): Promise<Respon
   // here rather than discovered at the arena door.
   if (wanted.length === 0) return fail("empty_party");
 
+  // Topped up to six from the bench, whenever six are owned.
+  //
+  // The client cannot produce a short party any more -- every edit it makes is a swap, so the
+  // count never changes -- but this route is the only way the stored order is ever written, and
+  // it has been called by older builds that could add and remove. Filling here means the number
+  // in the database is the number that fights, rather than something partyOf has to keep
+  // repairing on the way past.
+  const chosen = new Set(wanted);
+  for (const row of owned) {
+    if (wanted.length >= PARTY_SIZE) break;
+    if (chosen.has(row.slot)) continue;
+    wanted.push(row.slot);
+    chosen.add(row.slot);
+  }
+
   const statements: D1PreparedStatement[] = [
     env.DB
       .prepare(`UPDATE roster SET party_slot = NULL WHERE account_id = ?`)

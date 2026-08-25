@@ -81,20 +81,25 @@ namespace PokeLab.Online
                 foreach (var entry in Roster)
                     if (entry != null && entry.InParty) assigned.Add(entry);
 
-                if (assigned.Count == 0)
-                {
-                    var head = new List<RosterEntry>(PartySize);
-                    foreach (var entry in Roster)
-                    {
-                        if (entry == null) continue;
-                        head.Add(entry);
-                        if (head.Count >= PartySize) break;
-                    }
-                    return head.ToArray();
-                }
-
                 assigned.Sort((a, b) => a.partySlot.CompareTo(b.partySlot));
                 if (assigned.Count > PartySize) assigned.RemoveRange(PartySize, assigned.Count - PartySize);
+
+                // Topped up from the bench, exactly as the Worker's partyOf does.
+                //
+                // Six is the team, always, whenever six are owned -- a shorter one is always the
+                // residue of an older edit rather than something anyone chose. Filling it in the
+                // same order on both sides is what keeps the strip a player is looking at and the
+                // team that walks into the arena the same six.
+                if (assigned.Count < PartySize)
+                {
+                    foreach (var entry in Roster)
+                    {
+                        if (assigned.Count >= PartySize) break;
+                        if (entry == null || entry.InParty) continue;
+                        assigned.Add(entry);
+                    }
+                }
+
                 return assigned.ToArray();
             }
         }

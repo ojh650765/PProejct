@@ -368,7 +368,20 @@ namespace PokeLab.Overworld
                 GameEvents.RaiseCreatureCaught(result.CapturedCreature);
             }
 
-            if (result.MoneyDelta != 0 && profile is PlayerProfile wallet) wallet.AddMoney(result.MoneyDelta);
+            // The purse is the account's now, not the save file's.
+            //
+            // 스토리에서 얻는 코인이랑 아웃게임에서도 사용가능해야함 -- so the coin a trainer
+            // hands over has to be the same coin a gacha pull costs, and there is only one place
+            // that can be true: the server. What this raises is what HAPPENED; what it was worth
+            // is priced by the Worker from the kind of battle, exactly as battle mode is. The
+            // client proposing an amount would be the client pricing a currency that buys pulls
+            // which walk into PvP.
+            //
+            // PlayerProfile.Money is left in the save format so old files still load, but nothing
+            // pays into it any more and nothing reads it back out.
+            GameEvents.RaiseStoryBattleFinished(
+                result.Outcome == BattleOutcome.PlayerVictory || result.Outcome == BattleOutcome.Captured,
+                _pendingTrainer != null);
 
             // The creature you fought is gone whether you caught it or beat it.
             if (_pendingRoamer != null)
@@ -430,9 +443,13 @@ namespace PokeLab.Overworld
                 return;
             }
 
-            // Half the money, rounded in the player's favour, clamped by AddMoney itself.
-            var loss = wallet.Money / 2;
-            if (loss > 0) wallet.AddMoney(-loss);
+            // The old whiteout penalty -- half the money -- is gone with the second wallet.
+            //
+            // It cannot simply be pointed at the account instead. That purse is where a player's
+            // gacha savings sit, and halving it for losing a wild encounter would mean a bad
+            // fight in the grass costing a ten-pull. The loss is priced the same way every other
+            // battle is now: the Worker pays a defeat less than a win, and that difference IS the
+            // penalty. Raised above with the rest of them.
 
             // The heal is what makes losing survivable, so it comes before anything that
             // could fail. Without it the fainted party re-triggers the refusal loop this

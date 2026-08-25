@@ -96,6 +96,22 @@ namespace PokeLab.Core
         public static event Action<CreatureInstance> CreatureCaught;
         public static event Action<GameMode, GameMode> ModeChanged;
 
+        /// <summary>
+        /// A story battle finished: whether it was won, and whether it was against a trainer.
+        ///
+        /// <b>Why an event and not a call.</b> The overworld does not know the network exists --
+        /// PokeLab.Overworld references Core and nothing else, deliberately, so the world is
+        /// playable and testable with no account at all. But a story battle now pays into the
+        /// account's purse, because the user's rule is that a coin earned anywhere is spendable
+        /// everywhere. So the world states what happened and whoever is listening decides what
+        /// that is worth; with nobody listening the story simply plays.
+        ///
+        /// <b>What is deliberately NOT on it.</b> An amount. The client says what KIND of battle
+        /// it was and the server prices it, because this purse buys gacha pulls and those walk
+        /// into PvP.
+        /// </summary>
+        public static event Action<bool, bool> StoryBattleFinished;
+
         public static void RaiseWeatherChanged(Weather from, Weather to) => WeatherChanged?.Invoke(from, to);
         public static void RaiseTimeOfDayChanged(TimeOfDay from, TimeOfDay to) => TimeOfDayChanged?.Invoke(from, to);
         /// <summary>Normalised 0-1 position through the full day cycle.</summary>
@@ -104,6 +120,10 @@ namespace PokeLab.Core
         public static void RaiseSpeciesSeen(int speciesId) => SpeciesSeen?.Invoke(speciesId);
         public static void RaiseCreatureCaught(CreatureInstance creature) => CreatureCaught?.Invoke(creature);
         public static void RaiseModeChanged(GameMode from, GameMode to) => ModeChanged?.Invoke(from, to);
+
+        /// <summary>Raised when a story battle resolves. See <see cref="StoryBattleFinished"/>.</summary>
+        public static void RaiseStoryBattleFinished(bool won, bool trainer) =>
+            StoryBattleFinished?.Invoke(won, trainer);
 
         /// <summary>Detaches every subscriber. Called alongside <see cref="ServiceHub.Reset"/>.</summary>
         public static void Reset()
@@ -115,6 +135,7 @@ namespace PokeLab.Core
             SpeciesSeen = null;
             CreatureCaught = null;
             ModeChanged = null;
+            StoryBattleFinished = null;
         }
     }
 }

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 using PokeLab.Core;
+using PokeLab.Online;
 using PokeLab.Overworld;
 using PokeLab.UI;
 using TMPro;
@@ -250,7 +251,16 @@ namespace PokeLab.Boot
 
             var text = new StringBuilder();
             text.Append(Loc.Pick("Name", "이름")).Append("   ").Append(TrainerName()).Append('\n');
-            text.Append(Loc.Pick("Money", "소지금")).Append("   ").Append(profile.Money).Append('\n');
+            // The account's purse, not the save file's. There is one currency now: what a trainer
+            // hands over here is what a gacha pull costs on the title screen, so showing the old
+            // local Money would be showing a number nothing spends and nothing fills any more.
+            // Signed out there is no purse, and the row says so rather than showing a false 0.
+            var session = OnlineSession.Instance;
+            text.Append(Loc.Pick("Coins", "코인")).Append("   ")
+                .Append(session != null && session.IsSignedIn
+                    ? session.Coins.ToString("N0")
+                    : Loc.Pick("-- sign in", "-- 로그인 필요"))
+                .Append('\n');
             text.Append(Loc.Pick("Pokémon", "포켓몬")).Append("   ").Append(profile.Party?.Count ?? 0).Append('\n');
             return text.ToString();
         }

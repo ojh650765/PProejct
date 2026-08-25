@@ -60,6 +60,9 @@ namespace PokeLab.Boot
         /// <summary>The rows currently on screen, so an identical redraw can be skipped.</summary>
         private string _rowSignature;
 
+        /// <summary>The page the entrance animation last played for. See Refresh.</summary>
+        private Page _animatedPage = Page.Root;
+
         private void Start()
         {
             var session = OnlineSession.Ensure();
@@ -177,13 +180,20 @@ namespace PokeLab.Boot
             var signature = _page + "|" + Signature(rows);
             if (signature != _rowSignature)
             {
+                // Animated on arrival and on a deliberate move between pages, never on a
+                // redraw the player did not ask for. /save/info answering is the common case:
+                // it makes 이어하기 appear a beat after the screen is up, and replaying the
+                // whole entrance for one new row is what read as the menu loading twice.
+                var arriving = _rowSignature == null || _page != _animatedPage;
                 _rowSignature = signature;
+                _animatedPage = _page;
                 _view.Build(
                     Loc.Pick("POKÉ LAB", "포켓랩"),
                     _page == Page.Root
                         ? Loc.Pick("Aster Field", "아스터 필드")
                         : Loc.Pick("Battle", "대전 모드"),
-                    rows);
+                    rows,
+                    arriving);
             }
 
             _view.SetCard(CardName(), CardStatus());

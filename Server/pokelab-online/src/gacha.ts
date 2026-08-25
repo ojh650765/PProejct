@@ -111,12 +111,38 @@ export async function rosterFor(env: Env, accountId: string): Promise<RosterRow[
  * what an account whose party was emptied looks like. A battle that refused to start because a
  * team screen had not been visited would be a wall in front of the only mode that pays.
  */
+/**
+ * The six who fight, in the order they fight in.
+ *
+ * <b>Always six, whenever six are owned.</b> The party used to be whatever happened to carry a
+ * party_slot, which meant a collection of forty could walk into a battle with three -- from an
+ * old /party/set, or a row that never got assigned. Nothing in the game asks for a team of
+ * three; it is always the residue of some earlier edit. So a short party is topped up from the
+ * bench here, at the one place every caller reads the party through: the roster screen, the
+ * battle report, and the team a PvP opponent is handed.
+ *
+ * Topping up here rather than in the database keeps it true for rows written before this
+ * existed, without a migration that would have to guess at an order nobody chose.
+ */
 export function partyOf(rows: RosterRow[]): RosterRow[] {
   const assigned = rows
     .filter((row) => row.party_slot !== null && row.party_slot !== undefined)
-    .sort((a, b) => (a.party_slot as number) - (b.party_slot as number));
+    .sort((a, b) => (a.party_slot as number) - (b.party_slot as number))
+    .slice(0, PARTY_SIZE);
 
-  return assigned.length > 0 ? assigned.slice(0, PARTY_SIZE) : rows.slice(0, PARTY_SIZE);
+  if (assigned.length >= PARTY_SIZE) return assigned;
+
+  // The bench in draw order. Whoever was pulled first is the one who fills a hole, which is at
+  // least a rule the player can predict; the alternative is a team that reshuffles itself.
+  const taken = new Set(assigned.map((row) => row.slot));
+  for (const row of rows) {
+    if (assigned.length >= PARTY_SIZE) break;
+    if (taken.has(row.slot)) continue;
+    assigned.push(row);
+    taken.add(row.slot);
+  }
+
+  return assigned;
 }
 
 export function toWire(rows: RosterRow[]) {

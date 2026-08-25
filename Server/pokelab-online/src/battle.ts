@@ -4,6 +4,7 @@ import {
   COINS_LOSS,
   COINS_WIN,
   COIN_MODE_MULTIPLIER,
+  STORY_MODES,
   DROP_CANDY_SHARE,
   DROP_CHANCE_LOSS,
   DROP_CHANCE_WIN,
@@ -86,18 +87,54 @@ export async function handleBattleResult(request: Request, env: Env): Promise<Re
   }
   if ((body.version ?? 0) !== CONTRACT_VERSION) return fail("version_mismatch");
 
-  const mode = body.mode === "pvp" ? "pvp" : "ai";
+  const asked = typeof body.mode === "string" ? body.mode : "ai";
+  const mode = asked === "pvp" || STORY_MODES.has(asked) ? asked : "ai";
   const won = body.won === true;
+  const story = STORY_MODES.has(mode);
 
   // A PvP result has to name its match. Without that there is nothing tying the two players'
   // reports together, and "pvp" becomes a free 1.75x multiplier any client can ask for.
   const matchId = (body.matchId ?? "").trim();
   if (mode === "pvp" && !matchId) return fail("no_match");
 
-  const battleId = mode === "pvp" ? `${matchId}:${account.id}` : `ai:${randomId()}`;
+  const battleId = mode === "pvp" ? `${matchId}:${account.id}` : `${mode}:${randomId()}`;
 
   const roster = await rosterFor(env, account.id);
-  if (roster.length === 0) return fail("no_team");
+
+  // A story battle is fought by the creatures caught in the overworld, which belong to the save
+  // file and not to the collection. So it pays coins and nothing else: no experience, because
+  // the six who earned it are not on this roster, and no discs, because a disc is drawn from a
+  // species the collection actually holds. Paying either would credit a fight to creatures that
+  // were nowhere near it.
+  //
+  // It is also the one mode that needs no team here at all -- a new account can be well into
+  // the story before it has pulled anything.
+  if (!story && roster.length === 0) return fail("no_team");
+
+  if (story) {
+    const gained = Math.max(
+      1,
+      Math.round((won ? COINS_WIN : COINS_LOSS) * (COIN_MODE_MULTIPLIER[mode] ?? 1))
+    );
+    await env.DB
+      .prepare(`UPDATE accounts SET coins = coins + ? WHERE id = ?`)
+      .bind(gained, account.id)
+      .run();
+
+    const [purse, bag] = await Promise.all([
+      purseFor(env, account.id),
+      itemsFor(env, account.id)
+    ]);
+
+    return json({
+      ok: true,
+      gains: [],
+      coinsGained: gained,
+      coins: purse.coins,
+      drops: [],
+      items: itemsToWire(bag)
+    });
+  }
 
   const participants = (body.participants ?? []).filter(
     (entry): entry is Required<Participant> =>

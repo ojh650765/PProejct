@@ -79,19 +79,25 @@ namespace PokeLab.Boot
         private int _selected = -1;
 
         /// <summary>
-        /// Whether the team strip is being reordered, and who is currently lifted.
+        /// The creature picked up, or -1 when nobody is held.
         ///
-        /// <b>Why a mode rather than a drag.</b> The order of the six IS the battle order --
-        /// slot 1 leads, and the rest come in as the leader faints -- so it has to be editable.
-        /// A drag would be the obvious gesture and is the wrong one here: the strip lives inside
-        /// a scrolling screen on a touch device, where a press that moves is already spoken for,
-        /// and a mis-scroll that silently reshuffles the team is worse than one more button. So
-        /// the strip has a stated mode, the lifted tile says it is lifted, and the status line
-        /// says what the next tap will do.
+        /// <b>One rule for the whole screen: tap who moves, tap where they go.</b> This started
+        /// out with two mechanisms -- a 순서 바꾸기 mode for the strip and 파티에 넣기/빼기 on the
+        /// detail panel -- and they did the same job by different means, so the screen had two
+        /// answers to "how do I change my team" and neither was obviously the one to use.
+        ///
+        /// There is one now, and it is the one Pokémon HOME's team screen uses: pick a creature
+        /// up, put it down somewhere. Putting somebody into an occupied place swaps the two,
+        /// which means reordering the team and replacing a member are not two features -- they
+        /// are the same gesture landing on a different tile. Nothing is ever added or removed,
+        /// because the team is always six.
+        ///
+        /// <b>Why not a drag,</b> which is the other obvious answer: the box scrolls vertically
+        /// on a touch screen, so a press that moves is already spoken for. Distinguishing a drag
+        /// from a scroll by direction works until the tile you want is at the top of the list,
+        /// and a mis-scroll that silently reshuffles the team is a worse failure than a tap that
+        /// needs a second tap. Tapping also survives a mouse, a finger and a keyboard equally.
         /// </summary>
-        private bool _reordering;
-
-        /// <summary>The collection slot lifted for a move, or -1 when nobody is held.</summary>
         private int _carry = -1;
 
         private void Awake() => gameObject.SetActive(false);
@@ -101,7 +107,6 @@ namespace PokeLab.Boot
             OnlineSession.Ensure();
             gameObject.SetActive(true);
             IsOpen = true;
-            _reordering = false;
             _carry = -1;
             UiSound.MenuOpen();
 
@@ -214,18 +219,12 @@ namespace PokeLab.Boot
                 new Vector2(0f, 1f), new Vector2(18f, -14f), new Vector2(-230f, 30f));
             label.textWrappingMode = TextWrappingModes.NoWrap;
 
-            var toggle = UiBuilder.Rect("Reorder", frame, false);
-            UiBuilder.Anchor(toggle, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-                new Vector2(-14f, -10f), new Vector2(184f, 44f));
-            var togglePane = UiJuice.Pane("Pane", toggle, UiPalette.AceGlass.WithAlpha(0.8f), 14,
-                true, true, true, UiPalette.AceRim, 44);
-            _reorderLabel = UiBuilder.Text("Label", toggle, "", UiTextRole.Caption,
-                UiPalette.AceText, TextAlignmentOptions.Center);
-            UiBuilder.Anchor(_reorderLabel.rectTransform, Vector2.zero, Vector2.one,
-                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-16f, -10f));
+            // The header carries the rule instead of a button. There is nothing to switch on.
+            _reorderLabel = UiBuilder.Text("Hint", frame, "", UiTextRole.Caption,
+                UiPalette.AceTextDim, TextAlignmentOptions.Right);
+            UiBuilder.Anchor(_reorderLabel.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(1f, 1f), new Vector2(-16f, -14f), new Vector2(330f, 30f));
             _reorderLabel.textWrappingMode = TextWrappingModes.NoWrap;
-            UiButtonMotion.Attach(toggle, 14);
-            UiBuilder.Button("Take", toggle, togglePane.Fill, ToggleReorder);
 
             _teamRoot = UiBuilder.Rect("Team", frame, false);
             UiBuilder.Anchor(_teamRoot, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
@@ -303,9 +302,9 @@ namespace PokeLab.Boot
             if (_selected < 0 && roster.Length > 0) _selected = roster[0].slot;
 
             if (_reorderLabel != null)
-                _reorderLabel.text = _reordering
-                    ? Loc.Pick("Done", "완료")
-                    : Loc.Pick("Reorder", "순서 바꾸기");
+                _reorderLabel.text = _carry >= 0
+                    ? Loc.Pick("tap a place to put it", "놓을 자리를 탭하세요")
+                    : Loc.Pick("1 leads · tap to pick up", "1번이 선두 · 탭해서 집기");
 
             BuildTeam(session);
             BuildBox(session, roster);
@@ -345,21 +344,24 @@ namespace PokeLab.Boot
             var cell = UiBuilder.Rect("Team_" + index, _teamRoot);
             UiBuilder.Size(cell, flexibleWidth: 1f, flexibleHeight: 1f, minWidth: 60f);
 
-            var lifted = entry != null && _carry == entry.slot;
-            var selected = entry != null && entry.slot == _selected && !_reordering;
-            var target = _reordering && _carry >= 0 && !lifted;
+            var held = entry != null && _carry == entry.slot;
+            var selected = entry != null && entry.slot == _selected && !held;
 
-            var face = lifted ? UiPalette.AceGold.WithAlpha(0.9f)
+            // While somebody is held, every OTHER place is a destination and says so. That is the
+            // whole of the instruction: the lifted tile is gold, the places it can go are lit.
+            var target = _carry >= 0 && !held;
+
+            var face = held ? UiPalette.AceGold.WithAlpha(0.9f)
+                : target ? UiPalette.AceCyan.WithAlpha(0.3f)
                 : selected ? UiPalette.AceCyan.WithAlpha(0.88f)
-                : target ? UiPalette.AceCyan.WithAlpha(0.26f)
                 : UiPalette.AceGlass.WithAlpha(entry != null ? 0.66f : 0.28f);
-            var rim = lifted ? UiPalette.AceGold
+            var rim = held ? UiPalette.AceGold
+                : target ? UiPalette.AceCyan.WithAlpha(0.75f)
                 : selected ? UiPalette.AceCyan
-                : target ? UiPalette.AceCyan.WithAlpha(0.7f)
                 : UiPalette.AceRim.WithAlpha(entry != null ? 1f : 0.3f);
 
             var pane = UiJuice.Pane("Pane", cell, face, 14, true, true, true, rim, 120);
-            var ink = lifted || selected ? UiPalette.AceInk : UiPalette.AceText;
+            var ink = held || selected ? UiPalette.AceInk : UiPalette.AceText;
 
             // The ordinal IS the battle order, so it is the one thing on the tile that is never
             // allowed to be subtle.
@@ -375,20 +377,13 @@ namespace PokeLab.Boot
 
             if (entry == null)
             {
+                // Only reachable while the collection is under six. There is nothing to add here:
+                // a pull fills it, and the team is six again by itself.
                 var empty = UiBuilder.Text("Empty", cell, Loc.Pick("empty", "비어 있음"),
                     UiTextRole.Caption, UiPalette.AceTextFaint, TextAlignmentOptions.Center);
                 UiBuilder.Anchor(empty.rectTransform, Vector2.zero, Vector2.one,
                     new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-8f, -8f));
                 empty.textWrappingMode = TextWrappingModes.NoWrap;
-
-                // An empty place is still a destination: moving somebody onto it is how a team
-                // of four is reordered at all.
-                if (_reordering && _carry >= 0)
-                {
-                    var to = index;
-                    UiButtonMotion.Attach(cell, 14);
-                    UiBuilder.Button("Take", cell, pane.Fill, () => MoveCarried(to));
-                }
                 return;
             }
 
@@ -408,7 +403,7 @@ namespace PokeLab.Boot
             level.textWrappingMode = TextWrappingModes.NoWrap;
 
             var stars = UiBuilder.Text("Stars", cell, Stars(entry.stars), UiTextRole.Caption,
-                lifted || selected ? UiPalette.AceInk.WithAlpha(0.72f) : UiPalette.AceGold,
+                held || selected ? UiPalette.AceInk.WithAlpha(0.72f) : UiPalette.AceGold,
                 TextAlignmentOptions.Center);
             UiBuilder.Anchor(stars.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
                 new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(-8f, 22f));
@@ -416,32 +411,29 @@ namespace PokeLab.Boot
 
             var slot = entry.slot;
             UiButtonMotion.Attach(cell, 14);
-            UiBuilder.Button("Take", cell, pane.Fill, () => TapTeam(slot, index));
+            UiBuilder.Button("Take", cell, pane.Fill, () => Tap(slot));
         }
 
-        // --- Reordering -------------------------------------------------------------------------
+        // --- Picking up and putting down ------------------------------------------------------
 
-        private void ToggleReorder()
+        /// <summary>
+        /// Every tile on this screen does the same thing, whether it is in the team or the box.
+        ///
+        /// Nothing held: pick this one up, and show it on the right. Holding somebody else: put
+        /// them here and send whoever was here to where they came from. Holding this one: put it
+        /// back down. That is the entire interaction model of the screen.
+        /// </summary>
+        private void Tap(int slot)
         {
-            _reordering = !_reordering;
-            _carry = -1;
-            UiSound.Navigate();
-            Say(_reordering
-                ? Loc.Pick("Pick the one to move.", "옆길 포켓몬을 고르세요. 1번이 선두예요.")
-                : "");
-            Refresh();
-        }
-
-        /// <summary>A tap on an occupied team tile: select it, lift it, or land on it.</summary>
-        private void TapTeam(int slot, int index)
-        {
-            if (!_reordering) { Select(slot); return; }
+            var session = OnlineSession.Instance;
+            if (session == null) return;
 
             if (_carry < 0)
             {
                 _carry = slot;
+                _selected = slot;
                 UiSound.Navigate();
-                Say(Loc.Pick("Now pick where it goes.", "이제 놓을 자리를 고르세요."));
+                Say(Loc.Pick("Tap where it should go.", "놓을 자리를 탭하세요. 같은 것을 다시 탭하면 취소돼요."));
                 Refresh();
                 return;
             }
@@ -450,44 +442,63 @@ namespace PokeLab.Boot
             {
                 _carry = -1;
                 UiSound.Navigate();
-                Say(Loc.Pick("Pick the one to move.", "옆길 포켓몬을 고르세요."));
+                Say("");
                 Refresh();
                 return;
             }
 
-            MoveCarried(index);
+            Place(session, _carry, slot);
         }
 
         /// <summary>
-        /// Moves the lifted creature to <paramref name="index"/> and commits the whole order.
+        /// Puts <paramref name="moving"/> where <paramref name="onto"/> is standing.
         ///
-        /// A move, not a swap. Dropping 5 onto 1 with a swap would send 1 to the back, which is
-        /// not what dragging a name to the top of a list has ever meant; the rest shuffle down
-        /// by one instead. The full order is posted because that is the shape /party/set takes,
-        /// and because a party rewritten wholesale cannot half-apply into two creatures both
-        /// claiming to lead.
+        /// <b>Always a swap, and that is what makes the screen simple.</b> Two in the team swap
+        /// places, which is a reorder. One from the box onto a team place swaps them, which is a
+        /// substitution. Two in the box swap nothing that matters and the team is untouched. The
+        /// player does not have to know which of those they are doing, and the team is six before
+        /// and after every one of them -- so there is no 넣기, no 빼기, and no way to walk into a
+        /// battle with four.
         /// </summary>
-        private void MoveCarried(int index)
+        private void Place(OnlineSession session, int moving, int onto)
         {
-            var session = OnlineSession.Instance;
-            if (session == null || _carry < 0) return;
-
             var order = new List<int>(OnlineSession.PartySize);
             foreach (var member in session.Party) if (member != null) order.Add(member.slot);
 
-            var from = order.IndexOf(_carry);
-            if (from < 0) { _carry = -1; Refresh(); return; }
+            var from = order.IndexOf(moving);
+            var to = order.IndexOf(onto);
 
-            var to = Mathf.Clamp(index, 0, order.Count - 1);
-            if (to == from) { _carry = -1; Refresh(); return; }
-
-            order.RemoveAt(from);
-            order.Insert(to, _carry);
-
-            _selected = _carry;
+            _selected = moving;
             _carry = -1;
+
+            if (from < 0 && to < 0)
+            {
+                // Both on the bench. Nothing about the team changed, so nothing is posted.
+                UiSound.Navigate();
+                Say("");
+                Refresh();
+                return;
+            }
+
+            if (from >= 0 && to >= 0)
+            {
+                // Both fight. They trade places, which is how the battle order is edited.
+                order[from] = onto;
+                order[to] = moving;
+            }
+            else if (to >= 0)
+            {
+                // A benched creature takes a team place; the one standing there goes to the box.
+                order[to] = moving;
+            }
+            else
+            {
+                // A team member is put down on the bench; whoever was there takes their place.
+                order[from] = onto;
+            }
+
             Act((s, done) => s.SetParty(order.ToArray(), done),
-                Loc.Pick("Order changed.", "전투 순서를 바꿠어요."));
+                Loc.Pick("Team updated.", "배틀 팀을 바꿨어요."));
         }
 
         // --- The box --------------------------------------------------------------------------
@@ -605,17 +616,9 @@ namespace PokeLab.Boot
 
             var slot = entry.slot;
             UiButtonMotion.Attach(cell, 14);
-            UiBuilder.Button("Take", cell, pane.Fill, () => Select(slot));
+            UiBuilder.Button("Take", cell, pane.Fill, () => Tap(slot));
         }
 
-        private void Select(int slot)
-        {
-            if (_selected == slot) return;
-            _selected = slot;
-            UiSound.Navigate();
-            Say("");
-            Refresh();
-        }
 
         // --- The one creature ------------------------------------------------------------------
 
@@ -675,22 +678,23 @@ namespace PokeLab.Boot
                 UiPalette.AceGold, candies > 0 && !atCap,
                 () => Act((s, done) => s.FeedCandy(slot, done), Loc.Pick("One level up.", "레벨이 올랐어요.")));
 
-            var inParty = entry.InParty;
-            ActionButton(_detail, 3,
-                inParty ? Loc.Pick("Remove from party", "파티에서 빼기") : Loc.Pick("Add to party", "파티에 넣기"),
-                inParty
-                    ? Loc.Pick($"Fighting in slot {entry.partySlot + 1}.", $"{entry.partySlot + 1}번으로 싸우고 있어요.")
-                    : Loc.Pick("Six fight at a time.", "한 번에 여섯 마리가 싸워요."),
-                UiPalette.AceCyan, true, () => ToggleParty(entry));
+            // There is no 파티에 넣기 / 빼기 button any more, and the team is better for it.
+            //
+            // It used to sit here as a fourth action, doing by button what the strip above does
+            // by tap -- so the screen had two ways to change the team and they behaved
+            // differently: the button added and removed, which let the team fall below six, while
+            // the strip swapped. Two mechanisms for one job is what made this screen confusing.
+            // Membership is a swap on the strip now, always, and the team is always six.
 
             // --- The moveset --------------------------------------------------------------
             var movesLabel = UiBuilder.Text("MovesLabel", _detail, Loc.Pick("Moves", "기술"),
                 UiTextRole.Overline, UiPalette.AceTextDim, TextAlignmentOptions.Left);
-            // Below the last action row, which ends at 454 from the top: 120 + 3 * (76 + 10).
+            // Below the last action row. Three of them now that the party button is gone:
+            // 120 + 2 * (76 + 10), and the moveset moves up by one row's worth.
             // Written as a number rather than measured because the four actions are fixed and a
             // layout group here would fight the absolute anchoring the rows above use.
             UiBuilder.Anchor(movesLabel.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, 1f), new Vector2(0f, -466f), new Vector2(0f, 30f));
+                new Vector2(0f, 1f), new Vector2(0f, -380f), new Vector2(0f, 30f));
 
             var known = KnownMoves(entry);
             for (var i = 0; i < MoveSlots; i++) BuildMoveSlot(entry, known, i);
@@ -751,7 +755,7 @@ namespace PokeLab.Boot
 
             var row = UiBuilder.Rect("Move_" + index, _detail, false);
             UiBuilder.Anchor(row, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, -(502f + index * (height + gap))), new Vector2(0f, height));
+                new Vector2(0f, -(416f + index * (height + gap))), new Vector2(0f, height));
 
             var pane = UiJuice.Pane("Pane", row, UiPalette.AceGlass.WithAlpha(0.6f), 14,
                 true, true, true, UiPalette.AceRim, (int)height);
@@ -966,50 +970,6 @@ namespace PokeLab.Boot
             _discsRoot.gameObject.SetActive(false);
         }
 
-        // --- The party ---------------------------------------------------------------------------
-
-        /// <summary>
-        /// Puts this creature into the party, or takes it out.
-        ///
-        /// The whole party is sent every time rather than a single change, because that is the
-        /// shape the route takes and it is the shape that cannot half-apply: two creatures both
-        /// claiming slot 3 is a team of five, discovered at the arena door.
-        /// </summary>
-        private void ToggleParty(RosterEntry entry)
-        {
-            var session = OnlineSession.Instance;
-            if (session == null) return;
-
-            var party = new List<int>(OnlineSession.PartySize);
-            foreach (var member in session.Party)
-                if (member != null && member.slot != entry.slot) party.Add(member.slot);
-
-            if (!entry.InParty)
-            {
-                if (party.Count >= OnlineSession.PartySize)
-                {
-                    UiSound.Error();
-                    Say(Loc.Pick("The party is full. Take somebody out first.",
-                                 "파티가 가득 찼어요. 먼저 한 마리를 빼 주세요."));
-                    return;
-                }
-                party.Add(entry.slot);
-            }
-            else if (party.Count == 0)
-            {
-                // Refused here rather than by the Worker, which answers "empty_party" — a battle
-                // with nobody in it cannot start, so the last one out has nowhere to go.
-                UiSound.Error();
-                Say(Loc.Pick("Somebody has to fight.", "적어도 한 마리는 있어야 해요."));
-                return;
-            }
-
-            Act((s, done) => s.SetParty(party.ToArray(), done),
-                entry.InParty
-                    ? Loc.Pick("Taken out of the party.", "파티에서 뺐어요.")
-                    : Loc.Pick("Added to the party.", "파티에 넣었어요."));
-        }
-
         // --- Doing it ------------------------------------------------------------------------------
 
         /// <summary>
@@ -1131,7 +1091,7 @@ namespace PokeLab.Boot
             {
                 // Innermost surface first: the disc list, then the panel.
                 if (_discsRoot != null && _discsRoot.gameObject.activeSelf) CloseDiscs();
-                else if (_reordering) ToggleReorder();
+                else if (_carry >= 0) { _carry = -1; Say(""); Refresh(); }
                 else Close();
             }
         }

@@ -476,7 +476,7 @@ namespace PokeLab.Battle
             {
                 EmitExecuted(side, defenderSide, move, 0, 1);
                 Emit(new MoveMissedEvent { Attacker = side, Target = defenderSide, MoveId = move.Id, WasImmune = true });
-                Emit(new MessageEvent { Text = $"{Name(defender)} protected itself!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.Protected(Name(defender)) });
                 return;
             }
 
@@ -484,7 +484,7 @@ namespace PokeLab.Battle
             {
                 EmitExecuted(side, defenderSide, move, 0, 1);
                 Emit(new MoveMissedEvent { Attacker = side, Target = defenderSide, MoveId = move.Id });
-                Emit(new MessageEvent { Text = $"{Name(attacker)}'s attack missed!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.Missed(Name(attacker)) });
                 return;
             }
 
@@ -544,7 +544,7 @@ namespace PokeLab.Battle
                 if (ctx.TypeMultiplier <= 0f)
                 {
                     Emit(new MoveMissedEvent { Attacker = side, Target = defenderSide, MoveId = move.Id, WasImmune = true });
-                    Emit(new MessageEvent { Text = $"It doesn't affect {Name(defender)}." });
+                    Emit(new MessageEvent { Text = BattleLogStrings.NoEffectOn(Name(defender)) });
                     return;
                 }
 
@@ -701,7 +701,7 @@ namespace PokeLab.Battle
                 state.Volatiles |= VolatileFlags.Confused;
                 state.ConfusionTurns = _rng.Range(ConfusionMinTurns, ConfusionMaxTurns);
                 added |= VolatileFlags.Confused;
-                Emit(new MessageEvent { Text = $"{Name(target)} became confused!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.Confused(Name(target)) });
             }
 
             if ((flags & VolatileFlags.Flinched) != 0)
@@ -727,14 +727,14 @@ namespace PokeLab.Battle
                 var species = SpeciesOf(targetSide);
                 if (DamageCalculator.HasType(species, ElementType.Grass))
                 {
-                    Emit(new MessageEvent { Text = $"It doesn't affect {Name(target)}." });
+                    Emit(new MessageEvent { Text = BattleLogStrings.NoEffectOn(Name(target)) });
                 }
                 else
                 {
                     state.Volatiles |= VolatileFlags.LeechSeeded;
                     state.LeechSeedSource = sourceSide;
                     added |= VolatileFlags.LeechSeeded;
-                    Emit(new MessageEvent { Text = $"{Name(target)} was seeded!" });
+                    Emit(new MessageEvent { Text = BattleLogStrings.Seeded(Name(target)) });
                 }
             }
 
@@ -746,7 +746,7 @@ namespace PokeLab.Battle
             // HP pool is a feature, not a bug fix, and pretending otherwise is the trap.
             var unimplemented = flags & (VolatileFlags.Charging | VolatileFlags.Recharging | VolatileFlags.Substitute);
             if (unimplemented != VolatileFlags.None)
-                Emit(new MessageEvent { Text = "But nothing happened!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.NothingHappenedEmphatic });
 
             if (added != VolatileFlags.None)
                 Emit(new VolatileChangedEvent { Target = targetSide, Added = added, Removed = VolatileFlags.None });
@@ -773,12 +773,12 @@ namespace PokeLab.Battle
                 state.Volatiles |= VolatileFlags.Protected;
                 state.ProtectStreak++;
                 Emit(new VolatileChangedEvent { Target = side, Added = VolatileFlags.Protected, Removed = VolatileFlags.None });
-                Emit(new MessageEvent { Text = $"{Name(creature)} protected itself!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.Protected(Name(creature)) });
             }
             else
             {
                 state.ProtectStreak = 0;
-                Emit(new MessageEvent { Text = "But it failed!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.Failed });
             }
         }
 
@@ -803,7 +803,7 @@ namespace PokeLab.Battle
             {
                 state.Volatiles &= ~VolatileFlags.Flinched;
                 Emit(new VolatileChangedEvent { Target = side, Added = VolatileFlags.None, Removed = VolatileFlags.Flinched });
-                Emit(new MessageEvent { Text = $"{Name(creature)} flinched!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.Flinched(Name(creature)) });
                 return false;
             }
 
@@ -812,11 +812,11 @@ namespace PokeLab.Battle
                 if (_rng.Chance(ThawPercent))
                 {
                     SetStatus(side, StatusCondition.None);
-                    Emit(new MessageEvent { Text = $"{Name(creature)} thawed out!" });
+                    Emit(new MessageEvent { Text = BattleLogStrings.Thawed(Name(creature)) });
                 }
                 else
                 {
-                    Emit(new MessageEvent { Text = $"{Name(creature)} is frozen solid!" });
+                    Emit(new MessageEvent { Text = BattleLogStrings.FrozenSolid(Name(creature)) });
                     return false;
                 }
             }
@@ -828,17 +828,17 @@ namespace PokeLab.Battle
                 if (creature.StatusCounter > 0)
                 {
                     creature.StatusCounter--;
-                    Emit(new MessageEvent { Text = $"{Name(creature)} is fast asleep." });
+                    Emit(new MessageEvent { Text = BattleLogStrings.Asleep(Name(creature)) });
                     return false;
                 }
 
                 SetStatus(side, StatusCondition.None);
-                Emit(new MessageEvent { Text = $"{Name(creature)} woke up!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.WokeUp(Name(creature)) });
             }
 
             if (creature.Status == StatusCondition.Paralysis && _rng.Chance(ParalysisFullStopPercent))
             {
-                Emit(new MessageEvent { Text = $"{Name(creature)} is paralysed and can't move!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.Paralysed(Name(creature)) });
                 return false;
             }
 
@@ -853,7 +853,7 @@ namespace PokeLab.Battle
                     state.ConfusionTurns--;
                     if (_rng.Chance(ConfusionSelfHitPercent))
                     {
-                        Emit(new MessageEvent { Text = $"{Name(creature)} is confused!" });
+                        Emit(new MessageEvent { Text = BattleLogStrings.IsConfused(Name(creature)) });
                         HitSelfInConfusion(side, creature);
                         return false;
                     }
@@ -862,7 +862,7 @@ namespace PokeLab.Battle
                 {
                     state.Volatiles &= ~VolatileFlags.Confused;
                     Emit(new VolatileChangedEvent { Target = side, Added = VolatileFlags.None, Removed = VolatileFlags.Confused });
-                    Emit(new MessageEvent { Text = $"{Name(creature)} snapped out of its confusion!" });
+                    Emit(new MessageEvent { Text = BattleLogStrings.ConfusionEnded(Name(creature)) });
                 }
             }
 
@@ -884,7 +884,7 @@ namespace PokeLab.Battle
             damage = damage / 50 + 2;
             damage = damage * _rng.Range(DamageCalculator.MinRoll, DamageCalculator.MaxRoll) / 100;
 
-            Emit(new MessageEvent { Text = "It hurt itself in its confusion!" });
+            Emit(new MessageEvent { Text = BattleLogStrings.HurtByConfusion });
             ApplyIndirectDamage(side, Math.Max(1, damage), "confusion");
             CheckHeldItem(side, HeldItemTrigger.LowHp);
             CheckFaint(side);
@@ -983,7 +983,7 @@ namespace PokeLab.Battle
 
             if (!ItemCatalog.TryGetBag(itemId, out var item))
             {
-                Emit(new MessageEvent { Text = "Nothing happened." });
+                Emit(new MessageEvent { Text = BattleLogStrings.NothingHappened });
                 return;
             }
 
@@ -997,7 +997,7 @@ namespace PokeLab.Battle
             switch (item.Kind)
             {
                 case BagItemKind.Heal:
-                    if (target.IsFainted) { Emit(new MessageEvent { Text = "It had no effect." }); return; }
+                    if (target.IsFainted) { Emit(new MessageEvent { Text = BattleLogStrings.NoEffect }); return; }
                     var amount = item.Amount > 0 ? item.Amount : target.MaxHp;
                     HealCreature(side, index, amount, item.Id);
                     break;
@@ -1005,7 +1005,7 @@ namespace PokeLab.Battle
                 case BagItemKind.StatusCure:
                     if (target.Status == StatusCondition.None || !item.CuresStatus(target.Status))
                     {
-                        Emit(new MessageEvent { Text = "It had no effect." });
+                        Emit(new MessageEvent { Text = BattleLogStrings.NoEffect });
                         return;
                     }
                     var previous = target.Status;
@@ -1015,7 +1015,7 @@ namespace PokeLab.Battle
                     break;
 
                 case BagItemKind.Revive:
-                    if (!target.IsFainted) { Emit(new MessageEvent { Text = "It had no effect." }); return; }
+                    if (!target.IsFainted) { Emit(new MessageEvent { Text = BattleLogStrings.NoEffect }); return; }
                     target.Status = StatusCondition.None;
                     target.StatusCounter = 0;
                     target.CurrentHp = Math.Max(1, target.MaxHp * item.Amount / 100);
@@ -1042,7 +1042,7 @@ namespace PokeLab.Battle
         {
             if (!IsOnField(side, partyIndex))
             {
-                Emit(new MessageEvent { Text = $"{Name(creature)} recovered {amount} HP!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.Recovered(Name(creature), amount) });
                 return;
             }
 
@@ -1067,7 +1067,7 @@ namespace PokeLab.Battle
         {
             if (!IsOnField(side, partyIndex))
             {
-                Emit(new MessageEvent { Text = $"{Name(creature)} shook off its {previous}." });
+                Emit(new MessageEvent { Text = BattleLogStrings.StatusHealed(Name(creature), previous) });
                 return;
             }
 
@@ -1091,7 +1091,7 @@ namespace PokeLab.Battle
         {
             if (_state.Kind == BattleKind.Trainer)
             {
-                Emit(new MessageEvent { Text = "There's no running from a trainer battle!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.NoRunningFromTrainer });
                 return;
             }
 
@@ -1125,19 +1125,19 @@ namespace PokeLab.Battle
                 // the battle ends right here, so there is no subsequent roll to keep
                 // aligned, and the outcome is decidable without randomness. The ability
                 // path above (GuaranteesEscape) already set that precedent.
-                Emit(new MessageEvent { Text = "Got away safely!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.GotAway });
                 FinishBattle(BattleOutcome.Fled, 0);
                 return;
             }
 
             if (_rng.Next(256) < escapeFactor)
             {
-                Emit(new MessageEvent { Text = "Got away safely!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.GotAway });
                 FinishBattle(BattleOutcome.Fled, 0);
             }
             else
             {
-                Emit(new MessageEvent { Text = "Couldn't get away!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.CouldNotGetAway });
             }
         }
 
@@ -1145,7 +1145,7 @@ namespace PokeLab.Battle
         {
             if (_state.Kind == BattleKind.Trainer)
             {
-                Emit(new MessageEvent { Text = "You can't catch another trainer's creature!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.CannotCatchTrainers });
                 return;
             }
 
@@ -1183,12 +1183,12 @@ namespace PokeLab.Battle
             {
                 _state.CapturedCreature = target;
                 _state.MarkScouted(target.SpeciesId);
-                Emit(new MessageEvent { Text = $"{Name(target)} was caught!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.Caught(Name(target)) });
                 FinishBattle(BattleOutcome.Captured, 0);
             }
             else
             {
-                Emit(new MessageEvent { Text = "Oh no! It broke free!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.BrokeFree });
             }
         }
 
@@ -1404,9 +1404,9 @@ namespace PokeLab.Battle
             });
 
             if (leveled)
-                Emit(new MessageEvent { Text = $"{Name(member)} grew to level {member.Level}!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.GrewToLevel(Name(member), member.Level) });
             else if (startLevel != member.Level)
-                Emit(new MessageEvent { Text = $"{Name(member)} changed level." });
+                Emit(new MessageEvent { Text = BattleLogStrings.LevelChanged(Name(member)) });
         }
 
         private void ReplaceFainted()
@@ -1551,7 +1551,7 @@ namespace PokeLab.Battle
             {
                 index = state.FirstHealthyIndex();
                 if (index < 0) return; // No bench after all; EvaluateOutcome will close the battle.
-                Emit(new MessageEvent { Text = $"{Name(state.Party[index])} was sent out instead!" });
+                Emit(new MessageEvent { Text = BattleLogStrings.SentOutInstead(Name(state.Party[index])) });
             }
 
             state.ActiveIndex = index;
@@ -1725,7 +1725,7 @@ namespace PokeLab.Battle
 
             if (IsTypeImmuneToStatus(SpeciesOf(target), status))
             {
-                Emit(new MessageEvent { Text = $"It doesn't affect {Name(creature)}." });
+                Emit(new MessageEvent { Text = BattleLogStrings.NoEffectOn(Name(creature)) });
                 return false;
             }
 

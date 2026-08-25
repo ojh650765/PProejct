@@ -164,7 +164,20 @@ namespace PokeLab.UI
         /// player signs in — and a menu that is built once has to grow a second, separate code
         /// path to say so.
         /// </summary>
-        public void Build(string title, string subtitle, IReadOnlyList<Entry> entries)
+        /// <summary>
+        /// Draws the whole menu.
+        ///
+        /// <paramref name="animate"/> is what separates arriving at this screen from redrawing
+        /// it. The entrance -- the column sliding in, the rows dealing themselves out, the pill
+        /// and cursor popping -- belongs to the arrival. Build is also how the rows are replaced
+        /// when their content changes, and the title screen does that on its own within the first
+        /// second: /save/info answers and 이어하기 appears. Replaying the entrance for that made
+        /// the first screen of the game look like it loaded twice.
+        ///
+        /// The redraw still rebuilds every row. It just does not announce itself.
+        /// </summary>
+        public void Build(string title, string subtitle, IReadOnlyList<Entry> entries,
+                          bool animate = true)
         {
             var root = transform as RectTransform;
             if (root == null)
@@ -189,14 +202,14 @@ namespace PokeLab.UI
                 UiPalette.AceRim, 220);
 
             BuildHeader(column, title, subtitle);
-            BuildRows(column, entries);
-            BuildCard(safe);
-            BuildFooter(safe);
+            BuildRows(column, entries, animate);
+            BuildCard(safe, animate);
+            BuildFooter(safe, animate);
 
             _count = entries.Count;
             Highlight(FirstEnabled(), false);
 
-            UiJuice.PopIn(column, 0f, new Vector2(-140f, 0f), 0.5f);
+            if (animate) UiJuice.PopIn(column, 0f, new Vector2(-140f, 0f), 0.5f);
         }
 
         // ---------------------------------------------------------------- the header
@@ -245,7 +258,7 @@ namespace PokeLab.UI
 
         // ------------------------------------------------------------------- the rows
 
-        private void BuildRows(Transform column, IReadOnlyList<Entry> entries)
+        private void BuildRows(Transform column, IReadOnlyList<Entry> entries, bool animate)
         {
             var height = entries.Count * (RowHeight + RowSpacing);
 
@@ -257,7 +270,7 @@ namespace PokeLab.UI
             // The selection is ONE object that travels, built before the rows so it sits behind
             // them, and the cursor is one object built after them so it sits in front. See
             // BuildSelection for why that sandwich is the whole trick.
-            BuildSelection(stack);
+            BuildSelection(stack, animate);
 
             for (var i = 0; i < entries.Count; i++)
             {
@@ -331,7 +344,7 @@ namespace PokeLab.UI
                     Enabled = entry.Enabled,
                 });
 
-                UiJuice.PopIn(body, 0.12f + i * 0.05f, new Vector2(-180f, 0f));
+                if (animate) UiJuice.PopIn(body, 0.12f + i * 0.05f, new Vector2(-180f, 0f));
             }
 
             // Built last so it draws over every row: while the pill slides behind the glass,
@@ -345,8 +358,12 @@ namespace PokeLab.UI
             // Faded, not slid, for the same reason as the pill: Highlight owns this rect's
             // position from the first frame.
             var group = UiBuilder.Group(_cursor, 0f, false, false);
-            UiTween.Fade(group, 1f, 0.36f, Ease.OutCubic, 0.3f);
-            UiJuice.PopScale(_cursor, 0.3f, 0.5f, 0.44f);
+            if (animate)
+            {
+                UiTween.Fade(group, 1f, 0.36f, Ease.OutCubic, 0.3f);
+                UiJuice.PopScale(_cursor, 0.3f, 0.5f, 0.44f);
+            }
+            else group.alpha = 1f;
         }
 
         /// <summary>
@@ -366,7 +383,7 @@ namespace PokeLab.UI
         /// nothing, so the pill becomes that row's surface with the label and the accent tile
         /// still drawn on top of it. One object, correct depth, no per-row copies.
         /// </summary>
-        private void BuildSelection(Transform stack)
+        private void BuildSelection(Transform stack, bool animate)
         {
             _pill = UiBuilder.Rect("Selection", stack, false);
             UiBuilder.IgnoreLayout(_pill);
@@ -390,8 +407,12 @@ namespace PokeLab.UI
             // and two tweens writing the same field would have landed the pill back on row zero
             // when the slower of them finished.
             var group = UiBuilder.Group(_pill, 0f, false, false);
-            UiTween.Fade(group, 1f, 0.4f, Ease.OutCubic, 0.24f);
-            UiJuice.PopScale(_pill, 0.24f, 0.74f, 0.46f);
+            if (animate)
+            {
+                UiTween.Fade(group, 1f, 0.4f, Ease.OutCubic, 0.24f);
+                UiJuice.PopScale(_pill, 0.24f, 0.74f, 0.46f);
+            }
+            else group.alpha = 1f;
         }
 
         private static Vector2 PillAt(int index) =>
@@ -415,7 +436,7 @@ namespace PokeLab.UI
         /// whether or not they are filled, because "four to go" is information and two lonely
         /// cards are not.
         /// </summary>
-        private void BuildCard(Transform safe)
+        private void BuildCard(Transform safe, bool animate)
         {
             var holder = UiBuilder.Rect("Card", safe, false);
             UiBuilder.Anchor(holder, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
@@ -467,7 +488,7 @@ namespace PokeLab.UI
 
             BuildTeam(holder);
 
-            UiJuice.PopIn(holder, 0.24f, new Vector2(190f, 0f), 0.5f);
+            if (animate) UiJuice.PopIn(holder, 0.24f, new Vector2(190f, 0f), 0.5f);
         }
 
         /// <summary>The party row: two ranks of three sockets, under their own label.</summary>
@@ -549,13 +570,13 @@ namespace PokeLab.UI
         /// player recognises by shape rather than reads — so that is what
         /// <see cref="UiJuice.HintBar"/> builds, and the capsule is gone.
         /// </summary>
-        private void BuildFooter(Transform safe)
+        private void BuildFooter(Transform safe, bool animate)
         {
             _hintHost = UiBuilder.Rect("Hints", safe, false);
             UiBuilder.Anchor(_hintHost, new Vector2(1f, 0f), new Vector2(1f, 0f),
                 new Vector2(1f, 0f), new Vector2(-40f, 14f), new Vector2(620f, 34f));
 
-            UiJuice.PopIn(_hintHost, 0.4f, new Vector2(0f, -60f), 0.44f);
+            if (animate) UiJuice.PopIn(_hintHost, 0.4f, new Vector2(0f, -60f), 0.44f);
         }
 
         // --------------------------------------------------------------------- state
