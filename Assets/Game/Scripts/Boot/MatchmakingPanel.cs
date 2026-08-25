@@ -269,6 +269,7 @@ namespace PokeLab.Boot
             var label = UiBuilder.Text("Label", start, Loc.Pick("Battle!", "대전 시작!"),
                 UiTextRole.Heading, UiPalette.TextOnAccent, TextAlignmentOptions.Center);
             UiBuilder.Stretch(label.rectTransform);
+            UiButtonMotion.Attach(start, 18);
             UiBuilder.Button("Take", start, slab, Commit);
         }
 
@@ -347,6 +348,7 @@ namespace PokeLab.Boot
             var label = UiBuilder.Text("Label", back, Loc.Pick("Back", "뒤로"), UiTextRole.Body,
                 UiPalette.TextPrimary, TextAlignmentOptions.Center);
             UiBuilder.Stretch(label.rectTransform);
+            UiButtonMotion.Attach(back, 16);
             UiBuilder.Button("Take", back, slab, Close);
         }
 
@@ -363,6 +365,7 @@ namespace PokeLab.Boot
                 TextAlignmentOptions.Center);
             UiBuilder.Stretch(label.rectTransform);
 
+            UiButtonMotion.Attach(button, 16);
             UiBuilder.Button("Take", button, slab, onClick);
         }
 

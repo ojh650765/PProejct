@@ -75,6 +75,12 @@ namespace PokeLab.Boot
                 _field.ActivateInputField();
             }
 
+            // The web build's Enter arrives from the IME overlay rather than from the
+            // keyboard, because Unity's key capture is off while that overlay has focus. Asked
+            // first and unconditionally: it latches, so skipping the call would strand the press
+            // until the next one.
+            if (PokeLab.UI.WebGlImeBridge.ConsumeSubmit()) { Confirm(); return; }
+
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
             if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)

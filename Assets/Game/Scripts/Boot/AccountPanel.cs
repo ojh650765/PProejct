@@ -332,6 +332,7 @@ namespace PokeLab.Boot
             UiBuilder.Anchor(caption.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-20f, -14f));
 
+            UiButtonMotion.Attach(button, 16);
             UiBuilder.Button("Take", button, pane.Fill, () =>
             {
                 UiSound.Confirm();

@@ -40,6 +40,23 @@ namespace PokeLab.UI
     [DisallowMultipleComponent]
     public sealed class WebGlImeBridge : MonoBehaviour
     {
+        /// <summary>
+        /// True once for the frame the player pressed Enter in the overlay.
+        ///
+        /// While the overlay is focused Unity receives no keys at all, so anything that wants to
+        /// know about Enter has to ask here rather than read Keyboard.current -- which is why the
+        /// story's name prompt could be typed into and not confirmed. Off the web build this is
+        /// always false and callers fall through to the keyboard, which works there.
+        /// </summary>
+        public static bool ConsumeSubmit()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            return PokeLabImeSubmitted() != 0;
+#else
+            return false;
+#endif
+        }
+
 #if UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")]
         private static extern int PokeLabImeOpen(int x, int y, int w, int h, string text, int caret);
@@ -49,6 +66,7 @@ namespace PokeLab.UI
         [DllImport("__Internal")] private static extern int PokeLabImeCaret();
         [DllImport("__Internal")] private static extern int PokeLabImeComposing();
         [DllImport("__Internal")] private static extern int PokeLabImeFocused();
+        [DllImport("__Internal")] private static extern int PokeLabImeSubmitted();
 
         /// <summary>Bytes. A trainer name is 16 characters and an answer is a short phrase;
         /// this is four times the longest either could be in UTF-8 and is allocated once.</summary>

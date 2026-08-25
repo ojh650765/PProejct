@@ -24,6 +24,8 @@ var PokeLabImeLib = {
   $PLIme: {
     el: null,
     composing: false,
+    // Latched, not read live: Unity polls once a frame and the key is long gone by then.
+    submitted: false,
 
     canvas: function () {
       return document.querySelector('#unity-canvas') || document.querySelector('canvas');
@@ -56,6 +58,24 @@ var PokeLabImeLib = {
 
       el.addEventListener('compositionstart', function () { PLIme.composing = true; });
       el.addEventListener('compositionend', function () { PLIme.composing = false; });
+
+      // Enter has to be handed back to the game explicitly.
+      //
+      // While this overlay is focused Unity's key capture is deliberately OFF -- that is the
+      // whole point of it, so the browser and the IME can do their work -- which means the
+      // player never sees the key. Typing still reached the field, because the value is copied
+      // back every frame, but pressing Enter did nothing at all: the story's name prompt polls
+      // Keyboard.current, and TMP's own onSubmit never fires either, since TMP is not the thing
+      // receiving keys. So the one key that means "I am done" was the one key that could not
+      // get through.
+      //
+      // Ignored mid-composition: the first Enter of a Korean syllable commits the composition
+      // and is not the player confirming anything.
+      el.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' || PLIme.composing || e.isComposing) return;
+        PLIme.submitted = true;
+        e.preventDefault();
+      });
 
       document.body.appendChild(el);
       PLIme.el = el;
@@ -166,6 +186,13 @@ var PokeLabImeLib = {
   // True while a syllable is half-built. Unity must not write over the value in that window.
   PokeLabImeComposing: function () {
     return (PLIme.el && PLIme.composing) ? 1 : 0;
+  },
+
+  // Reads and clears in one call, so a press cannot be delivered to two frames.
+  PokeLabImeSubmitted: function () {
+    if (!PLIme.submitted) return 0;
+    PLIme.submitted = false;
+    return 1;
   },
 
   PokeLabImeFocused: function () {

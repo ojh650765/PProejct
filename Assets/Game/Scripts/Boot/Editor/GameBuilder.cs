@@ -145,9 +145,80 @@ namespace PokeLab.Boot.Editor
             }
 
             WritePagesMetadata(folder);
+            StampIndexForCache(folder);
 
             Debug.Log($"[Build] WebGL succeeded in {report.summary.totalTime.TotalSeconds:0}s → {folder}");
             ReportPagesFit(folder);
+        }
+
+        /// <summary>
+        /// Makes a redeployed player actually reach the player.
+        ///
+        /// <b>The problem.</b> Unity names its output the same thing every build --
+        /// Build/WebGL.data.unityweb and its three siblings -- and GitHub Pages serves static
+        /// files with caching headers. So a returning visitor is handed the copy their browser
+        /// already has, and keeps playing the old build across as many deploys as it takes for
+        /// the cache to expire. That is not a hypothetical: two fixes were verified live, byte
+        /// for byte, and reported as still broken because the browser never fetched them.
+        ///
+        /// It is a nasty class of bug because everything upstream looks correct. The gate loads
+        /// the site in a fresh headless browser and passes; the bytes on the server hash equal to
+        /// the bytes on disk. Only the one machine that has been there before sees the old game.
+        ///
+        /// <b>The fix.</b> Every build stamps its four asset URLs with a value that changes when
+        /// the build does, so a new build is a new URL and the cache cannot answer for it. The
+        /// stamp is the content hash of the data file rather than a timestamp: rebuilding without
+        /// changing anything then keeps the same URL, and the cache stays useful for the case it
+        /// is actually good at.
+        ///
+        /// Done here rather than in the template because the template is shared source and this
+        /// is a property of a published build.
+        /// </summary>
+        private static void StampIndexForCache(string folder)
+        {
+            var index = Path.Combine(folder, "index.html");
+            if (!File.Exists(index)) return;
+
+            var stamp = BuildStamp(folder);
+            if (string.IsNullOrEmpty(stamp)) return;
+
+            var html = File.ReadAllText(index);
+            var before = html;
+
+            // The loader builds these four by concatenation, so the query lands on the string
+            // that is already there rather than on a rewritten URL.
+            foreach (var suffix in new[] { ".data.unityweb", ".framework.js.unityweb",
+                                           ".wasm.unityweb", ".loader.js" })
+            {
+                html = html.Replace(suffix + "\"", suffix + "?v=" + stamp + "\"");
+            }
+
+            if (html == before)
+            {
+                Debug.LogWarning("[Build] The index was not stamped for caching: none of the "
+                                 + "expected asset names were found in it. A redeployed build may "
+                                 + "be served from a returning visitor's cache. Check the "
+                                 + "template's build URLs against StampIndexForCache.");
+                return;
+            }
+
+            File.WriteAllText(index, html);
+            Debug.Log($"[Build] index stamped for caching: v={stamp}");
+        }
+
+        /// <summary>Short content hash of the data file — the build's identity, not its date.</summary>
+        private static string BuildStamp(string folder)
+        {
+            var data = Path.Combine(folder, "Build", "WebGL.data.unityweb");
+            if (!File.Exists(data)) return null;
+
+            using var stream = File.OpenRead(data);
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            var hash = sha.ComputeHash(stream);
+
+            var text = new System.Text.StringBuilder(16);
+            for (var i = 0; i < 8; i++) text.Append(hash[i].ToString("x2"));
+            return text.ToString();
         }
 
         /// <summary>

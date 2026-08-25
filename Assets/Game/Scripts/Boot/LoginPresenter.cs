@@ -260,8 +260,20 @@ namespace PokeLab.Boot
         {
             if (_leaving || _exiting || _view == null) return;
 
+            // Enter signs in, which the footer has been promising all along without anything
+            // implementing it. On the web it arrives from the IME overlay rather than from the
+            // keyboard, because Unity's key capture is off while a text field has focus -- the
+            // same reason the story's name prompt could be typed into and not confirmed.
+            if (PokeLab.UI.WebGlImeBridge.ConsumeSubmit()) { Submit(false); return; }
+
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
+
+            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
+            {
+                Submit(false);
+                return;
+            }
 
             if (keyboard.tabKey.wasPressedThisFrame) _view.FocusNext();
             if (keyboard.escapeKey.wasPressedThisFrame) SkipAccount();

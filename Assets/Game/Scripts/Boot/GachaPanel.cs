@@ -65,10 +65,17 @@ namespace PokeLab.Boot
         /// The user's rule: 무조건 6개가 아니라, 1개도 뽑을 수도 있고 ~n개를 뽑기 가능한거지.
         /// One is the honest unit — you should be able to spend exactly what you have — five is
         /// the everyday multi, and ten is what a saved-up purse is for. Anything the server
-        /// will not allow is clamped away in <see cref="RefreshPullChips"/> rather than
+        /// will not allow is clamped away in <see cref="RefreshPullStepper"/> rather than
         /// discovered as a refusal.
         /// </summary>
-        private static readonly int[] PullCounts = { 1, 5, 10 };
+        /// <summary>Parts of the count stepper the refresh has to reach back into.</summary>
+        private TextMeshProUGUI _pullCount;
+        private Button _pullDown;
+        private Button _pullUp;
+        private UiPane _pullDownPane;
+        private UiPane _pullUpPane;
+        private TextMeshProUGUI _pullDownLabel;
+        private TextMeshProUGUI _pullUpLabel;
 
         private const float CardWidth = 216f;
         private const float CardHeight = 300f;
@@ -83,9 +90,6 @@ namespace PokeLab.Boot
         private UiPane _rollPane;
 
         private TextMeshProUGUI _purseLabel;
-        private readonly List<UiPane> _pullPanes = new List<UiPane>(3);
-        private readonly List<TextMeshProUGUI> _pullLabels = new List<TextMeshProUGUI>(3);
-        private readonly List<Button> _pullButtons = new List<Button>(3);
 
         /// <summary>How many the next press draws. Sticky across rolls, so a ten-pull run is one press each.</summary>
         private int _pulls = 1;
@@ -205,6 +209,7 @@ namespace PokeLab.Boot
                 UiPalette.AceText, TextAlignmentOptions.Center);
             UiBuilder.Anchor(_rollLabel.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-28f, -16f));
+            UiButtonMotion.Attach(roll, 22);
             _rollButton = UiBuilder.Button("Take", roll, _rollPane.Fill, Roll);
             // The one thing on the screen the player is here to press, and the only thing on it
             // that breathes.
@@ -219,9 +224,10 @@ namespace PokeLab.Boot
                 UiTextRole.Body, UiPalette.AceText, TextAlignmentOptions.Center);
             UiBuilder.Anchor(closeLabel.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-28f, -16f));
+            UiButtonMotion.Attach(close, 16);
             UiBuilder.Button("Take", close, closePane.Fill, Close);
 
-            BuildPullChips(safe);
+            BuildPullStepper(safe);
 
             UiJuice.PopIn(oddsPill, 0.06f, new Vector2(0f, 60f), 0.4f);
             UiJuice.PopIn(roll, 0.22f, new Vector2(0f, -90f), 0.42f);
@@ -257,7 +263,7 @@ namespace PokeLab.Boot
             // its own screen now. Here, cards mean "you just got these" or there are no cards.
             var afterRoll = _lastPulls != null && _lastPulls.Length > 0;
             var cells = afterRoll
-                ? Mathf.Min(showing.Length, PullCounts[PullCounts.Length - 1])
+                ? Mathf.Min(showing.Length, session != null ? session.MaxPulls : 10)
                 : 0;
 
             // Ten pulls do not fit one row of six, so the grid grows a second row and the block
@@ -281,7 +287,7 @@ namespace PokeLab.Boot
             }
 
             RefreshPurse();
-            RefreshPullChips();
+            RefreshPullStepper();
 
             var affordable = session != null && session.AffordablePulls >= _pulls;
             var cost = CostOf(session, _pulls);
@@ -299,14 +305,17 @@ namespace PokeLab.Boot
                     affordable ? UiPalette.AceRed.WithAlpha(0.92f) : UiPalette.AceGlass.WithAlpha(0.4f));
             }
 
+            // The idle line says one thing and only when it is worth saying.
+            //
+            // It used to explain the economy every time the screen was opened -- where coins come
+            // from, what a duplicate turns into -- which is a manual read out at somebody who has
+            // opened this screen fifty times. Free pulls are the exception: that is a fact about
+            // the player's account right now, and it expires.
             if (_status != null && string.IsNullOrEmpty(_status.text))
             {
                 var free = session != null ? session.FreePulls : 0;
-                Say(free > 0
-                    ? Loc.Pick($"{free} free pulls to start with. A duplicate becomes a breakthrough piece.",
-                               $"무료 뽑기 {free}회가 있어요. 이미 가진 포켓몬이 나오면 돌파 조각이 돼요.")
-                    : Loc.Pick("Battles pay coins, win or lose. A duplicate becomes a breakthrough piece.",
-                               "대전은 이기든 지든 코인을 줘요. 이미 가진 포켓몬은 돌파 조각이 돼요."));
+                if (free > 0)
+                    Say(Loc.Pick($"{free} free pulls left.", $"무료 뽑기 {free}회가 남았어요."));
             }
         }
 
@@ -594,51 +603,76 @@ namespace PokeLab.Boot
         }
 
         /// <summary>
-        /// One chip per count, left of the draw button.
+        /// How many to draw: two arrows and the number between them.
         ///
-        /// Chips rather than a number field: the counts that matter are few and the point is to
-        /// press one and then press draw, not to type. A count the purse cannot cover stays
-        /// visible and goes dim — removing it would make the row jump about as coins come and go,
-        /// and seeing that ten is out of reach is the argument for going and battling.
+        /// <b>Why not the three chips this replaces.</b> x1 / x5 / x10 offered three counts and
+        /// implied there were only three, which is not what the route does -- the Worker takes
+        /// any number up to MAX_PULLS_PER_ROLL. A stepper says the real rule without a legend:
+        /// the number goes up, the number goes down, and it stops where the server stops.
+        ///
+        /// Arrows rather than a typed field. A text input on this screen would want a keyboard,
+        /// and this is the screen that opens on a phone.
         /// </summary>
-        private void BuildPullChips(Transform safe)
+        private void BuildPullStepper(Transform safe)
         {
-            _pullPanes.Clear();
-            _pullLabels.Clear();
-            _pullButtons.Clear();
-
-            const float width = 106f;
+            const float arrow = 64f;
+            const float box = 132f;
             const float height = 62f;
-            const float gap = 12f;
-            var total = PullCounts.Length * width + (PullCounts.Length - 1) * gap;
+            const float gap = 10f;
+            var total = arrow * 2f + box + gap * 2f;
 
             var row = UiBuilder.Rect("Pulls", safe, false);
             UiBuilder.Anchor(row, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f), new Vector2(-150f, 128f), new Vector2(total, height));
 
-            for (var i = 0; i < PullCounts.Length; i++)
-            {
-                var count = PullCounts[i];
-                var chip = UiBuilder.Rect("x" + count, row, false);
-                UiBuilder.Anchor(chip, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                    new Vector2(0f, 0.5f), new Vector2(i * (width + gap), 0f), new Vector2(width, height));
+            _pullDown = StepperArrow(row, "Down", "‹", 0f, arrow, height, -1);
 
-                var pane = UiJuice.Pane("Pane", chip, UiPalette.AceGlass.WithAlpha(0.72f), 16,
-                    true, true, true, UiPalette.AceRim, (int)height);
-                var label = UiBuilder.Text("Label", chip, "x" + count, UiTextRole.Body,
-                    UiPalette.AceText, TextAlignmentOptions.Center);
-                UiBuilder.Anchor(label.rectTransform, Vector2.zero, Vector2.one,
-                    new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-12f, -12f));
+            var field = UiBuilder.Rect("Count", row, false);
+            UiBuilder.Anchor(field, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f), new Vector2(arrow + gap, 0f), new Vector2(box, height));
+            UiJuice.Pane("Pane", field, UiPalette.AceGlass.WithAlpha(0.72f), 16,
+                true, true, true, UiPalette.AceRim, (int)height);
+            _pullCount = UiBuilder.Text("Label", field, "1", UiTextRole.Numeric,
+                UiPalette.AceText, TextAlignmentOptions.Center);
+            UiBuilder.Anchor(_pullCount.rectTransform, Vector2.zero, Vector2.one,
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-12f, -12f));
+            _pullCount.textWrappingMode = TextWrappingModes.NoWrap;
 
-                var chosen = count;
-                var button = UiBuilder.Button("Take", chip, pane.Fill, () => ChoosePulls(chosen));
+            _pullUp = StepperArrow(row, "Up", "›", arrow + gap + box + gap, arrow, height, 1);
 
-                _pullPanes.Add(pane);
-                _pullLabels.Add(label);
-                _pullButtons.Add(button);
+            UiJuice.PopIn(row, 0.18f, new Vector2(0f, -60f), 0.4f);
+        }
 
-                UiJuice.PopIn(chip, 0.18f + i * 0.03f, new Vector2(0f, -60f), 0.4f);
-            }
+        /// <summary>One arrow. Returns the button so the refresh can grey it at its limit.</summary>
+        private Button StepperArrow(Transform row, string name, string glyph, float x,
+                                    float width, float height, int delta)
+        {
+            var cell = UiBuilder.Rect(name, row, false);
+            UiBuilder.Anchor(cell, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f), new Vector2(x, 0f), new Vector2(width, height));
+
+            var pane = UiJuice.Pane("Pane", cell, UiPalette.AceGlass.WithAlpha(0.72f), 16,
+                true, true, true, UiPalette.AceRim, (int)height);
+            var label = UiBuilder.Text("Label", cell, glyph, UiTextRole.Body,
+                UiPalette.AceText, TextAlignmentOptions.Center);
+            UiBuilder.Anchor(label.rectTransform, Vector2.zero, Vector2.one,
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-8f, -10f));
+
+            if (delta < 0) _pullDownPane = pane; else _pullUpPane = pane;
+            if (delta < 0) _pullDownLabel = label; else _pullUpLabel = label;
+
+            UiButtonMotion.Attach(cell, 16);
+            return UiBuilder.Button("Take", cell, pane.Fill, () => StepPulls(delta));
+        }
+
+        /// <summary>Nudges the count, clamped to what the route will accept.</summary>
+        private void StepPulls(int delta)
+        {
+            var session = OnlineSession.Instance;
+            var ceiling = session != null ? Mathf.Max(1, session.MaxPulls) : 10;
+            var wanted = Mathf.Clamp(_pulls + delta, 1, ceiling);
+            if (wanted == _pulls) { UiSound.Error(); return; }
+            ChoosePulls(wanted);
         }
 
         private void ChoosePulls(int count)
@@ -650,42 +684,35 @@ namespace PokeLab.Boot
             Refresh();
         }
 
-        private void RefreshPullChips()
+        private void RefreshPullStepper()
         {
             var session = OnlineSession.Instance;
-            var affordable = session != null ? session.AffordablePulls : 0;
-            var ceiling = session != null ? session.MaxPulls : PullCounts[PullCounts.Length - 1];
+            var ceiling = session != null ? Mathf.Max(1, session.MaxPulls) : 10;
 
-            // A chip the server would refuse outright is not offered at all; one the purse
-            // cannot cover today is offered and dim.
-            for (var i = 0; i < _pullPanes.Count; i++)
+            // Never leave the count above what the route accepts. Silently: this runs on every
+            // refresh and a sentence about it would fire on arrival.
+            _pulls = Mathf.Clamp(_pulls, 1, ceiling);
+
+            if (_pullCount != null)
             {
-                var count = PullCounts[i];
-                var allowed = count <= ceiling;
-                var canAfford = allowed && count <= affordable;
-                var selected = count == _pulls;
-
-                if (_pullButtons[i] != null) _pullButtons[i].interactable = allowed;
-                if (_pullPanes[i].IsValid)
-                {
-                    UiJuice.Recolour(_pullPanes[i], selected
-                        ? UiPalette.AceCyan.WithAlpha(0.9f)
-                        : UiPalette.AceGlass.WithAlpha(canAfford ? 0.72f : 0.3f));
-                }
-                if (_pullLabels[i] != null)
-                {
-                    _pullLabels[i].color = selected
-                        ? UiPalette.AceInk
-                        : canAfford ? UiPalette.AceText : UiPalette.AceTextFaint;
-                }
+                _pullCount.text = _pulls.ToString();
+                // Amber once the purse cannot cover the count. The number still moves -- seeing
+                // that ten is out of reach is the argument for going and battling -- but it says
+                // so before the draw button has to.
+                var affordable = session != null ? session.AffordablePulls : 0;
+                _pullCount.color = _pulls <= affordable ? UiPalette.AceText : UiPalette.AceGold;
             }
 
-            // Never leave the selection on something the account cannot draw. Silently, because
-            // this runs on every refresh and a sentence about it would fire on arrival.
-            if (session != null && _pulls > ceiling)
-            {
-                _pulls = PullCounts[0];
-            }
+            SetArrow(_pullDown, _pullDownPane, _pullDownLabel, _pulls > 1);
+            SetArrow(_pullUp, _pullUpPane, _pullUpLabel, _pulls < ceiling);
+        }
+
+        private static void SetArrow(Button button, UiPane pane, TextMeshProUGUI label, bool live)
+        {
+            if (button != null) button.interactable = live;
+            if (pane.IsValid)
+                UiJuice.Recolour(pane, UiPalette.AceGlass.WithAlpha(live ? 0.72f : 0.28f));
+            if (label != null) label.color = live ? UiPalette.AceText : UiPalette.AceTextFaint;
         }
 
         /// <summary>
@@ -1089,6 +1116,7 @@ namespace PokeLab.Boot
             UiBuilder.Anchor(label.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-20f, -14f));
 
+            UiButtonMotion.Attach(skip, 16);
             UiBuilder.Button("Take", skip, pane.Fill, () => _skip = true);
         }
 
