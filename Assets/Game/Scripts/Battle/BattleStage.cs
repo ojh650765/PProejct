@@ -296,6 +296,17 @@ namespace PokeLab.Battle
 
             Engine.Trace = EngineTrace;
             Engine.SetOpponentTrainer(request.TrainerId);
+
+            // Which end of the field this machine is standing at, and whether the far side is
+            // a person. Read from the request rather than left to a caller to set afterwards,
+            // because both have to be true BEFORE Begin sends the leads out.
+            MySide = request.MySide;
+
+            // In a lockstep match a faint on either side waits for a person. The far player's
+            // choice cannot arrive inside a turn, so their forced switch becomes the same free
+            // interjection the local player's already is. Without this the one thing the AI
+            // would still decide in a PvP battle is which creature comes in to finish it.
+            Engine.DeferOpponentReplacement = request.Lockstep;
             // Canonical order, which is not always local order.
             //
             // The engine's Player side must hold the SAME team on both machines, or the two

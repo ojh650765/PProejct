@@ -116,6 +116,21 @@ namespace PokeLab.Battle
         /// </summary>
         public bool DeferOpponentReplacement { get; set; }
 
+        /// <summary>
+        /// True when the next turn will be a replacement interjection rather than a full
+        /// exchange: somebody's active is down and a person still has to say who comes in.
+        ///
+        /// The UI needs this to know whether to offer a menu at all. During an interjection
+        /// only the fainted side's Switch is read, so a move chosen by the other player is
+        /// discarded -- which is correct, and identical on both machines, but presenting a
+        /// menu whose choice quietly evaporates is not.
+        /// </summary>
+        public bool IsReplacementTurn =>
+            IsDeferring(BattleSide.Player) || IsDeferring(BattleSide.Opponent);
+
+        /// <summary>True when that side is the one who owes a replacement.</summary>
+        public bool AwaitingReplacement(BattleSide side) => IsDeferring(side);
+
         /// <summary>Seeded generator for this battle. Null until <see cref="Begin"/> is called.</summary>
         public BattleRandom Random => _rng;
 

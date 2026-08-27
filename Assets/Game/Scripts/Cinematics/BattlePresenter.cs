@@ -274,7 +274,31 @@ namespace PokeLab.Cinematics
                 }
                 else action = ChooseAction(battle);
 
-                var stream = battle.SubmitAction(action);
+                // In a PvP match the turn cannot resolve until the other player has also
+                // chosen, so the local action goes out and this waits for theirs. Behind a
+                // delegate because the socket lives in an assembly this one does not reference
+                // and should not: what a performance needs to know is that a turn sometimes
+                // takes a while to arrive.
+                IReadOnlyList<BattleEvent> stream;
+                if (TurnExchange != null)
+                {
+                    BattleAction? theirs = null;
+                    yield return TurnExchange(action, a => theirs = a);
+                    if (!battle.IsBattleActive) break;
+
+                    if (theirs == null)
+                    {
+                        // Silence is not a reason to play on with the AI -- that is precisely
+                        // the bug this whole path exists to remove. The exchange has already
+                        // decided how long to wait and reported why it gave up.
+                        battle.Abort("The opponent did not answer in time.");
+                        break;
+                    }
+
+                    stream = battle.SubmitPvpTurn(action, theirs.Value);
+                }
+                else stream = battle.SubmitAction(action);
+
                 if (stream.Count == 0 && battle.IsBattleActive)
                 {
                     // A live battle that produces no events for a turn cannot be advanced by
@@ -318,6 +342,17 @@ namespace PokeLab.Cinematics
         /// player; until then the stage's own policy answers.
         /// </summary>
         public Func<BattleEngine, BattleAction> ActionSource { get; set; }
+
+        /// <summary>
+        /// Trades the local player's action for the opponent's, for a PvP match.
+        ///
+        /// Runs as a coroutine because the answer comes off a socket and may take as long as
+        /// the other player takes to think. Reports null when it gives up, which ends the
+        /// battle rather than quietly handing the far side to the AI. Null itself in every
+        /// battle in the game but a PvP one, where <see cref="Simulation.SubmitAction"/>
+        /// resolves the turn on its own as it always has.
+        /// </summary>
+        public Func<BattleAction, Action<BattleAction?>, IEnumerator> TurnExchange { get; set; }
 
         /// <summary>
         /// Asks the player for a turn and waits for the answer.

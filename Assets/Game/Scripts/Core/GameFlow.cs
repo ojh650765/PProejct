@@ -39,6 +39,27 @@ namespace PokeLab.Core
 
         /// <summary>Deterministic seed. Reusing it must reproduce the battle exactly.</summary>
         public int Seed;
+
+        /// <summary>
+        /// True when the opponent is a remote human and each turn is exchanged with them
+        /// rather than decided by the AI.
+        ///
+        /// It changes two things in the engine: neither side's action is invented locally,
+        /// and a faint on EITHER side waits for a person to choose the replacement instead of
+        /// the engine fielding whoever is next.
+        /// </summary>
+        public bool Lockstep;
+
+        /// <summary>
+        /// Which of the engine's two sides belongs to the player at this machine.
+        ///
+        /// Player for every battle in the game and for the host half of a PvP match; Opponent
+        /// for the other half. Both machines must simulate the same assignment or their
+        /// generators are consumed in different orders and the same seed yields two different
+        /// battles — so the far player runs as the engine's Opponent and the presentation is
+        /// flipped for them instead. See <c>BattleStage.MySide</c>.
+        /// </summary>
+        public BattleSide MySide = BattleSide.Player;
     }
 
     public sealed class EncounterResult

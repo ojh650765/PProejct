@@ -76,6 +76,12 @@ namespace PokeLab.Boot
             _bound.ActionRoutine = AskPlayer;
             _bound.EventObserved += OnBattleEvent;
 
+            // In a PvP match the turn loop has to wait for the other player between the
+            // choice and the resolution. Null in every other battle, where the loop resolves
+            // the turn itself exactly as it always has.
+            var broker = PvpTurnBroker.Current;
+            _bound.TurnExchange = broker != null ? broker.Exchange : null;
+
             _hud.MoveChosen = index => Commit(BattleAction.UseMove(BattleSide.Player, index));
             _hud.SwitchRequested = index => Commit(BattleAction.SwitchTo(BattleSide.Player, index));
             _hud.RunRequested = () => Commit(BattleAction.Run(BattleSide.Player));
@@ -123,6 +129,7 @@ namespace PokeLab.Boot
                 // in the battle scene's own teardown, and a routine on a dead HUD would hang
                 // the turn loop until its timeout.
                 if (_bound.ActionRoutine == AskPlayer) _bound.ActionRoutine = null;
+                _bound.TurnExchange = null;
             }
 
             // Outside the branch, because the guard above is Unity's == and a destroyed
@@ -158,8 +165,26 @@ namespace PokeLab.Boot
             // object every battle; an assignment to the same bool is free.
             engine.DeferPlayerReplacement = true;
 
-            var active = engine.State?.ActiveOf(BattleSide.Player);
+            var active = engine.State?.ActiveOf(PokeLab.UI.UiServices.MySide);
             if (active == null) yield break;
+
+            // The other player's creature is down and this one's is not: there is nothing to
+            // choose this turn, because the engine reads only the fainted side's switch.
+            //
+            // Something still has to be committed. The turn loop and the far machine advance
+            // together, so skipping the commit would leave the two of them a turn apart --
+            // and being a turn apart is the one failure a lockstep match cannot recover from.
+            // A switch to the creature already out is the no-op: the engine rejects it as a
+            // switch and never looks at it for a side that owes nothing.
+            if (engine.IsReplacementTurn &&
+                !engine.AwaitingReplacement(PokeLab.UI.UiServices.MySide))
+            {
+                _hud.Log?.Append(Loc.Pick("The opponent is sending out their next creature…",
+                                          "상대가 다음 포켓몬을 내보내고 있어요…"));
+                var standing = IndexOfActive(PlayerParty(), active);
+                commit(BattleAction.SwitchTo(BattleSide.Player, Mathf.Max(0, standing)));
+                yield break;
+            }
 
             _hasChoice = false;
             _hud.Show();
@@ -208,7 +233,7 @@ namespace PokeLab.Boot
         /// to pick between them at all.
         /// </summary>
         private CreatureInstance ActivePlayer() =>
-            _engine?.State?.ActiveOf(BattleSide.Player);
+            _engine?.State?.ActiveOf(PokeLab.UI.UiServices.MySide);
 
         /// <summary>
         /// The player's party as the engine sees it — the instances whose HP the battle has
@@ -217,7 +242,7 @@ namespace PokeLab.Boot
         /// </summary>
         private IReadOnlyList<CreatureInstance> PlayerParty()
         {
-            var party = _engine?.State?.PartyOf(BattleSide.Player);
+            var party = _engine?.State?.PartyOf(PokeLab.UI.UiServices.MySide);
             if (party != null && party.Count > 0) return party;
             return ServiceHub.TryGet<IPlayerProfile>(out var profile) ? profile.Party : null;
         }

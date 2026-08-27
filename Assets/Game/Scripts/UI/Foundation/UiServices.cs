@@ -26,9 +26,53 @@ namespace PokeLab.UI
         private static IMoveRegistry _moves;
         private static IGameFlow _flow;
 
+        /// <summary>
+        /// Which of the engine's two sides belongs to the person at this keyboard.
+        ///
+        /// <see cref="BattleSide.Player"/> in every battle in the game except the far half of
+        /// a PvP match, where both machines must simulate the same assignment of sides or the
+        /// two simulations diverge — so player 1 runs as the engine's Opponent and flips the
+        /// presentation instead. See <c>BattleStage.MySide</c>, which owns the decision; this
+        /// is the copy the views read, because a view has no stage to ask.
+        ///
+        /// Views that want "the creature the player is commanding" must read this rather than
+        /// naming Player directly, or on player 1's screen they will offer up the opponent's
+        /// moves. Set by <c>BattleStage</c> when the battle is staged, and put back to Player
+        /// by <see cref="Reset"/> — a stale Opponent here would mirror the NEXT battle, which
+        /// would be a spectacular and very confusing bug.
+        /// </summary>
+        public static BattleSide MySide { get; set; } = BattleSide.Player;
+
+        /// <summary>The other one. The creature being fought, whichever end that is.</summary>
+        public static BattleSide TheirSide =>
+            MySide == BattleSide.Player ? BattleSide.Opponent : BattleSide.Player;
+
         /// <summary>The tactical oracle, or null while the intelligence layer is still landing.</summary>
         public static IPokeLabOracle Oracle => Resolve(ref _oracle);
-        public static IBattleEngine Engine => Resolve(ref _engine);
+        /// <summary>
+        /// The battle, always read from the local player's end of the field.
+        ///
+        /// On player 1's machine this is a mirrored view rather than the engine itself. The
+        /// engine's own sides cannot be relabelled — they are the thing both machines have to
+        /// agree about — so the flip happens here, once, and every view goes on asking for
+        /// <see cref="BattleSide.Player"/> and meaning "mine" without knowing anything about
+        /// it. That includes the tactical analyser, which has a dozen hardcoded sides and
+        /// lives in an assembly that must not know the UI exists.
+        /// </summary>
+        public static IBattleEngine Engine => Mirror(Resolve(ref _engine));
+
+        private static MirroredBattleView _mirrored;
+
+        private static IBattleEngine Mirror(IBattleEngine engine)
+        {
+            if (engine == null || MySide == BattleSide.Player) return engine;
+
+            // Rebuilt when the engine changes: a wrapper left pointing at the previous
+            // battle's engine would answer every question about a fight that has ended.
+            if (_mirrored == null || !_mirrored.Wraps(engine))
+                _mirrored = new MirroredBattleView(engine);
+            return _mirrored;
+        }
         public static IPlayerProfile Profile => Resolve(ref _profile);
         public static ICreatureArtRegistry Art => Resolve(ref _art);
         public static ISpeciesRegistry Species => Resolve(ref _species);
@@ -52,6 +96,13 @@ namespace PokeLab.UI
             _species = null;
             _moves = null;
             _flow = null;
+
+            // Back to the ordinary end of the field. Left as Opponent, this would mirror the
+            // NEXT battle -- a story fight rendered inside out, with the player commanding
+            // the wild creature -- and nothing about that would point back to a PvP match
+            // that ended twenty minutes earlier.
+            MySide = BattleSide.Player;
+            _mirrored = null;
         }
 
         // ---------------------------------------------------------------- lookups

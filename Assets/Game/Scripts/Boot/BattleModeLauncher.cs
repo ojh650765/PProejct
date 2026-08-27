@@ -129,6 +129,13 @@ namespace PokeLab.Boot
 
                 matchId = pvp.MatchId;
                 if (!string.IsNullOrEmpty(pvp.OpponentName)) opponentName = pvp.OpponentName;
+
+                // Which end of the field this machine is. Both must simulate the SAME
+                // assignment of sides or their generators are consumed in different orders
+                // and one seed produces two different battles -- so player 0 is the engine's
+                // Player on both machines and player 1 flips the presentation instead.
+                _mySide = pvp.PlayerIndex == 1 ? BattleSide.Opponent : BattleSide.Player;
+                PokeLab.UI.UiServices.MySide = _mySide;
             }
 
             // 2. ONE salt for both parties in a PvP match, and it has to be the match's own.
@@ -304,6 +311,10 @@ namespace PokeLab.Boot
                 yield break;
             }
 
+            // Built before the arena's presenter is bound, because binding is where it gets
+            // picked up. Disposed on every exit path in Finish.
+            if (pvp != null) _broker = new PvpTurnBroker(pvp, stage as BattleStage);
+
             HideOverlay();
 
             // 4b. Stand somebody at each mark.
@@ -324,7 +335,19 @@ namespace PokeLab.Boot
                 Kind = BattleKind.Trainer,
                 TrainerId = BattleModeTrainers.OpponentId,
                 WildLevel = AverageLevel(roster),
-                Seed = UnityEngine.Random.Range(int.MinValue, int.MaxValue),
+
+                // The match's seed, not a local one.
+                //
+                // This was UnityEngine.Random on both machines, which meant that after all the
+                // care taken to salt both parties identically (see the note above BuildParty),
+                // the engines themselves still rolled different criticals, different damage
+                // and different accuracy from the first turn. The room mints Seed exactly so
+                // both sides can agree on something neither of them chose, and it was being
+                // used for the parties and then thrown away for the battle.
+                Seed = pvp != null ? pvp.Seed : UnityEngine.Random.Range(int.MinValue, int.MaxValue),
+
+                Lockstep = pvp != null,
+                MySide = _mySide,
                 BiomeId = "arena",
             }, resolved => result = resolved);
 
@@ -680,8 +703,25 @@ namespace PokeLab.Boot
 
         // --- Coming back --------------------------------------------------------------------
 
+        /// <summary>Which engine side is this machine's. Opponent only for a PvP player 1.</summary>
+        private BattleSide _mySide = BattleSide.Player;
+
+        /// <summary>The turn exchange for a live match, disposed with the battle.</summary>
+        private PvpTurnBroker _broker;
+
         private void Finish()
         {
+            // Before the services, because a broker still holding the socket would keep
+            // answering turns for a battle that has ended.
+            _broker?.Dispose();
+            _broker = null;
+
+            // Back to the near end of the field. Left as Opponent this would mirror the next
+            // battle the player starts -- a story fight rendered inside out -- and nothing
+            // about that would point back to a PvP match that ended some time ago.
+            _mySide = BattleSide.Player;
+            PokeLab.UI.UiServices.MySide = BattleSide.Player;
+
             // The services go back before the scene does, so nothing waking during the unload
             // can read the throwaway profile.
             if (_hadProfile && _previousProfile != null) ServiceHub.Register(_previousProfile);
