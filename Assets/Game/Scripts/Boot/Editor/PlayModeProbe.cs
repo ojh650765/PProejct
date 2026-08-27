@@ -7,6 +7,7 @@ using System.Text;
 using PokeLab.Overworld;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
 
@@ -300,6 +301,15 @@ namespace PokeLab.Boot.Editor
 
                 var startPosition = player != null ? player.transform.position : Vector3.zero;
 
+                // Started after the warp, so the first row is the run's real starting point
+                // and not a 40-metre teleport that would read as an impossible velocity.
+                Trace trace = null;
+                if (_request.trace)
+                {
+                    trace = gameObject.AddComponent<Trace>();
+                    trace.Begin(player, _request.traceActors);
+                }
+
                 foreach (var leg in _request.legs)
                 {
                     var move = leg.move != null && leg.move.Length >= 2
@@ -307,9 +317,32 @@ namespace PokeLab.Boot.Editor
                         : Vector2.zero;
 
                     var legStart = player != null ? player.transform.position : Vector3.zero;
-                    var shots = Mathf.Max(1, leg.shots);
+                    if (trace != null) trace.Beat(leg.label);
+
+                    // A leg is either a few stills or a filmstrip, never both: the burst holds
+                    // the same stick for the same span, so taking the stills as well would
+                    // photograph the same seconds twice at two different rates.
+                    var burst = leg.burstFps > 0 && trace != null;
+                    var shots = burst ? 0 : Mathf.Max(1, leg.shots);
                     var seconds = Mathf.Max(0.1f, leg.seconds);
-                    var interval = seconds / shots;
+                    var interval = shots > 0 ? seconds / shots : seconds;
+
+                    if (burst)
+                    {
+                        var prefix = index.ToString("000") + "_" + Sanitise(leg.label);
+                        yield return trace.Burst(outputDir, prefix, leg.burstFps,
+                            leg.burstSeconds > 0f ? leg.burstSeconds : seconds,
+                            // Re-queued per captured frame for the same reason the stills loop
+                            // re-queues per rendered frame: the input system consumes a state
+                            // event once, and a stick queued only at the start of a burst is
+                            // released for every frame of it but the first.
+                            () => InputSystem.QueueStateEvent(pad,
+                                new GamepadState { leftStick = move }
+                                    .WithButton(GamepadButton.North, leg.interact)));
+
+                        samples.Add(Describe(prefix + "_b###.png", player, reader, move));
+                        index++;
+                    }
 
                     for (var shot = 0; shot < shots; shot++)
                     {
@@ -331,6 +364,7 @@ namespace PokeLab.Boot.Editor
                         }
 
                         var name = $"{index:000}_{Sanitise(leg.label)}_{shot}.png";
+                        if (trace != null) trace.Mark(name);
 
                         // Upscaled, because a shot the size of the Game view is not evidence.
                         //
@@ -375,6 +409,9 @@ namespace PokeLab.Boot.Editor
                     }
                 }
 
+                if (trace != null)
+                    result.legReports = Append(result.legReports, trace.Write(outputDir));
+
                 result.samples = samples.ToArray();
                 MaximiseGameView(wasMaximised);
                 InputSystem.RemoveDevice(pad);
@@ -410,14 +447,253 @@ namespace PokeLab.Boot.Editor
                 return list.ToArray();
             }
 
-            private static string Sanitise(string label)
+        }
+
+        // --- the trace ------------------------------------------------------------------
+
+        /// <summary>
+        /// One row per rendered frame: where everything was, and how fast it was going.
+        ///
+        /// <b>Why this exists.</b> A screenshot answers "what was on screen". It cannot answer
+        /// "how fast", "how long", or "did it stutter", because every one of those is a
+        /// difference between two moments and a picture is one moment. Runs were being judged
+        /// on three stills spread across two seconds -- a sample rate at which a smooth walk,
+        /// a stutter, a hitch and a teleport all look the same.
+        ///
+        /// So each frame is written down. Speed then falls out as a difference between rows,
+        /// hit-stop as a dip in timeScale, screen shake as the high-frequency part of the
+        /// camera's path. None of that needs a human to look at anything.
+        ///
+        /// <b>Declared and measured, side by side.</b> Every mover is recorded twice: what it
+        /// says it is doing (the agent's own velocity, which is what the animator reads) and
+        /// what actually happened to its transform between frames. When those two disagree the
+        /// disagreement IS the bug -- an NPC whose agent reports 1.4 m/s while its transform
+        /// has not moved is walking on the spot, and one number alone can never show that.
+        ///
+        /// Sampled at end of frame, which is the only point at which the camera is final:
+        /// Cinemachine writes in LateUpdate, so anything reading Camera.main earlier records a
+        /// pose that was never rendered.
+        /// </summary>
+        private sealed class Trace : MonoBehaviour
+        {
+            private struct Actor
             {
-                if (string.IsNullOrEmpty(label)) return "leg";
-                var sb = new StringBuilder(label.Length);
-                foreach (var ch in label)
-                    sb.Append(char.IsLetterOrDigit(ch) ? ch : '_');
-                return sb.ToString();
+                public string Id;
+                public Transform Transform;
+                public NavMeshAgent Agent;
+                public Vector3 Previous;
             }
+
+            private readonly List<string> _rows = new List<string>();
+            private readonly List<Actor> _actors = new List<Actor>();
+            private PlayerLocomotion _player;
+            private Vector3 _playerPrevious;
+            private string _header = "";
+            private string _beat = "";
+            private string _mark = "";
+            private string _pendingShot;
+            private int _shots;
+            private int _frame;
+            private float _origin;
+
+            /// <summary>Labels the rows, so one CSV can hold a whole run and stay readable.</summary>
+            public void Beat(string beat) { _beat = Sanitise(beat ?? ""); }
+
+            /// <summary>Notes that a screenshot was taken; lands on the next row.</summary>
+            public void Mark(string shot) { _mark = shot ?? ""; }
+
+            public void Begin(PlayerLocomotion player, int cap)
+            {
+                _player = player;
+                _origin = Time.timeSinceLevelLoad;
+                _playerPrevious = player != null ? player.transform.position : Vector3.zero;
+
+                // Nearest first, because the ones worth measuring are the ones close enough to
+                // be on screen. A populated level has dozens, and a CSV with dozens of actors
+                // in it is one that nobody reads.
+                var anchor = _playerPrevious;
+                var found = new List<Actor>();
+                foreach (var npc in FindObjectsByType<NpcController>(FindObjectsSortMode.None))
+                    found.Add(Make("npc." + npc.name, npc.transform));
+                foreach (var trainer in FindObjectsByType<TrainerController>(FindObjectsSortMode.None))
+                    found.Add(Make("trainer." + trainer.name, trainer.transform));
+
+                found.Sort((a, b) => Vector3.SqrMagnitude(a.Transform.position - anchor)
+                    .CompareTo(Vector3.SqrMagnitude(b.Transform.position - anchor)));
+                for (var i = 0; i < found.Count && i < Mathf.Max(0, cap); i++) _actors.Add(found[i]);
+
+                var head = new StringBuilder(
+                    "frame,t,dt,timeScale,beat,shot," +
+                    "player_x,player_y,player_z,player_declared,player_measured," +
+                    "cam_x,cam_y,cam_z,cam_yaw,cam_pitch,cam_fov,boom");
+                foreach (var actor in _actors)
+                {
+                    head.Append(',').Append(actor.Id).Append("_x")
+                        .Append(',').Append(actor.Id).Append("_z")
+                        .Append(',').Append(actor.Id).Append("_declared")
+                        .Append(',').Append(actor.Id).Append("_measured");
+                }
+                _header = head.ToString();
+
+                StartCoroutine(Loop());
+            }
+
+            private static Actor Make(string id, Transform t)
+            {
+                return new Actor
+                {
+                    Id = Sanitise(id),
+                    Transform = t,
+                    Agent = t != null ? t.GetComponent<NavMeshAgent>() : null,
+                    Previous = t != null ? t.position : Vector3.zero,
+                };
+            }
+
+            private IEnumerator Loop()
+            {
+                while (true)
+                {
+                    yield return new WaitForEndOfFrame();
+
+                    // Capture happens here rather than in the caller so that the frame written
+                    // to disk and the row describing it are the same frame. Two coroutines both
+                    // waiting on end-of-frame resume in an order nobody controls, and that is
+                    // how a filmstrip ends up captioned with the telemetry of the frame after.
+                    var shot = "";
+                    if (!string.IsNullOrEmpty(_pendingShot))
+                    {
+                        var path = _pendingShot;
+                        _pendingShot = null;
+                        var texture = ScreenCapture.CaptureScreenshotAsTexture();
+                        try
+                        {
+                            File.WriteAllBytes(path, texture.EncodeToPNG());
+                            shot = Path.GetFileName(path);
+                        }
+                        catch (Exception e)
+                        {
+                            Debug.LogWarning("[PlayProbe] Frame not written: " + e.Message);
+                        }
+                        finally
+                        {
+                            Destroy(texture);
+                            _shots++;
+                        }
+                    }
+
+                    Sample(string.IsNullOrEmpty(shot) ? _mark : shot);
+                    _mark = "";
+                }
+            }
+
+            /// <summary>
+            /// An evenly spaced filmstrip, however long, at however many frames per second.
+            ///
+            /// Time.captureDeltaTime is what makes it even: the game advances by exactly 1/fps
+            /// per frame regardless of how long encoding a PNG takes. Without it the strip is
+            /// spaced by disk speed, which is the one thing it must not be measuring.
+            /// </summary>
+            public IEnumerator Burst(string dir, string prefix, int fps, float seconds, Action pump)
+            {
+                var restore = Time.captureDeltaTime;
+                Time.captureDeltaTime = 1f / Mathf.Max(1, fps);
+
+                var count = Mathf.Max(1, Mathf.RoundToInt(seconds * fps));
+                for (var i = 0; i < count; i++)
+                {
+                    if (pump != null) pump();
+                    var target = _shots + 1;
+                    _pendingShot = Path.Combine(dir, prefix + "_b" + i.ToString("000") + ".png");
+                    // Waits for the sampling loop to have taken it, so the next pump cannot
+                    // overwrite a request that has not been served yet.
+                    while (_shots < target) yield return null;
+                }
+
+                Time.captureDeltaTime = restore;
+            }
+
+            private void Sample(string shot)
+            {
+                var dt = Time.unscaledDeltaTime;
+                var camera = Camera.main;
+                var p = _player != null ? _player.transform.position : Vector3.zero;
+                var c = camera != null ? camera.transform.position : Vector3.zero;
+                var euler = camera != null ? camera.transform.eulerAngles : Vector3.zero;
+                var boom = camera != null && _player != null
+                    ? Vector3.Distance(c, p + Vector3.up * 1.15f) : 0f;
+
+                // Measured speed is distance actually covered over time actually taken.
+                // Unscaled, so a hit-stop reads as timeScale dipping rather than as every
+                // speed in the file quietly going wrong at the same moment.
+                var measured = dt > 0.0001f ? Vector3.Distance(p, _playerPrevious) / dt : 0f;
+                _playerPrevious = p;
+
+                var row = new StringBuilder(256);
+                row.Append(_frame++).Append(',')
+                   .Append(F(Time.timeSinceLevelLoad - _origin)).Append(',')
+                   .Append(F(dt)).Append(',')
+                   .Append(F(Time.timeScale)).Append(',')
+                   .Append(_beat).Append(',')
+                   .Append(shot).Append(',')
+                   .Append(F(p.x)).Append(',').Append(F(p.y)).Append(',').Append(F(p.z)).Append(',')
+                   .Append(F(_player != null ? _player.Speed : 0f)).Append(',')
+                   .Append(F(measured)).Append(',')
+                   .Append(F(c.x)).Append(',').Append(F(c.y)).Append(',').Append(F(c.z)).Append(',')
+                   .Append(F(euler.y)).Append(',').Append(F(euler.x)).Append(',')
+                   .Append(F(camera != null ? camera.fieldOfView : 0f)).Append(',')
+                   .Append(F(boom));
+
+                for (var i = 0; i < _actors.Count; i++)
+                {
+                    var actor = _actors[i];
+                    var at = actor.Transform != null ? actor.Transform.position : Vector3.zero;
+                    var moved = dt > 0.0001f ? Vector3.Distance(at, actor.Previous) / dt : 0f;
+                    actor.Previous = at;
+                    _actors[i] = actor;
+
+                    row.Append(',').Append(F(at.x)).Append(',').Append(F(at.z)).Append(',')
+                       .Append(F(actor.Agent != null ? actor.Agent.velocity.magnitude : 0f))
+                       .Append(',').Append(F(moved));
+                }
+
+                _rows.Add(row.ToString());
+            }
+
+            private static string F(float value)
+            {
+                return value.ToString("F4", CultureInfo.InvariantCulture);
+            }
+
+            /// <summary>Writes the file, and reports in one line what is worth saying.</summary>
+            public string Write(string dir)
+            {
+                StopAllCoroutines();
+                if (_rows.Count == 0) return "trace: no frames recorded";
+
+                var path = Path.Combine(dir, "trace.csv");
+                var text = new StringBuilder(_header.Length + _rows.Count * 200);
+                text.Append(_header).Append('\n');
+                foreach (var row in _rows) text.Append(row).Append('\n');
+                File.WriteAllText(path, text.ToString(), Encoding.UTF8);
+
+                return "trace: " + _rows.Count + " frames, " + _actors.Count
+                     + " tracked actors, " + _shots + " burst frames -> " + path;
+            }
+        }
+
+        /// <summary>
+        /// Safe for a filename and for a CSV cell alike.
+        ///
+        /// Lives on the enclosing type because both nested classes need it, and a private
+        /// member of one of them is invisible to the other.
+        /// </summary>
+        private static string Sanitise(string label)
+        {
+            if (string.IsNullOrEmpty(label)) return "leg";
+            var sb = new StringBuilder(label.Length);
+            foreach (var ch in label)
+                sb.Append(char.IsLetterOrDigit(ch) || ch == '.' ? ch : '_');
+            return sb.ToString();
         }
 
         // --- request and result shapes ---------------------------------------------------
@@ -432,6 +708,26 @@ namespace PokeLab.Boot.Editor
             public float[] warpTo;
             /// <summary>Menu paths run before Play, e.g. a rebuild or a rig repair.</summary>
             public string[] menuItems;
+
+            /// <summary>
+            /// Write one row per rendered frame to trace.csv beside the frames.
+            ///
+            /// Screenshots are taken a few per leg, which is roughly two per second, and that
+            /// is far too coarse for anything that moves: a stutter, a shake, a hit-stop and a
+            /// clean run all look identical at that sample rate. The trace is what makes
+            /// motion answerable at all -- speed is a difference between rows, and you cannot
+            /// take a difference from a picture.
+            /// </summary>
+            public bool trace = true;
+
+            /// <summary>
+            /// How many actors besides the player to follow, nearest first.
+            ///
+            /// Capped because a populated level has dozens and a CSV with dozens of actors is
+            /// one nobody reads. The ones that matter are the ones near enough to be on screen.
+            /// </summary>
+            public int traceActors = 8;
+
             public Leg[] legs;
         }
 
@@ -451,6 +747,24 @@ namespace PokeLab.Boot.Editor
             /// visible while saying nothing about whether it can be picked up.
             /// </summary>
             public bool interact;
+
+            /// <summary>
+            /// Capture this leg as an even filmstrip at this many frames per second.
+            ///
+            /// For anything judged by how it moves rather than by what is on screen. Three
+            /// stills spread over two seconds cannot show a squash, a screen shake decaying or
+            /// a hit-stop -- those live between the stills. At 30 they are visible, and the
+            /// trace beside them puts numbers on the same interval.
+            ///
+            /// Implemented with Time.captureDeltaTime, so the game advances by exactly 1/fps
+            /// per frame no matter how long the encode takes. The filmstrip is therefore
+            /// evenly spaced in GAME time even though it is not in wall-clock time -- which is
+            /// the honest way round: a frame is where the game was, not where the disk was.
+            /// </summary>
+            public int burstFps;
+
+            /// <summary>Seconds of burst. Falls back to the leg's own length.</summary>
+            public float burstSeconds;
         }
 
         [Serializable]
