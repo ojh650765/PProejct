@@ -81,6 +81,7 @@ namespace PokeLab.Boot
         private const float CardHeight = 300f;
 
         private RectTransform _teamRoot;
+        private RectTransform _idleMark;
         private RectTransform _revealRoot;
         private TextMeshProUGUI _status;
         private RectTransform _statusPill;
@@ -181,6 +182,30 @@ namespace PokeLab.Boot
                 new Vector2(0.5f, 0.5f), new Vector2(0f, 4f), new Vector2(1406f, CardHeight));
             UiBuilder.Grid(_teamRoot, new Vector2(CardWidth, CardHeight), new Vector2(22f, 22f), 6);
 
+            // What the middle of the screen is before the first pull of a visit.
+            //
+            // It used to be the player's team, which read as a result that had already
+            // happened. That was removed and the band became genuinely empty -- and an empty
+            // band is not restraint, it is a hole: two thirds of the screen with the roll
+            // button marooned at the bottom of it.
+            //
+            // So: the ball the reveal bursts from, sitting there dim and breathing. It is the
+            // same art at the same place, which makes the roll read as this waking up rather
+            // than as a cutscene arriving from nowhere. No caption -- the screen is titled
+            // 가챠 and the button states the price; a sentence here would only be explaining
+            // a space nobody was confused by.
+            _idleMark = UiBuilder.Rect("Idle", safe, false);
+            UiBuilder.Anchor(_idleMark, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(0f, 4f), new Vector2(300f, 300f));
+            _idleMark.SetAsFirstSibling();
+            var idleBall = UiJuice.Ball(_idleMark, 300f);
+            UiBuilder.Anchor(idleBall, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(300f, 300f));
+            UiIdle.Attach(idleBall, UiIdleMode.Bob, 12f, 3.8f);
+            // Dim enough to be scenery. At full strength it competes with the roll button for
+            // the eye, and the roll button is the thing to press.
+            SetAlpha(_idleMark.gameObject, 0.22f);
+
             // Stacked up the screen from the bottom edge, and the numbers have to stay in
             // that order: the roll button occupies 30..118, the pull chips 128..190, and this
             // sits above both. It used to sit at 150, which put it straight through the chips.
@@ -196,6 +221,11 @@ namespace PokeLab.Boot
                 UiPalette.AceText, TextAlignmentOptions.Center);
             UiBuilder.Anchor(_status.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-36f, -8f));
+            // Built hidden, because it is built empty. Say() is what shows it, and until
+            // something has been said there is no message -- only a capsule. That capsule was
+            // visible on arrival for every account with no free pulls left: a lit, rimmed,
+            // 940-wide box in the middle of the screen containing nothing.
+            _statusPill.gameObject.SetActive(false);
 
             var roll = UiBuilder.Rect("Roll", safe, false);
             UiBuilder.Anchor(roll, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
@@ -280,6 +310,7 @@ namespace PokeLab.Boot
             // out what the middle is for is the kind of line that reads as translated, so the
             // band keeps its height and says nothing.
             if (cells == 0) _teamRoot.sizeDelta = new Vector2(1406f, CardHeight);
+            if (_idleMark != null) _idleMark.gameObject.SetActive(cells == 0);
 
             for (var slot = 0; slot < cells; slot++)
             {
@@ -314,8 +345,11 @@ namespace PokeLab.Boot
             if (_status != null && string.IsNullOrEmpty(_status.text))
             {
                 var free = session != null ? session.FreePulls : 0;
-                if (free > 0)
-                    Say(Loc.Pick($"{free} free pulls left.", $"무료 뽑기 {free}회가 남았어요."));
+                // Said either way: Say("") is what takes the pill back down, and skipping the
+                // call is what left it standing there empty.
+                Say(free > 0
+                    ? Loc.Pick($"{free} free pulls left.", $"무료 뽑기 {free}회가 남았어요.")
+                    : "");
             }
         }
 

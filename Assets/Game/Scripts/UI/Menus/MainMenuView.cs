@@ -323,6 +323,27 @@ namespace PokeLab.UI
                 UiBuilder.Anchor(detail.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
                     new Vector2(0f, 1f), new Vector2(96f, -56f), new Vector2(-118f, 28f));
 
+                // The mouse moves the same cursor the keyboard moves.
+                //
+                // This menu had no hover at all: the pill and the cursor answered only to the
+                // arrow keys, so a player driving it with a mouse got no response until the
+                // click landed -- every row looking equally inert, including the disabled ones.
+                //
+                // Deliberately NOT a second highlight of its own. A hover tint layered over a
+                // travelling selection gives a menu two cursors that disagree, and the one under
+                // the mouse is not the one Enter would take. Pointing at a row selects it, which
+                // is also what makes hover honest about the disabled rows: Highlight refuses to
+                // move onto them, so they stay visibly out of reach instead of lighting up.
+                // On the row, not on the Button object: the Button's target graphic is
+                // pane.Fill, which lives down inside body/lift, and Unity walks UP from
+                // whatever the raycast hit. The row is on that path; the Button's own
+                // GameObject is a sibling of it and would never see the pointer.
+                row.gameObject.AddComponent<StartMenuRowHover>().Bind(() =>
+                {
+                    if (!entry.Enabled) return;
+                    if (_highlighted != index) Highlight(index, true);
+                });
+
                 UiBuilder.Button($"Take_{i}", row, pane.Fill, () =>
                 {
                     // A click on a disabled row must not drag the cursor onto it: a cursor
