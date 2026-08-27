@@ -41,6 +41,33 @@ namespace PokeLab.Battle
         /// <summary>The engine running the current battle, or the last one that ran.</summary>
         public BattleEngine Engine { get; private set; }
 
+        /// <summary>
+        /// Which of the engine's two sides belongs to the person at this keyboard.
+        /// <see cref="BattleSide.Player"/> in every battle in the game except the far half of
+        /// a PvP match.
+        ///
+        /// <b>Why this exists rather than each client simply being the Player side.</b> Two
+        /// machines running the same battle must run the SAME assignment of sides, because
+        /// almost everything the engine does is ordered by side — who is sent out first, who
+        /// moves first, whose damage roll is drawn first. Mirror the sides and the two
+        /// generators are consumed in opposite orders, so one seed produces two different
+        /// battles and the players disagree about who won. LockstepTests.MirroredSides_Diverge
+        /// holds a real example of that happening.
+        ///
+        /// So the match's player 0 is the engine's Player side on BOTH machines, and player 1
+        /// mirrors here instead: the events leaving this stage are relabelled, the outcome is
+        /// flipped, and everything downstream — HUD, presenter, camera rig — goes on believing
+        /// that Player means "mine" without knowing any of this happened. Determinism belongs
+        /// to the simulation; which end of the field you stand at belongs to the camera.
+        /// </summary>
+        public BattleSide MySide { get; set; } = BattleSide.Player;
+
+        /// <summary>True when this machine is player 1 and the presentation has to be flipped.</summary>
+        private bool Mirrored => MySide != BattleSide.Player;
+
+        private static BattleSide Other(BattleSide side) =>
+            side == BattleSide.Player ? BattleSide.Opponent : BattleSide.Player;
+
         /// <summary>The request that staged the current battle.</summary>
         public EncounterRequest CurrentRequest { get; private set; }
 
@@ -147,6 +174,50 @@ namespace PokeLab.Battle
         }
 
         /// <summary>
+        /// Advances a PvP turn, where neither action is this machine's to invent.
+        ///
+        /// Both are supplied: <paramref name="mine"/> is what the person here chose and
+        /// <paramref name="theirs"/> is what arrived over the match socket. The two are sorted
+        /// onto the engine's canonical sides according to <see cref="MySide"/>, so both
+        /// machines hand the engine the same pair in the same order and both compute the same
+        /// turn. The AI is not consulted on either side, which is the whole point.
+        /// </summary>
+        public IReadOnlyList<BattleEvent> SubmitPvpTurn(BattleAction mine, BattleAction theirs)
+        {
+            if (!IsBattleActive || Engine == null) return Array.Empty<BattleEvent>();
+
+            // The UI builds every action as the player's, because as far as it knows it is.
+            var own = Restamp(mine, MySide);
+            var far = Restamp(theirs, Other(MySide));
+
+            var stream = MySide == BattleSide.Player
+                ? Engine.ResolveTurn(own, far)
+                : Engine.ResolveTurn(far, own);
+
+            Publish(stream);
+
+            if (Engine.State.Outcome != BattleOutcome.InProgress)
+                Finish(Engine.State.Outcome, null);
+
+            return stream;
+        }
+
+        /// <summary>Re-stamps an action onto a side, preserving its payload.</summary>
+        private static BattleAction Restamp(BattleAction action, BattleSide side)
+        {
+            if (action.Side == side) return action;
+
+            switch (action.Type)
+            {
+                case BattleAction.Kind.Move: return BattleAction.UseMove(side, action.MoveIndex);
+                case BattleAction.Kind.Switch: return BattleAction.SwitchTo(side, action.PartyIndex);
+                case BattleAction.Kind.Item: return BattleAction.UseItem(side, action.ItemId, action.PartyIndex);
+                case BattleAction.Kind.Capture: return BattleAction.Capture(side, action.ItemId);
+                default: return BattleAction.Run(side);
+            }
+        }
+
+        /// <summary>
         /// Ends the battle early — a scene teardown, a quit to menu — and reports a flee so
         /// the waiting flow is released. Safe to call when no battle is running.
         /// </summary>
@@ -225,7 +296,18 @@ namespace PokeLab.Battle
 
             Engine.Trace = EngineTrace;
             Engine.SetOpponentTrainer(request.TrainerId);
-            Engine.Begin(request.Kind, _playerParty, _opponentParty, request.Weather, request.Seed);
+            // Canonical order, which is not always local order.
+            //
+            // The engine's Player side must hold the SAME team on both machines, or the two
+            // simulations consume their generators differently and diverge. On player 1's
+            // machine that is the far team, so the two lists go in swapped -- and only here.
+            // _playerParty and _opponentParty keep meaning "mine" and "theirs" everywhere
+            // else in this class, which is what leaves the profile, the experience summary
+            // and the dex bookkeeping untouched by any of this.
+            Engine.Begin(request.Kind,
+                Mirrored ? _opponentParty : _playerParty,
+                Mirrored ? _playerParty : _opponentParty,
+                request.Weather, request.Seed);
             return true;
         }
 
@@ -330,7 +412,73 @@ namespace PokeLab.Battle
         private void Publish(IReadOnlyList<BattleEvent> stream)
         {
             if (stream == null || stream.Count == 0) return;
+            if (Mirrored) MirrorSides(stream);
             EventsProduced?.Invoke(stream);
+        }
+
+        /// <summary>
+        /// Relabels a turn's events so that "Player" means the person watching.
+        ///
+        /// Done here, once, rather than by teaching the HUD, the presenter, the camera rig and
+        /// the command panel each to ask which end they are standing at — there are dozens of
+        /// side comparisons downstream and every one of them would have to be right forever.
+        /// One relabelling at the boundary is a thing that can be read in a minute and cannot
+        /// be half-applied.
+        ///
+        /// In place, because these events were built by this turn and this stage is their only
+        /// reader. The stream handed back to the caller is the same list, and that is correct:
+        /// a caller on player 1's machine wants player 1's point of view too.
+        /// </summary>
+        private static void MirrorSides(IReadOnlyList<BattleEvent> stream)
+        {
+            for (var i = 0; i < stream.Count; i++)
+            {
+                switch (stream[i])
+                {
+                    case CreatureSentOutEvent e: e.Side = Other(e.Side); break;
+                    case CreatureWithdrawnEvent e: e.Side = Other(e.Side); break;
+                    case MoveDeclaredEvent e: e.Side = Other(e.Side); break;
+                    case AbilityTriggeredEvent e: e.Side = Other(e.Side); break;
+                    case ItemUsedEvent e: e.Side = Other(e.Side); break;
+                    case CreatureFaintedEvent e: e.Side = Other(e.Side); break;
+
+                    case MoveExecutedEvent e:
+                        e.Attacker = Other(e.Attacker);
+                        e.Target = Other(e.Target);
+                        break;
+                    case MoveMissedEvent e:
+                        e.Attacker = Other(e.Attacker);
+                        e.Target = Other(e.Target);
+                        break;
+
+                    case DamageDealtEvent e: e.Target = Other(e.Target); break;
+                    case HealedEvent e: e.Target = Other(e.Target); break;
+                    case StatusChangedEvent e: e.Target = Other(e.Target); break;
+                    case VolatileChangedEvent e: e.Target = Other(e.Target); break;
+                    case StatStageChangedEvent e: e.Target = Other(e.Target); break;
+                    case CaptureAttemptEvent e: e.Target = Other(e.Target); break;
+
+                    // "Player victory" is a statement about the engine's Player side, so on
+                    // player 1's machine it is exactly backwards. Getting this one wrong would
+                    // congratulate the loser, which is the single most visible way a PvP battle
+                    // can be broken.
+                    case BattleEndedEvent e: e.Outcome = MirrorOutcome(e.Outcome); break;
+                }
+            }
+        }
+
+        /// <summary>The same result read from the other end of the field.</summary>
+        private static BattleOutcome MirrorOutcome(BattleOutcome outcome)
+        {
+            switch (outcome)
+            {
+                case BattleOutcome.PlayerVictory: return BattleOutcome.PlayerDefeat;
+                case BattleOutcome.PlayerDefeat: return BattleOutcome.PlayerVictory;
+                // InProgress, Fled and Captured mean the same thing from both ends: nobody has
+                // won yet, the match was abandoned, or a capture happened -- and a capture
+                // cannot occur in PvP at all.
+                default: return outcome;
+            }
         }
 
         private void Finish(BattleOutcome outcome, string reason)
@@ -340,7 +488,10 @@ namespace PokeLab.Battle
 
             var result = new EncounterResult
             {
-                Outcome = outcome,
+                // Flipped for the same reason the ended event is: this is what the local
+                // player is told they did, and on player 1's machine the engine's verdict is
+                // written from the other side of the field.
+                Outcome = Mirrored ? MirrorOutcome(outcome) : outcome,
                 CapturedCreature = Engine?.CapturedCreature,
                 MoneyDelta = MoneyFor(outcome),
             };
