@@ -98,9 +98,23 @@ namespace PokeLab.Battle
         /// <see cref="IReplacementChooser"/> demands. Default false, which preserves the
         /// headless behaviour byte-for-byte: auto-replace via the registered chooser or the
         /// first healthy member, exactly as every existing test and AutoPlay path expects.
-        /// The opponent's side always auto-replaces regardless of this flag.
         /// </summary>
         public bool DeferPlayerReplacement { get; set; }
+
+        /// <summary>
+        /// The same, for the opponent's side, and it exists for exactly one situation:
+        /// the opponent is a human on another machine.
+        ///
+        /// Everywhere else the opponent auto-replaces, because <see cref="BattleAi"/> is
+        /// deterministic and can answer inside the turn. A remote human cannot -- their
+        /// answer has to travel -- so their forced switch has to become the same free
+        /// interjection the local player's already is: the slot stays empty, the battle
+        /// stays in progress, and the choice arrives as a Switch on the next turn.
+        ///
+        /// Without this, the one part of a PvP battle the AI would still be playing is the
+        /// part that decides who is left standing.
+        /// </summary>
+        public bool DeferOpponentReplacement { get; set; }
 
         /// <summary>Seeded generator for this battle. Null until <see cref="Begin"/> is called.</summary>
         public BattleRandom Random => _rng;
@@ -247,7 +261,34 @@ namespace PokeLab.Battle
         // ---- Turn resolution --------------------------------------------------------
 
         /// <inheritdoc />
-        public IReadOnlyList<BattleEvent> ResolveTurn(BattleAction playerAction)
+        public IReadOnlyList<BattleEvent> ResolveTurn(BattleAction playerAction) =>
+            ResolveTurn(playerAction, null);
+
+        /// <summary>
+        /// A turn where the opponent's action is given rather than decided here.
+        ///
+        /// <b>What this is for.</b> A PvP battle is two copies of this engine, one on each
+        /// machine, stepped in lockstep: both start from the seed the match room minted,
+        /// both are fed the same pair of actions, and both therefore produce the same
+        /// events without anything being sent between them but the two choices. Handing
+        /// the opponent's action in is the entire seam that makes that possible -- until
+        /// now the opponent's action was always <see cref="BattleAi"/>'s, so "player versus
+        /// player" was a real name and a real team attached to a battle the AI was playing.
+        ///
+        /// <b>Both engines must run the SAME assignment of sides</b>, not mirror images of
+        /// each other. If each client made itself the Player side, the two engines would
+        /// draw from their generators in opposite order -- a speed tie is broken by a coin
+        /// flip, damage rolls are drawn per side -- and the same seed would produce two
+        /// different battles. So the match's player 0 is the Player side on BOTH machines
+        /// and player 1 mirrors the presentation instead. Determinism is a property of the
+        /// simulation; which end of the field you are looking from is a property of the
+        /// camera.
+        ///
+        /// Passing null keeps the old behaviour exactly: the AI is asked, and every
+        /// existing caller, test and headless path is unchanged.
+        /// </summary>
+        public IReadOnlyList<BattleEvent> ResolveTurn(BattleAction playerAction,
+                                                      BattleAction? opponentAction)
         {
             _stream.Clear();
             if (_pending.Count > 0)
@@ -262,9 +303,9 @@ namespace PokeLab.Battle
             // the turn counter moves, and crucially before the AI is asked for an action —
             // the AI must never be consulted while the player's active is fainted, because
             // its scoring reads the active slot and assumes something is standing there.
-            if (DeferPlayerReplacement && IsAwaitingPlayerReplacement())
+            if (IsDeferring(BattleSide.Player) || IsDeferring(BattleSide.Opponent))
             {
-                ResolveReplacementTurn(playerAction);
+                ResolveReplacementTurn(playerAction, opponentAction);
                 EvaluateOutcome();
                 TraceTurnEnd();
                 return _stream.ToArray();
@@ -279,10 +320,16 @@ namespace PokeLab.Battle
             // handed the opponent two actions and the player none.
             playerAction = ForPlayer(playerAction);
 
-            var opponentAction = Ai.ChooseAction(this, BattleSide.Opponent);
+            // Given, or decided here. A supplied action is normalised onto the opponent's
+            // side for the same reason the player's is: nothing upstream validates the
+            // stamp, and one arriving from a socket has crossed a machine boundary since it
+            // was built.
+            var foeAction = opponentAction.HasValue
+                ? ForSide(opponentAction.Value, BattleSide.Opponent)
+                : Ai.ChooseAction(this, BattleSide.Opponent);
 
             var first = Plan(playerAction);
-            var second = Plan(opponentAction);
+            var second = Plan(foeAction);
             if (!GoesFirst(first, second)) (first, second) = (second, first);
 
             if (Trace != null)
@@ -327,17 +374,21 @@ namespace PokeLab.Battle
         /// whatever a presenter built straight through — so the engine normalises rather than
         /// trusts.
         /// </summary>
-        private static BattleAction ForPlayer(BattleAction action)
+        private static BattleAction ForPlayer(BattleAction action) =>
+            ForSide(action, BattleSide.Player);
+
+        /// <summary>Re-stamps an action onto a side, preserving its payload.</summary>
+        private static BattleAction ForSide(BattleAction action, BattleSide side)
         {
-            if (action.Side == BattleSide.Player) return action;
+            if (action.Side == side) return action;
 
             return action.Type switch
             {
-                BattleAction.Kind.Move => BattleAction.UseMove(BattleSide.Player, action.MoveIndex),
-                BattleAction.Kind.Switch => BattleAction.SwitchTo(BattleSide.Player, action.PartyIndex),
-                BattleAction.Kind.Item => BattleAction.UseItem(BattleSide.Player, action.ItemId, action.PartyIndex),
-                BattleAction.Kind.Capture => BattleAction.Capture(BattleSide.Player, action.ItemId),
-                _ => BattleAction.Run(BattleSide.Player),
+                BattleAction.Kind.Move => BattleAction.UseMove(side, action.MoveIndex),
+                BattleAction.Kind.Switch => BattleAction.SwitchTo(side, action.PartyIndex),
+                BattleAction.Kind.Item => BattleAction.UseItem(side, action.ItemId, action.PartyIndex),
+                BattleAction.Kind.Capture => BattleAction.Capture(side, action.ItemId),
+                _ => BattleAction.Run(side),
             };
         }
 
@@ -1435,14 +1486,18 @@ namespace PokeLab.Battle
             if (active != null && !active.IsFainted) return false;
             if (!state.HasHealthyMember) return false;
 
-            // Under deferral the player's slot is left empty on purpose: the UI will ask a
-            // human, and the answer arrives as the Switch action of the next ResolveTurn
-            // (the replacement turn). The battle stays InProgress because EvaluateOutcome
-            // asks HasHealthyMember, never whether the active slot is standing. The
-            // opponent is unaffected — it falls through to the auto-pick below. False,
-            // because nobody arrived: there is no entry ability to hold back yet — the
-            // eventual replacement turn runs its own SendOut and fires it there.
-            if (side == BattleSide.Player && DeferPlayerReplacement) return false;
+            // Under deferral the slot is left empty on purpose: a human will be asked, and
+            // the answer arrives as the Switch action of the next ResolveTurn (the
+            // replacement turn). The battle stays InProgress because EvaluateOutcome asks
+            // HasHealthyMember, never whether the active slot is standing. False, because
+            // nobody arrived: there is no entry ability to hold back yet — the eventual
+            // replacement turn runs its own SendOut and fires it there.
+            //
+            // Per side, because in a PvP battle both sides are human. The opponent's flag
+            // is off in every other battle in the game, where the AI answers inside the
+            // turn and there is nothing to wait for.
+            if (side == BattleSide.Player ? DeferPlayerReplacement : DeferOpponentReplacement)
+                return false;
 
             // The AI always picks for itself. The player's forced switch is offered to an
             // IReplacementChooser when one is registered, so the UI can prompt instead of
@@ -1505,12 +1560,23 @@ namespace PokeLab.Battle
         /// True while the player's active slot holds a fainted creature that a healthy
         /// bench member could replace — the state a deferred replacement leaves behind.
         /// </summary>
-        private bool IsAwaitingPlayerReplacement()
+        private bool IsAwaitingPlayerReplacement() => IsAwaitingReplacement(BattleSide.Player);
+
+        /// <summary>
+        /// True while that side's active slot holds a fainted creature a healthy bench
+        /// member could replace — the state a deferred replacement leaves behind.
+        /// </summary>
+        private bool IsAwaitingReplacement(BattleSide which)
         {
-            var side = _state.PlayerSide;
+            var side = _state.Sides(which);
             var active = side.Active;
             return active != null && active.IsFainted && side.HasHealthyMember;
         }
+
+        /// <summary>True when that side owes a replacement AND has been told to wait for one.</summary>
+        private bool IsDeferring(BattleSide which) =>
+            (which == BattleSide.Player ? DeferPlayerReplacement : DeferOpponentReplacement)
+            && IsAwaitingReplacement(which);
 
         /// <summary>
         /// The free turn that settles a deferred replacement. Only the player's action
@@ -1534,17 +1600,38 @@ namespace PokeLab.Battle
         /// exists only behind <see cref="DeferPlayerReplacement"/>; with the flag off this
         /// method is unreachable and no existing draw order changes.
         /// </summary>
-        private void ResolveReplacementTurn(BattleAction playerAction)
+        private void ResolveReplacementTurn(BattleAction playerAction,
+                                            BattleAction? opponentAction)
         {
-            var state = _state.PlayerSide;
+            // The player is settled first, always, on both machines. The order two send-outs
+            // happen in is observable — each fires an entry ability and an entry ability can
+            // draw from the generator — so it has to be a fixed rule rather than whichever
+            // side happened to be tested first.
+            if (IsDeferring(BattleSide.Player))
+                SettleReplacement(BattleSide.Player, playerAction);
+
+            if (!IsDeferring(BattleSide.Opponent)) return;
+
+            // No answer from the far side yet: leave the slot empty and ask again next turn
+            // rather than filling it locally. Choosing here would be the very thing this
+            // exists to stop — and it would desync as well, because the other machine, which
+            // does have its own player's answer, would field somebody else.
+            if (!opponentAction.HasValue) return;
+            SettleReplacement(BattleSide.Opponent, opponentAction.Value);
+        }
+
+        /// <summary>Fields one side's replacement, validating the choice rather than trusting it.</summary>
+        private void SettleReplacement(BattleSide which, BattleAction action)
+        {
+            var state = _state.Sides(which);
 
             var index = -1;
-            if (playerAction.Type == BattleAction.Kind.Switch &&
-                playerAction.PartyIndex >= 0 && playerAction.PartyIndex < state.Party.Count &&
-                playerAction.PartyIndex != state.ActiveIndex)
+            if (action.Type == BattleAction.Kind.Switch &&
+                action.PartyIndex >= 0 && action.PartyIndex < state.Party.Count &&
+                action.PartyIndex != state.ActiveIndex)
             {
-                var chosen = state.Party[playerAction.PartyIndex];
-                if (chosen != null && !chosen.IsFainted) index = playerAction.PartyIndex;
+                var chosen = state.Party[action.PartyIndex];
+                if (chosen != null && !chosen.IsFainted) index = action.PartyIndex;
             }
 
             if (index < 0)
@@ -1556,9 +1643,9 @@ namespace PokeLab.Battle
 
             state.ActiveIndex = index;
             state.ResetOnSwitch();
-            Trace?.Invoke($"[Turn] {_state.TurnNumber} act: Player replacement, fields party[{index}]");
-            SendOut(BattleSide.Player, index, true);
-            FireEntryAbility(BattleSide.Player);
+            Trace?.Invoke($"[Turn] {_state.TurnNumber} act: {which} replacement, fields party[{index}]");
+            SendOut(which, index, true);
+            FireEntryAbility(which);
         }
 
         private void EvaluateOutcome()
