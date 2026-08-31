@@ -32,13 +32,19 @@ namespace PokeLab.UI
     /// player a different amount of real thinking time depending on how hard they were hit.
     /// The presenter's own deadline is unscaled for the same reason, and the two have to
     /// agree or the bar would empty at a moment the turn did not actually end.
+    ///
+    /// <b>It is handed a span and narrows itself inside it.</b> See <see cref="Fit"/> — a
+    /// fixed width centred on the screen is not safe here, and a capture proved it.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class BattleTurnClockView : MonoBehaviour
     {
-        /// <summary>Bar width. Wide enough to read a drain rate, narrow enough to sit above the field.</summary>
+        /// <summary>Widest the clock is ever drawn. It narrows below this; it never exceeds it.</summary>
         public const float PanelWidth = 420f;
         public const float PanelHeight = 54f;
+
+        /// <summary>Narrower than this and the countdown is not worth drawing at all.</summary>
+        private const float MinimumWidth = 180f;
 
         private const float BarHeight = 10f;
 
@@ -46,6 +52,7 @@ namespace PokeLab.UI
         private const float CautionAt = 0.4f;
         private const float UrgentAt = 0.2f;
 
+        private RectTransform _body;
         private RectTransform _barFill;
         private Image _barFillImage;
         private Image _barTrack;
@@ -75,33 +82,81 @@ namespace PokeLab.UI
             var rect = (RectTransform)transform;
             _group = UiBuilder.Group(this, 0f, false, false);
 
+            // Everything visible hangs off a centred inner rect rather than off this one,
+            // because this one is the SPAN the HUD gives us and that span changes with the
+            // window. See Fit.
+            _body = UiBuilder.Rect("Body", rect, false);
+            UiBuilder.Anchor(_body, new Vector2(0.5f, 0f), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(PanelWidth, 0f));
+
             // The caption sits above the bar rather than beside it: at 420px a label and a
             // count on the same row leave the bar too short to read as a rate.
-            _label = UiBuilder.Text("Label", rect, "", UiTextRole.Overline,
+            _label = UiBuilder.Text("Label", _body, "", UiTextRole.Overline,
                 UiPalette.TextSecondary, TextAlignmentOptions.Left);
             UiBuilder.Anchor(_label.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 26f));
 
-            _count = UiBuilder.Text("Count", rect, "", UiTextRole.Numeric,
+            _count = UiBuilder.Text("Count", _body, "", UiTextRole.Numeric,
                 UiPalette.TextPrimary, TextAlignmentOptions.Right);
             UiBuilder.Anchor(_count.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
                 new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 26f));
 
-            _barTrack = UiBuilder.Image("Track", rect, UiSprites.Pill((int)BarHeight),
+            _barTrack = UiBuilder.Image("Track", _body, UiSprites.Pill((int)BarHeight),
                 UiPalette.SurfaceSunken.WithAlpha(0.85f));
             UiBuilder.Anchor(_barTrack.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
                 new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, BarHeight));
 
-            // Anchored to the track's left edge and resized rather than scaled: a scaled fill
-            // squashes the pill's rounded caps into ellipses as it empties.
+            // The fill is a FRACTION of the track, expressed as an anchor rather than a width.
+            //
+            // A width in pixels would have to be recomputed every time the track resized, and
+            // the one place that would be forgotten is the resize -- which is exactly the class
+            // of bug this whole element was just fixed for. As an anchor it is correct at any
+            // track width without anybody having to remember. Resized rather than scaled, so
+            // the pill's rounded caps stay round instead of being squashed into ellipses.
             _barFillImage = UiBuilder.Image("Fill", _barTrack.rectTransform,
                 UiSprites.Pill((int)BarHeight), UiPalette.Info);
             _barFill = _barFillImage.rectTransform;
-            UiBuilder.Anchor(_barFill, new Vector2(0f, 0f), new Vector2(0f, 1f),
-                new Vector2(0f, 0.5f), Vector2.zero, new Vector2(PanelWidth, 0f));
+            _barFill.anchorMin = Vector2.zero;
+            _barFill.anchorMax = Vector2.one;
+            _barFill.pivot = new Vector2(0f, 0.5f);
+            _barFill.offsetMin = Vector2.zero;
+            _barFill.offsetMax = Vector2.zero;
 
+            Fit();
             SetVisible(false);
         }
+
+        /// <summary>
+        /// Narrows the clock to whatever room it has been given.
+        ///
+        /// <b>This is a bug fix with a picture behind it.</b> The clock was a fixed 420 units
+        /// centred on the screen, and the canvas scales by HEIGHT — so a 4:3 window has 1440
+        /// units of width where the layout was authored for 1920, while the two status plates
+        /// keep their 496 each. That leaves 360 units between them, and a 420-unit clock
+        /// centred in a 360-unit gap runs 30 units under the opponent's plate at each end.
+        /// It was invisible in every 16:9 screenshot and obvious the moment one was taken at
+        /// 4:3.
+        ///
+        /// So the HUD hands this the span between the plates and the clock fits inside it,
+        /// capped at <see cref="PanelWidth"/> so an ultrawide does not stretch a countdown
+        /// into a fourteen-hundred-unit ribbon. Below <see cref="MinimumWidth"/> there is no
+        /// honest way to draw a rate, so it stops drawing rather than shrinking into a smear.
+        /// </summary>
+        private void Fit()
+        {
+            if (_body == null) return;
+
+            var available = ((RectTransform)transform).rect.width;
+            // Zero before the first layout pass. Leave the authored width alone and wait for
+            // the callback rather than collapsing to nothing on frame one.
+            if (available <= 1f) return;
+
+            _body.sizeDelta = new Vector2(Mathf.Min(PanelWidth, available), 0f);
+            _body.gameObject.SetActive(available >= MinimumWidth);
+        }
+
+        /// <summary>Unity's own resize notification — a window drag, a rotation, a fullscreen toggle.</summary>
+        private void OnRectTransformDimensionsChange() => Fit();
 
         /// <summary>Starts this side's countdown. <paramref name="seconds"/> is the whole budget.</summary>
         public void BeginMyTurn(float seconds)
@@ -114,6 +169,7 @@ namespace PokeLab.UI
             _label.text = Loc.Pick("YOUR TURN", "내 차례");
             _label.color = UiPalette.TextSecondary;
             SetVisible(true);
+            Fit();
             Paint(1f);
         }
 
@@ -133,7 +189,13 @@ namespace PokeLab.UI
             _label.color = UiPalette.TextMuted;
             _count.text = "";
             SetVisible(true);
-            _barFill.sizeDelta = new Vector2(PanelWidth, 0f);
+            Fit();
+            _barFill.anchorMax = Vector2.one;
+
+            // Repainted here rather than left to the first Update. Committing on the last
+            // second of the clock leaves the bar red, and one frame of a full red bar under
+            // "waiting for the opponent" reads as an alarm about the wrong thing.
+            _barFillImage.color = UiPalette.Info.WithAlpha(0.35f);
         }
 
         /// <summary>Hides the clock. Called when the turn resolves and when the battle ends.</summary>
@@ -163,7 +225,7 @@ namespace PokeLab.UI
 
         private void Paint(float remaining)
         {
-            _barFill.sizeDelta = new Vector2(PanelWidth * remaining, 0f);
+            _barFill.anchorMax = new Vector2(remaining, 1f);
 
             var colour = remaining <= UrgentAt ? UiPalette.Critical
                        : remaining <= CautionAt ? UiPalette.Caution

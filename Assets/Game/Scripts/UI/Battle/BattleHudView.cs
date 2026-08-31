@@ -687,11 +687,18 @@ namespace PokeLab.UI
             // --- turn clock, top centre. Deliberately on nobody's side of the field: the
             // plates are cornered left and right and each speaks for one player, while this
             // speaks for the exchange between them.
+            // Given the SPAN between the two plates rather than a fixed width, and it narrows
+            // itself inside that. A fixed 420 centred here overlapped the opponent's plate at
+            // 4:3 — the canvas scales by height, so a narrow window loses width while the
+            // plates keep their 496 each. See BattleTurnClockView.Fit.
             _turnClock = BattleTurnClockView.Build(main);
-            UiBuilder.Anchor(_turnClock.GetComponent<RectTransform>(),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -12f),
-                new Vector2(BattleTurnClockView.PanelWidth, BattleTurnClockView.PanelHeight));
+            var clock = _turnClock.GetComponent<RectTransform>();
+            clock.anchorMin = new Vector2(0f, 1f);
+            clock.anchorMax = new Vector2(1f, 1f);
+            clock.pivot = new Vector2(0.5f, 1f);
+            var clockInset = CreatureStatusPanel.PlateWidth + _columnGutter;
+            clock.offsetMin = new Vector2(clockInset, -(12f + BattleTurnClockView.PanelHeight));
+            clock.offsetMax = new Vector2(-clockInset, -12f);
 
             // --- beat flash: a full-bleed tint the cinematic hook pulses for a crit or a
             // super-effective hit. Solid rather than a vignette because the vignette sprite

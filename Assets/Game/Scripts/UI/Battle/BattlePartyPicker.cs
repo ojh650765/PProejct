@@ -360,8 +360,14 @@ namespace PokeLab.UI
             row.HealthBar.SetImmediate(fraction);
             row.HealthBar.SetColorImmediate(UiPalette.Health(fraction));
 
+            // <alpha>, not <color>. The max half is meant to sit BEHIND the current half, and
+            // a colour tag says that in absolute terms -- white at 44%% -- which overrides
+            // whatever the component was set to. SetSelected flips this label to a dark navy
+            // for the amber selected row, and only the current-HP half obeyed: "138" went dark
+            // and readable while "/151" stayed pale white on bright amber and all but vanished.
+            // <alpha> dims whatever colour the row is currently wearing, so it follows.
             row.HealthText = UiBuilder.Text("Hp", healthRow,
-                $"{creature.CurrentHp}<size=78%><color=#FFFFFF70>/{creature.MaxHp}</color></size>",
+                $"{creature.CurrentHp}<size=78%><alpha=#70>/{creature.MaxHp}</size>",
                 UiTextRole.Numeric, UiPalette.TextPrimary, TextAlignmentOptions.Right);
             row.HealthText.textWrappingMode = TextWrappingModes.NoWrap;
             UiBuilder.Size(row.HealthText.rectTransform, preferredWidth: 104f, minWidth: 104f);

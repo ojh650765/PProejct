@@ -80,7 +80,13 @@ namespace PokeLab.UI
             if (_runner != null) return;
             var go = new GameObject("~UiTweenRunner") { hideFlags = HideFlags.HideAndDontSave };
             _runner = go.AddComponent<UiTweenRunner>();
-            UnityEngine.Object.DontDestroyOnLoad(go);
+
+            // Play mode only: DontDestroyOnLoad THROWS from an editor script, and the throw
+            // comes out of whatever asked for the tween -- so an editor tool that builds a
+            // real screen dies on the first delayed tween anywhere inside it, several frames
+            // from anything that looks like its own fault. The object is HideAndDontSave, so
+            // in the editor it already outlives everything it needs to.
+            if (Application.isPlaying) UnityEngine.Object.DontDestroyOnLoad(go);
         }
 
         /// <summary>Raw tween over normalised time. Prefer the typed helpers below.</summary>
