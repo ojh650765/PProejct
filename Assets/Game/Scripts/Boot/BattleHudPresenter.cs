@@ -33,7 +33,8 @@ namespace PokeLab.Boot
         private const int SortingOrder = 380;
 
         [Tooltip("Longest the game will wait for the player before the policy answers for them. " +
-                 "Guards an unattended session, not the player.")]
+                 "Guards an unattended session, not the player. PvP ignores this and uses " +
+                 "PvpTurnBroker.TurnSeconds, which is a shot clock and does mean the player.")]
         [SerializeField] private float _decisionTimeout = 300f;
 
         private BattleHudView _hud;
@@ -55,13 +56,80 @@ namespace PokeLab.Boot
             // ReferenceEquals, not ==. UnityEngine.Object's operator== reports a destroyed
             // object as equal to null, and the battle scene unloads by destroying the presenter
             // in the same frame the arena clears BattleArena.Current — so `presenter` is a real
-            // null, `_bound` is a destroyed reference, and == calls them equal. That early
-            // return is why the plates, the command panel and the log were still drawn over the
-            // overworld after the battle: Unbind, and with it _hud.Hide(), was never reached.
-            if (ReferenceEquals(presenter, _bound)) return;
+            // null, `_bound` is a destroyed reference, and == calls them equal. Treating them
+            // as equal is why the plates, the command panel and the log were still drawn over
+            // the overworld after the battle: Unbind, and with it _hud.Hide(), was skipped.
+            if (!ReferenceEquals(presenter, _bound))
+            {
+                Unbind();
+                if (presenter != null) Bind(presenter);
+            }
 
-            Unbind();
-            if (presenter != null) Bind(presenter);
+            // Every frame, not once at Bind. This is the line the whole PvP path turned on.
+            //
+            // The launcher builds the broker AFTER the arena scene has loaded, because the
+            // broker needs the stage the arena registers -- but this component is polling
+            // BattleArena.Current the whole time, and BattleArena sets it in OnEnable, during
+            // that load. So Bind ran first, read a broker that did not exist yet, left
+            // TurnExchange null, and the turn loop fell through to ChooseAction: the AI played
+            // a match that had a real opponent's name and a real opponent's team on it, which
+            // is exactly what was reported. Nothing else about the lockstep path was wrong. It
+            // was simply never reached.
+            //
+            // Keeping the two in step every frame fixes it without either side having to know
+            // the other's construction order -- which is the part that would rot again.
+            SyncExchange();
+        }
+
+        /// <summary>
+        /// Points the turn loop at the live match's exchange, or at nothing.
+        ///
+        /// Compared by reference rather than by delegate so this does not allocate a closure
+        /// sixty times a second for the whole battle.
+        /// </summary>
+        private void SyncExchange()
+        {
+            var broker = PvpTurnBroker.Current;
+            if (ReferenceEquals(broker, _broker)) return;
+            _broker = broker;
+
+            if (_bound == null) return;
+            _bound.TurnExchange = broker != null ? Exchange : null;
+        }
+
+        /// <summary>The live match's exchange, or null in every other battle.</summary>
+        private PvpTurnBroker _broker;
+
+        /// <summary>
+        /// The broker's exchange, with the clock switched over for the length of it.
+        ///
+        /// The wrapper exists so the broker never learns what a HUD is: it trades actions over
+        /// a socket, and whether anything on screen says so is not its business. What it buys
+        /// is the half of "확실하게 주고 받는" that the countdown alone does not — after the
+        /// choice is sent there was previously no signal at all, so a thinking opponent and a
+        /// hung game looked identical for as long as it took.
+        /// </summary>
+        private IEnumerator Exchange(BattleAction mine, Action<BattleAction?> got)
+        {
+            var broker = _broker;
+            if (broker == null) { got(null); yield break; }
+
+            _hud?.BeginOpponentWait();
+
+            BattleAction? theirs = null;
+            yield return broker.Exchange(mine, a => theirs = a);
+            _hud?.StopTurnClock();
+
+            // The reason, in the log, before the battle unwinds.
+            //
+            // PvpTurnBroker.Explain has always known how to say "they left", "they stopped
+            // answering", "the two battles fell out of step" — and nothing called it, so an
+            // aborted match simply ended and the player was left to guess which of those it
+            // had been. This is the last frame on which there is anywhere to put it.
+            if (theirs == null && _hud != null)
+                _hud.Log?.Append(PvpTurnBroker.Explain(broker.Failure));
+
+            got(theirs);
         }
 
         private void OnDestroy() => Unbind();
@@ -76,11 +144,9 @@ namespace PokeLab.Boot
             _bound.ActionRoutine = AskPlayer;
             _bound.EventObserved += OnBattleEvent;
 
-            // In a PvP match the turn loop has to wait for the other player between the
-            // choice and the resolution. Null in every other battle, where the loop resolves
-            // the turn itself exactly as it always has.
-            var broker = PvpTurnBroker.Current;
-            _bound.TurnExchange = broker != null ? broker.Exchange : null;
+            // TurnExchange is deliberately NOT set here. It is SyncExchange's, every frame,
+            // because the broker is built after this binding happens -- see the note there.
+            _broker = null;
 
             _hud.MoveChosen = index => Commit(BattleAction.UseMove(BattleSide.Player, index));
             _hud.SwitchRequested = index => Commit(BattleAction.SwitchTo(BattleSide.Player, index));
@@ -138,6 +204,7 @@ namespace PokeLab.Boot
             // of the session.
             _bound = null;
 
+            _broker = null;
             if (_hud != null) _hud.Hide();
             _hasChoice = false;
         }
@@ -205,16 +272,84 @@ namespace PokeLab.Boot
                 _hud.BeginPlayerTurn(active);
             }
 
-            var deadline = Time.unscaledTime + Mathf.Max(5f, _decisionTimeout);
+            // Two different budgets, because they are two different things.
+            //
+            // Alone, the deadline guards an unattended editor session and nothing else; five
+            // minutes is far longer than any real decision and when it lapses the policy
+            // answering is harmless. In a match it is a shot clock: the other player is
+            // sitting there, so the budget is short, it is SHOWN, and running it out is a
+            // move -- the turn is spent on nothing rather than handed to the AI.
+            var timed = _broker != null;
+            var budget = timed ? PvpTurnBroker.TurnSeconds : Mathf.Max(5f, _decisionTimeout);
+            if (timed) _hud.BeginTurnClock(budget);
+
+            var deadline = Time.unscaledTime + Mathf.Max(5f, budget);
             while (!_hasChoice && Time.unscaledTime < deadline) yield return null;
 
             // Locked the moment the choice is taken, so a second press during the performance
             // cannot queue a move the player never meant to make on the following turn.
             _hud.LockCommands();
 
-            if (_hasChoice) commit(_choice);
-            else Debug.LogWarning("[BattleHud] No command was given within the decision timeout; " +
-                                  "the auto-play policy will answer this turn.", this);
+            if (_hasChoice) { commit(_choice); yield break; }
+
+            if (!timed)
+            {
+                Debug.LogWarning("[BattleHud] No command was given within the decision timeout; " +
+                                 "the auto-play policy will answer this turn.", this);
+                yield break;
+            }
+
+            commit(Forfeit());
+        }
+
+        /// <summary>
+        /// What is submitted when the shot clock runs out.
+        ///
+        /// <b>Something must be.</b> Both machines step together and neither can resolve the
+        /// turn until it holds both actions, so a side that sends nothing does not lose a
+        /// turn — it strands the match. This is why the answer is an action and not a skip.
+        ///
+        /// <b>Normally that action is a Pass</b>, which is the rule as asked for: nobody
+        /// chose, so the opening goes by. It is a real engine action rather than a disguised
+        /// one, so the log says what happened on both screens and the trace does too.
+        ///
+        /// <b>A forced replacement is the exception, and it has to be.</b> When the active
+        /// creature is down, passing is not available: the field would stay empty, and every
+        /// following turn would be the same non-choice, forever. Somebody has to come in, so
+        /// the first healthy member does. It is a worse outcome than choosing — the player
+        /// gets whoever is next rather than whoever answers the threat — which is the honest
+        /// cost of not answering, and it is still a battle rather than a hang.
+        /// </summary>
+        private BattleAction Forfeit()
+        {
+            var party = PlayerParty();
+            var active = ActivePlayer();
+            var standing = IndexOfActive(party, active);
+
+            if (active != null && active.IsFainted && AnyBenchedHealthy(party, standing))
+            {
+                var next = FirstHealthy(party, standing);
+                _hud.Log?.Append(Loc.Pick("Out of time — sending out the next Pokémon.",
+                                          "시간이 다 됐다! 다음 포켓몬이 나간다."));
+                return BattleAction.SwitchTo(BattleSide.Player, Mathf.Max(0, next));
+            }
+
+            _hud.Log?.Append(Loc.Pick("Out of time — the turn was lost.",
+                                      "시간이 다 됐다! 이번 턴을 놓쳤다."));
+            return BattleAction.Pass(BattleSide.Player);
+        }
+
+        /// <summary>The first party member off the field who can still fight, or -1.</summary>
+        private static int FirstHealthy(IReadOnlyList<CreatureInstance> party, int activeIndex)
+        {
+            if (party == null) return -1;
+            for (var i = 0; i < party.Count; i++)
+            {
+                if (i == activeIndex) continue;
+                var member = party[i];
+                if (member != null && !member.IsFainted) return i;
+            }
+            return -1;
         }
 
         private void Commit(BattleAction action)

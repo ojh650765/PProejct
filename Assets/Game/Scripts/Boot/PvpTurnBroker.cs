@@ -48,6 +48,22 @@ namespace PokeLab.Boot
         /// </summary>
         public const float DefaultTimeout = 90f;
 
+        /// <summary>
+        /// How long a player has to choose, before the turn is spent on nothing.
+        ///
+        /// <b>It must stay comfortably below <see cref="DefaultTimeout"/>, and that is the
+        /// whole reason the two constants sit together.</b> The clock is local — each machine
+        /// times its own player and sends whatever they had — so the far machine's patience
+        /// has to outlast the far player's clock plus the round trip. Raise this above the
+        /// timeout and a player who thinks for the full budget gets the match killed out from
+        /// under them by an opponent who was waiting exactly as designed.
+        ///
+        /// Thirty seconds because that is a real decision on a six-creature field — read two
+        /// health bars, check a type matchup, pick — and not so long that the other player
+        /// starts wondering whether the game has hung.
+        /// </summary>
+        public const float TurnSeconds = 30f;
+
         private const string Version = "t1";
 
         private readonly PvpSession _session;
@@ -254,6 +270,12 @@ namespace PokeLab.Boot
                     return true;
                 case BattleAction.Kind.Run:
                     action = BattleAction.Run(BattleSide.Opponent);
+                    return true;
+                case BattleAction.Kind.Pass:
+                    // Their clock ran out. Carried explicitly rather than inferred from a
+                    // frame that never came, because "they chose nothing" and "they are gone"
+                    // are different situations with different endings.
+                    action = BattleAction.Pass(BattleSide.Opponent);
                     return true;
                 default:
                     // Capture is not reachable in PvP and a client claiming it is either old

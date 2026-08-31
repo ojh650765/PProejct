@@ -213,6 +213,7 @@ namespace PokeLab.Battle
                 case BattleAction.Kind.Switch: return BattleAction.SwitchTo(side, action.PartyIndex);
                 case BattleAction.Kind.Item: return BattleAction.UseItem(side, action.ItemId, action.PartyIndex);
                 case BattleAction.Kind.Capture: return BattleAction.Capture(side, action.ItemId);
+                case BattleAction.Kind.Pass: return BattleAction.Pass(side);
                 default: return BattleAction.Run(side);
             }
         }

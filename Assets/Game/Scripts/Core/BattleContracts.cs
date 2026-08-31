@@ -80,7 +80,15 @@ namespace PokeLab.Core
     /// <summary>A player or AI decision for one turn.</summary>
     public readonly struct BattleAction
     {
-        public enum Kind { Move, Switch, Item, Run, Capture }
+        /// <summary>
+        /// What a side decided to do this turn.
+        ///
+        /// <b>Pass is appended, and must stay last.</b> The ordinal crosses the network: the
+        /// PvP wire format sends <c>(int)Type</c>, so inserting a member anywhere but the end
+        /// would make an older build read every action after it as the wrong one — a Switch
+        /// arriving as an Item, silently, on one machine only.
+        /// </summary>
+        public enum Kind { Move, Switch, Item, Run, Capture, Pass }
 
         public readonly Kind Type;
         public readonly BattleSide Side;
@@ -103,6 +111,27 @@ namespace PokeLab.Core
             new BattleAction(Kind.Run, side, -1, -1, null);
         public static BattleAction Capture(BattleSide side, string ballId) =>
             new BattleAction(Kind.Capture, side, -1, -1, ballId);
+
+        /// <summary>
+        /// Spends the turn doing nothing at all.
+        ///
+        /// <b>Why this exists.</b> A PvP turn has a clock, and a player who lets it run out
+        /// still has to submit something — both machines step together, so a side that sends
+        /// no action leaves the two of them a turn apart, which is the one failure a lockstep
+        /// match cannot recover from. This is what they submit.
+        ///
+        /// <b>Why it is not a Run, and not a switch to the creature already out.</b> Both of
+        /// those were available without touching the engine and both lie. Run reaches
+        /// <c>AttemptRun</c>, which in a trainer battle narrates a refusal and in a wild one
+        /// might actually end the fight; a self-switch reads as a deliberate move in the log
+        /// and in the trace. A lapsed clock means the player did nothing, so the engine is
+        /// told that, and the log says it.
+        ///
+        /// Never produced by <see cref="BattleAi"/> and never offered as a legal action: it
+        /// is not a tactic, it is what is left when nobody chose.
+        /// </summary>
+        public static BattleAction Pass(BattleSide side) =>
+            new BattleAction(Kind.Pass, side, -1, -1, null);
     }
 
     /// <summary>Read-only snapshot of the field, safe to hand to UI, AI and the Poké Lab oracle.</summary>

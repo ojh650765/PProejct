@@ -403,6 +403,7 @@ namespace PokeLab.Battle
                 BattleAction.Kind.Switch => BattleAction.SwitchTo(side, action.PartyIndex),
                 BattleAction.Kind.Item => BattleAction.UseItem(side, action.ItemId, action.PartyIndex),
                 BattleAction.Kind.Capture => BattleAction.Capture(side, action.ItemId),
+                BattleAction.Kind.Pass => BattleAction.Pass(side),
                 _ => BattleAction.Run(side),
             };
         }
@@ -479,6 +480,16 @@ namespace PokeLab.Battle
                     break;
                 case BattleAction.Kind.Run:
                     AttemptRun(side);
+                    break;
+                case BattleAction.Kind.Pass:
+                    // Nothing happens, and that has to be narrated rather than merely skipped.
+                    //
+                    // Two reasons. The player is owed the reason their opening went by, on
+                    // both machines. And a turn in which BOTH sides passed would otherwise
+                    // produce no events at all -- an empty stream, which BattlePresenter
+                    // treats as an unadvanceable battle and aborts on. Two players who both
+                    // stepped away would end the match rather than lose a turn.
+                    Emit(new MessageEvent { Text = BattleLogStrings.Hesitated(Name(actor)) });
                     break;
             }
         }

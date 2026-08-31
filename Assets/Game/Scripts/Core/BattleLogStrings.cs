@@ -35,6 +35,17 @@ namespace PokeLab.Core
         public static string NoEffectOn(string who) =>
             Loc.Pick($"It doesn't affect {who}.", $"{who}에게는 효과가 없는 것 같다…");
 
+        /// <summary>
+        /// A side let the turn clock run out and did nothing with it.
+        ///
+        /// Worded as hesitation rather than as a rule being enforced — "시간 초과" would name
+        /// the timer, and the player watching the other end of a PvP match does not need the
+        /// mechanism, only the fact that the opening was there and went unused.
+        /// </summary>
+        public static string Hesitated(string who) =>
+            Loc.Pick($"{who} hesitated and lost the turn!",
+                     $"{Josa.WithTopic(who)} 망설이다가 턴을 놓쳤다!");
+
         /// <summary>No target, no legality, nothing to do. The games' 그러나 line.</summary>
         public static string NothingHappenedEmphatic =>
             Loc.Pick("But nothing happened!", "그러나 아무 일도 일어나지 않았다!");

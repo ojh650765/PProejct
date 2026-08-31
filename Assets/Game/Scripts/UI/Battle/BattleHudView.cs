@@ -39,6 +39,7 @@ namespace PokeLab.UI
         [SerializeField] private BattleCommandPanel _commands;
         [SerializeField] private BattlePartyPicker _partyPicker;
         [SerializeField] private BattleLogView _log;
+        [SerializeField] private BattleTurnClockView _turnClock;
         [SerializeField] private OverlayDirector _overlays;
         [SerializeField] private Image _beatFlash;
         [SerializeField] private CanvasGroup _group;
@@ -86,6 +87,18 @@ namespace PokeLab.UI
         /// <summary>The battle log, for systems that want to narrate outside the event stream.</summary>
         public BattleLogView Log => _log;
 
+        /// <summary>
+        /// Starts this side's shot clock. PvP only — nothing else calls it, and a battle that
+        /// never calls it never shows the dial at all.
+        /// </summary>
+        public void BeginTurnClock(float seconds) => _turnClock?.BeginMyTurn(seconds);
+
+        /// <summary>The choice is sent; this is the wait for theirs.</summary>
+        public void BeginOpponentWait() => _turnClock?.BeginTheirTurn();
+
+        /// <summary>Takes the clock down. Safe to call when it was never up.</summary>
+        public void StopTurnClock() => _turnClock?.Stop();
+
         private void Awake()
         {
             if (_buildOnAwake && !_built) BuildRuntime();
@@ -115,6 +128,7 @@ namespace PokeLab.UI
         {
             _scanner?.SetMode(ScannerMode.Hidden);
             _commands?.Lock();
+            _turnClock?.Stop();
             // A battle can end with the picker open — a capture resolving while the player
             // deliberates a switch — and a modal that survives its battle would still be
             // polling for input over the overworld.
@@ -670,6 +684,15 @@ namespace PokeLab.UI
                 // actually telling you about.
                 new Vector2(-logInset, 168f));
 
+            // --- turn clock, top centre. Deliberately on nobody's side of the field: the
+            // plates are cornered left and right and each speaks for one player, while this
+            // speaks for the exchange between them.
+            _turnClock = BattleTurnClockView.Build(main);
+            UiBuilder.Anchor(_turnClock.GetComponent<RectTransform>(),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -12f),
+                new Vector2(BattleTurnClockView.PanelWidth, BattleTurnClockView.PanelHeight));
+
             // --- beat flash: a full-bleed tint the cinematic hook pulses for a crit or a
             // super-effective hit. Solid rather than a vignette because the vignette sprite
             // bakes black pixels and cannot be tinted; at the alphas this uses it reads as a
@@ -722,6 +745,7 @@ namespace PokeLab.UI
 
             _scanner?.SetMode(ScannerMode.Hidden);
             _commands?.Lock();
+            _turnClock?.Stop();
             _partyPicker?.Close();
             if (_group == null) { gameObject.SetActive(false); return; }
             _group.interactable = false;
