@@ -73,6 +73,53 @@ namespace PokeLab.Battle
         }
 
         /// <summary>
+        /// An exact copy of a creature, for handing to a battle that will mutate it.
+        ///
+        /// <b>Why this is not <see cref="Create"/> again.</b> Create DERIVES a creature from a
+        /// species, a level and a seed — IVs, stats, ability, moveset, all of it. Re-deriving
+        /// is only the same creature if you feed it the same seed, and it can never carry
+        /// anything that was not derived in the first place: a taught moveset, 돌파 stars, mid-
+        /// battle damage. Re-deriving with a DIFFERENT seed produces a creature that shares
+        /// only a name and a level.
+        ///
+        /// That was a real bug and a bad one. Battle mode's registry rebuilt the opponent's
+        /// party through Create with the instance id's hash as the seed, so in a PvP match the
+        /// two machines held different creatures on both sides — one machine's copy of a team
+        /// had its taught moves and its stars, the other's had neither and different IVs. The
+        /// desync check caught it on turn one and ended the match, which the result screen
+        /// reports as a defeat. Both players picked a move and were immediately told they lost.
+        ///
+        /// The arrays and the move list are copied rather than shared, which is the whole
+        /// point: the engine writes to them, and two battles sharing one list would open with
+        /// a party that is already fainted.
+        /// </summary>
+        public static CreatureInstance Clone(CreatureInstance source)
+        {
+            if (source == null) return null;
+
+            var copy = new CreatureInstance
+            {
+                SpeciesId = source.SpeciesId,
+                Nickname = source.Nickname,
+                Level = source.Level,
+                Experience = source.Experience,
+                CurrentHp = source.CurrentHp,
+                MaxHp = source.MaxHp,
+                AbilityId = source.AbilityId,
+                HeldItemId = source.HeldItemId,
+                Status = source.Status,
+                StatusCounter = source.StatusCounter,
+                InstanceId = source.InstanceId,
+                Stats = (int[])source.Stats?.Clone() ?? new int[StatKinds.BaseCount],
+                Ivs = (int[])source.Ivs?.Clone() ?? new int[StatKinds.BaseCount],
+                Moves = new List<MoveSlot>(source.Moves?.Count ?? 4),
+            };
+
+            if (source.Moves != null) copy.Moves.AddRange(source.Moves);
+            return copy;
+        }
+
+        /// <summary>
         /// Recomputes <see cref="CreatureInstance.Stats"/> and <see cref="CreatureInstance.MaxHp"/>
         /// in place, preserving the creature's damage taken so a level-up heals by exactly
         /// the HP the level gained rather than topping the creature up.

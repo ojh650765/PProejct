@@ -58,7 +58,14 @@ namespace PokeLab.UI
         private RectTransform _knob;
         private bool _built;
         private IGameFlow _flow;
-        private bool _battleHidden;
+
+        /// <summary>
+        /// The mode the pad last decided against. Starts at Boot, which is not a world mode,
+        /// so the pad stays down until something says otherwise — the safe default, because
+        /// the title screen is the first thing a phone sees and the pad does nothing there.
+        /// </summary>
+        private GameMode _mode = GameMode.Boot;
+        private bool _usable;
 
         /// <summary>
         /// Self-bootstraps after the first scene loads. AfterSceneLoad so a scene-authored
@@ -110,6 +117,10 @@ namespace PokeLab.UI
             // WebGL can register the touchscreen after startup, so visibility follows the
             // device list rather than being decided once at boot.
             InputSystem.onDeviceChange += OnDeviceChange;
+
+            // The half of the mode that no service reports: a battle launched from the title
+            // screen never registers IGameFlow, and that is the screen the pad was stuck on.
+            GameEvents.ModeChanged += OnModeChanged;
             Refresh();
         }
 
@@ -117,8 +128,29 @@ namespace PokeLab.UI
         {
             if (s_instance != this) return;
             InputSystem.onDeviceChange -= OnDeviceChange;
+            GameEvents.ModeChanged -= OnModeChanged;
             s_instance = null;
         }
+
+        /// <summary>
+        /// The modes in which this pad drives anything at all.
+        ///
+        /// <b>It used to be "everywhere except a battle", and that was two bugs.</b> The pad
+        /// was drawn over the title screen, the gacha and the roster — none of which read a
+        /// gamepad, so its A button sat there doing nothing, which is exactly what it looked
+        /// like. And the battle test was read off <c>IGameFlow</c>, which only the OVERWORLD
+        /// registers: a battle entered from the main menu has no flow service at all, so the
+        /// poll below returned early every frame and the pad stayed up through the whole
+        /// fight, over a screen that is tap-driven and has its own buttons underneath it.
+        ///
+        /// Stated the other way round now — the pad appears where walking and talking happen
+        /// and nowhere else — so a screen that does not read it cannot show it.
+        /// </summary>
+        private static bool DrivesTheWorld(GameMode mode) =>
+            mode == GameMode.Exploring || mode == GameMode.Dialogue
+            || mode == GameMode.Cutscene || mode == GameMode.EncounterIntro;
+
+        private void OnModeChanged(GameMode from, GameMode to) => _mode = to;
 
         private void OnDeviceChange(InputDevice device, InputDeviceChange change)
         {
@@ -129,21 +161,30 @@ namespace PokeLab.UI
         }
 
         /// <summary>
-        /// Battle hiding polls the flow service, same idiom as BattlePropCurtain: the
-        /// service registers after this host boots, and a poll self-heals across scene
-        /// loads where an event subscription would need re-acquisition anyway. Runs only
-        /// once the canvas exists, so a desktop never pays for it.
+        /// Two sources for the mode, because neither alone covers the whole game.
+        ///
+        /// The flow service is authoritative wherever it exists — it is the overworld's own
+        /// state and a poll self-heals across scene loads. But it does not exist on the title
+        /// screen or in a battle launched from it, and those are precisely the screens the pad
+        /// was wrongly appearing on. <c>GameEvents.ModeChanged</c> covers them: BattleModeSession
+        /// raises Menu→Battle and Battle→Menu around a battle-mode fight, and the subscription
+        /// costs nothing when the service is present because the two agree.
         /// </summary>
         private void Update()
         {
             FollowWhicheverIsBeingUsed();
 
-            if (!_built) return;
-            if (_flow == null && !ServiceHub.TryGet(out _flow)) return;
+            // A destroyed controller still satisfies a plain null check, and this cache spans
+            // exactly the transition that matters -- the overworld unloading back to the menu.
+            // Left stale, it would keep answering Exploring and pin the pad on over the title
+            // screen, which is the bug this method was just rewritten to fix.
+            if (_flow is UnityEngine.Object host && host == null) _flow = null;
 
-            var inBattle = _flow.Mode == GameMode.Battle || _flow.Mode == GameMode.BattleOutro;
-            if (inBattle == _battleHidden) return;
-            _battleHidden = inBattle;
+            if (_flow != null || ServiceHub.TryGet(out _flow)) _mode = _flow.Mode;
+
+            var usable = DrivesTheWorld(_mode);
+            if (usable == _usable) return;
+            _usable = usable;
             Refresh();
         }
 
@@ -190,13 +231,12 @@ namespace PokeLab.UI
         {
             // Built on first demand, never on desktop: a machine that never reports a
             // touchscreen never allocates a canvas, so the desktop build is untouched.
-            if (Wanted && !_built) Build();
+            if (Wanted && _usable && !_built) Build();
             if (!_built) return;
 
-            // Hidden through Battle and BattleOutro: that UI is tap-driven and owns the
-            // whole screen, so the pad would only cover its buttons. The touch-device rule
-            // stays the outer condition — a desktop never shows the pad in any mode.
-            var visible = Wanted && !_battleHidden;
+            // Shown only where it drives something. The touch-device rule stays the outer
+            // condition — a desktop never shows the pad in any mode.
+            var visible = Wanted && _usable;
             if (_canvas.gameObject.activeSelf == visible) return;
             _canvas.gameObject.SetActive(visible);
 

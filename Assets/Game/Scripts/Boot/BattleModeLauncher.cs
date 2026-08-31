@@ -371,6 +371,24 @@ namespace PokeLab.Boot
             if (presenter != null) yield return presenter.WaitUntilIdle(20f);
 
             ShowOverlay();
+
+            // A stopped match is not a lost one, and it must not be reported as one.
+            //
+            // Every failure in the exchange -- they left, they stopped answering, the two
+            // simulations fell out of step -- ends the battle through Abort, which reports a
+            // flee. Read as "not a victory" that came out as "패배했어요" on screen AND as a
+            // loss sent to the server, so a player whose opponent closed their laptop was told
+            // they had been beaten and had it recorded. The broker already knows exactly which
+            // of those happened; this is the first place with anywhere to say it.
+            var stopped = _broker != null && !string.IsNullOrEmpty(_broker.Failure);
+            if (stopped)
+            {
+                Say(PvpTurnBroker.Explain(_broker.Failure));
+                yield return Wait(3f);
+                Finish();
+                yield break;
+            }
+
             var won = result != null && result.Outcome == BattleOutcome.PlayerVictory;
 
             Say(won
@@ -980,19 +998,38 @@ namespace PokeLab.Boot
         /// A fresh list every call, as the interface requires — the engine mutates what it is
         /// handed, and a second battle against a shared list would open with a party that is
         /// already fainted.
+        ///
+        /// <b>Copied, never rebuilt.</b> This used to call <c>CreatureFactory.Create</c> again
+        /// with <c>InstanceId.GetHashCode()</c> as the seed, which is not the seed the party
+        /// was built with — so the creatures that came back had different IVs, different
+        /// stats, and neither the moves the player had taught nor the stars they had paid for.
+        ///
+        /// In an AI battle that merely threw away work nobody could see. In PvP it was fatal:
+        /// each machine builds its OWN team from the profile and the OTHER team through here,
+        /// so the two engines disagreed about all twelve creatures. The desync fingerprint
+        /// caught it on the first turn and stopped the match, and a stopped match is reported
+        /// as a loss — both players chose a move and were instantly told they had been beaten.
         /// </summary>
         public IReadOnlyList<CreatureInstance> BuildParty(string trainerId, int levelOffset = 0)
         {
             if (trainerId != _id) return Array.Empty<CreatureInstance>();
+
+            if (levelOffset != 0)
+            {
+                // Nothing sets one here, and honouring it would mean re-deriving stats — the
+                // very thing this method exists to stop doing. Said out loud rather than
+                // silently ignored, because a silently ignored difficulty knob is worse.
+                Debug.LogWarning($"[BattleMode] A level offset of {levelOffset} was requested " +
+                                 "and ignored; battle-mode parties are copied exactly so both " +
+                                 "machines in a PvP match hold the same creatures.");
+            }
 
             var copy = new List<CreatureInstance>(_party.Count);
             for (var i = 0; i < _party.Count; i++)
             {
                 var source = _party[i];
                 if (source == null) continue;
-                var rebuilt = CreatureFactory.Create(source.SpeciesId,
-                    Mathf.Max(1, source.Level + levelOffset), source.InstanceId.GetHashCode(), ordinal: i);
-                copy.Add(rebuilt);
+                copy.Add(CreatureFactory.Clone(source));
             }
 
             return copy;

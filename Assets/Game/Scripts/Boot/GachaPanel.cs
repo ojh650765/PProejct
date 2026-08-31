@@ -323,8 +323,12 @@ namespace PokeLab.Boot
             var affordable = session != null && session.AffordablePulls >= _pulls;
             var cost = CostOf(session, _pulls);
 
+            // The shortfall, not just the refusal. "코인이 부족해요" answers a question the
+            // player did not ask -- they can see the button is dead -- while leaving the one
+            // they did ask, which is how much more they need before it works.
             _rollLabel.text = !affordable
-                ? Loc.Pick("Not enough coins", "코인이 부족해요")
+                ? Loc.Pick($"Need {Shortfall(session, cost):N0} more",
+                           $"{Shortfall(session, cost):N0} 코인 더 필요")
                 : cost <= 0
                     ? Loc.Pick($"Draw {_pulls} · free", $"{_pulls}회 뽑기 · 무료")
                     : Loc.Pick($"Draw {_pulls} · {cost:N0}", $"{_pulls}회 뽑기 · {cost:N0}");
@@ -354,6 +358,10 @@ namespace PokeLab.Boot
         }
 
         /// <summary>Coins the given number of pulls would cost, free pulls taken off first.</summary>
+        /// <summary>How many more coins this draw needs. Never negative.</summary>
+        private static int Shortfall(OnlineSession session, int cost) =>
+            Mathf.Max(0, cost - (session?.Coins ?? 0));
+
         private static int CostOf(OnlineSession session, int pulls)
         {
             if (session == null) return 0;
@@ -561,8 +569,13 @@ namespace PokeLab.Boot
             if (session.AffordablePulls < _pulls)
             {
                 UiSound.Error();
-                Say(Loc.Pick("Not enough coins. Battles pay whether you win or lose.",
-                             "코인이 부족해요. 대전은 이기든 지든 코인을 줘요."));
+                var cost = CostOf(session, _pulls);
+                var short_ = Shortfall(session, cost);
+                Say(Loc.Pick(
+                    $"{cost:N0} coins needed, {session.Coins:N0} in hand — {short_:N0} short. " +
+                    "Battles pay whether you win or lose.",
+                    $"{cost:N0} 코인이 필요한데 {session.Coins:N0} 코인뿐이에요. " +
+                    $"{short_:N0} 코인이 모자라요. 대전은 이기든 지든 코인을 줘요."));
                 return;
             }
 
