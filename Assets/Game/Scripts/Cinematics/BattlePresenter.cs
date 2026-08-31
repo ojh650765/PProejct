@@ -237,6 +237,19 @@ namespace PokeLab.Cinematics
         /// </summary>
         private IEnumerator DriveBattle(Simulation battle)
         {
+            // The budget is per TURN, and it used to be per battle.
+            //
+            // Five minutes is a long time for one turn to make no progress, and no time at all
+            // for a whole match between two people: a PvP turn gives each player a thirty
+            // second clock, waits up to ninety for their answer, and then performs the result.
+            // Six creatures each and the fight runs past five minutes without anything being
+            // wrong with it -- at which point this fired, aborted a perfectly healthy battle,
+            // and the abort reached the player as 패배했어요 with their whole team still
+            // standing. That is precisely what was reported.
+            //
+            // What the guard is actually for is a battle that has STOPPED moving, so that is
+            // what it now measures: the clock restarts every time a turn resolves. A match
+            // that keeps producing turns is allowed to take as long as the two people take.
             float deadline = Time.unscaledTime + Mathf.Max(10f, claimedBattleTimeout);
 
             while (battle.IsBattleActive && Time.unscaledTime < deadline)
@@ -306,12 +319,15 @@ namespace PokeLab.Cinematics
                     battle.Abort("A turn resolved to an empty event stream.");
                     break;
                 }
+
+                // Progress. The watchdog is measuring a stall, and there has not been one.
+                deadline = Time.unscaledTime + Mathf.Max(10f, claimedBattleTimeout);
             }
 
             if (battle.IsBattleActive)
             {
-                Debug.LogError($"[BattlePresenter] The battle ran past {claimedBattleTimeout:0}s without " +
-                               "resolving; aborting so the player is released.", this);
+                Debug.LogError($"[BattlePresenter] No turn resolved for {claimedBattleTimeout:0}s; " +
+                               "aborting so the player is released.", this);
                 battle.Abort("The performance exceeded its time budget.");
             }
 

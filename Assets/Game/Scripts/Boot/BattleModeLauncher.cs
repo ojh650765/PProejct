@@ -351,8 +351,14 @@ namespace PokeLab.Boot
                 BiomeId = "arena",
             }, resolved => result = resolved);
 
+            // Long enough for two people to play a full six-on-six with a thirty second
+            // clock each. It is a backstop against this coroutine outliving its battle, not a
+            // limit on how long a match may take -- the presenter's own per-turn watchdog is
+            // what catches a fight that has actually stopped moving.
+            var patience = pvp != null ? 3600f : 900f;
+
             var elapsed = 0f;
-            while (result == null && elapsed < 900f)
+            while (result == null && elapsed < patience)
             {
                 elapsed += Time.unscaledDeltaTime;
                 yield return null;
@@ -374,16 +380,25 @@ namespace PokeLab.Boot
 
             // A stopped match is not a lost one, and it must not be reported as one.
             //
-            // Every failure in the exchange -- they left, they stopped answering, the two
-            // simulations fell out of step -- ends the battle through Abort, which reports a
-            // flee. Read as "not a victory" that came out as "패배했어요" on screen AND as a
-            // loss sent to the server, so a player whose opponent closed their laptop was told
-            // they had been beaten and had it recorded. The broker already knows exactly which
-            // of those happened; this is the first place with anywhere to say it.
-            var stopped = _broker != null && !string.IsNullOrEmpty(_broker.Failure);
-            if (stopped)
+            // <b>Every</b> abort, not only the ones the broker knows about. Aborting reports a
+            // flee, and nothing downstream distinguished that from losing -- so a player whose
+            // opponent closed their laptop, or whose battle tripped a watchdog with their whole
+            // team still standing, was told they had been beaten and had it recorded against
+            // their account.
+            //
+            // Fled is unambiguous here: a trainer battle refuses a flee, so in a match it can
+            // only have come from Abort. Testing the outcome rather than the broker's own
+            // failure catches the paths the broker never hears about -- the presenter's turn
+            // watchdog, an empty event stream, the scene being torn down mid-fight -- and each
+            // of those had exactly the same wrong ending.
+            var aborted = result == null || result.Outcome == BattleOutcome.Fled;
+            if (pvp != null && aborted)
             {
-                Say(PvpTurnBroker.Explain(_broker.Failure));
+                // The broker's reason when it has one, and an honest generic when the stop
+                // came from somewhere it cannot see.
+                Say(!string.IsNullOrEmpty(_broker?.Failure)
+                    ? PvpTurnBroker.Explain(_broker.Failure)
+                    : Loc.Pick("The match was stopped.", "대전이 중단되었어요."));
                 yield return Wait(3f);
                 Finish();
                 yield break;
