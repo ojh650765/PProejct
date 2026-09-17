@@ -110,16 +110,28 @@ namespace PokeLab.Boot.Editor
         {
             new Room("Interior_Lab", "interior_lab", 5.5f, 4.5f, 3.6f,
                      "Spawn_Outside_Door_Town_Lab_01"),
+            new Room("Interior_PlayerHome", "interior_player_home", 4f, 3.25f, 2.9f,
+                     "Spawn_Outside_Door_Town_House_01"),
             new Room("Interior_House", "interior_house", 4f, 3.25f, 2.9f,
                      "Spawn_Outside_Door_Town_House_01"),
             new Room("Interior_PokeCentre", "interior_pokecentre", 6f, 4.5f, 3.6f,
                      "Spawn_Outside_Door_Town_PokeCentre_01"),
         };
 
+        [MenuItem("Tools/Poké Lab/Story/Rebuild Player Home Only")]
+        public static void BuildPlayerHome()
+        {
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Interior_PlayerHome.unity");
+            foreach(var room in Rooms)if(room.Scene=="Interior_PlayerHome")Build(room);
+            PlayerRigSetup.CreateRig();
+            EditorSceneManager.SaveOpenScenes();
+        }
+
         /// <summary>Door opening in the room's south wall. Wider than the outside door on
         /// purpose: this one is walked through in both directions and at an angle.</summary>
         private const float DoorWidth = 1.8f;
         private const float DoorHeight = 2.4f;
+        private const float EntryDepth = 2f;
 
         /// <summary>Scene names every interior contributes to the build settings.</summary>
         public static IEnumerable<string> SceneNames()
@@ -204,7 +216,28 @@ namespace PokeLab.Boot.Editor
             // just stood inside the room. Run the other way round it drops them at the town's
             // plaza coordinates, which in here is somewhere outside the walls.
             PlayerRigSetup.CreateRig();
+            ConfigureCamera(room);
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             EditorSceneManager.SaveOpenScenes();
+        }
+
+        private static void ConfigureCamera(Room room)
+        {
+            foreach (var rig in Object.FindObjectsByType<OverworldCameraRig>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                var serialized = new SerializedObject(rig);
+                serialized.FindProperty("_lockYaw").boolValue = true;
+                serialized.FindProperty("_fixedYaw").floatValue = 0f;
+                serialized.FindProperty("_fixedPitch").floatValue = 38f;
+                serialized.FindProperty("_minPitch").floatValue = 38f;
+                serialized.FindProperty("_maxPitch").floatValue = 38f;
+                serialized.FindProperty("_restDistance").floatValue = room.HalfWidth < 5 ? 9f : 11f;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                var orbit = rig.GetComponent<Unity.Cinemachine.CinemachineOrbitalFollow>();
+                if (orbit == null) continue;
+                var yaw = orbit.HorizontalAxis; yaw.Value = 0; orbit.HorizontalAxis = yaw;
+                var pitch = orbit.VerticalAxis; pitch.Value = 38; orbit.VerticalAxis = pitch;
+            }
         }
 
         /// <summary>Builds the room matching the open scene, if it is an interior.</summary>
@@ -235,7 +268,7 @@ namespace PokeLab.Boot.Editor
             if (existing != null) Object.DestroyImmediate(existing);
 
             var root = new GameObject(RootName);
-            var material = AssetDatabase.LoadAssetAtPath<Material>(TownAtlas);
+            var material = InteriorMaterial();
             if (material == null)
             {
                 Debug.LogWarning($"[Interior] {TownAtlas} not found, so {room.Scene} will draw " +
@@ -245,9 +278,12 @@ namespace PokeLab.Boot.Editor
             BuildShell(room, root.transform, material);
             BuildThreshold(room, root.transform);
             BuildDressing(room, root.transform);
+            if(room.Scene=="Interior_PlayerHome")BuildTelevision(root.transform);
             BuildLamps(room, root.transform);
             BuildDoorAndSpawns(room, root.transform);
             BuildZone(room, root.transform);
+            InteriorStoryBuilder.Build(room.Scene, root.transform);
+            if (room.Scene == "Interior_PlayerHome") Route202Builder.HomeMarkers(root.transform);
             BuildNavigation(root);
 
             var scene = EditorSceneManager.GetActiveScene();
@@ -281,7 +317,7 @@ namespace PokeLab.Boot.Editor
 
             var floor = new MeshData();
             floor.Panel(new Vector3(-hx, 0f, -hz), Vector3.right, Vector3.forward,
-                        hx * 2f, hz * 2f, CellPaving, 1.6f);
+                        hx * 2f, hz * 2f, room.Scene.Contains("House") || room.Scene == "Interior_PlayerHome" ? CellBeam : CellPaving, 1.6f);
 
             var shell = new MeshData();
 
@@ -299,16 +335,6 @@ namespace PokeLab.Boot.Editor
             shell.Panel(new Vector3(DoorWidth * 0.5f, DoorHeight, -hz), Vector3.left, Vector3.up,
                         DoorWidth, top - DoorHeight, CellPlaster, 1.7f);
 
-            // The door reveal, so the wall has thickness where the player walks through it.
-            // Without it the doorway is a hole in a plane and the wall is visibly paper.
-            const float Reveal = 0.3f;
-            shell.Panel(new Vector3(-DoorWidth * 0.5f, 0f, -hz - Reveal), Vector3.forward,
-                        Vector3.up, Reveal, DoorHeight, CellPlaster, 0.9f);
-            shell.Panel(new Vector3(DoorWidth * 0.5f, 0f, -hz), Vector3.back,
-                        Vector3.up, Reveal, DoorHeight, CellPlaster, 0.9f);
-            shell.Panel(new Vector3(-DoorWidth * 0.5f, DoorHeight, -hz), Vector3.right,
-                        Vector3.back, DoorWidth, Reveal, CellBeam, 0.9f);
-
             // The ceiling, facing down. Boards rather than plaster: the beam cell has a
             // direction in it, which is what stops a flat lid reading as fog.
             //
@@ -324,6 +350,37 @@ namespace PokeLab.Boot.Editor
 
             MeshObject(parent, "Floor", floor, material, "Ground", collide: true);
             MeshObject(parent, "Shell", shell, material, "Environment", collide: true);
+
+            // A projecting, open-topped entry makes the exit readable in the cutaway view.
+            // Its floor stays flush with the room so the lip cannot trap the controller.
+            float halfEntry = DoorWidth * .5f;
+            float end = -hz - EntryDepth;
+            var entryFloor = new MeshData();
+            entryFloor.Panel(new Vector3(-halfEntry, 0, end), Vector3.right, Vector3.forward,
+                DoorWidth, EntryDepth, CellPaving, 1.2f);
+            MeshObject(parent, "Entry_Floor", entryFloor, material, "Ground", collide: true);
+            var entrySides = new MeshData();
+            const float curb = .55f, thickness = .16f;
+            foreach (float side in new[] { -1f, 1f })
+            {
+                float inner = side * halfEntry;
+                float outer = side * (halfEntry + thickness);
+                entrySides.Panel(new Vector3(inner, 0, side < 0 ? end : -hz),
+                    side < 0 ? Vector3.forward : Vector3.back, Vector3.up,
+                    EntryDepth, curb, CellPlaster, 1.2f);
+                entrySides.Panel(new Vector3(outer, 0, side < 0 ? -hz : end),
+                    side < 0 ? Vector3.back : Vector3.forward, Vector3.up,
+                    EntryDepth, curb, CellPlaster, 1.2f);
+                entrySides.Panel(new Vector3(Mathf.Min(inner, outer), curb, end),
+                    Vector3.right, Vector3.forward, thickness, EntryDepth, CellTrim, 1f);
+                entrySides.Panel(new Vector3(Mathf.Min(inner, outer), 0, end),
+                    Vector3.right, Vector3.up, thickness, curb, CellTrim, 1f);
+            }
+            MeshObject(parent, "Entry_SideWalls", entrySides, material, "Environment", collide: true);
+            var sill = new MeshData();
+            sill.Panel(new Vector3(-halfEntry, .012f, -hz - .13f), Vector3.right, Vector3.forward,
+                DoorWidth, .26f, CellBeam, 1f);
+            MeshObject(parent, "Entry_Threshold", sill, material, "Environment", collide: false);
         }
 
         /// <summary>
@@ -354,7 +411,7 @@ namespace PokeLab.Boot.Editor
         {
             var go = new GameObject("Threshold_Blackout");
             go.transform.SetParent(parent, false);
-            go.transform.localPosition = new Vector3(0f, DoorHeight * 0.5f, -room.HalfDepth - 0.32f);
+            go.transform.localPosition = new Vector3(0f, DoorHeight * 0.5f, -room.HalfDepth - EntryDepth);
 
             var mesh = new Mesh { name = "InteriorThreshold" };
             var hw = DoorWidth * 0.5f;
@@ -365,9 +422,9 @@ namespace PokeLab.Boot.Editor
                 new Vector3(-hw,  hh, 0f), new Vector3(hw,  hh, 0f),
             };
             mesh.uv = new[] { Vector2.zero, Vector2.right, Vector2.up, Vector2.one };
-            // Wound both ways: the player walks through this plane's own position on their way
-            // out, and a one-sided quad flashes as they cross it.
-            mesh.triangles = new[] { 0, 2, 1, 2, 3, 1, 1, 2, 0, 1, 3, 2 };
+            // Only the room-facing side is visible. The outside-facing quad used to
+            // cover the player as a large black rectangle in the cutaway camera.
+            mesh.triangles = new[] { 0, 1, 2, 2, 1, 3 };
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
 
@@ -426,53 +483,49 @@ namespace PokeLab.Boot.Editor
         /// is placed within a metre of the door's own line, because a prop there is the first
         /// thing the player walks into on the way in.
         /// </summary>
+        private const string InteriorArt = "Assets/Game/Art/Environment/Interior/Env_Interior_";
+
         private static Fixture[] FixturesFor(Room room)
         {
-            var hx = room.HalfWidth;
-            var hz = room.HalfDepth;
-
             if (room.Scene == "Interior_Lab")
-            {
                 return new[]
                 {
-                    new Fixture(PropArt + "Env_Prop_ResearchTerminal.fbx", -2.6f, hz - 0.55f, 180f),
-                    new Fixture(PropArt + "Env_Prop_ResearchTerminal.fbx", 0f, hz - 0.55f, 180f),
-                    new Fixture(PropArt + "Env_Prop_ResearchTerminal.fbx", 2.6f, hz - 0.55f, 180f),
-                    new Fixture(TownArt + "Env_Bench.fbx", -hx + 0.55f, 0.6f, 90f),
-                    new Fixture(TownArt + "Env_Bench.fbx", -hx + 0.55f, -1.2f, 90f),
-                    new Fixture(TownArt + "Env_Crate.fbx", hx - 0.6f, hz - 1.1f, 24f),
-                    new Fixture(TownArt + "Env_Crate.fbx", hx - 1.25f, hz - 0.8f, -12f),
-                    new Fixture(TownArt + "Env_Barrel.fbx", hx - 0.6f, hz - 2f, 0f),
-                    new Fixture(TownArt + "Env_Planter.fbx", -hx + 0.7f, hz - 0.8f, 0f),
-                    new Fixture(TownArt + "Env_Notice_Board.fbx", hx - 0.45f, -1.4f, -90f),
-                    // On the crate, not on the floor: a ball lying loose in the middle of a
-                    // room is a pickup, and this one is scenery.
-                    new Fixture(PropArt + "Env_Prop_CaptureBall.fbx", hx - 0.6f, hz - 1.1f, 0f, false),
+                    new Fixture(InteriorArt + "Bookshelf.fbx", -3.8f, 3.9f, 180f),
+                    new Fixture(InteriorArt + "Bookshelf.fbx", -1.85f, 3.9f, 180f),
+                    new Fixture(InteriorArt + "LabCabinet.fbx", 1.6f, 3.8f, 180f),
+                    new Fixture(InteriorArt + "LabCabinet.fbx", 3.8f, 3.8f, 180f),
+                    new Fixture(PropArt + "Env_Prop_ResearchTerminal.fbx", -4.5f, 1.1f, 90f),
+                    new Fixture(PropArt + "Env_Prop_ResearchTerminal.fbx", 4.5f, 1.1f, -90f),
+                    new Fixture(InteriorArt + "Table.fbx", -2.8f, -.7f, 0f),
+                    new Fixture(InteriorArt + "Chair.fbx", -2.8f, .25f, 180f),
+                    new Fixture(InteriorArt + "Table.fbx", 2.8f, -.7f, 0f),
+                    new Fixture(InteriorArt + "Chair.fbx", 2.8f, .25f, 180f),
+                    new Fixture(TownArt + "Env_Planter.fbx", -4.7f, -3.4f, 0f),
+                    new Fixture(TownArt + "Env_Planter.fbx", 4.7f, -3.4f, 0f),
                 };
-            }
-
             if (room.Scene == "Interior_PokeCentre")
-            {
                 return new[]
                 {
-                    new Fixture(PropArt + "Env_Prop_HealingMachine.fbx", 0f, hz - 0.6f, 180f),
-                    new Fixture(PropArt + "Env_Prop_ResearchTerminal.fbx", hx - 0.7f, hz - 0.6f, 200f),
-                    new Fixture(TownArt + "Env_Bench.fbx", -2.2f, -0.4f, 0f),
-                    new Fixture(TownArt + "Env_Bench.fbx", 2.2f, -0.4f, 0f),
-                    new Fixture(TownArt + "Env_Planter.fbx", -hx + 0.7f, hz - 0.7f, 0f),
-                    new Fixture(TownArt + "Env_Planter.fbx", -hx + 0.7f, -hz + 1.2f, 0f),
-                    new Fixture(TownArt + "Env_Notice_Board.fbx", -hx + 0.45f, 1.6f, 90f),
+                    new Fixture(PropArt + "Env_Prop_HealingMachine.fbx", 0f, 3.7f, 180f),
+                    new Fixture(InteriorArt + "Reception.fbx", 0f, 1.6f, 0f),
+                    new Fixture(PropArt + "Env_Prop_ResearchTerminal.fbx", 4.7f, 2.9f, 180f),
+                    new Fixture(InteriorArt + "Sofa.fbx", -4.5f, -.4f, 90f),
+                    new Fixture(InteriorArt + "Sofa.fbx", 4.5f, -.4f, -90f),
+                    new Fixture(InteriorArt + "Table.fbx", -3.1f, -.4f, 90f),
+                    new Fixture(InteriorArt + "Bookshelf.fbx", -4.5f, 3.8f, 180f),
+                    new Fixture(TownArt + "Env_Planter.fbx", -5f, -3.4f, 0f),
+                    new Fixture(TownArt + "Env_Planter.fbx", 5f, -3.4f, 0f),
                 };
-            }
-
             return new[]
             {
-                new Fixture(TownArt + "Env_Bench.fbx", -hx + 0.55f, 0.4f, 90f),
-                new Fixture(TownArt + "Env_Crate.fbx", hx - 0.6f, hz - 0.7f, 18f),
-                new Fixture(TownArt + "Env_Crate.fbx", hx - 0.55f, hz - 1.4f, -30f),
-                new Fixture(TownArt + "Env_Barrel.fbx", -hx + 0.6f, hz - 0.7f, 0f),
-                new Fixture(TownArt + "Env_Planter.fbx", hx - 0.7f, -hz + 1.1f, 0f),
-                new Fixture(TownArt + "Env_Notice_Board.fbx", 0f, hz - 0.35f, 180f),
+                new Fixture(InteriorArt + "Bed.fbx", -2.7f, 1.8f, 0f),
+                new Fixture(InteriorArt + "Bookshelf.fbx", -.65f, 2.85f, 180f),
+                new Fixture(InteriorArt + "Kitchen.fbx", 2.3f, 2.65f, 180f),
+                new Fixture(InteriorArt + "Table.fbx", 2f, -.1f, 0f),
+                new Fixture(InteriorArt + "Chair.fbx", 2f, -.95f, 0f),
+                new Fixture(InteriorArt + "Chair.fbx", 2f, .8f, 180f),
+                new Fixture(InteriorArt + "Sofa.fbx", -2.8f, -1.3f, 90f),
+                new Fixture(TownArt + "Env_Planter.fbx", 3.3f, -2.5f, 0f),
             };
         }
 
@@ -484,6 +537,7 @@ namespace PokeLab.Boot.Editor
             var missing = new HashSet<string>();
             foreach (var fixture in FixturesFor(room))
             {
+                if(room.Scene=="Interior_PlayerHome" && fixture.Path.EndsWith("Bookshelf.fbx"))continue;
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(fixture.Path);
                 if (prefab == null) { missing.Add(fixture.Path); continue; }
 
@@ -498,7 +552,11 @@ namespace PokeLab.Boot.Editor
                 if (atlas != null)
                 {
                     foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
-                        renderer.sharedMaterial = atlas;
+                    {
+                        var slots = renderer.sharedMaterials;
+                        for (int i = 0; i < slots.Length; i++) slots[i] = atlas;
+                        renderer.sharedMaterials = slots;
+                    }
                 }
 
                 // Collided before it is turned, so the box is measured on the module's own axes.
@@ -509,6 +567,11 @@ namespace PokeLab.Boot.Editor
                 instance.transform.localRotation = Quaternion.Euler(0f, fixture.Yaw, 0f);
                 instance.isStatic = true;
                 SetLayer(instance, "Environment");
+                if (fixture.Path.EndsWith("Reception.fbx"))
+                {
+                    instance.AddComponent<HealingMachine>();
+                    SetLayer(instance, "Interactable");
+                }
             }
 
             foreach (var path in missing)
@@ -537,11 +600,59 @@ namespace PokeLab.Boot.Editor
             box.size = new Vector3(bounds.size.x, bounds.size.y, bounds.size.z);
         }
 
+        private static void BuildTelevision(Transform parent)
+        {
+            const string texturePath="Assets/Game/Art/Environment/Interior/Textures/TV_Broadcast.png";
+            const string materialPath="Assets/Game/Art/Environment/Interior/TV_Broadcast.mat";
+            var prefab=AssetDatabase.LoadAssetAtPath<GameObject>(InteriorArt+"Television.fbx");
+            if(prefab==null)throw new System.InvalidOperationException("Build the television through Blender MCP first.");
+            var textureImporter=AssetImporter.GetAtPath(texturePath) as TextureImporter;
+            if(textureImporter!=null)
+            {
+                textureImporter.maxTextureSize=512;textureImporter.filterMode=FilterMode.Point;
+                textureImporter.textureCompression=TextureImporterCompression.Uncompressed;
+                textureImporter.SaveAndReimport();
+            }
+            var material=AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            if(material==null)
+            {
+                material=new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+                AssetDatabase.CreateAsset(material,materialPath);
+            }
+            material.SetTexture("_BaseMap",AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath));
+            material.SetColor("_BaseColor",new Color(.8f,.8f,.8f,1));EditorUtility.SetDirty(material);
+            var tv=(GameObject)PrefabUtility.InstantiatePrefab(prefab,parent);tv.name="Television";
+            tv.transform.localPosition=new Vector3(0,0,2.45f);
+            foreach(var renderer in tv.GetComponentsInChildren<MeshRenderer>())
+                renderer.sharedMaterial=renderer.name.StartsWith("TV_Screen") ? material : AtlasFor(InteriorArt+"Television.fbx");
+            AddBoxCollision(tv);tv.transform.localRotation=Quaternion.Euler(0,180,0);SetLayer(tv,"Environment");
+            var marker=new GameObject("Spawn_WatchTV");marker.transform.SetParent(parent,false);marker.transform.localPosition=new Vector3(0,.03f,.9f);
+            AssetDatabase.SaveAssets();
+        }
+
+        private static Material InteriorMaterial()
+        {
+            const string path = "Assets/Game/Art/Environment/Interior/M_Interior.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                var source = AssetDatabase.LoadAssetAtPath<Material>(TownAtlas);
+                if (source == null) return null;
+                material = new Material(source) { name = "M_Interior" };
+                AssetDatabase.CreateAsset(material, path);
+            }
+            material.SetFloat("_MossStrength", 0);
+            material.SetFloat("_BlendStrength", 0);
+            material.SetFloat("_RimStrength", .12f);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         private static Material AtlasFor(string path)
         {
             var atlas = path.Contains("/Props/")
                 ? "Assets/Game/Art/Props/Materials/M_Env_Props.mat"
-                : TownAtlas;
+                : "Assets/Game/Art/Environment/Interior/M_Interior.mat";
             return AssetDatabase.LoadAssetAtPath<Material>(atlas);
         }
 
@@ -608,7 +719,7 @@ namespace PokeLab.Boot.Editor
                 var light = glow.AddComponent<Light>();
                 light.type = LightType.Point;
                 light.color = new Color(1f, 0.87f, 0.68f);
-                light.intensity = 1.7f;
+                light.intensity = room.Scene == "Interior_PlayerHome" ? .65f : 1.7f;
                 light.range = 7.5f;
                 // No shadows. Five shadow-casting point lights in one room is five extra
                 // cubemap passes to soften a shadow nobody is looking at.
@@ -647,10 +758,10 @@ namespace PokeLab.Boot.Editor
 
             var exit = new GameObject("Door_Out");
             exit.transform.SetParent(parent, false);
-            exit.transform.localPosition = new Vector3(0f, 0f, -room.HalfDepth + 0.5f);
+            exit.transform.localPosition = new Vector3(0f, 0f, -room.HalfDepth - EntryDepth + .45f);
 
             var box = exit.AddComponent<BoxCollider>();
-            box.size = new Vector3(DoorWidth, DoorHeight, 1f);
+            box.size = new Vector3(DoorWidth, DoorHeight, .8f);
             box.center = new Vector3(0f, DoorHeight * 0.5f, 0f);
             box.isTrigger = true;
 
@@ -712,6 +823,14 @@ namespace PokeLab.Boot.Editor
             surface.layerMask = MaskOf("Ground") | MaskOf("Environment") | MaskOf("Interactable");
             surface.overrideVoxelSize = true;
             surface.voxelSize = 0.12f;
+            foreach (var collider in root.GetComponentsInChildren<Collider>())
+            {
+                if (collider.isTrigger || collider.gameObject.layer == LayerMask.NameToLayer("Ground")) continue;
+                var modifier = collider.GetComponent<NavMeshModifier>() ?? collider.gameObject.AddComponent<NavMeshModifier>();
+                modifier.overrideArea = true;
+                modifier.area = NavMesh.GetAreaFromName("Not Walkable");
+            }
+            Physics.SyncTransforms();
             surface.BuildNavMesh();
 
             if (surface.navMeshData == null)

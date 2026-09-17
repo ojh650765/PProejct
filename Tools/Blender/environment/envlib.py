@@ -44,6 +44,7 @@ FAMILY_DIR = {
     "Foliage": os.path.join(ART_ENV, "Foliage"),
     "Terrain": os.path.join(ART_ENV, "Terrain"),
     "Town": os.path.join(ART_ENV, "Town"),
+    "Interior": os.path.join(ART_ENV, "Interior"),
     "Characters": os.path.join(ART_ENV, "Characters"),
     "Props": ART_PROPS,
 }

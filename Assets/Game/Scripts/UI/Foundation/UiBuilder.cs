@@ -387,13 +387,7 @@ namespace PokeLab.UI
         /// </summary>
         public static void EnsureEventSystem()
         {
-#if UNITY_2023_1_OR_NEWER
-            if (UnityEngine.Object.FindFirstObjectByType<EventSystem>() != null) return;
-#else
-            if (UnityEngine.Object.FindObjectOfType<EventSystem>() != null) return;
-#endif
-            var go = new GameObject("EventSystem", typeof(EventSystem));
-            go.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            SceneEventSystem.Ensure();
         }
     }
 }

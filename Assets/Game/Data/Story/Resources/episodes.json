@@ -22,7 +22,7 @@
       "15": "CreatureApproach -- NEW. Walk the staged creature up to the player and block until it is 1.6 m away. Seconds is a timeout, as with MoveActor: an approach that does not land is snapped, because the beat after it is a battle that needs the creature on screen.",
       "16": "MoveActorToPlayer -- NEW. Walk the actor named by Id to the player's shoulder and block until they are there. Seconds is a timeout, as with MoveActor; Value false means do not turn to face the player on arrival. Exists because the marks live in cast.json and the player does not: the friend who has to be standing beside them when the grass moves has no mark to walk to, and authoring one would pin the shot to a spot the player may not be standing on.",
       "17": "StageRing -- NEW. Ring the player, and the actor named by Id when there is one, with wild creatures; Value false takes the ring away again with a scatter rather than a blink. Target is the game species id and defaults to the staged creature's own, so the ring is that creature's flock. Amount is how many, clamped 3-12. SECONDS IS THE RADIUS IN METRES on this beat and not a wait -- it does not wait for anything. Placed on the navmesh, deterministically from the beat, facing inward, and held still: they cannot wander and cannot start a battle by touching anybody. Removed when the episode ends on every path.",
-      "18": "ExitActor -- Send the actor named by Id away along Target: one marker, or a '>'-separated route ('Mark_Exit_RampDown>Mark_Rival_BagSide') whose LAST mark is the landing and whose earlier marks are waypoints the visible walk must pass through. The landing is the direction they left in, not necessarily the end of the journey: past it they keep walking the same bearing. DESPAWN RULE (2026-08-20): nothing is hidden or teleported until the actor has been continuously out of the camera for EpisodeRunner._exitOffscreenGraceSeconds AND is _exitDespawnDistanceMetres from the player (defaults 2 s / 25 m) -- 'out of frame for one frame' under the free camera is just a player mid-turn. Legs the agent cannot genuinely path (PathComplete, not partial -- a partial path veers to wherever the mesh ends) run as a scripted straight-line walk at _exitRunSpeed with obstacle side-stepping, so the seam and the gate cannot bend the visible walk. Seconds is a ceiling; overrunning it far from the player ends the exit quietly at distance, overrunning it NEAR the player is an error, because somebody was removed in full view. Value true takes them off the screen (hidden first, moved second, so the landing snap is invisible); Value false leaves them drawn and standing on the landing mark -- or, if they walked the whole route watched, simply standing where they walked to, no teleport at all. Speed (optional, metres/second) is THIS departure's pace, driving the agent on mesh legs and the scripted line alike -- authored per beat because Kes bolts for the cave at 2.8 while Linden's exits must stay at his own 1.4 walk; 0/absent keeps the walker's agent speed on mesh legs and the runner's _exitRunSpeed on scripted ones. One '[Exit]' console line records every despawn decision.",
+      "18": "ExitActor holds control and moves on dry ground until offscreen, then places the actor at the final marker. Blocked routes use a short fade. Value false keeps the actor at the destination; Speed is metres/second.",
       "19": "CameraShot -- NEW. Frame a genuinely COMPOSED shot: Id names a shot in shots.json, and the cinematics layer places an aimed, deoccluded CinemachineCamera from that authored composition (fixed position + look-at, or an orbit around a runtime-resolved object -- Actor_StagedCreature, Prop_ProfessorBag, the player) on the episode-shot priority rung. The shot is HELD until the next CameraShot/PlayTimeline replaces it, a GiveControl beat runs, or the episode ends -- the runner's finally releases it on every path, and a NextEpisodeId chain hands the held shot across the seam the way it hands the staged creature. Target is the marker the beat degrades to (a plain CameraTo yaw swing) when the cinematics layer or shots.json is missing, so the scene still points somewhere. The dialogue conversation camera outbids this rung for the length of a line and drops back; the shot keeps its state while outbid.",
       "20": "PlayTimeline -- NEW. Play the generated TimelineAsset named by Id (Resources/Timelines, built by Tools/Poké Lab/Rebuild/Sequencing Timelines from shots.json) through the cinematics layer's director, blocking. Seconds is a CEILING, not a duration -- it defaults to the asset's own length plus two seconds, and on overrun the choreography is jumped to its final frame rather than abandoned mid-move. The final frame is then held exactly like a CameraShot. Target is the CameraTo fallback marker, as with 19. Asset missing: log, degrade to the yaw swing, spend no time.",
       "21": "RestoreParty -- Grants the player's whole party Amount levels (0 = none) and then restores everyone to full: HP to the NEW maximum, status cleared, PP refilled. Level first, heal second, in the runner and not in the data, so the heal always fills what the level-up just raised; the grant rides the same stat-rebuild path a save restore uses (CreatureFactory.GrantLevels -> ApplyStats), never hand-poked numbers, and the experience floor moves with the level so the bar cannot draw negative. Instant -- waits for nothing. Authored for the starter's first battle ('스타팅 전투 끝나면 플레이어의 포켓몬 레벨업시켜서 HP도 full로 만들기'), whole-party so it stays true when the party grows."
@@ -31,16 +31,16 @@
       "Id": "stable id; EpisodeRunner._openingEpisodeId points at 'opening'.",
       "CompletionFlag": "set when the episode's beats genuinely run to the end -- and ONLY then. It used to be set in the runner's finally unconditionally, failure included, which guaranteed flags like story.pokedex at the cost of the opposite failure: an episode interrupted halfway (exception in a beat, coroutine stopped) was stamped as seen, could never be offered again, and the save was permanently short one scene with nothing on screen to say so. Now an interrupted episode leaves its flag unset, its StoryEncounter re-offers it (StoryEncounter checks this flag after the runner returns), and a chain link that died between sessions is resumed by the runner at startup. An episode with its flag set never replays, as before.",
       "NextEpisodeId": "Played immediately when this one finishes, in the same frame the previous one releases. Used only where two scenes are really one scene split for authoring. Read by Episode.NextEpisodeId in EpisodeRunner.cs -- the field was absent for a while, and JsonUtility drops what it has no field for without a word, so the chain authored here was silently discarded. Two runner rules keep a chain honest: an interrupted episode does not chain (its successor stays owed to the save rather than playing over a scene that never happened), and at startup the runner scans for any link whose predecessor's CompletionFlag is set while its own is not -- the save-quit hole, where a session ends between links and no StoryTrigger points at the successor -- and resumes the earliest such link.",
-      "Trigger": "Advisory, and still not read by the runner. The live wiring is LevelLayoutBuilder.StoryTriggers, which hangs a StoryEncounter on the named actor at build time; this stays as the authored intent so the two can be compared. Keep them in step by hand -- nothing checks. NOTE: one StoryEncounter per actor. BuildStoryTriggers reuses the component it finds, so two triggers naming the same actor is not two beats, it is the second overwriting the first. Bram and Kes are each wanted twice, so each spends its one slot on the beat that has to be on the character -- Bram's refusal, and Kes' battle -- and the other beat hangs off a marker object nearby ('Trigger_GateOpen', 'Trigger_Square')."
+      "Trigger": "Advisory, and still not read by the runner. The live wiring is LevelLayoutBuilder.StoryTriggers, which hangs a StoryEncounter on the named actor at build time; this stays as the authored intent so the two can be compared. Keep them in step by hand -- nothing checks. NOTE: one StoryEncounter per actor. BuildStoryTriggers reuses the component it finds, so two triggers naming the same actor is not two beats, it is the second overwriting the first. Bram and Barry are each wanted twice, so each spends its one slot on the beat that has to be on the character -- Bram's refusal, and Barry' battle -- and the other beat hangs off a marker object nearby ('Trigger_GateOpen', 'Trigger_Square')."
     },
-    "actNote": "The opening act, restructured. The shape is now: the player tries to leave, is turned back and told to find Kes; Kes sets a forfeit and bolts; the gate opens; the player finds Linden muttering on the lake bank; he leaves his bag; a creature that is already standing in the grass walks up to them; they take a ball out of the bag under pressure and fight it; Linden comes back and gives them the dex. Everything that used to happen at the town gate -- the case on the ground, the flock, the choice, the rival battle -- has moved or gone. The single biggest change is that the first battle is against a creature the player watched approach, not a cut to a battle screen.",
+    "actNote": "DP-inspired early chapter: friend, lake bag, Sinnoh starter, Starly battle, return to the professor in the laboratory for the Pokedex.",
     "gaps": [
       "AskName (13) falls through to its Id ('Ren') when nothing presents it. NameEntryPresenter exists now, so this is only a fallback.",
       "Dialogue text uses a {PLAYER} token; EpisodeRunner.Substitute replaces it.",
-      "'vfx.kes_runs' (kes_summons line 3) and 'vfx.professor_leaves' (field_professor_mutters line 4) have no listener. Both are the cue for the actor to move, and until something listens the MoveActor beat has to come after the whole dialogue -- so Kes walks away one line after the script has already said he is gone. When a listener exists, drive the run from the event and turn these MoveActor beats into snaps.",
-      "There is no authored line between the starter being taken and the battle starting. op_choice_result_* were Linden's read on the one you took plus Kes announcing the counter, and neither of them is on the bank. The choice is silent by design now rather than by omission -- see the ChooseStarter note -- but the beat after it could still use one, and it would have to be Kes'. StarterPresenter used to wait twenty seconds for op_choice_result before releasing its close-up, which timed out in full every time and held the shot over the top of the battle; it now holds for a fixed 1.6 s.",
+      "'vfx.kes_runs' (kes_summons line 3) and 'vfx.professor_leaves' (field_professor_mutters line 4) have no listener. Both are the cue for the actor to move, and until something listens the MoveActor beat has to come after the whole dialogue -- so Barry walks away one line after the script has already said he is gone. When a listener exists, drive the run from the event and turn these MoveActor beats into snaps.",
+      "There is no authored line between the starter being taken and the battle starting. op_choice_result_* were Linden's read on the one you took plus Barry announcing the counter, and neither of them is on the bank. The choice is silent by design now rather than by omission -- see the ChooseStarter note -- but the beat after it could still use one, and it would have to be Barry'. StarterPresenter used to wait twenty seconds for op_choice_result before releasing its close-up, which timed out in full every time and held the shot over the top of the battle; it now holds for a fixed 1.6 s.",
       "'story.case_open' is authored on op_professor_arrives, which nothing plays any more, so StarterPresenter's early-open path is dead and the case opens from the ChooseStarter beat instead. Harmless, and worth knowing before anyone goes looking for why the signal never fires.",
-      "Bram has no repeatable 'go and find Kes' line. gate_wait_for_kes is PlaysOnlyOnce, and dialogue.json's NpcBindings still default npc_gate_01 to gate_block_no_starter -- so a player who walks into the closed ramp a second time is told they have no Pokemon rather than that Kes is waiting.",
+      "Bram has no repeatable 'go and find Barry' line. gate_wait_for_kes is PlaysOnlyOnce, and dialogue.json's NpcBindings still default npc_gate_01 to gate_block_no_starter -- so a player who walks into the closed ramp a second time is told they have no Pokemon rather than that Barry is waiting.",
       "RETIRED, and their dialogue with them: 'opening_departure' (op_rival_start, op_gate_block, op_flock, op_professor_arrives, op_choice_prompt, op_choice_result_1/_5/_10, op_handover) and 'leaving_town' (dex_handover, dex_close, and the two repels it granted). 'riv_after' went with the rival battle's Linden beats. None of that copy is reachable now."
     ]
   },
@@ -49,84 +49,50 @@
       "Id": "opening",
       "DisplayName": "Aster Town, morning",
       "CompletionFlag": "story.opening_seen",
-      "Note": "Unchanged. Cold open: black screen, the professor's voice, the name, then the lab dome filling the top of the screen from the plaza spawn. Ends with control, and nothing to walk towards but the gate -- which is the point. The restructured act begins by letting the player try to leave and stopping them. Target length ~75s.",
+      "Note": "Start at the TV inside the player home. No name entry during the broadcast or departure.",
       "Beats": [
         {
-          "Kind": 5,
-          "KindName": "TakeControl",
-          "Seconds": 0.0,
-          "Note": "Before anything. The player never has control during the prologue."
+          "Kind": 5
         },
         {
           "Kind": 1,
-          "KindName": "FadeOut",
-          "Seconds": 0.6,
-          "Note": "Guarantee black rather than trusting the boot state. 0.6s, not 0.0: when the boot cover is already up this fade is invisible either way, and when it is not -- a scene opened directly, a boot path that revealed early -- 0.0 was a hard cut to black on the first frame, which is the one thing the transition brief forbids. Sixty centiseconds is short enough not to delay the prologue and long enough to read as intent."
+          "Seconds": 0.5
         },
         {
           "Kind": 19,
-          "KindName": "CameraShot",
-          "Id": "shot_lab_dome",
-          "Target": "Look_LabDome",
-          "Seconds": 0.0,
-          "Note": "Framed behind the black, so the fade-in reveals the dome already composed -- and now it genuinely is: the old CameraTo could only yaw the exploration rig, which cut the dome off above the frame (verified in-editor). shot_lab_dome is a placed low-angle camera on the plaza, pitched 22 deg up at the dome, matching tl_opening_reveal's first key so the reveal and the push-in are one continuous frame. Target is the degraded path: no cinematics layer, and this is the old yaw swing again."
-        },
-        {
-          "Kind": 4,
-          "KindName": "Dialogue",
-          "Id": "op_prologue",
-          "Seconds": 0.0,
-          "Note": "8 lines over black. Auto-advancing except the last two. ~32s."
-        },
-        {
-          "Kind": 13,
-          "KindName": "AskName",
-          "Id": "Ren",
-          "Target": "profile.trainer_name",
-          "Seconds": 0.0
-        },
-        {
-          "Kind": 4,
-          "KindName": "Dialogue",
-          "Id": "op_prologue_confirm",
-          "Seconds": 0.0,
-          "Note": "2 lines. Uses {PLAYER}."
+          "Id": "shot_home_tv"
         },
         {
           "Kind": 2,
-          "KindName": "FadeIn",
-          "Seconds": 2.4,
-          "Note": "Slow. This is the shot the whole town was built around."
+          "Seconds": 1.1
         },
         {
-          "Kind": 20,
-          "KindName": "PlayTimeline",
-          "Id": "tl_opening_reveal",
-          "Target": "Look_LabDome",
-          "Seconds": 0.0,
-          "Note": "No text. Let the dome sit there -- then move. Replaces a bare 1.8 s Wait with the authored reveal: 1.2 s of hold and a 3.4 s push-in, scrubbable in the Timeline window. Ends held on the tighter frame, which the bulletin below plays under. Seconds 0 means the default ceiling, asset duration + 2 s."
+          "Kind": 3,
+          "Seconds": 1.5
         },
         {
           "Kind": 4,
-          "KindName": "Dialogue",
-          "Id": "op_broadcast",
-          "Seconds": 0.0,
-          "Note": "The morning bulletin off the plaza research terminal. It names the mystery and points at the lake, which is where the act is going. 3 lines, ~11s."
+          "Id": "home_tv_broadcast"
+        },
+        {
+          "Kind": 3,
+          "Seconds": 1.2
+        },
+        {
+          "Kind": 4,
+          "Id": "home_mom_departure"
         },
         {
           "Kind": 11,
-          "KindName": "SetFlag",
           "Id": "story.opening_seen",
-          "Value": true,
-          "Seconds": 0.0
+          "Value": true
         },
         {
-          "Kind": 6,
-          "KindName": "GiveControl",
-          "Seconds": 0.0,
-          "Note": "Free on the plaza. Sela in the market row points at Kes if the player wanders; the gate is the other thing they can try, and trying it is now the next beat."
+          "Kind": 6
         }
-      ]
+      ],
+      "Scene": "Interior_PlayerHome",
+      "NextEpisodeId": ""
     },
     {
       "Id": "gate_wait_for_kes",
@@ -141,12 +107,16 @@
         "radius": 4.0,
         "approachSeconds": 0.0
       },
-      "Note": "The first block, and it replaces the old 'you have no Pokemon' refusal outright. The difference matters: the old one was a rule, and a rule the player has not broken yet reads as the game distrusting them. This one is a message being passed on -- Bram is not stopping you, Kes is. Nothing is set here except that the refusal happened, and the ramp stays closed because StoryGate is still reading story.gate_open. Target length ~20s.",
+      "Note": "The first block, and it replaces the old 'you have no Pokemon' refusal outright. The difference matters: the old one was a rule, and a rule the player has not broken yet reads as the game distrusting them. This one is a message being passed on -- Bram is not stopping you, Barry is. Nothing is set here except that the refusal happened, and the ramp stays closed because StoryGate is still reading story.gate_open. Target length ~20s.",
       "Beats": [
         {
           "Kind": 5,
           "KindName": "TakeControl",
           "Seconds": 0.0
+        },
+        {
+          "Kind": 19,
+          "Id": "shot_gate_ramp"
         },
         {
           "Kind": 4,
@@ -164,7 +134,7 @@
     },
     {
       "Id": "kes_summons",
-      "DisplayName": "Kes, in the square",
+      "DisplayName": "Barry, in the square",
       "CompletionFlag": "story.kes_summons_done",
       "Trigger": {
         "kind": "proximity",
@@ -175,7 +145,7 @@
         "radius": 5.0,
         "approachSeconds": 0.0
       },
-      "Note": "The send-off. He walks over rather than speaking from his post, because being approached is the whole characterisation. He explains nothing, sets a forfeit and leaves -- and the forfeit is what carries the scene, because it is the only reason the player has to follow somebody who has not said where he is going. This is also where the ramp opens: the flag is set here, in the beat that earns it, rather than in a later scene that could be missed.\n\nTriggered off a marker object in the square rather than off Kes himself, and the walk-over is a MoveActor beat instead of StoryEncounter's own approach. That looks like a downgrade and is not: NPC_Rival has exactly one StoryEncounter slot, and it is needed for the rival battle -- which is the one beat that has to sit on the same object as his TrainerController, or the sight cone and the story beat race each other for who gets to start the fight. See TrainerController.StandsDown. Target length ~40s. Kes leaves through the gate, not across it. He used to be sent straight from the square to his field post, and with the two bands baking separate navmeshes his agent simply headed for the straight line — out through the fence beside the ramp, in full view, which is the one shot this beat exists to sell. Mark_Rival_GateStand stands at the head of the ramp, so the run is square -> gate -> DOWN THE RAMP (Mark_Exit_RampDown, the user-supplied point the exit must visibly pass through) -> the lake bank, and he lands beside the professor's bag (Mark_Rival_BagSide) so the player who follows finds him already there — '먼저 도착' made literal. He stays with the player through the ambush and leaves the act at the end of field_professor_returns, running for the cave on the bet; rival_first_battle is regated to the cave act.",
+      "Note": "Barry invites the player to Lake Verity after the red Gyarados broadcast. Keep control until his fast departure leaves the camera, then place him beside the bag.",
       "Beats": [
         {
           "Kind": 5,
@@ -183,10 +153,14 @@
           "Seconds": 0.0
         },
         {
+          "Kind": 19,
+          "Id": "shot_square"
+        },
+        {
           "Kind": 7,
           "KindName": "MoveActor",
           "Id": "NPC_Rival",
-          "Target": "Mark_Kes_Approach",
+          "Target": "Mark_Barry_Approach",
           "Seconds": 8.0,
           "Note": "He crosses the square and stops in front of the player, facing them -- MoveActor turns an actor to the player on arrival. This is the approach the trigger used to do for free. 3.97 m at NpcController's 1.4 m/s is 2.8 s of walking and the timeout was 4.0, which left nothing for the path being longer than the straight line or for the agent getting up to speed. Widened rather than moving the mark: the timeout is a last resort and should never be what ends a walk."
         },
@@ -198,46 +172,25 @@
           "Note": "5 lines. Line 3 is the forfeit and carries EventId 'vfx.kes_runs'; line 4 is the player watching him go. Nothing listens for the event yet, which is why the walk below happens after the whole conversation instead of during it."
         },
         {
-          "Kind": 11,
-          "KindName": "SetFlag",
-          "Id": "story.gate_open",
-          "Value": true,
-          "Seconds": 0.0,
-          "Note": "Read by StoryGate, which drops the wall across the ramp. Set here and not in 'gate_opens': that episode hangs off a trigger object at the ramp, and if the object is missing the player must still be able to leave."
-        },
-        {
-          "Kind": 6,
-          "KindName": "GiveControl",
-          "Seconds": 0.0,
-          "Note": "BEFORE the walk-offs, not after. Holding the pad through twenty-four seconds of a boy walking away reads as a freeze -- the user called it one, twice. The player is free the moment the last line lands; Kes leaves under their feet, the way a friend actually leaves."
-        },
-        {
-          "Kind": 7,
-          "KindName": "MoveActor",
-          "Id": "NPC_Rival",
-          "Target": "Mark_Player_GateStand",
-          "Seconds": 8.0,
-          "Value": false,
-          "Note": "Waypoint. The navmesh's straight line from the square to the gate cuts behind the market row's houses -- with the walk now happening under the player's free camera, he was watched wading into the back-lot grass. This mark sits ON Path_TownMain; two street hops read as a boy using the road."
-        },
-        {
-          "Kind": 7,
-          "KindName": "MoveActor",
-          "Id": "NPC_Rival",
-          "Target": "Mark_Rival_GateStand",
-          "Seconds": 8.0,
-          "Value": false,
-          "Note": "Square to the head of the ramp: 7.3 m in a straight line, more along the path, which is 5.2 s of walking at 1.4 m/s BEFORE the path is longer than the line -- against a timeout that was 5.0. So this beat ended in the snap every single time and said so: '[Episode] NPC_Rival did not reach Mark_Rival_GateStand within 5.0s and was snapped there.' Widened to 12 s rather than moving the mark closer, because the walk is the shot. Value false because he is leaving: MoveActor turns an actor to face the player on arrival, and a boy who has just shouted that he is counting must not stop at the gate and look back."
-        },
-        {
           "Kind": 18,
           "KindName": "ExitActor",
           "Id": "NPC_Rival",
-          "Target": "Mark_Exit_RampDown>Mark_Rival_BagSide",
-          "Seconds": 24.0,
-          "Speed": 7.0,
-          "Value": true,
-          "Note": "Down the ramp and gone -- and now the route SAYS down the ramp. A single field-side mark gave the walk a bearing that cuts east through the fence beside the gatekeeper, and the baked StoryGate hole in the town mesh (fixed in the 2026-08-20 rebake; the gate now blocks only the player) meant his agent could not even reach the ramp: the partial path's end was the fence, which is the veer-right the play reports describe. Two legs now: Mark_Exit_RampDown is the point ON the ramp the walk must pass through (the user supplied the coordinate), Mark_Rival_BagSide is the landing -- he beats the player to the lake and is standing at the professor's bag when they arrive, which is what '먼저 도착' costs him. Speed 2.8 whichever way a leg runs, agent or scripted -- he has just shouted he is counting, and 1.4 m/s is a stroll. VALUE FLIPPED TO TRUE (2026-08-20, third revision), and the reason is the user-s: -- 그냥 걸어가다가 시야에 사라질때 사라지게 만들고 ... 가는 모습만 보여주는 거지. -- The walk out of town is the shot; the fifty-metre journey after it is not, and a boy jogging the length of the lake in the player-s peripheral vision while they are still talking to Bram is worse than no departure at all. So he is taken off the screen once the despawn rule is genuinely satisfied -- out of the camera for the runner-s offscreen grace AND past its despawn distance, defaults 2 s and 25 m -- and the Kes the player meets at the bag is NOT this walk arriving. He is placed there by StoryPresence the moment story.kes_summons_done is set, from Mark_Rival_BagSide in cast.json, which is what makes 캐시를 가방 옆에 미리 배치 true on a save that never watched him leave and after any scene reload. The route below is unchanged and still authored, because it is what he walks while he can be seen. 53 m of route at 2.8 m/s is 19 s against the 24 s ceiling. SPEED 2.8 -> 7.0 (user: 걸어가는 속도 빠르게해. 플레이어 뛰는 속도보다 빠르게). PlayerLocomotion._runSpeed is 6.0, so 2.8 was less than half the pace of a player who simply held run -- the boy who has just shouted that he is counting was being overtaken by the person he is racing, and the departure read as a stroll. 7.0 is above the player's own ceiling, so he cannot be followed at his own speed. It drives the NavMeshAgent and the scripted straight leg alike (agent.speed is set from this and restored afterwards), and it shortens the visible exit from about 19s to about 8s -- which also cuts how long he is on screen for the stretch of route that crosses the water."
+          "Target": "Mark_Player_GateStand>Mark_Rival_GateStand>Mark_Exit_RampDown>Mark_Rival_BagSide",
+          "Seconds": 12.0,
+          "Speed": 7.5,
+          "Value": false,
+          "Note": "Follow the visible road, then hide and place at the final dry marker after leaving the camera.",
+          "ExitWhenOffscreen": true
+        },
+        {
+          "Kind": 11,
+          "KindName": "SetFlag",
+          "Id": "story.gate_open",
+          "Value": true
+        },
+        {
+          "Kind": 6,
+          "KindName": "GiveControl"
         }
       ]
     },
@@ -254,12 +207,17 @@
         "radius": 4.0,
         "approachSeconds": 0.0
       },
-      "Note": "The player's first sight of the professor is his back, mid-count. He does not stop being mid-thought because somebody arrived, and he does not explain the plot -- the whole scene is a man with forty-one records and a number that does not work. Approach is zero: he is seventy-one and standing still, and a professor who jogs at the player undoes the character. Target length ~45s.",
+      "Note": "Rowan leaves the lake before the bag is inspected.",
       "Beats": [
         {
           "Kind": 5,
           "KindName": "TakeControl",
           "Seconds": 0.0
+        },
+        {
+          "Kind": 20,
+          "Id": "tl_lakebank_arrival",
+          "Seconds": 7
         },
         {
           "Kind": 4,
@@ -269,19 +227,19 @@
           "Note": "5 lines. Line 4 carries EventId 'vfx.professor_leaves'. Nothing listens, so the walk is the beat below."
         },
         {
-          "Kind": 6,
-          "KindName": "GiveControl",
-          "Seconds": 0.0,
-          "Note": "Before the walk-off, for the same reason as kes_summons: fourteen held seconds of an old man walking away reads as a freeze. The bag is on the bank either way; noticing it is the player's move."
-        },
-        {
           "Kind": 18,
           "KindName": "ExitActor",
           "Id": "NPC_Professor",
           "Target": "Mark_Prof_Offstage",
-          "Seconds": 26.0,
+          "Seconds": 12,
           "Value": true,
-          "Note": "He goes back to the town, and the mark is the direction rather than the destination: ExitActor keeps him walking town-ward past it along the same bearing. What changed on 2026-08-20 is WHEN he stops being drawn. 'Out of frame for one frame' was the old rule, and under the free camera that is a player mid-turn -- 박사 아저씨 popped out of existence eight metres away the moment the camera lost him. Now he keeps walking deep toward the town and is only hidden once he has been continuously out of the player's view for the runner's offscreen grace AND is past its despawn distance (defaults 2 s and 25 m, serialized on EpisodeRunner). Ceiling widened 14 -> 26 to buy the distance at his own 1.4 m/s -- he is seventy-one, and the exit run speed is for people who bolt, not for him; his legs stay agent-driven because his own mesh carries them. A player who stands and stares never grants the out-of-view half, so the ceiling ends it at distance, quietly. He is still put back on the mark as he goes dark, because that is verified ground and 'field_professor_returns' brings him in from there."
+          "Note": "Follow the visible road, then hide and place at the final dry marker after leaving the camera.",
+          "ExitWhenOffscreen": true,
+          "Speed": 1.8
+        },
+        {
+          "Kind": 6,
+          "KindName": "GiveControl"
         }
       ]
     },
@@ -299,7 +257,7 @@
         "radius": 3.0,
         "approachSeconds": 0.0
       },
-      "Note": "One line, and then the creature is standing there. Split from 'field_ambush' rather than merged so the ambush can be judged -- and jumped to -- on its own, and chained so there is no frame between them in which the player could walk away. The creature is staged HERE, before the ambush's first line, because the scene is only worth anything if the thing was already in the grass: a creature that appears at the moment it is mentioned is a cut, and a cut is what this act exists to avoid. Target length ~15s.",
+      "Note": "Inspect the abandoned bag and introduce Starly.",
       "Beats": [
         {
           "Kind": 5,
@@ -311,7 +269,11 @@
           "KindName": "MoveActorToPlayer",
           "Id": "NPC_Rival",
           "Seconds": 10.0,
-          "Note": "A step, not a journey. He used to come over from his field post 9 m away -- the user watched that walk and asked for him to simply BE at the bag ('케스 가방 옆에 있는 걸로 배치. 멀리서 걸어오지 않고') -- so kes_summons now lands him on Mark_Rival_BagSide, 2.5 m from the bag, and this beat closes the last metre or two to the player's shoulder. Kept rather than dropped because the episode has to be judgeable on its own: jumped into cold, it still brings him from wherever he is."
+          "Note": "A step, not a journey. He used to come over from his field post 9 m away -- the user watched that walk and asked for him to simply BE at the bag ('용식 가방 옆에 있는 걸로 배치. 멀리서 걸어오지 않고') -- so kes_summons now lands him on Mark_Rival_BagSide, 2.5 m from the bag, and this beat closes the last metre or two to the player's shoulder. Kept rather than dropped because the episode has to be judgeable on its own: jumped into cold, it still brings him from wherever he is."
+        },
+        {
+          "Kind": 19,
+          "Id": "shot_lake_player_hold"
         },
         {
           "Kind": 4,
@@ -324,10 +286,14 @@
           "Kind": 14,
           "KindName": "StageCreature",
           "Id": "Mark_Ambush_Grass",
-          "Target": "21",
+          "Target": "442",
           "Amount": 4,
           "Seconds": 0.0,
-          "Note": "Pidgey, level 4. GAME species id 21, from SliceRoster -- not the national dex number, which is the one mistake in this project that produces a plausible wrong creature rather than an error. A bird by the 2026-08 play-test note, which asked for bird species here; it was Rattata (game 25). It is in the lakeside grass table at levels 3-6 in daylight, so this is a creature the bank could genuinely have produced, which is the whole reason it is a RoamingCreature and not a prop. Level 4 against a level 5 starter: winnable, and not a formality. The same note said the staging read as barely-visible specks: a Pidgey really is 0.3 m tall, so EpisodeRunner draws everything it stages at its staged presence scale (1.5x dex height, ~0.45 m -- the head height shot_creature_stare aims at) rather than authoring a size here."
+          "Note": "Starly (game ID 442), the DP opening wild encounter."
+        },
+        {
+          "Kind": 19,
+          "Id": "shot_lake_player_hold"
         },
         {
           "Kind": 3,
@@ -346,12 +312,16 @@
         "kind": "chained",
         "from": "field_bag_left"
       },
-      "Note": "The moment the act is built to deliver, and the one rule it has is that nothing here is a cut. The creature was placed a beat ago and the player has already looked at it; now the rest of its flock walks out of the reeds and closes round the two of them, then it walks the distance itself on the same NavMesh everything else walks on, and only then does the battle open. The starter choice stays a menu and is deliberately not replaced by a 'take a ball' interaction -- see the note on the ChooseStarter beat.\n\nRESTAGED. Everything the dialogue claimed was happening here used to be happening in the dialogue only: Kes was 9 m away on the shore trail while three of the lines were his, '우리 둘 다 둘러싸였어' was spoken to an empty bank, and -- because the episode that hands off to this one tore its own staging down a line before the hand-off -- there was not even the one creature in the grass. The beats now say what the lines say. Target length ~65s plus the battle.",
+      "Note": "Choose a Sinnoh starter from the bag; complete the reveal before starting the Starly battle.",
       "Beats": [
         {
           "Kind": 5,
           "KindName": "TakeControl",
           "Seconds": 0.0
+        },
+        {
+          "Kind": 19,
+          "Id": "shot_lake_player_hold"
         },
         {
           "Kind": 16,
@@ -365,7 +335,7 @@
           "KindName": "Dialogue",
           "Id": "field_ambush",
           "Seconds": 0.0,
-          "Note": "2 lines now, not 5 -- see the sequence's own note in dialogue.json. The grass moves and Kes yelps at the one creature that has been standing in it since the beat before. What used to be lines 2-4 has moved below, so that the encirclement can be staged in between."
+          "Note": "2 lines now, not 5 -- see the sequence's own note in dialogue.json. The grass moves and Barry yelps at the one creature that has been standing in it since the beat before. What used to be lines 2-4 has moved below, so that the encirclement can be staged in between."
         },
         {
           "Kind": 17,
@@ -375,27 +345,32 @@
           "Amount": 3,
           "Seconds": 4.5,
           "Value": true,
-          "Note": "THE ENCIRCLEMENT, and the reason this beat exists at all is that the line below it -- '야, 양쪽이야! 우리 둘 다 둘러싸였어!' -- has been in the script since the act was written and there has never been anything on screen to make it true. Three of them at 4.5 m -- it was seven, and the 2026-08 play-test note called that too many: seven small creatures at this radius read as a wall of specks, while three, drawn at the staged presence scale, each read as a thing standing there, and '양쪽' still holds because three points around a midpoint are still both sides. Centred on the midpoint of the player and Kes rather than on the player, so the friend is inside the circle with them and not watching from outside it. A slot can still be skipped: the bag is 2.41 m from the waterline and the navmesh excludes water, so a slot on the lake arc has nothing to stand on and is dropped with a note in the log. That is the right failure -- they came out of the grass, not out of the lake -- and the landward side still closes, which is the side the player is facing. Target is empty, which means the staged creature's own species and level: these are its flock (Pidgey now -- see field_bag_left's StageCreature), and the one that walks out at the player in the next beat has to be one of the ones standing in the ring. They are held still -- they cannot wander and cannot open a battle by touching anybody, which matters because the player has no party yet."
+          "Note": "Stage the Starly companions on dry ground, or remove them after the battle."
         },
         {
           "Kind": 4,
           "KindName": "Dialogue",
           "Id": "field_ambush_ringed",
           "Seconds": 0.0,
-          "Note": "1 line. Kes counts the ones that just walked out of the reeds. Played after the ring is up and before the ambusher closes, so the player reads it in that order: one of them, then all of them, then the one coming for you."
+          "Note": "1 line. Barry counts the ones that just walked out of the reeds. Played after the ring is up and before the ambusher closes, so the player reads it in that order: one of them, then all of them, then the one coming for you."
         },
         {
           "Kind": 15,
           "KindName": "CreatureApproach",
           "Seconds": 6.0,
-          "Note": "It closes the distance. 6s is a timeout and not a duration: an approach that snags on the reeds is snapped to 1.6 m rather than holding the player frozen watching it fail."
+          "Note": "The entire flock approaches together at a quick short-step pace, braking on separate dry-ground marks. Seconds is a timeout.",
+          "Speed": 4.2
         },
         {
           "Kind": 4,
           "KindName": "Dialogue",
           "Id": "field_ambush_bag",
           "Seconds": 0.0,
-          "Note": "2 lines, the last of them Kes asking which one you are taking. This is the whole of the setup the choice gets, and the last voice heard before it -- the professor's prompt that used to sit in the box for the length of the choice is gone, because the player is taking a ball out of a stranger's bag with the owner over the hill."
+          "Note": "2 lines, the last of them Barry asking which one you are taking. This is the whole of the setup the choice gets, and the last voice heard before it -- the professor's prompt that used to sit in the box for the length of the choice is gone, because the player is taking a ball out of a stranger's bag with the owner over the hill."
+        },
+        {
+          "Kind": 19,
+          "Id": "shot_lake_player_hold"
         },
         {
           "Kind": 9,
@@ -423,24 +398,28 @@
           "KindName": "StageRing",
           "Value": false,
           "Seconds": 0.0,
-          "Note": "The flock breaks. Value false scatters them outward for a beat and then removes them, rather than blinking them out -- a ring that vanishes is a ring that was never there. It has to happen here and not before the battle, because 'field_professor_returns' chains straight off this episode and Linden must not arrive to a bank still ringed by wild Pokemon. The runner's finally clears anything left on every other path out."
+          "Note": "Stage the Starly companions on dry ground, or remove them after the battle."
         }
       ]
     },
     {
       "Id": "field_professor_returns",
       "DisplayName": "Linden comes back",
-      "CompletionFlag": "story.pokedex",
+      "CompletionFlag": "story.lab_invited",
       "Trigger": {
         "kind": "chained",
         "from": "field_ambush"
       },
-      "Note": "Where the dex is granted, and where the prologue ends. The grant is the CompletionFlag rather than a SetFlag beat on purpose: the runner sets it the moment the beats finish, so a player whose dialogue timed out or whose walk was snapped still comes out of this holding a Pokedex -- every beat in it degrades rather than throwing, which is what 'finish' means here. A genuinely interrupted run (an exception, a stopped coroutine) now leaves the flag unset instead, and the runner's startup chain-resume replays the episode on the next session; that trade -- one scene repeated versus a save that can never leave the opening act, with the field's own encounters and trainers switched off behind the same flag (see StoryPhase) -- is the right one in both directions. He asks for the dex work rather than being given a reason to hand one over; the thread is his own count from the bank, which is why that scene had to come first. Target length ~40s.",
+      "Note": "Rowan checks the Pokemon and invites the player to his laboratory. The Pokedex is given inside the lab.",
       "Beats": [
         {
           "Kind": 5,
           "KindName": "TakeControl",
           "Seconds": 0.0
+        },
+        {
+          "Kind": 19,
+          "Id": "shot_lake_bank"
         },
         {
           "Kind": 7,
@@ -455,7 +434,7 @@
           "KindName": "Dialogue",
           "Id": "field_professor_returns",
           "Seconds": 0.0,
-          "Note": "15 lines now. Alarmed for exactly one of them. REVISED 2026-08-20: the lab invite is gone -- the lab is empty and the story died there -- so Linden looks the starter over mid-conversation ('이리 줘 보게…', which is what the RestoreParty beat below IS on screen), asks for the dex work ON THE SPOT (he stays on the bank with his count; no exit beat for him any more), and the last three lines are Kes declaring the real bet before he bolts for the cave. The dex-ask line carries story.dex_given, the item-get cue; the last line carries vfx.kes_runs, same as his square exit -- nothing listens yet, and when something does, the run below snaps to the line."
+          "Note": "Invitation to the laboratory; no Pokedex award at the lake."
         },
         {
           "Kind": 21,
@@ -468,23 +447,13 @@
           "Kind": 6,
           "KindName": "GiveControl",
           "Seconds": 0.0,
-          "Note": "BEFORE the walk-off, the pattern every scene tonight follows: Kes leaves under the player's feet, not over a frozen pad. From here the field behaves like a field. The flag that ends the prologue is set by the runner's finally only after the exit below finishes -- by which point Kes is hidden in the cave, so rival_first_battle's radius (regated to the cave act anyway) has nobody to fire on."
-        },
-        {
-          "Kind": 18,
-          "KindName": "ExitActor",
-          "Id": "NPC_Rival",
-          "Target": "Mark_Exit_CaveFork>Mark_Exit_CaveBranch>Mark_Rival_CaveDeep",
-          "Seconds": 26.0,
-          "Speed": 2.8,
-          "Value": true,
-          "Note": "동굴 방향 -- the user's revision: he does NOT go back to his shore post, he leaves the act through the cave he just named. The route is the authored ground: back along Path_LakeBranch to the crossroads fork (Mark_Exit_CaveFork sits on Path_CrossroadsFork's west end), up Path_CaveBranch (Mark_Exit_CaveBranch on its bend), and the landing is INSIDE Aster Grotto (Mark_Rival_CaveDeep, 10.8 m past the mouth) -- deliberately deeper than rival_first_battle's 5.0 m radius can be reached from any standable point, because the Town scene still carries the pre-regate trigger until the next rebuild. Speed 2.8: this beat's own pace, so his agent RUNS the on-mesh legs too -- the run-speed field exists because the professor's exit must never inherit it. ~57 m at 2.8 is ~20 s against the 26 s ceiling; Value true, and the despawn rule (out of view 2 s AND 25 m from the player) usually takes him around the cave branch."
+          "Note": "BEFORE the walk-off, the pattern every scene tonight follows: Barry leaves under the player's feet, not over a frozen pad. From here the field behaves like a field. The flag that ends the prologue is set by the runner's finally only after the exit below finishes -- by which point Barry is hidden in the cave, so rival_first_battle's radius (regated to the cave act anyway) has nobody to fire on."
         }
       ]
     },
     {
       "Id": "rival_first_battle",
-      "DisplayName": "Kes, in the field",
+      "DisplayName": "Barry, in the field",
       "CompletionFlag": "story.rival_battle_done",
       "Trigger": {
         "kind": "proximity",
@@ -495,7 +464,7 @@
         "radius": 5.0,
         "approachSeconds": 0.0
       },
-      "Note": "REGATED 2026-08-20, content kept: the user's revision has Kes leave the lake WITHOUT fighting -- he bolts for the cave on the bet -- so this episode must not fire this act. story.cave_act is set by NOTHING yet; the cave act's opening beat will own it, and until then this waits, whole, exactly as authored. The regate lives in LevelLayoutBuilder.StoryTriggers (the live wiring) and here (the authored intent) -- keep them in step by hand, and note the Town scene carries the OLD story.pokedex gate until the next level rebuild, which is why the cave exit parks him 10.8 m inside the grotto where the radius cannot be reached. When the cave act re-anchors him, move his post and this trigger together. RETARGETED, not new. It used to fire at the town gate the instant the starter was chosen, chained off 'opening_departure'; the starter is now taken on the lake bank with nobody present and there is no such instant. So it moves to where Kes actually went, and waits for the dex -- which is the same flag that makes him challengeable at all (StoryPhase), so the fight becomes available exactly once and by one route.\n\nIt has to stay an episode rather than becoming a plain TrainerController challenge, and the reason is Target='starter_counter': TrainerDefinition has no notion of a party derived from the player's choice and carries a placeholder species id in its place, so a fight started any other way is a fight against nothing. This is why the beat sits on NPC_Rival himself and not on a marker beside him -- TrainerController.StandsDown reads the StoryEncounter on its own GameObject and refuses to notice the player while it is pending, and it can only read one that is there.\n\nDropped with the move: the two MoveActor beats (both aimed at town markers) and 'riv_after', which was Linden commenting on the battle -- he is at the lab by now and cannot. Target length ~2min including the battle.",
+      "Note": "REGATED 2026-08-20, content kept: the user's revision has Barry leave the lake WITHOUT fighting -- he bolts for the cave on the bet -- so this episode must not fire this act. story.cave_act is set by NOTHING yet; the cave act's opening beat will own it, and until then this waits, whole, exactly as authored. The regate lives in LevelLayoutBuilder.StoryTriggers (the live wiring) and here (the authored intent) -- keep them in step by hand, and note the Town scene carries the OLD story.pokedex gate until the next level rebuild, which is why the cave exit parks him 10.8 m inside the grotto where the radius cannot be reached. When the cave act re-anchors him, move his post and this trigger together. RETARGETED, not new. It used to fire at the town gate the instant the starter was chosen, chained off 'opening_departure'; the starter is now taken on the lake bank with nobody present and there is no such instant. So it moves to where Barry actually went, and waits for the dex -- which is the same flag that makes him challengeable at all (StoryPhase), so the fight becomes available exactly once and by one route.\n\nIt has to stay an episode rather than becoming a plain TrainerController challenge, and the reason is Target='starter_counter': TrainerDefinition has no notion of a party derived from the player's choice and carries a placeholder species id in its place, so a fight started any other way is a fight against nothing. This is why the beat sits on NPC_Rival himself and not on a marker beside him -- TrainerController.StandsDown reads the StoryEncounter on its own GameObject and refuses to notice the player while it is pending, and it can only read one that is there.\n\nDropped with the move: the two MoveActor beats (both aimed at town markers) and 'riv_after', which was Linden commenting on the battle -- he is at the lab by now and cannot. Target length ~2min including the battle.",
       "Beats": [
         {
           "Kind": 5,
@@ -516,6 +485,200 @@
           "Seconds": 0.0
         }
       ]
+    },
+    {
+      "Id": "lab_pokedex",
+      "CompletionFlag": "story.pokedex",
+      "Beats": [
+        {
+          "Kind": 5
+        },
+        {
+          "Kind": 19,
+          "Id": "shot_lab_interior"
+        },
+        {
+          "Kind": 4,
+          "Id": "lab_ask_name"
+        },
+        {
+          "Kind": 13,
+          "Id": "광휘",
+          "Target": "profile.trainer_name"
+        },
+        {
+          "Kind": 4,
+          "Id": "lab_pokedex"
+        },
+        {
+          "Kind": 21,
+          "Amount": 0
+        },
+        {
+          "Kind": 6
+        }
+      ],
+      "Note": "The laboratory conversation grants the Pokedex and points the player toward the next DP chapter."
+    },
+    {
+      "Id": "home_journal",
+      "CompletionFlag": "story.home_journal",
+      "Beats": [
+        {
+          "Kind": 5
+        },
+        {
+          "Kind": 19,
+          "Id": "shot_home_family"
+        },
+        {
+          "Kind": 4,
+          "Id": "home_journal"
+        },
+        {
+          "Kind": 21,
+          "Amount": 0
+        },
+        {
+          "Kind": 10,
+          "Id": "journal",
+          "Amount": 1,
+          "Target": "reward.home_journal"
+        },
+        {
+          "Kind": 4,
+          "Id": "home_journal_received"
+        },
+        {
+          "Kind": 6
+        }
+      ],
+      "NextEpisodeId": "home_parcel",
+      "Scene": "Interior_PlayerHome"
+    },
+    {
+      "Id": "home_parcel",
+      "CompletionFlag": "story.home_ready",
+      "Beats": [
+        {
+          "Kind": 5
+        },
+        {
+          "Kind": 3,
+          "Seconds": 0.3
+        },
+        {
+          "Kind": 16,
+          "Id": "NPC_RivalMom",
+          "Seconds": 6
+        },
+        {
+          "Kind": 19,
+          "Id": "shot_home_family"
+        },
+        {
+          "Kind": 4,
+          "Id": "home_parcel"
+        },
+        {
+          "Kind": 10,
+          "Id": "parcel",
+          "Amount": 1,
+          "Target": "reward.home_parcel"
+        },
+        {
+          "Kind": 4,
+          "Id": "home_parcel_received"
+        },
+        {
+          "Kind": 1,
+          "Seconds": 0.25
+        },
+        {
+          "Kind": 11,
+          "Id": "story.rival_mom_left",
+          "Value": true
+        },
+        {
+          "Kind": 2,
+          "Seconds": 0.35
+        },
+        {
+          "Kind": 6
+        }
+      ],
+      "Scene": "Interior_PlayerHome"
+    },
+    {
+      "Id": "route202_home_reminder",
+      "CompletionFlag": "",
+      "Beats": [
+        {
+          "Kind": 5
+        },
+        {
+          "Kind": 4,
+          "Id": "route202_home_reminder"
+        },
+        {
+          "Kind": 6
+        }
+      ],
+      "Scene": "Town"
+    },
+    {
+      "Id": "route202_capture",
+      "CompletionFlag": "story.capture_learned",
+      "Beats": [
+        {
+          "Kind": 5
+        },
+        {
+          "Kind": 14,
+          "Id": "Mark_Lesson_Bidoof",
+          "Target": "445",
+          "Amount": 3
+        },
+        {
+          "Kind": 19,
+          "Id": "shot_route202_lesson"
+        },
+        {
+          "Kind": 4,
+          "Id": "route202_intro"
+        },
+        {
+          "Kind": 22
+        },
+        {
+          "Kind": 19,
+          "Id": "shot_route202_lesson"
+        },
+        {
+          "Kind": 4,
+          "Id": "route202_after"
+        },
+        {
+          "Kind": 10,
+          "Id": "poke-ball",
+          "Amount": 5,
+          "Target": "reward.route202_balls"
+        },
+        {
+          "Kind": 4,
+          "Id": "route202_balls_received"
+        },
+        {
+          "Kind": 18,
+          "Id": "NPC_Mentor",
+          "Target": "Mark_Mentor_North>Mark_Mentor_Out",
+          "Speed": 2.2
+        },
+        {
+          "Kind": 6
+        }
+      ],
+      "Scene": "Route202"
     }
   ]
 }

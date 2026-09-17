@@ -1,0 +1,22 @@
+{
+    "state": "passed",
+    "checks": [
+        "Bridge: character controller crossed between both dry banks without falling",
+        "Town_YardItemBall_01: reachable prompt, granted once, hidden after collection",
+        "Route_StonesItemBall_01: reachable prompt, granted once, hidden after collection",
+        "Town_LabShelfItemBall_01: reachable prompt, granted once, hidden after collection",
+        "Route_GrassItemBall_01: reachable prompt, granted once, hidden after collection",
+        "Town_OrchardItemBall_01: reachable prompt, granted once, hidden after collection",
+        "Door_Town_Lab_01: entered Interior_Lab and returned",
+        "Pokemon Center: reception restores HP/PP and releases player controls",
+        "Door_Town_PokeCentre_01: entered Interior_PokeCentre and returned",
+        "Door_Town_House_01: entered Interior_House and returned",
+        "Door_Town_House_02: entered Interior_House and returned",
+        "Door_Town_House_03: entered Interior_House and returned",
+        "Door_Town_House_04: entered Interior_House and returned",
+        "Door_Town_House_05: entered Interior_House and returned",
+        "Door_Town_House_06: entered Interior_House and returned",
+        "Door_Town_House_07: entered Interior_House and returned"
+    ],
+    "failures": []
+}

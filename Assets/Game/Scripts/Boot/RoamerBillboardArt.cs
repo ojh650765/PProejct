@@ -47,6 +47,7 @@ namespace PokeLab.Boot
             // single static frame gliding across a route, which is worse than an absence the
             // player never notices.
             _billboard.Bind(speciesId, displayHeight, null);
+            _billboard.UseSmallStepGait = speciesId == 442; // Starly: short ground steps, only in the field.
         }
 
         public void Play(CreatureAnimation animation)

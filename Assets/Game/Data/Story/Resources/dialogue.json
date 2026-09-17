@@ -37,7 +37,7 @@
     {
       "NpcId": "npc_rival_01",
       "DefaultSequenceId": "",
-      "Note": "No default on purpose. Until the battle is done Kes is driven by the episodes -- opening_departure is triggered off him -- and a townsperson line offered at the same time would be a second way to talk to him that says something the scene has not reached yet.",
+      "Note": "No default on purpose. Until the battle is done Barry is driven by the episodes -- opening_departure is triggered off him -- and a townsperson line offered at the same time would be a second way to talk to him that says something the scene has not reached yet.",
       "States": [
         {
           "Flag": "story.rival_battle_done",
@@ -242,8 +242,8 @@
           "AutoAdvanceSeconds": 4.2,
           "EventId": "",
           "Choices": [],
-          "Text": "— and repeating the notice. The lake rose eleven centimetres overnight. There was no rain.",
-          "TextKo": "…다시 알려 드립니다. 간밤에 호수 수위가 11센티미터 올랐습니다. 비는 오지 않았습니다."
+          "Text": "Our search for the unusual red Gyarados continues at a distant lake.",
+          "TextKo": "먼 곳의 호수에서 목격된 붉은 갸라도스. 조사팀이 그 흔적을 찾고 있습니다."
         },
         {
           "SpeakerId": "prop_research_terminal",
@@ -257,8 +257,8 @@
           "AutoAdvanceSeconds": 3.8,
           "EventId": "",
           "Choices": [],
-          "Text": "Residents are asked to keep clear of the basin until the survey team has been down.",
-          "TextKo": "조사팀이 내려갈 때까지 호수 쪽으로 가지 마십시오."
+          "Text": "So far, the team has not found it. What other mysteries might these lakes hold?",
+          "TextKo": "아직 모습을 확인하지 못했습니다. 호수에는 어떤 비밀이 숨어 있을까요?"
         },
         {
           "SpeakerId": "prop_research_terminal",
@@ -272,20 +272,20 @@
           "AutoAdvanceSeconds": 3.0,
           "EventId": "",
           "Choices": [],
-          "Text": "That is all. Have a pleasant morning.",
-          "TextKo": "이상입니다. 좋은 아침 보내십시오."
+          "Text": "That concludes today's report.",
+          "TextKo": "이상으로 오늘의 방송을 마칩니다."
         }
       ]
     },
     {
       "SequenceId": "op_rival_start",
       "PlaysOnlyOnce": true,
-      "Note": "Kes is Barry's function: he supplies the momentum the player has not earned yet. The choice on line 2 is cosmetic -- both answers land on line 3 -- because DP does not let you decline and offering a refusal you cannot take is worse than not asking.",
+      "Note": "Barry is Barry's function: he supplies the momentum the player has not earned yet. The choice on line 2 is cosmetic -- both answers land on line 3 -- because DP does not let you decline and offering a refusal you cannot take is worse than not asking.",
       "Lines": [
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -299,8 +299,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -314,8 +314,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -342,8 +342,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -409,8 +409,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -461,8 +461,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -491,8 +491,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -583,13 +583,13 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Kes. You were going down there with nothing.",
-          "TextKo": "케스. 자네, 빈손으로 내려가려 했나."
+          "Text": "Barry. You were going down there with nothing.",
+          "TextKo": "용식. 자네, 빈손으로 내려가려 했나."
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -688,7 +688,7 @@
     {
       "SequenceId": "op_choice_result_1",
       "PlaysOnlyOnce": true,
-      "Note": "Player took Bulbasaur (game id 1). Kes takes Charmander (game id 5).",
+      "Note": "Player took Bulbasaur (game id 1). Barry takes Charmander (game id 5).",
       "Lines": [
         {
           "SpeakerId": "npc_professor_01",
@@ -707,8 +707,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -725,7 +725,7 @@
     {
       "SequenceId": "op_choice_result_5",
       "PlaysOnlyOnce": true,
-      "Note": "Player took Charmander (game id 5). Kes takes Squirtle (game id 10).",
+      "Note": "Player took Charmander (game id 5). Barry takes Squirtle (game id 10).",
       "Lines": [
         {
           "SpeakerId": "npc_professor_01",
@@ -744,8 +744,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -762,7 +762,7 @@
     {
       "SequenceId": "op_choice_result_10",
       "PlaysOnlyOnce": true,
-      "Note": "Player took Squirtle (game id 10). Kes takes Bulbasaur (game id 1).",
+      "Note": "Player took Squirtle (game id 10). Barry takes Bulbasaur (game id 1).",
       "Lines": [
         {
           "SpeakerId": "npc_professor_01",
@@ -781,8 +781,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -885,8 +885,8 @@
       "Lines": [
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -900,8 +900,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -915,8 +915,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -945,8 +945,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -967,8 +967,8 @@
       "Lines": [
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -982,8 +982,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -997,8 +997,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1015,12 +1015,12 @@
     {
       "SequenceId": "riv_won",
       "PlaysOnlyOnce": false,
-      "Note": "TrainerDefinition.OnPlayerDefeat -- the player lost. The rival battle is uphill by design (Kes always holds the type advantage), so this branch is likely and must not feel like a failure state. He points at the healing machine on the plaza, which is 3m from the spawn.",
+      "Note": "TrainerDefinition.OnPlayerDefeat -- the player lost. The rival battle is uphill by design (Barry always holds the type advantage), so this branch is likely and must not feel like a failure state. He points at the healing machine on the plaza, which is 3m from the spawn.",
       "Lines": [
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1034,8 +1034,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1049,8 +1049,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1071,8 +1071,8 @@
       "Lines": [
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1319,8 +1319,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Ah — hold on. Kes was after you a moment ago.",
-          "TextKo": "아 참, 아까 케스가 자네 찾던데."
+          "Text": "Ah — hold on. Barry was after you a moment ago.",
+          "TextKo": "아 참, 아까 용식가 자네 찾던데."
         },
         {
           "SpeakerId": "npc_gate_01",
@@ -1526,8 +1526,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Oh — Kes was after you, just now.",
-          "TextKo": "아 참, 아까 케스가 자네 찾던데."
+          "Text": "Oh — Barry was after you, just now.",
+          "TextKo": "아 참, 아까 용식가 자네 찾던데."
         },
         {
           "SpeakerId": "npc_gate_01",
@@ -1564,12 +1564,12 @@
     {
       "SequenceId": "kes_summons",
       "PlaysOnlyOnce": true,
-      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. He sets a forfeit and runs without explaining. The closing line is narration: giving it to Kes put his name plate on a sentence about him leaving.",
+      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. He sets a forfeit and runs without explaining. The closing line is narration: giving it to Barry put his name plate on a sentence about him leaving.",
       "Lines": [
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1578,13 +1578,13 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "{PLAYER}! Where've you been!",
-          "TextKo": "앗! {PLAYER}! 너 어디 있었냐!"
+          "Text": "Hey, {PLAYER}! Did you see that report?",
+          "TextKo": "야, {PLAYER}! 아까 방송 봤어?"
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1593,13 +1593,13 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Listen, I'm going to the lake. Come on.",
-          "TextKo": "야, 호수 갈 거니까 따라와."
+          "Text": "Let's check our lake for a rare Pokemon too!",
+          "TextKo": "우리 호수에도 희귀한 포켓몬이 있을지 몰라. 같이 가 보자!"
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1608,13 +1608,13 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "We have to get there before the survey lot do.",
-          "TextKo": "조사팀 오기 전에 가야 된단 말이야."
+          "Text": "Come on! We're going to Lake Verity!",
+          "TextKo": "어서 와! 진실호수로 가는 거야!"
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1623,8 +1623,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "vfx.kes_runs",
           "Choices": [],
-          "Text": "You're late, that's a million won! I'm counting!",
-          "TextKo": "늦으면 벌금 100만원이다!? 지금부터 센다!"
+          "Text": "Last one there owes a million!",
+          "TextKo": "늦으면 벌금 100만원이다!"
         },
         {
           "SpeakerId": "",
@@ -1638,8 +1638,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "He's into the grass before you can get a word in.",
-          "TextKo": "말릴 새도 없이 풀숲으로 뛰어들어 갔다."
+          "Text": "Barry hurried toward the lake.",
+          "TextKo": "용식은 호수를 향해 달려갔다."
         }
       ]
     },
@@ -1750,7 +1750,7 @@
     {
       "SequenceId": "field_bag_left",
       "PlaysOnlyOnce": true,
-      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. The two of them find it together, and Kes is the one who opens it -- which is what leaves both of them crouched with their backs to the grass.",
+      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. The two of them find it together, and Barry is the one who opens it -- which is what leaves both of them crouched with their backs to the grass.",
       "Lines": [
         {
           "SpeakerId": "",
@@ -1769,8 +1769,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1784,8 +1784,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1799,8 +1799,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1817,7 +1817,7 @@
     {
       "SequenceId": "field_ambush",
       "PlaysOnlyOnce": true,
-      "Note": "SPLIT IN THREE, and not one word of it rewritten. The five lines were one beat, so the whole ambush played out over a bank with a single Rattata standing on it -- '양쪽이야! 우리 둘 다 둘러싸였어!' was spoken to an empty shore, which is the line this act is built around. Cut here, the encirclement can be staged between the yelp and the line that reacts to it: field_ambush (this) -> StageRing -> field_ambush_ringed -> CreatureApproach -> field_ambush_bag -> the choice. Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Both of them are cornered, not Kes alone. Cornering only Kes made the player a rescuer standing safely to one side; cornering both makes reaching into the bag the obvious thing rather than the brave thing, which matters because the player has no Pokémon yet and no reason to be brave.",
+      "Note": "SPLIT IN THREE, and not one word of it rewritten. The five lines were one beat, so the whole ambush played out over a bank with a single Rattata standing on it -- '양쪽이야! 우리 둘 다 둘러싸였어!' was spoken to an empty shore, which is the line this act is built around. Cut here, the encirclement can be staged between the yelp and the line that reacts to it: field_ambush (this) -> StageRing -> field_ambush_ringed -> CreatureApproach -> field_ambush_bag -> the choice. Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Both of them are cornered, not Barry alone. Cornering only Barry made the player a rescuer standing safely to one side; cornering both makes reaching into the bag the obvious thing rather than the brave thing, which matters because the player has no Pokémon yet and no reason to be brave.",
       "Lines": [
         {
           "SpeakerId": "",
@@ -1836,8 +1836,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1854,12 +1854,12 @@
     {
       "SequenceId": "field_ambush_ringed",
       "PlaysOnlyOnce": true,
-      "Note": "One line, and it is the only line in the act that has to be spoken with something on screen. The StageRing beat immediately above it in episodes.json puts the flock round the two of them; this is Kes noticing. Played before the ambusher closes, so the order the player reads is: one of them, then all of them, then the one that comes for you.",
+      "Note": "One line, and it is the only line in the act that has to be spoken with something on screen. The StageRing beat immediately above it in episodes.json puts the flock round the two of them; this is Barry noticing. Played before the ambusher closes, so the order the player reads is: one of them, then all of them, then the one that comes for you.",
       "Lines": [
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1876,12 +1876,12 @@
     {
       "SequenceId": "field_ambush_bag",
       "PlaysOnlyOnce": true,
-      "Note": "The last thing said before the choice opens, and the only setup it gets. Kes is the one who says it, which is what keeps the professor out of the moment: the player is taking a ball out of somebody else's bag with the owner gone and the friend egging them on. Nothing speaks over the choice itself -- see StarterPresenter.",
+      "Note": "The last thing said before the choice opens, and the only setup it gets. Barry is the one who says it, which is what keeps the professor out of the moment: the player is taking a ball out of somebody else's bag with the owner gone and the friend egging them on. Nothing speaks over the choice itself -- see StarterPresenter.",
       "Lines": [
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1895,8 +1895,8 @@
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "SpeakerSubtitle": "Aster Town",
           "SpeakerSubtitleKo": "아스터 마을",
           "PortraitKey": "npc_rival_01",
@@ -1913,232 +1913,55 @@
     {
       "SequenceId": "field_professor_returns",
       "PlaysOnlyOnce": true,
-      "Note": "Written against the Korean DP script's own register rather than translated into it. That script's people trail off, stammer and interrupt themselves -- 쥰's \"으왓! 포, 포켓몬!? 뭐야, 대체-!?\", the narration's \"가방…이네. 어쩌지?\" -- and its narration thinks out loud rather than describing. Sentences here are short and unpolished for that reason: the earlier draft was correct Korean that nobody speaks. He arrives after it is over, is alarmed for one line, then stops -- the result is the part he cares about. The dex request comes out of the same thread as his counting on the bank rather than arriving as a reward. REVISED 2026-08-20 per the user: the lab invite is gone everywhere -- the lab is empty and the story died there -- so Linden asks for the dex work ON THE SPOT and stays on the bank with his count. Then Kes declares the real bet and bolts for the cave; the '벌금 두 배' is his own 100만원 gag doubled, not a new number. 라일락 마을 (Lilac Town) is COINED here -- no next town exists anywhere in the data (sceneLinks only Town<->Field; the cave names only itself) -- flower-named to match Aster, and flagged for the user to rename.",
+      "Note": "Original dialogue following the Diamond/Pearl event order: return the case, then visit the laboratory.",
       "Lines": [
         {
-          "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
-          "SpeakerSubtitle": "Aster Town",
-          "SpeakerSubtitleKo": "아스터 마을",
-          "PortraitKey": "npc_rival_01",
+          "SpeakerId": "npc_professor_01",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
+          "PortraitKey": "npc_professor_01",
           "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
+          "AutoAdvanceSeconds": 0,
           "EventId": "",
           "Choices": [],
-          "Text": "Whoo! That was amazing, that was!",
-          "TextKo": "후와-! 야, 너 방금 굉장했어!"
-        },
-        {
-          "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
-          "SpeakerSubtitle": "Aster Town",
-          "SpeakerSubtitleKo": "아스터 마을",
-          "PortraitKey": "npc_rival_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "…only, we did just use someone else's Pokémon. Is that all right…",
-          "TextKo": "…근데 우리 딴 사람 포켓몬 써버린 건데 괜찮으려나…"
+          "Text": "You used the Pokémon in this case? Let me see them.",
+          "TextKo": "가방 안의 포켓몬을 사용했나? 잠깐 보여 주게."
         },
         {
           "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
           "PortraitKey": "npc_professor_01",
           "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
+          "AutoAdvanceSeconds": 0,
           "EventId": "",
           "Choices": [],
-          "Text": "……",
-          "TextKo": "……"
+          "Text": "I see. Neither of you is hurt. That is what matters.",
+          "TextKo": "그렇군. 자네들도 포켓몬도 무사해서 다행이야."
         },
         {
           "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
           "PortraitKey": "npc_professor_01",
           "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
+          "AutoAdvanceSeconds": 0,
           "EventId": "",
           "Choices": [],
-          "Text": "I heard the lot of it from the path. That's my bag.",
-          "TextKo": "길에서 다 들렸네. 그건 내 가방인데."
+          "Text": "Visit my laboratory. We should talk about these Pokémon there.",
+          "TextKo": "내 연구소로 찾아오게. 포켓몬에 관한 이야기는 그곳에서 하지."
         },
         {
           "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
-          "SpeakerSubtitle": "Aster Town",
-          "SpeakerSubtitleKo": "아스터 마을",
+          "SpeakerName": "Barry",
+          "SpeakerNameKo": "용식",
           "PortraitKey": "npc_rival_01",
           "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
+          "AutoAdvanceSeconds": 0,
           "EventId": "",
           "Choices": [],
-          "Text": "It — it was open! We'd have been in real trouble otherwise!",
-          "TextKo": "여, 열려 있었어요! 안 그랬으면 저희 둘 다 큰일 났다고요!"
-        },
-        {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "Hm… I see. So that's what happened.",
-          "TextKo": "흠… 그래, 그렇게 된 거로군."
-        },
-        {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "And it went with you. That one doesn't, as a rule.",
-          "TextKo": "자네를 따라나섰구먼. 그럴 녀석이 아닌데 말이야."
-        },
-        {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "Give it here. …Mm, nothing serious. It'll be right as rain in a moment.",
-          "TextKo": "이리 줘 보게. …음, 많이 다치진 않았군. 금방 팔팔해질 걸세."
-        },
-        {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "Keep it. Once one's decided, it's decided.",
-          "TextKo": "가지게. 한번 정한 녀석은 안 바뀌어."
-        },
-        {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "I only ever see this one bend. It's as far as I can walk.",
-          "TextKo": "나는 이 굽이 하나밖에 못 보네. 걸어서 갈 수 있는 데가 여기뿐이라서."
-        },
-        {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "story.dex_given",
-          "Choices": [],
-          "Text": "One favour. This Pokédex — fill it for me. The ones you meet on the road.",
-          "TextKo": "부탁이 하나 있네. 이 도감, 자네가 채워 주게. 길에서 만나는 녀석들 말일세."
-        },
-        {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "I'll be here, still counting. Just show me as you pass.",
-          "TextKo": "난 여기서 마저 세고 있겠네. 지나는 길에 보여 주기만 하게."
-        },
-        {
-          "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
-          "SpeakerSubtitle": "Aster Town",
-          "SpeakerSubtitleKo": "아스터 마을",
-          "PortraitKey": "npc_rival_01",
-          "Tone": 2,
-          "ToneName": "Excited",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "Right — then from here it's a real bet!",
-          "TextKo": "좋아, 그럼 지금부터 진짜 내기다!"
-        },
-        {
-          "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
-          "SpeakerSubtitle": "Aster Town",
-          "SpeakerSubtitleKo": "아스터 마을",
-          "PortraitKey": "npc_rival_01",
-          "Tone": 2,
-          "ToneName": "Excited",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "Greatest trainer! That's me. You get second.",
-          "TextKo": "최고의 트레이너! 그건 나다. 넌 두 번째고."
-        },
-        {
-          "SpeakerId": "npc_rival_01",
-          "SpeakerName": "Kes",
-          "SpeakerNameKo": "케스",
-          "SpeakerSubtitle": "Aster Town",
-          "SpeakerSubtitleKo": "아스터 마을",
-          "PortraitKey": "npc_rival_01",
-          "Tone": 2,
-          "ToneName": "Excited",
-          "AutoAdvanceSeconds": 0.0,
-          "EventId": "vfx.kes_runs",
-          "Choices": [],
-          "Text": "Through the cave — Lilac Town! See you there. Late and the fine doubles!?",
-          "TextKo": "동굴 지나서 라일락 마을! 거기서 보자. 늦으면 벌금 두 배다!?"
+          "Text": "The laboratory! We should tell our families what happened first.",
+          "TextKo": "연구소래! 우선 집에 가서 무슨 일이 있었는지 말씀드리자."
         }
       ]
     },
@@ -2404,7 +2227,7 @@
     {
       "SequenceId": "las_idle",
       "PlaysOnlyOnce": false,
-      "Note": "TrainerDefinition.AfterDefeat. Points down the road at the fisherman, the way Sela points at Kes -- a beaten trainer's idle line is free signage.",
+      "Note": "TrainerDefinition.AfterDefeat. Points down the road at the fisherman, the way Sela points at Barry -- a beaten trainer's idle line is free signage.",
       "Lines": [
         {
           "SpeakerId": "trainer_route_02",
@@ -2820,6 +2643,408 @@
           "Choices": [],
           "Text": "Your Pokémon have their strength back, somehow.",
           "TextKo": "포켓몬들은 어느새 기운을 되찾았다."
+        }
+      ]
+    },
+    {
+      "SequenceId": "lab_pokedex",
+      "PlaysOnlyOnce": true,
+      "Lines": [
+        {
+          "SpeakerId": "npc_professor_01",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
+          "PortraitKey": "npc_professor_01",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Your Pokémon seems quite at ease with you. Will you look after it?",
+          "TextKo": "포켓몬이 자네를 따르고 있군. 앞으로도 함께해 주겠나?"
+        },
+        {
+          "SpeakerId": "npc_professor_01",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
+          "PortraitKey": "npc_professor_01",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "I study how Pokémon evolve. There is still much for us to learn.",
+          "TextKo": "나는 포켓몬의 진화를 연구하고 있네. 아직 밝혀내야 할 것이 많지."
+        },
+        {
+          "SpeakerId": "npc_professor_01",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
+          "PortraitKey": "npc_professor_01",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "story.dex_given",
+          "Choices": [],
+          "Text": "Take this Pokédex. It will record the Pokémon you meet on your journey.",
+          "TextKo": "이 포켓몬도감을 받게. 여행 중에 만난 포켓몬을 기록할 수 있지."
+        },
+        {
+          "SpeakerId": "npc_professor_01",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
+          "PortraitKey": "npc_professor_01",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Let your family know before you leave. Then follow Route 202 toward Jubilife City.",
+          "TextKo": "여행을 떠나기 전에 가족에게 인사드리게. 그다음 202번도로를 따라 축복시티로 가 보게."
+        }
+      ]
+    },
+    {
+      "SequenceId": "home_journal",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "npc_mom",
+          "SpeakerName": "Mom",
+          "SpeakerNameKo": "엄마",
+          "PortraitKey": "townswoman",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Welcome home, {PLAYER}. You brought a new friend! Take a little rest.",
+          "TextKo": "어서 오렴, {PLAYER}. 새 친구와 함께 돌아왔구나! 먼저 편히 쉬자."
+        },
+        {
+          "SpeakerId": "npc_mom",
+          "SpeakerName": "Mom",
+          "SpeakerNameKo": "엄마",
+          "PortraitKey": "townswoman",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "You are helping Professor Rowan with the Pokédex? What a wonderful chance to learn.",
+          "TextKo": "마박사님의 도감 연구를 돕기로 했다고? 네가 직접 보고 배우는 멋진 여행이 되겠구나."
+        },
+        {
+          "SpeakerId": "npc_mom",
+          "SpeakerName": "Mom",
+          "SpeakerNameKo": "엄마",
+          "PortraitKey": "townswoman",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Keep the memories of your journey in this Journal. And visit home sometimes!",
+          "TextKo": "이 모험노트에 여행하며 만난 일들을 남겨 보렴. 가끔은 집에도 들르고!"
+        }
+      ]
+    },
+    {
+      "SequenceId": "home_journal_received",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "npc_narrator",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "PortraitKey": "",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Received the Journal! The party is fully rested.",
+          "TextKo": "모험노트를 받았다! 포켓몬들도 건강해졌다."
+        }
+      ]
+    },
+    {
+      "SequenceId": "home_parcel",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "npc_rival_mom",
+          "SpeakerName": "Barry’s mom",
+          "SpeakerNameKo": "용식의 엄마",
+          "PortraitKey": "elder_woman",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Excuse me! Barry has already rushed off on his adventure and left something important behind.",
+          "TextKo": "실례할게요! 우리 용식이는 벌써 여행을 떠나 버렸지 뭐예요. 중요한 물건도 두고요."
+        },
+        {
+          "SpeakerId": "npc_mom",
+          "SpeakerName": "Mom",
+          "SpeakerNameKo": "엄마",
+          "PortraitKey": "townswoman",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Do not worry. {PLAYER} is about to leave and can deliver it.",
+          "TextKo": "걱정하지 마세요. {PLAYER}도 이제 출발하니까 전해줄 수 있을 거예요."
+        },
+        {
+          "SpeakerId": "npc_rival_mom",
+          "SpeakerName": "Barry’s mom",
+          "SpeakerNameKo": "용식의 엄마",
+          "PortraitKey": "elder_woman",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Barry said he was heading to Jubilife City. Please give him this parcel when you see him.",
+          "TextKo": "용식이는 축복시티로 간다고 했단다. 만나면 이 물건을 전해주겠니?"
+        }
+      ]
+    },
+    {
+      "SequenceId": "home_parcel_received",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "npc_narrator",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "PortraitKey": "",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Received the Parcel for Barry!",
+          "TextKo": "용식에게 전해줄 물건을 맡았다!"
+        },
+        {
+          "SpeakerId": "npc_mom",
+          "SpeakerName": "Mom",
+          "SpeakerNameKo": "엄마",
+          "PortraitKey": "townswoman",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Check the Route 202 sign on the north side of town. Take care of each other!",
+          "TextKo": "마을 북쪽 202번도로 표지판에서 길을 확인하렴. 포켓몬들과 조심해서 다녀와!"
+        }
+      ]
+    },
+    {
+      "SequenceId": "route202_home_reminder",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "npc_narrator",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "PortraitKey": "",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Route 202 — toward Jubilife City. Visit Mom at home before setting off on the journey.",
+          "TextKo": "202번도로 — 축복시티 방면. 먼 길을 떠나기 전에 집에 들러 엄마에게 인사드리자."
+        }
+      ]
+    },
+    {
+      "SequenceId": "route202_intro",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "npc_mentor",
+          "SpeakerName": "{MENTOR}",
+          "SpeakerNameKo": "{MENTOR}",
+          "PortraitKey": "mentor",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "{PLAYER}, have you visited home? Let me show you how to catch a Pokémon.",
+          "TextKo": "{PLAYER}, 집에는 다녀왔어? 이제 포켓몬을 잡는 방법을 보여줄게."
+        },
+        {
+          "SpeakerId": "npc_mentor",
+          "SpeakerName": "{MENTOR}",
+          "SpeakerNameKo": "{MENTOR}",
+          "PortraitKey": "mentor",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "When a wild Pokémon appears in the grass, lower its HP with a move. Be careful not to knock it out.",
+          "TextKo": "풀숲에서 야생 포켓몬을 만나면 먼저 기술로 HP를 줄여 줘. 쓰러뜨리면 잡을 수 없으니까 조심해."
+        },
+        {
+          "SpeakerId": "npc_mentor",
+          "SpeakerName": "{MENTOR}",
+          "SpeakerNameKo": "{MENTOR}",
+          "PortraitKey": "mentor",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "There is a Bidoof! Watch while my Pokémon helps me demonstrate.",
+          "TextKo": "저기 비버니가 있네. 내 포켓몬으로 시범을 보여줄 테니 잘 봐!"
+        }
+      ]
+    },
+    {
+      "SequenceId": "route202_after",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "npc_mentor",
+          "SpeakerName": "{MENTOR}",
+          "SpeakerNameKo": "{MENTOR}",
+          "PortraitKey": "mentor",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "See? Throw a Poké Ball after weakening it. Sleep or paralysis can help too.",
+          "TextKo": "봤지? 약해졌을 때 몬스터볼을 던지는 거야. 잠듦이나 마비 같은 상태도 포획에 도움이 돼."
+        },
+        {
+          "SpeakerId": "npc_mentor",
+          "SpeakerName": "{MENTOR}",
+          "SpeakerNameKo": "{MENTOR}",
+          "PortraitKey": "mentor",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Take these five Poké Balls and try it yourself. See you in Jubilife City!",
+          "TextKo": "이 몬스터볼 5개로 직접 해 봐. 그럼 축복시티에서 만나자!"
+        }
+      ]
+    },
+    {
+      "SequenceId": "route202_balls_received",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "npc_narrator",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "PortraitKey": "",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Received five Poké Balls!",
+          "TextKo": "몬스터볼 5개를 받았다!"
+        }
+      ]
+    },
+    {
+      "SequenceId": "route202_sign",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "",
+          "SpeakerName": "",
+          "SpeakerNameKo": "",
+          "PortraitKey": "",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Route 202 is along the northwest path. Follow the road toward Jubilife City.",
+          "TextKo": "202번도로는 북서쪽 길로 이어진다. 길을 따라가면 축복시티 방면으로 갈 수 있다."
+        }
+      ]
+    },
+    {
+      "SequenceId": "home_tv_broadcast",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "",
+          "SpeakerName": "TV 방송",
+          "SpeakerNameKo": "TV 방송",
+          "PortraitKey": "",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Our expedition continues in search of a red Gyarados.",
+          "TextKo": "붉은 갸라도스를 찾아 호수로 떠난 탐사대!"
+        },
+        {
+          "SpeakerId": "",
+          "SpeakerName": "TV 방송",
+          "SpeakerNameKo": "TV 방송",
+          "PortraitKey": "",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "A rare red silhouette was reported on the water. What could be hiding below?",
+          "TextKo": "물 위로 붉은 그림자가 나타났다는 제보입니다. 호수에는 어떤 포켓몬이 살고 있을까요?"
+        },
+        {
+          "SpeakerId": "",
+          "SpeakerName": "TV 방송",
+          "SpeakerNameKo": "TV 방송",
+          "PortraitKey": "",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "That concludes our lake expedition report.",
+          "TextKo": "이상으로 호수 탐사 특별 방송을 마칩니다."
+        }
+      ]
+    },
+    {
+      "SequenceId": "home_mom_departure",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "mom",
+          "SpeakerName": "엄마",
+          "SpeakerNameKo": "엄마",
+          "PortraitKey": "mom",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Barry came looking for you earlier.",
+          "TextKo": "조금 전에 용식이가 너를 찾으러 왔단다."
+        },
+        {
+          "SpeakerId": "mom",
+          "SpeakerName": "엄마",
+          "SpeakerNameKo": "엄마",
+          "PortraitKey": "mom",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "He seemed excited about that TV report. Go and see him, but be careful outside.",
+          "TextKo": "TV 방송을 보고 신이 났나 봐. 나가서 만나 보렴. 밖에서는 조심하고!"
+        }
+      ]
+    },
+    {
+      "SequenceId": "lab_ask_name",
+      "PlaysOnlyOnce": false,
+      "Lines": [
+        {
+          "SpeakerId": "npc_professor_01",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
+          "PortraitKey": "npc_professor_01",
+          "Tone": 0,
+          "AutoAdvanceSeconds": 0,
+          "EventId": "",
+          "Choices": [],
+          "Text": "Before we begin, what is your name?",
+          "TextKo": "이야기를 시작하기 전에, 자네의 이름을 알려 주겠나?"
         }
       ]
     }

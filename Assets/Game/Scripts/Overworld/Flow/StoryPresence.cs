@@ -319,7 +319,7 @@ namespace PokeLab.Overworld
                     yield break;
                 }
 
-                if (NavMesh.SamplePosition(target, out var hit, 4f, NavMesh.AllAreas))
+                if (WalkableGround.TryNavMesh(target, 1f, _agent.areaMask, out var hit))
                 {
                     _agent.Warp(hit.position);
                     _agent.isStopped = true;
@@ -350,11 +350,7 @@ namespace PokeLab.Overworld
 
         private static Vector3 SeatOnGround(Vector3 point)
         {
-            var from = point + Vector3.up * 6f;
-            return Physics.Raycast(from, Vector3.down, out var hit, 24f,
-                       ~0, QueryTriggerInteraction.Ignore)
-                ? hit.point
-                : point;
+            return WalkableGround.TryFind(point, 3f, out var ground) ? ground : point;
         }
 
         private void OnDrawGizmosSelected()

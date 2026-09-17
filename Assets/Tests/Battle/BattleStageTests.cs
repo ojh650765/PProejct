@@ -421,6 +421,47 @@ namespace PokeLab.Battle.Tests
 
         // ---- Stubs -------------------------------------------------------------------
 
+        [Test]
+        public void CaptureLessonUsesIndependentPartyAndDoesNotAwardTheDemonstratedCatch()
+        {
+            RegisterDataLayer();
+            var mine = CreatureFactory.Create(TestData.Bulbasaur, 7, 31);
+            var hp = mine.CurrentHp;
+            var pp = mine.Moves[0].CurrentPp;
+            ServiceHub.Register<IPlayerProfile>(new StubProfile(mine));
+            var stage = new BattleStage();
+            stage.BattleStaged += _ => { };
+            EncounterResult result = null;
+            var request = WildRequest(202);
+            request.IsCaptureLesson = true;
+            request.DemonstratorSpeciesId = TestData.Bulbasaur;
+            stage.BeginEncounter(request, r => result = r);
+            Assert.That(stage.Engine.State.ActiveOf(BattleSide.Player), Is.Not.SameAs(mine));
+            stage.SubmitAction(BattleAction.UseMove(BattleSide.Player, 0));
+            Assert.That(stage.IsBattleActive, Is.True);
+            stage.SubmitAction(BattleAction.Capture(BattleSide.Player, ItemCatalog.PokeBallId));
+            Assert.That(result.Outcome, Is.EqualTo(BattleOutcome.Captured));
+            Assert.That(result.CapturedCreature, Is.Null);
+            Assert.That(mine.CurrentHp, Is.EqualTo(hp));
+            Assert.That(mine.Moves[0].CurrentPp, Is.EqualTo(pp));
+        }
+
+        [Test]
+        public void UnclaimedCaptureLessonCompletesInsteadOfHittingTheTurnCap()
+        {
+            RegisterDataLayer();
+            var stage = new BattleStage();
+            EncounterResult result = null;
+            var request = WildRequest(203);
+            request.IsCaptureLesson = true;
+            request.DemonstratorSpeciesId = TestData.Bulbasaur;
+            stage.BeginEncounter(request, r => result = r);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Outcome, Is.EqualTo(BattleOutcome.Captured));
+            Assert.That(result.CapturedCreature, Is.Null);
+            Assert.That(stage.LastFailureReason, Is.Null.Or.Empty);
+        }
+
         private sealed class StubProfile : IPlayerProfile
         {
             private readonly List<CreatureInstance> _party;

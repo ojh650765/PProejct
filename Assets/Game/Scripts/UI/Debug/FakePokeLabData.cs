@@ -546,5 +546,8 @@ namespace PokeLab.UI.Debugging
 
         public IReadOnlyList<MoveData> All => _all;
         public IReadOnlyList<MoveData> MovesFor(int speciesId, int level) => _all;
+
+        /// <summary>The fake pool has no learnsets, so everything is learnable by everything.</summary>
+        public IReadOnlyList<MoveData> LearnableBy(int speciesId) => _all;
     }
 }

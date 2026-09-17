@@ -33,7 +33,7 @@ namespace PokeLab.Overworld
         [Tooltip("Wire the UI worker's prompt widget here; nothing in this assembly draws.")]
         [SerializeField] private InteractionPromptEvent _promptChanged = new InteractionPromptEvent();
 
-        private readonly Collider[] _overlap = new Collider[16];
+        private Collider[] _overlap = new Collider[32];
         private IInteractable _current;
         private Transform _currentTransform;
         private bool _promptVisible;
@@ -66,11 +66,18 @@ namespace PokeLab.Overworld
             Transform bestTransform = null;
             var bestScore = float.MaxValue;
 
-            var origin = _rayOrigin.position;
+            var origin = _rayOrigin.position + (_rayOrigin == transform ? Vector3.up * 0.8f : Vector3.zero);
             var facing = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
 
             var count = Physics.OverlapSphereNonAlloc(origin, _range, _overlap, _interactableMask, QueryTriggerInteraction.Collide);
-            var considered = Mathf.Min(count, _maxCandidates);
+            // Physics overlap ordering is undefined; scenery must not consume the
+            // candidate budget before an item is examined. Grow only on saturation.
+            while (count == _overlap.Length && _overlap.Length < 512)
+            {
+                System.Array.Resize(ref _overlap, _overlap.Length * 2);
+                count = Physics.OverlapSphereNonAlloc(origin, _range, _overlap, _interactableMask, QueryTriggerInteraction.Collide);
+            }
+            var considered = count;
 
             for (var i = 0; i < considered; i++)
             {
@@ -90,7 +97,7 @@ namespace PokeLab.Overworld
                 var angle = planar.sqrMagnitude < 0.0001f ? 0f : Vector3.Angle(facing, planar);
                 if (angle > _maxAngle * 0.5f) continue;
 
-                if (IsOccluded(origin, point, distance)) continue;
+                if (IsOccluded(origin, point, distance, collider)) continue;
 
                 // Angle dominates distance: the thing you are facing wins over the thing that
                 // happens to be a few centimetres closer off to the side.
@@ -116,11 +123,16 @@ namespace PokeLab.Overworld
             }
         }
 
-        private bool IsOccluded(Vector3 origin, Vector3 point, float distance)
+        private bool IsOccluded(Vector3 origin, Vector3 point, float distance, Collider target)
         {
             if (_occluderMask.value == 0) return false;
             var direction = (point - origin) / Mathf.Max(0.0001f, distance);
-            return Physics.Raycast(origin, direction, distance - 0.1f, _occluderMask, QueryTriggerInteraction.Ignore);
+            if (!Physics.Raycast(origin, direction, out var hit, distance - 0.1f,
+                    _occluderMask, QueryTriggerInteraction.Ignore)) return false;
+            // A pickup's own mesh must not occlude the trigger surrounding it.
+            var owner = target.GetComponentInParent<IInteractable>();
+            return hit.collider.GetComponentInParent<IInteractable>() != owner
+                && !hit.transform.IsChildOf(transform);
         }
 
         private void PublishPrompt()

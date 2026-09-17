@@ -86,6 +86,9 @@ namespace PokeLab.Battle
         /// <summary>The opponent's decision policy. Swap or retune it without touching the engine.</summary>
         public BattleAi Ai { get; set; }
 
+        /// <summary>NPC lesson only: keep the demonstration participants alive and guarantee its throw.</summary>
+        public bool IsCaptureLesson { get; set; }
+
         /// <summary>
         /// When true, the engine does NOT auto-replace the player's fainted active at the
         /// end of a turn: the battle stays <see cref="BattleOutcome.InProgress"/> (the
@@ -626,7 +629,7 @@ namespace PokeLab.Battle
                 if (survivalHp > 0) damage = before - survivalHp;
             }
 
-            damage = Math.Min(damage, before);
+            damage = Math.Min(damage, IsCaptureLesson ? Math.Max(0, before - 1) : before);
             target.CurrentHp = before - damage;
 
             Emit(new DamageDealtEvent
@@ -1164,7 +1167,7 @@ namespace PokeLab.Battle
                 ItemDisplayName = ballData?.DisplayName ?? ballId,
             });
 
-            var result = CaptureMath.Roll(target, catchRate, ballMultiplier, _rng);
+            var result = CaptureMath.Roll(target, catchRate, IsCaptureLesson ? 0f : ballMultiplier, _rng);
 
             Emit(new CaptureAttemptEvent
             {
@@ -1874,7 +1877,7 @@ namespace PokeLab.Battle
             if (side == BattleSide.Player) state.Participants.Add(creature.InstanceId);
             else StartParticipantSetForNewOpponent();
 
-            Emit(new CreatureSentOutEvent { Side = side, Creature = creature, IsReplacement = isReplacement });
+            Emit(new CreatureSentOutEvent { Side = side, Creature = creature, IsReplacement = isReplacement, PresentedHp = creature.CurrentHp, PresentedMaxHp = creature.MaxHp });
         }
 
         /// <summary>

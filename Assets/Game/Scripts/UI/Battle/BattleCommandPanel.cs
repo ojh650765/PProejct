@@ -271,7 +271,7 @@ namespace PokeLab.UI
                        || (pad != null && pad.dpad.down.wasPressedThisFrame);
             var up = (keyboard != null && (keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame))
                      || (pad != null && pad.dpad.up.wasPressedThisFrame);
-            var confirm = (keyboard != null && (keyboard.enterKey.wasPressedThisFrame
+            var confirm = (keyboard != null && ((keyboard.enterKey.wasPressedThisFrame || keyboard.fKey.wasPressedThisFrame)
                                                 || keyboard.numpadEnterKey.wasPressedThisFrame
                                                 || keyboard.zKey.wasPressedThisFrame
                                                 || keyboard.spaceKey.wasPressedThisFrame))
@@ -281,6 +281,7 @@ namespace PokeLab.UI
                                              || keyboard.backspaceKey.wasPressedThisFrame))
                        || (pad != null && pad.buttonEast.wasPressedThisFrame);
 
+            if (keyboard != null && keyboard.tabKey.wasPressedThisFrame) Move(keyboard.shiftKey.isPressed ? -1 : 1);
             if (down) Move(1);
             if (up) Move(-1);
             if (confirm) Take();

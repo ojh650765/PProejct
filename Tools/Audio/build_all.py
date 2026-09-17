@@ -65,15 +65,8 @@ def _write(entries, name, sig, category, subdir, loop, trigger, peak=PEAK,
 
 
 def build_music(entries):
-    for name, (fn, loop, trigger) in music.TRACKS.items():
-        t0 = time.time()
-        sig, _ = fn()
-        # The opening bed plays under dialogue: its finish() sets a deliberately
-        # lower peak ceiling, so keep that level instead of re-normalising to PEAK.
-        quiet = name in ("Music_Opening_Introduction",)
-        _write(entries, name, sig, "Music", "Music", loop, trigger,
-               normalise=not quiet)
-        print(f"  {name:26s} {time.time() - t0:5.2f}s")
+    # Music is supplied from the DP soundtrack. Never regenerate placeholder songs.
+    print("  Procedural BGM disabled; retaining authored music catalogue entries.")
 
 
 def build_sfx(entries):
@@ -126,9 +119,8 @@ def main(argv):
         GROUPS[g](entries)
 
     # keep entries for groups that were not rebuilt this run
-    if len(wanted) < len(GROUPS):
-        rebuilt = {e["name"] for e in entries}
-        entries += [e for e in existing if e["name"] not in rebuilt]
+    rebuilt = {e["name"] for e in entries}
+    entries += [e for e in existing if e["name"] not in rebuilt]
 
     order = {"Music": 0, "Ambience": 2}
     entries.sort(key=lambda e: (order.get(e["category"].split("/")[0], 1), e["name"]))
@@ -140,9 +132,8 @@ def main(argv):
     manifest = {
         "schema": 1,
         "generator": "Tools/Audio/build_all.py",
-        "note": ("Every clip here is synthesised procedurally by the scripts in Tools/Audio. "
-                 "No sampled or licensed material is used. Regenerate with "
-                 "'python build_all.py' from that directory."),
+        "note": ("Mixed authored audio and generated effects. Procedural music is disabled. "
+                 "Import supplied DP music with Tools/Audio/import_music.py."),
         "sample_rate": dsp.SR,
         "bit_depth": 16,
         "peak_ceiling_dbfs": round(_dbfs(PEAK), 2),

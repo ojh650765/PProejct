@@ -57,6 +57,8 @@ namespace PokeLab.Overworld
         [SerializeField] private bool _returnsToDoor;
 
         private bool _travelling;
+        [SerializeField] private bool _interactionOnly;
+        public void UseInteractionOnly() => _interactionOnly = true;
 
         /// <summary>Where the next scene should put the player down. Cleared by whoever
         /// consumes it on arrival.</summary>
@@ -143,6 +145,12 @@ namespace PokeLab.Overworld
 
         private void OnTriggerEnter(Collider other)
         {
+            if (!_interactionOnly) Enter(other);
+        }
+
+        public void Enter(Collider other)
+        {
+            if (other == null) return;
             if (_travelling) return;
             if (!string.IsNullOrEmpty(_travellerTag) && !other.CompareTag(_travellerTag)) return;
 
@@ -174,7 +182,7 @@ namespace PokeLab.Overworld
             var dialogue = DialogueRunner.Instance;
             if (dialogue != null && dialogue.IsPlaying) return;
 
-            StartCoroutine(Travel(other));
+            LevelTransitionRunner.TryRun(Travel(other));
         }
 
         private IEnumerator Travel(Collider traveller)
@@ -201,6 +209,7 @@ namespace PokeLab.Overworld
             if (locomotion != null) locomotion.SetMotionFrozen(true);
             if (input != null) input.InputEnabled = false;
 
+            PokeLab.Core.ServiceHub.TryGet<PokeLab.Core.IGameFlow>(out var departureFlow);
             var gated = GateEncounters(true);
 
             // A static rather than a field on the profile: IPlayerProfile is part of the
@@ -273,6 +282,8 @@ namespace PokeLab.Overworld
 
             var load = SceneManager.LoadSceneAsync(destination, LoadSceneMode.Single);
             while (load != null && !load.isDone) yield return null;
+            if (gated && PokeLab.Core.ServiceHub.TryGet<PokeLab.Core.IGameFlow>(out var currentFlow)
+                && ReferenceEquals(currentFlow, departureFlow)) currentFlow.PopMode();
 
             // The lock comes off on the far side if anything it was put on survived the load. A rig
             // rebuilt with the scene reads as null here and this costs nothing; a persistent one

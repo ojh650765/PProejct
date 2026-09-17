@@ -94,7 +94,7 @@ namespace PokeLab.Boot
             Say(Loc.Pick("Preparing the battle…", "대전을 준비하는 중…"));
 
             var session = OnlineSession.Instance;
-            var roster = session.Roster;
+            var roster = session.Party;
 
             // 1. Who we are fighting, resolved BEFORE either party is built.
             //
@@ -216,6 +216,8 @@ namespace PokeLab.Boot
             MemoryRelief.Reclaim("entering a battle", dropCreatureArt: true);
             MemoryRelief.Report("after pre-battle reclaim");
 
+            PokeLab.Cinematics.BattleCameraHost.Ensure();
+            GameEvents.RaiseModeChanged(GameMode.Menu, GameMode.Battle);
             if (!SceneManager.GetSceneByName(BattleSceneName).isLoaded)
             {
                 var load = SceneManager.LoadSceneAsync(BattleSceneName, LoadSceneMode.Single);
@@ -279,8 +281,17 @@ namespace PokeLab.Boot
                 yield return null;
             }
 
-            // 6. Report it and show what it earned.
+            // Resolve the last hit, HP drain and faint before opening rewards.
+            var presenter = UnityEngine.Object.FindAnyObjectByType<PokeLab.Cinematics.BattlePresenter>();
+            if (presenter != null) yield return presenter.WaitUntilIdle(30f);
             ShowOverlay();
+            if (result == null || result.Outcome == BattleOutcome.Fled)
+            {
+                Say(Loc.Pick("The battle was interrupted.", "대전이 중단되었어요."));
+                yield return Wait(2f);
+                Finish();
+                yield break;
+            }
             var won = result != null && result.Outcome == BattleOutcome.PlayerVictory;
 
             Say(won
@@ -319,11 +330,11 @@ namespace PokeLab.Boot
             // reached there are no gains to show, and a results screen full of zeroes would be
             // a worse lie than a sentence saying so.
             Say(string.Empty);
-            var entries = BuildSummary(report, profile);
+            var entries = BuildSummary(report, profile, roster);
 
             if (reported && report != null && entries.Count > 0)
             {
-                yield return Summary().Play(won, entries);
+                yield return Summary().Play(won, entries, reward: RewardLine(report));
             }
             else
             {
@@ -344,7 +355,33 @@ namespace PokeLab.Boot
         /// the one place that can see both. The party is only consulted for the nickname and
         /// the species: every number on screen is the server's.
         /// </summary>
-        private static List<ExperienceSummaryEntry> BuildSummary(BattleResultResponse report, PlayerProfile profile)
+        private static string RewardLine(BattleResultResponse report)
+        {
+            if (report == null) return null;
+
+            var line = Loc.Pick($"+{report.coinsGained:N0} PP", $"PP +{report.coinsGained:N0}");
+
+            var drops = report.drops;
+            if (drops == null || drops.Length == 0) return line;
+
+            var names = new List<string>(drops.Length);
+            foreach (var itemId in drops)
+            {
+                if (string.IsNullOrEmpty(itemId)) continue;
+                names.Add(itemId == "candy"
+                    ? Loc.Pick("Rare Candy", "이상한 사탕")
+                    : itemId.StartsWith("disc:")
+                        ? Loc.Pick($"{UiServices.MoveName(itemId.Substring(5))} disc",
+                                   $"{UiServices.MoveName(itemId.Substring(5))} 디스크")
+                        : itemId);
+            }
+
+            if (names.Count == 0) return line;
+            return line + Loc.Pick("   ·   found " + string.Join(", ", names),
+                                   "   ·   " + string.Join(", ", names) + " 획득!");
+        }
+
+        private static List<ExperienceSummaryEntry> BuildSummary(BattleResultResponse report, PlayerProfile profile, RosterEntry[] party)
         {
             var entries = new List<ExperienceSummaryEntry>();
             var gains = report?.gains;
@@ -358,9 +395,9 @@ namespace PokeLab.Boot
                 // The slot is the server's index into the roster, which is the order the party
                 // was built in — so it is also the party index, and the two only disagree if a
                 // roster entry failed to build, in which case the name is simply omitted.
-                var member = profile != null && gain.slot >= 0 && gain.slot < profile.Party.Count
-                    ? profile.Party[gain.slot]
-                    : null;
+                var partyIndex = Array.FindIndex(party, member => member != null && member.slot == gain.slot);
+                var member = profile != null && partyIndex >= 0 && partyIndex < profile.Party.Count
+                    ? profile.Party[partyIndex] : null;
 
                 entries.Add(new ExperienceSummaryEntry
                 {
@@ -398,8 +435,11 @@ namespace PokeLab.Boot
                 // The instance is rebuilt from species and level rather than stored: the server
                 // owns the two numbers that matter and everything else about a creature — its
                 // IVs, its moves — is derived, so there is nothing else to persist.
-                party.Add(CreatureFactory.Create(entry.speciesId, entry.level,
-                    entry.speciesId * 7919 + entry.slot + seedSalt, ordinal: i));
+                var creature = CreatureFactory.Create(entry.speciesId, entry.level,
+                    entry.speciesId * 7919 + entry.slot + seedSalt, ordinal: i);
+                ApplyTaughtMoves(creature, entry.moves);
+                ApplyStars(creature, entry.stars);
+                party.Add(creature);
             }
 
             return party;
@@ -416,6 +456,54 @@ namespace PokeLab.Boot
         /// Chosen on the client, and that is fine here and would not be in PvP: nobody is
         /// cheated by the computer's team, and the server does not need to agree about it.
         /// </summary>
+        private static void ApplyTaughtMoves(CreatureInstance creature, string taught)
+        {
+            if (creature == null || string.IsNullOrWhiteSpace(taught)) return;
+            if (!ServiceHub.TryGet<IMoveRegistry>(out var moves) || moves == null) return;
+
+            var ids = taught.Split(',');
+            var resolved = new List<MoveData>(4);
+            foreach (var raw in ids)
+            {
+                var id = raw.Trim();
+                if (id.Length == 0) continue;
+                if (moves.TryGet(id, out var move) && move != null) resolved.Add(move);
+            }
+
+            if (resolved.Count == 0)
+            {
+                Debug.LogWarning($"[BattleMode] {creature.SpeciesId} was taught \"{taught}\" but the " +
+                                 "move registry knows none of it; keeping the learnset moveset. " +
+                                 "The Worker's learnsets.ts and moves.json have drifted.");
+                return;
+            }
+
+            CreatureFactory.FillMoves(creature, resolved);
+        }
+
+        /// <summary>
+        /// 돌파: +4% to every stat per star.
+        ///
+        /// Applied here rather than inside CreatureFactory because stars belong to an ONLINE
+        /// collection and the factory is what the story mode builds wild encounters with -- a
+        /// stat bonus reaching into that would strengthen creatures nobody had broken through.
+        ///
+        /// HP is scaled with the rest and CurrentHp is set from the new maximum, because a
+        /// creature is built at full health here and a bonus that raised the ceiling without
+        /// raising the fill would send it into the arena already hurt.
+        /// </summary>
+        private static void ApplyStars(CreatureInstance creature, int stars)
+        {
+            if (creature?.Stats == null || stars <= 0) return;
+
+            var multiplier = 1f + 0.04f * Mathf.Clamp(stars, 0, 5);
+            for (var i = 0; i < creature.Stats.Length; i++)
+                creature.Stats[i] = Mathf.Max(1, Mathf.RoundToInt(creature.Stats[i] * multiplier));
+
+            creature.MaxHp = creature.Stats[(int)StatKind.Hp];
+            creature.CurrentHp = creature.MaxHp;
+        }
+
         private static List<CreatureInstance> BuildOpponent(RosterEntry[] roster)
         {
             var level = AverageLevel(roster);
@@ -477,6 +565,8 @@ namespace PokeLab.Boot
 
         private void Finish()
         {
+            PokeLab.Cinematics.BattleCameraHost.Release();
+            GameEvents.RaiseModeChanged(GameMode.Battle, GameMode.Menu);
             // The services go back before the scene does, so nothing waking during the unload
             // can read the throwaway profile.
             if (_hadProfile && _previousProfile != null) ServiceHub.Register(_previousProfile);

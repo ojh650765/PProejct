@@ -434,8 +434,10 @@ Shader "PokeLab/SpriteBillboard"
             half3 ShadeSpriteLight(Light light, half3 normalWS, half3 albedo,
                                    half isKey, float2 svPosition, float rampAA)
             {
-                half atten = light.distanceAttenuation * light.shadowAttenuation;
-                atten = lerp(1.0, atten, _ShadowStrength);
+                // Keep close point lights from bleaching pixel art. Shadow strength
+                // changes shadows only; it must not add light outside a lamp's range.
+                half atten = saturate(light.distanceAttenuation)
+                    * lerp(1.0, light.shadowAttenuation, _ShadowStrength);
 
                 half ndotl = dot(normalWS, light.direction);
                 half ramp = PL_ToonRamp(ndotl, _ShadeSteps, _ShadeSoftness, _ShadeWrap,

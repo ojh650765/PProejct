@@ -212,6 +212,7 @@ namespace PokeLab.UI
 
                 case CreatureSentOutEvent sentOut:
                     BindSide(sentOut.Side, sentOut.Creature, true);
+                    if (sentOut.PresentedHp >= 0) PlateFor(sentOut.Side)?.SetPresentedHealth(sentOut.PresentedHp, sentOut.PresentedMaxHp);
                 {
                     // "나타났다" against "내보냈다": one walked out of the grass on its own, the
                     // other was sent by somebody. DP keeps them apart and so does this — a wild
@@ -521,7 +522,8 @@ namespace PokeLab.UI
         private void RefreshSide(BattleSide side)
         {
             var creature = ActiveOf(side);
-            if (creature != null) PlateFor(side)?.Bind(creature);
+            // Status/item notifications precede queued damage and healing. Keep the presented HP.
+            if (creature != null) PlateFor(side)?.Bind(creature, preserveHealth: true);
         }
 
         /// <summary>

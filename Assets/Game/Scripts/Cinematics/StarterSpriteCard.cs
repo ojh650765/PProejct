@@ -178,6 +178,10 @@ namespace PokeLab.Cinematics
             // close shot and a back-face-culled quad vanishes for those frames.
             if (material.HasProperty("_Cull")) material.SetFloat("_Cull", 0f);
             material.doubleSidedGI = true;
+            // The briefcase is a flat prop, not a spherical character. A curved
+            // synthetic normal turns the nearby case lamp into a bright disk.
+            if (material.HasProperty("_SphereNormal")) material.SetFloat("_SphereNormal", 0f);
+            if (material.HasProperty("_RimStrength")) material.SetFloat("_RimStrength", 0f);
 
             material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
             return material;

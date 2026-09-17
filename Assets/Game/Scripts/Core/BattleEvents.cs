@@ -36,6 +36,8 @@ namespace PokeLab.Core
     /// <summary>A creature is sent out — the presenter plays the throw, land and cry.</summary>
     public sealed class CreatureSentOutEvent : BattleEvent
     {
+        public int PresentedHp = -1;
+        public int PresentedMaxHp;
         public BattleSide Side;
         public CreatureInstance Creature;
         /// <summary>True when this replaces a fainted creature rather than opening the battle.</summary>

@@ -9,12 +9,8 @@ namespace PokeLab.UI
     /// <summary>
     /// The conversation overlay: speaker name, affiliation, typewriter body, and choices.
     ///
-    /// There is no box. The dialogue is a pair of translucent bands laid across the bottom of
-    /// the screen with a bright hairline between them, because a conversation in this game
-    /// happens in front of the NPC the player is talking to and an opaque panel covers the
-    /// one thing they are looking at. Contrast comes from the scrim plus a shadow tied to the
-    /// glyphs themselves, which is what keeps white text readable when a line lands on a
-    /// bright patch of the scene.
+    /// A translucent black band separates the text from bright scenery while the soft outer
+    /// scrim preserves the setting around the conversation.
     ///
     /// Two rules make the typewriter feel good rather than tedious. First, a press while text
     /// is still revealing completes the line instead of advancing — players learn this in one
@@ -64,17 +60,17 @@ namespace PokeLab.UI
         // relative to each other — a designer nudging one in the inspector would break the
         // alignment between the name, the rule and the body copy, which is the whole idea.
 
-        private const float Indent = 168f;
-        private const float ScrimHeight = 336f;
+        private const float Indent = 96f;
+        private const float ScrimHeight = 250f;
         private const float TopFadeHeight = 148f;
         private const float RuleY = 246f;
         private const float RuleThickness = 2f;
         private const float RuleRightMargin = 132f;
-        private const float NameRowY = 262f;
-        private const float NameRowHeight = 74f;
-        private const float BodyTopY = 218f;
+        private const float NameRowY = 254f;
+        private const float NameRowHeight = 52f;
+        private const float BodyTopY = 202f;
         private const float BodyBottomY = 46f;
-        private const float BodyRightMargin = 268f;
+        private const float BodyRightMargin = 160f;
         private const float TabWidth = 18f;
         private const float TabHeight = 36f;
         private const int TabSlant = 3;
@@ -104,11 +100,11 @@ namespace PokeLab.UI
         private const float StagedBottom = 300f;
         private const float StagedHeight = 720f;
 
-        private const float CloseWidth = 900f;
-        private const float CloseHeight = 1180f;
+        private const float CloseWidth = 360f;
+        private const float CloseHeight = 480f;
         // Negative: the figure's feet sit below the screen edge, so the cut lands on the shin
         // rather than on the floor beneath them.
-        private const float CloseBottom = -230f;
+        private const float CloseBottom = 30f;
         private const float ChoiceWidth = 820f;
         private const float ChoiceHeight = 62f;
         private const int ChoiceSlant = 12;
@@ -170,7 +166,8 @@ namespace PokeLab.UI
         {
             if (_portraitFrame == null) return;
 
-            UiBuilder.Anchor(_portraitFrame, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+            var anchor = new Vector2(staged ? .5f : .87f, 0f);
+            UiBuilder.Anchor(_portraitFrame, anchor, anchor,
                 new Vector2(0.5f, 0f),
                 new Vector2(0f, staged ? StagedBottom : CloseBottom),
                 staged ? new Vector2(StagedWidth, StagedHeight)
@@ -615,6 +612,12 @@ namespace PokeLab.UI
                      || (pad != null && (pad.dpad.up.wasPressedThisFrame
                                          || pad.leftStick.up.wasPressedThisFrame));
 
+            if (keyboard != null && keyboard.tabKey.wasPressedThisFrame)
+            {
+                int count = _choiceButtons.Count;
+                _choiceIndex = (_choiceIndex + (keyboard.shiftKey.isPressed ? -1 : 1) + count) % count;
+                HighlightChoice();
+            }
             if (down || up)
             {
                 var count = _choiceButtons.Count;
@@ -623,7 +626,7 @@ namespace PokeLab.UI
             }
 
             var confirm = (keyboard != null && (keyboard.spaceKey.wasPressedThisFrame
-                                                || keyboard.enterKey.wasPressedThisFrame
+                                                || (keyboard.enterKey.wasPressedThisFrame || keyboard.fKey.wasPressedThisFrame)
                                                 || keyboard.numpadEnterKey.wasPressedThisFrame))
                           || (pad != null && pad.buttonSouth.wasPressedThisFrame);
 
@@ -767,14 +770,10 @@ namespace PokeLab.UI
 
             BuildScrim(box);
 
-            _rule = UiBuilder.Image("Rule", box, UiSprites.FadeRule(256, 0.70f), UiPalette.RuleBright,
-                Image.Type.Simple);
-            Band(_rule.rectTransform, RuleY, RuleThickness, Indent, RuleRightMargin);
-
             BuildSpeakerRow(box);
             BuildBody(box);
 
-            _advanceCaret = UiBuilder.Image("Caret", box, UiSprites.Chevron(40), UiPalette.ScannerCyan,
+            _advanceCaret = UiBuilder.Image("Caret", box, UiSprites.Chevron(40), Color.white,
                 Image.Type.Simple);
             _advanceCaret.preserveAspect = true;
             UiBuilder.Anchor(_advanceCaret.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f),
@@ -802,44 +801,26 @@ namespace PokeLab.UI
         /// </summary>
         private static void BuildScrim(RectTransform box)
         {
-            // One continuous ramp from the bottom edge of the screen to nothing.
-            //
-            // This was three pieces: a flat wash behind the body, a lighter flat wash behind
-            // the name, and a short fade on top. Three constant alphas meant two visible steps
-            // across the overlay — you could point at where one band ended and the next began,
-            // which is exactly what a scrim is supposed to avoid. A single gradient is darkest
-            // where the screen ends and gone by the time it reaches the speaker's waist, so
-            // the text sits on enough ground to read and nothing draws a horizon.
-            //
-            // The gamma is what keeps the dark end short: a linear ramp over this height puts
-            // half the screen in shadow, while a curved one holds the density near the bottom
-            // and lets go quickly.
-            var wash = UiBuilder.Image("Scrim", box, UiSprites.VerticalFade(256, 1.9f),
-                UiPalette.Scrim.WithAlpha(UiPalette.ScrimBodyAlpha), Image.Type.Simple);
-            wash.raycastTarget = false;
-            Band(wash.rectTransform, -48f, ScrimHeight + TopFadeHeight + 48f, 0f, 0f);
+            var panel = UiBuilder.Image("DialogueBand", box, null, new Color(0, 0, 0, .66f));
+            panel.raycastTarget = false;
+            Band(panel.rectTransform, -24f, ScrimHeight + 24f, 0f, 0f);
         }
 
         private void BuildSpeakerRow(RectTransform box)
         {
-            // The tab leads the eye into the name from the margin and is the only piece of
-            // chrome outside the text indent. It shares the lean of the AUTO/MENU slabs, so
-            // the overlay has one geometric idea rather than three.
-            _speakerTab = UiBuilder.Image("SpeakerTab", box, UiSprites.Slant((int)TabHeight, TabSlant),
-                UiPalette.ScannerCyan.WithAlpha(0.85f), Image.Type.Sliced);
-            UiBuilder.Anchor(_speakerTab.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f),
-                new Vector2(0f, 0f), new Vector2(Indent - TabGap, NameRowY + 10f),
-                new Vector2(TabWidth, TabHeight));
-
             var plate = UiBuilder.Rect("SpeakerRow", box, false);
-            Band(plate, NameRowY, NameRowHeight, Indent, RuleRightMargin);
-            // Bottom-aligned rather than centred: the subtitle is smaller, and aligning the
-            // two boxes at their bottoms is what puts their baselines on the same line.
-            UiBuilder.Horizontal(plate, 16f, new RectOffset(0, 0, 0, 10), TextAnchor.LowerLeft);
+            UiBuilder.Anchor(plate, Vector2.zero, Vector2.zero, Vector2.zero,
+                new Vector2(Indent, NameRowY), new Vector2(220f, NameRowHeight));
+            var fill = plate.gameObject.AddComponent<Image>();
+            fill.color = new Color(.025f, .035f, .05f, .82f);
+            fill.raycastTarget = false;
+            var layout = UiBuilder.Horizontal(plate, 12f, new RectOffset(18, 18, 6, 6), TextAnchor.MiddleLeft);
+            var fit = plate.gameObject.AddComponent<ContentSizeFitter>();
+            fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             _speakerPlate = plate;
 
             _speaker = UiBuilder.Text("Name", plate, string.Empty, UiTextRole.Title, UiPalette.TextPrimary);
-            _speaker.fontSize = 36f;
+            _speaker.fontSize = 28f;
             _speaker.characterSpacing = -0.5f;
             _speaker.textWrappingMode = TextWrappingModes.NoWrap;
             UiType.ApplyShadow(_speaker, offsetX: 0.35f, offsetY: -0.45f, softness: 0.3f, dilate: 0.14f);
@@ -927,9 +908,11 @@ namespace PokeLab.UI
             // illustrations and the layout still be the final one.
             _body = UiBuilder.Text("Body", box, string.Empty, UiTextRole.Body, UiPalette.TextPrimary,
                 TextAlignmentOptions.TopLeft);
-            _body.fontSize = 30f;
-            _body.lineSpacing = 14f;
-            _body.overflowMode = TextOverflowModes.Overflow;
+            _body.fontSize = 32f;
+            _body.lineSpacing = 8f;
+            _body.enableAutoSizing = true;
+            _body.fontSizeMin = 24f; _body.fontSizeMax = 32f;
+            _body.overflowMode = TextOverflowModes.Ellipsis;
             Band(_body.rectTransform, BodyBottomY, BodyTopY - BodyBottomY, Indent, BodyRightMargin);
             UiType.ApplyShadow(_body);
         }

@@ -1,0 +1,130 @@
+[
+  {
+    "name": "Env_Interior_Table",
+    "family": "Interior",
+    "subfamily": "Interior",
+    "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Table.fbx",
+    "triangles": 72,
+    "lods": [],
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "pivot": "base, footprint centred",
+    "windVertexColors": false,
+    "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+    "budgetClass": "furniture"
+  },
+  {
+    "name": "Env_Interior_Chair",
+    "family": "Interior",
+    "subfamily": "Interior",
+    "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Chair.fbx",
+    "triangles": 72,
+    "lods": [],
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "pivot": "base, footprint centred",
+    "windVertexColors": false,
+    "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+    "budgetClass": "furniture"
+  },
+  {
+    "name": "Env_Interior_Bed",
+    "family": "Interior",
+    "subfamily": "Interior",
+    "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Bed.fbx",
+    "triangles": 60,
+    "lods": [],
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "pivot": "base, footprint centred",
+    "windVertexColors": false,
+    "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+    "budgetClass": "furniture"
+  },
+  {
+    "name": "Env_Interior_Bookshelf",
+    "family": "Interior",
+    "subfamily": "Interior",
+    "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Bookshelf.fbx",
+    "triangles": 420,
+    "lods": [],
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "pivot": "base, footprint centred",
+    "windVertexColors": false,
+    "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+    "budgetClass": "furniture"
+  },
+  {
+    "name": "Env_Interior_LabCabinet",
+    "family": "Interior",
+    "subfamily": "Interior",
+    "path": "Assets/Game/Art/Environment/Interior/Env_Interior_LabCabinet.fbx",
+    "triangles": 72,
+    "lods": [],
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "pivot": "base, footprint centred",
+    "windVertexColors": false,
+    "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+    "budgetClass": "furniture"
+  },
+  {
+    "name": "Env_Interior_Reception",
+    "family": "Interior",
+    "subfamily": "Interior",
+    "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Reception.fbx",
+    "triangles": 36,
+    "lods": [],
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "pivot": "base, footprint centred",
+    "windVertexColors": false,
+    "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+    "budgetClass": "furniture"
+  },
+  {
+    "name": "Env_Interior_Sofa",
+    "family": "Interior",
+    "subfamily": "Interior",
+    "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Sofa.fbx",
+    "triangles": 60,
+    "lods": [],
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "pivot": "base, footprint centred",
+    "windVertexColors": false,
+    "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+    "budgetClass": "furniture"
+  },
+  {
+    "name": "Env_Interior_Kitchen",
+    "family": "Interior",
+    "subfamily": "Interior",
+    "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Kitchen.fbx",
+    "triangles": 168,
+    "lods": [],
+    "textures": [
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+      "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+    ],
+    "pivot": "base, footprint centred",
+    "windVertexColors": false,
+    "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+    "budgetClass": "furniture"
+  }
+]

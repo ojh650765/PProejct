@@ -4,6 +4,10 @@
   "units": "1 metre. The FBX declares UnitScaleFactor 100 and carries real metres, Y up, with the axis conversion baked into the vertex data (export: axis_forward='-Z', axis_up='Y', apply_scale_options='FBX_SCALE_UNITS', bake_space_transform on anything without an armature). Models face +Z with Y up in Unity, on stock import settings.",
   "modularGrid": 0.5,
   "triangleBudgets": {
+    "furniture": [
+      10,
+      2500
+    ],
     "foliage": [
       200,
       1500
@@ -1100,7 +1104,7 @@
     "worldSpaceAssets": "Every asset whose `pivot` reads 'world origin (0,0,0)' is authored in level world space: instantiate it at position (0,0,0) with identity rotation and scale 1, and it lands exactly where slice_layout.json's terrain block says it should. Do not re-position it.",
     "colliders": "Ground decks, ramps and ledges are closed solids -- boundary skirted to a floor and capped -- so a MeshCollider straight on the imported mesh is watertight; leave Convex OFF. Cliff, path and riverbank modules are likewise closed solids. Water surfaces want a trigger collider on the Water layer, not a solid one. Foliage should use no collider, or a capsule on the tall-grass patches if encounters are driven by trigger volumes."
   },
-  "assetCount": 134,
+  "assetCount": 142,
   "assets": [
     {
       "name": "Env_Tree_Broadleaf_A",
@@ -2200,14 +2204,14 @@
           "triangles": 692
         }
       ],
-      "pivot": "base, XY centred",
+      "pivot": "base, footprint centred",
       "textures": [
         "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_BaseColor.png",
         "Assets/Game/Art/Environment/Terrain/Textures/Env_Terrain_Atlas_Normal.png"
       ],
       "windVertexColors": false,
       "budgetClass": "building",
-      "notes": "",
+      "notes": "9 x 3.2 m bridge; Ground deck separate from non-walkable structure.",
       "withinBudget": true
     },
     {
@@ -2607,15 +2611,26 @@
       "family": "Town",
       "subfamily": "House",
       "path": "Assets/Game/Art/Environment/Town/Env_House_Cottage_A.fbx",
-      "triangles": 1216,
-      "lods": [],
-      "pivot": "ground level, footprint centred",
+      "triangles": 1684,
+      "lods": [
+        {
+          "level": 1,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Cottage_A_LOD1.fbx",
+          "triangles": 672
+        },
+        {
+          "level": 2,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Cottage_A_LOD2.fbx",
+          "triangles": 322
+        }
+      ],
+      "pivot": "base, footprint centred",
       "textures": [
         "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
         "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
       ],
       "windVertexColors": false,
-      "notes": "",
+      "notes": "Open door shell, low doorstep, measured entrance anchors, one atlas submesh.",
       "budgetClass": "building",
       "withinBudget": true
     },
@@ -2624,15 +2639,26 @@
       "family": "Town",
       "subfamily": "House",
       "path": "Assets/Game/Art/Environment/Town/Env_House_Townhouse_B.fbx",
-      "triangles": 1720,
-      "lods": [],
-      "pivot": "ground level, footprint centred",
+      "triangles": 2548,
+      "lods": [
+        {
+          "level": 1,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Townhouse_B_LOD1.fbx",
+          "triangles": 1018
+        },
+        {
+          "level": 2,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Townhouse_B_LOD2.fbx",
+          "triangles": 452
+        }
+      ],
+      "pivot": "base, footprint centred",
       "textures": [
         "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
         "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
       ],
       "windVertexColors": false,
-      "notes": "",
+      "notes": "Open door shell, low doorstep, measured entrance anchors, one atlas submesh.",
       "budgetClass": "building",
       "withinBudget": true
     },
@@ -2641,15 +2667,26 @@
       "family": "Town",
       "subfamily": "House",
       "path": "Assets/Game/Art/Environment/Town/Env_House_Farmhouse_C.fbx",
-      "triangles": 1604,
-      "lods": [],
-      "pivot": "ground level, footprint centred",
+      "triangles": 1684,
+      "lods": [
+        {
+          "level": 1,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Farmhouse_C_LOD1.fbx",
+          "triangles": 672
+        },
+        {
+          "level": 2,
+          "path": "Assets/Game/Art/Environment/Town/Env_House_Farmhouse_C_LOD2.fbx",
+          "triangles": 322
+        }
+      ],
+      "pivot": "base, footprint centred",
       "textures": [
         "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
         "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
       ],
       "windVertexColors": false,
-      "notes": "",
+      "notes": "Open door shell, low doorstep, measured entrance anchors, one atlas submesh.",
       "budgetClass": "building",
       "withinBudget": true
     },
@@ -2671,13 +2708,13 @@
           "triangles": 330
         }
       ],
-      "pivot": "ground level, footprint centred",
+      "pivot": "base, footprint centred",
       "textures": [
         "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
         "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
       ],
       "windVertexColors": false,
-      "notes": "",
+      "notes": "Open door shell, low doorstep, measured entrance anchors, one atlas submesh.",
       "budgetClass": "building",
       "withinBudget": true
     },
@@ -2686,26 +2723,26 @@
       "family": "Town",
       "subfamily": "Building",
       "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeCentre.fbx",
-      "triangles": 2652,
+      "triangles": 1960,
       "lods": [
         {
           "level": 1,
           "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeCentre_LOD1.fbx",
-          "triangles": 1060
+          "triangles": 784
         },
         {
           "level": 2,
           "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeCentre_LOD2.fbx",
-          "triangles": 418
+          "triangles": 328
         }
       ],
-      "pivot": "ground level, footprint centred",
+      "pivot": "base, footprint centred",
       "textures": [
         "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
         "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
       ],
       "windVertexColors": false,
-      "notes": "",
+      "notes": "Open door shell, low doorstep, measured entrance anchors, one atlas submesh.",
       "budgetClass": "building",
       "withinBudget": true
     },
@@ -2867,7 +2904,7 @@
       "family": "Town",
       "subfamily": "Planter",
       "path": "Assets/Game/Art/Environment/Town/Env_Planter.fbx",
-      "triangles": 438,
+      "triangles": 380,
       "lods": [],
       "pivot": "ground level, footprint centred",
       "textures": [
@@ -3517,6 +3554,142 @@
       "windVertexColors": false,
       "notes": "",
       "budgetClass": "prop",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Interior_Table",
+      "family": "Interior",
+      "subfamily": "Interior",
+      "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Table.fbx",
+      "triangles": 72,
+      "lods": [],
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "pivot": "base, footprint centred",
+      "windVertexColors": false,
+      "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+      "budgetClass": "furniture",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Interior_Chair",
+      "family": "Interior",
+      "subfamily": "Interior",
+      "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Chair.fbx",
+      "triangles": 72,
+      "lods": [],
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "pivot": "base, footprint centred",
+      "windVertexColors": false,
+      "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+      "budgetClass": "furniture",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Interior_Bed",
+      "family": "Interior",
+      "subfamily": "Interior",
+      "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Bed.fbx",
+      "triangles": 60,
+      "lods": [],
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "pivot": "base, footprint centred",
+      "windVertexColors": false,
+      "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+      "budgetClass": "furniture",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Interior_Bookshelf",
+      "family": "Interior",
+      "subfamily": "Interior",
+      "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Bookshelf.fbx",
+      "triangles": 420,
+      "lods": [],
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "pivot": "base, footprint centred",
+      "windVertexColors": false,
+      "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+      "budgetClass": "furniture",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Interior_LabCabinet",
+      "family": "Interior",
+      "subfamily": "Interior",
+      "path": "Assets/Game/Art/Environment/Interior/Env_Interior_LabCabinet.fbx",
+      "triangles": 72,
+      "lods": [],
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "pivot": "base, footprint centred",
+      "windVertexColors": false,
+      "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+      "budgetClass": "furniture",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Interior_Reception",
+      "family": "Interior",
+      "subfamily": "Interior",
+      "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Reception.fbx",
+      "triangles": 36,
+      "lods": [],
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "pivot": "base, footprint centred",
+      "windVertexColors": false,
+      "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+      "budgetClass": "furniture",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Interior_Sofa",
+      "family": "Interior",
+      "subfamily": "Interior",
+      "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Sofa.fbx",
+      "triangles": 60,
+      "lods": [],
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "pivot": "base, footprint centred",
+      "windVertexColors": false,
+      "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+      "budgetClass": "furniture",
+      "withinBudget": true
+    },
+    {
+      "name": "Env_Interior_Kitchen",
+      "family": "Interior",
+      "subfamily": "Interior",
+      "path": "Assets/Game/Art/Environment/Interior/Env_Interior_Kitchen.fbx",
+      "triangles": 168,
+      "lods": [],
+      "textures": [
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_BaseColor.png",
+        "Assets/Game/Art/Environment/Town/Textures/Env_Town_Atlas_Normal.png"
+      ],
+      "pivot": "base, footprint centred",
+      "windVertexColors": false,
+      "notes": "One atlas submesh; solid furniture excluded from walkable ground.",
+      "budgetClass": "furniture",
       "withinBudget": true
     }
   ]

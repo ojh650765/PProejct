@@ -435,7 +435,7 @@ namespace PokeLab.Audio
                 }
                 return false;
             }
-            if (!Catalog.TryGet(clipName, out entry) || entry.Clip == null)
+            if (!Catalog.TryGet(clipName, out entry) || (entry.Clip == null && !entry.Disabled))
             {
                 Debug.LogWarning($"[AudioDirector] Clip '{clipName}' not in catalogue.", this);
                 return false;
@@ -458,9 +458,21 @@ namespace PokeLab.Audio
             return clip.loadState == AudioDataLoadState.Unloaded;
         }
 
+        private static bool RouteMusic(string name, AudioClipCatalog.Entry entry, float volume)
+        {
+            if (entry.Bus != AudioBus.Music) return false;
+            if (ServiceHub.TryGet<MusicDirector>(out var music))
+            {
+                if (entry.Loop) music.PlayTrack(name, .3f);
+                else music.PlaySting(name, volume);
+            }
+            return true;
+        }
+
         public void PlaySfx(string clipName, float volume = 1f, float pitch = 1f)
         {
             if (!Resolve(clipName, out var e)) return;
+            if (RouteMusic(clipName, e, volume)) return;
             if (!ClipReady(e.Clip)) return;
             var src = _sfxPool.Rent();
             if (src == null) return;
@@ -475,6 +487,7 @@ namespace PokeLab.Audio
                               float pitch = 1f)
         {
             if (!Resolve(clipName, out var e)) return;
+            if (RouteMusic(clipName, e, volume)) return;
             if (!ClipReady(e.Clip)) return;
             var src = _spatialPool.Rent();
             if (src == null) return;
@@ -489,6 +502,7 @@ namespace PokeLab.Audio
         public void PlayUi(string clipName, float volume = 1f, float pitch = 1f)
         {
             if (!Resolve(clipName, out var e)) return;
+            if (RouteMusic(clipName, e, volume)) return;
             if (!ClipReady(e.Clip)) return;
             var src = _uiPool.Rent();
             if (src == null) return;
@@ -503,6 +517,11 @@ namespace PokeLab.Audio
                                     bool spatial = false)
         {
             if (!Resolve(clipName, out var e)) return null;
+            if (e.Bus == AudioBus.Music || bus == AudioBus.Music)
+            {
+                if (ServiceHub.TryGet<MusicDirector>(out var music)) music.PlayTrack(clipName, .3f);
+                return null; // Music ownership never escapes as a caller-controlled source.
+            }
             var src = _loopPool.RentReserved();
             if (src == null)
             {

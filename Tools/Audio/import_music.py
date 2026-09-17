@@ -37,6 +37,14 @@ MANIFEST = os.path.join(REPO, "Assets", "Game", "Audio", "audio_manifest.json")
 
 # source filename -> (catalogue name, loops, trigger)
 TRACKS = [
+    ("A Surprise at the Lake!.mp3", "Music_Encounter_Sting", False, "DP lake surprise cue."),
+    ("Twinleaf Town (Day).mp3", "Music_Town_Day", True, "DP Twinleaf Town daytime."),
+    ("Twinleaf Town (Night).mp3", "Music_Town_Night", True, "DP Twinleaf Town nighttime."),
+    ("Route 201 (Day).mp3", "Music_Route_Day", True, "DP early routes daytime."),
+    ("Route 201 (Night).mp3", "Music_Route_Night", True, "DP early routes nighttime."),
+    ("Lake.mp3", "Music_Lakeside", True, "DP lake theme."),
+    ("Oreburgh Gate.mp3", "Music_Cave", True, "DP cave theme."),
+    ("Victory! (Wild Pokemon).mp3", "Music_Capture_Success", False, "DP wild encounter victory."),
     ("26. Battle! (Trainer Battle).mp3", "Music_Battle_Trainer", True,
      "Trainer battle loop; BattleStartedEvent with Kind=Trainer."),
     ("15. Battle! (Wild Pokémon).mp3", "Music_Battle_Wild", True,
@@ -84,11 +92,21 @@ def probe(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--source-dir", default=DOWNLOADS, help="Folder containing supplied DP MP3 tracks")
     args = parser.parse_args()
+    def normalise(value):
+        import unicodedata
+        value = "".join(c for c in unicodedata.normalize("NFD", value) if not unicodedata.combining(c))
+        return re.sub(r"[^a-z0-9]", "", re.sub(r"^\d+[. _-]*", "", value.lower()))
+    available = {}
+    for root, _, files in os.walk(args.source_dir):
+        for file in files:
+            if file.lower().endswith(".mp3"):
+                available.setdefault(normalise(file), os.path.join(root, file))
 
     jobs, missing = [], []
     for source, name, loop, trigger in TRACKS:
-        path = os.path.join(DOWNLOADS, source)
+        path = available.get(normalise(source), os.path.join(args.source_dir, source))
         (jobs if os.path.isfile(path) else missing).append((path, source, name, loop, trigger))
 
     for path, source, name, loop, trigger in missing:

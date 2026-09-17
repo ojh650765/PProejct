@@ -147,8 +147,8 @@ namespace PokeLab.Audio
                 // ---- deliberately silent: another system owns these ------------------
                 case "sfx_encounter_sting":
                     // MusicDirector plays the composed encounter sting on the
-                    // GameMode.EncounterIntro change, on its own deck, fading the
-                    // exploration theme under it. Playing anything here doubles it.
+                    // GameMode.EncounterIntro change, replacing the exploration theme
+                    // on the sole music source. This hook must not request it again.
                     break;
 
                 case "sfx_hit_neutral":
@@ -185,7 +185,6 @@ namespace PokeLab.Audio
             if (!Ready()) yield break;
             _audio.DuckMusic(0.75f, 0.2f, 1.8f, 1.0f);
             if (_music != null) _music.PlaySting(AudioIds.MusicCaptureSuccess);
-            else _audio.PlaySfx(AudioIds.MusicCaptureSuccess);
             _captureSting = null;
         }
 

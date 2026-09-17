@@ -50,6 +50,7 @@ namespace PokeLab.Overworld.World
         {
             new Band { scene = "Town",  zMin = -50f, zMax = 8f },
             new Band { scene = "Field", zMin = -2f,  zMax = 70f },
+            new Band { scene = "Route202", zMin = 8f, zMax = 77f },
         };
 
         [Tooltip("Scenes whose content this scene already contains, and which must therefore " +
@@ -120,6 +121,15 @@ namespace PokeLab.Overworld.World
             // there and the coroutine's call is left as a second pass for anything that
             // arrived by another route.
             if (!_enabled) return;
+
+            // Upgrade already-authored two-band scenes without relying on Inspector
+            // defaults being reapplied to their serialized arrays.
+            if (!Array.Exists(_bands, b => b != null && b.scene == "Route202"))
+            {
+                var list = new List<Band>(_bands);
+                list.Add(new Band { scene = "Route202", zMin = 8, zMax = 77 });
+                _bands = list.ToArray();
+            }
 
             var active = SceneManager.GetActiveScene().name;
 
@@ -298,6 +308,18 @@ namespace PokeLab.Overworld.World
 
             foreach (var root in loaded.GetRootGameObjects())
             {
+                // Town and Field share one bake. Overlapping registrations produce
+                // disconnected polygons at identical positions, depending on sample order.
+                var navigation = root.GetComponent<Unity.AI.Navigation.NavMeshSurface>();
+                if (navigation != null)
+                    foreach (var owner in FindObjectsByType<Unity.AI.Navigation.NavMeshSurface>(FindObjectsSortMode.None))
+                    {
+                        if (owner == navigation || owner.gameObject.scene == loaded || !owner.isActiveAndEnabled) continue;
+                        if (owner.navMeshData != navigation.navMeshData) continue;
+                        navigation.enabled = false;
+                        break;
+                    }
+
                 var isSessionOwner =
                     root.GetComponentInChildren<PlayerLocomotion>(true) != null
                     || root.GetComponentInChildren<OverworldCameraRig>(true) != null

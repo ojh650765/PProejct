@@ -43,6 +43,7 @@ namespace PokeLab.UI
             {
                 { "Linden", "npc_professor_01" }, { "린든", "npc_professor_01" },
                 { "Kes", "npc_rival_01" },        { "케스", "npc_rival_01" },
+                { "Barry", "npc_rival_01" },      { "용식", "npc_rival_01" },
                 { "Bram", "npc_gate_01" },        { "브람", "npc_gate_01" },
                 { "Sela", "npc_market_01" },      { "셀라", "npc_market_01" },
                 { "Odell", "npc_garden_01" },     { "오델", "npc_garden_01" },

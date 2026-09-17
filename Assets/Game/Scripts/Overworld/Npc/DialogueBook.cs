@@ -56,9 +56,9 @@ namespace PokeLab.Overworld
             var line = new DialogueLine
             {
                 SpeakerId = SpeakerId,
-                SpeakerName = Loc.Pick(SpeakerName, SpeakerNameKo),
+                SpeakerName = SpeakerId == "npc_mentor" ? (PlayerBody.IsFemale ? Loc.Pick("Lucas", "광휘") : Loc.Pick("Dawn", "빛나")) : Loc.Pick(SpeakerName, SpeakerNameKo),
                 SpeakerSubtitle = Loc.Pick(SpeakerSubtitle, SpeakerSubtitleKo),
-                PortraitKey = PortraitKey,
+                PortraitKey = PortraitKey == "mentor" ? (PlayerBody.IsFemale ? "player" : "player_f") : PortraitKey,
                 Tone = Tone,
                 AutoAdvanceSeconds = AutoAdvanceSeconds,
                 EventId = EventId,

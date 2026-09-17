@@ -52,13 +52,13 @@ namespace PokeLab.UI
     public sealed class BattleExpSummary : MonoBehaviour
     {
         private const float PanelWidth = 940f;
-        private const float PanelHeight = 940f;
+        private const float PanelHeight = 1000f;
 
         // Six of these plus the header have to fit inside PanelHeight at the 1080 reference,
         // and every row's internals have to fit inside this: 10px padding top and bottom, then
         // a 34px name line, the bar, and the figure — with each text rect comfortably taller
         // than its point size, because TMP renders nothing at all when it is not.
-        private const float RowHeight = 100f;
+        private const float RowHeight = 96f;
 
         private CanvasGroup _group;
         private RectTransform _rect;
@@ -101,7 +101,16 @@ namespace PokeLab.UI
         /// the one thing that must never happen is the teardown starting while the summary is
         /// still on screen.
         /// </summary>
-        public IEnumerator Play(bool won, IReadOnlyList<ExperienceSummaryEntry> entries, string failureNote = null)
+        /// <param name="reward">
+        /// What the battle paid, beside the experience: coins, and anything it dropped. Shown in
+        /// place of the stock subtitle, because a payout the player is never shown is a payout
+        /// they have no reason to believe in — and coins on a LOSS especially, which is the half
+        /// of the rule that has to be visible to do its job.
+        /// A failure note still wins over it: when the report never landed there is nothing to
+        /// announce, and announcing it anyway would be the worse lie.
+        /// </param>
+        public IEnumerator Play(bool won, IReadOnlyList<ExperienceSummaryEntry> entries,
+                                string failureNote = null, string reward = null)
         {
             _skipRequested = false;
             gameObject.SetActive(true);
@@ -121,11 +130,14 @@ namespace PokeLab.UI
             }
             if (_subtitle != null)
             {
-                _subtitle.SetText(string.IsNullOrEmpty(failureNote)
-                    ? (won ? Loc.Pick("The field is yours.", "상대 팀을 모두 쓰러뜨렸다!")
-                           : Loc.Pick("Your team was beaten.", "우리 팀이 모두 쓰러졌다…"))
-                    : failureNote);
-                _subtitle.color = string.IsNullOrEmpty(failureNote) ? UiPalette.TextSecondary : UiPalette.Caution;
+                var stock = won ? Loc.Pick("The field is yours.", "상대 팀을 모두 쓰러뜨렸다!")
+                                : Loc.Pick("Your team was beaten.", "우리 팀이 모두 쓰러졌다…");
+                _subtitle.SetText(!string.IsNullOrEmpty(failureNote) ? failureNote
+                                  : !string.IsNullOrEmpty(reward) ? reward
+                                  : stock);
+                _subtitle.color = !string.IsNullOrEmpty(failureNote)
+                    ? UiPalette.Caution
+                    : !string.IsNullOrEmpty(reward) ? BattleSkin.Lime : UiPalette.TextSecondary;
             }
             if (_prompt != null) _prompt.gameObject.SetActive(false);
 
@@ -487,7 +499,18 @@ namespace PokeLab.UI
 
             summary._subtitle = UiBuilder.Text("Subtitle", card, string.Empty, UiTextRole.Body,
                 UiPalette.TextSecondary, TextAlignmentOptions.Center);
-            UiBuilder.Size(summary._subtitle.rectTransform, preferredHeight: 42f, minHeight: 42f, flexibleWidth: 1f);
+            // No fixed preferred height: this line carries the reward, and a reward with a disc
+            // in it -- "코인 +140   ·   화염방사 디스크 획득!" -- is longer than one line at this
+            // width. Pinned at 42 it wrapped and the second line drew outside the card. TMP
+            // reports its own preferred height through ILayoutElement, so the group gives this
+            // row exactly the room the text needs; the floor keeps the short case looking the
+            // way it did.
+            summary._subtitle.textWrappingMode = TextWrappingModes.Normal;
+            summary._subtitle.enableAutoSizing = true;
+            summary._subtitle.fontSizeMin = 22f;
+            summary._subtitle.fontSizeMax = 32f;
+            summary._subtitle.overflowMode = TextOverflowModes.Ellipsis;
+            UiBuilder.Size(summary._subtitle.rectTransform, preferredHeight: 112f, minHeight: 112f, flexibleWidth: 1f);
 
             var caption = UiBuilder.Text("Caption", card, Loc.Pick("EXPERIENCE", "획득 경험치"),
                 UiTextRole.Overline, BattleSkin.Cyan.WithAlpha(0.85f), TextAlignmentOptions.Center);

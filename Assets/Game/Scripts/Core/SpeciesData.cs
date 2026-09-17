@@ -135,6 +135,20 @@ namespace PokeLab.Core
         IReadOnlyList<MoveData> All { get; }
         /// <summary>The learnset a species is given at the supplied level.</summary>
         IReadOnlyList<MoveData> MovesFor(int speciesId, int level);
+
+        /// <summary>
+        /// Every move this species can EVER learn, in level order, regardless of its level.
+        ///
+        /// This is what a move disc is checked against — the user's rule, stated as a rule:
+        /// 막 모든 포켓몬이 막 모든 디스크를 배울 수 있다 X. It is deliberately not the same
+        /// question as <see cref="MovesFor"/>, which answers "what does it know now"; a disc is
+        /// interesting precisely because it teaches something a creature has not reached yet.
+        ///
+        /// The Worker asks the same question of its own generated copy of these learnsets before
+        /// it spends a disc, and that answer is the one that counts. This one exists so the
+        /// screen can grey a row out instead of finding out by being refused.
+        /// </summary>
+        IReadOnlyList<MoveData> LearnableBy(int speciesId);
     }
 
     /// <summary>Type effectiveness, sourced from TYPE_MULTIPLIERS in domain.py.</summary>

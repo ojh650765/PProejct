@@ -63,6 +63,7 @@ namespace PokeLab.Overworld
         public void Interact(GameObject instigator)
         {
             if (_busy) return;
+            if (_player == null && instigator != null) _player = instigator.GetComponent<PlayerLocomotion>();
             StartCoroutine(RunHeal());
         }
 
@@ -84,31 +85,37 @@ namespace PokeLab.Overworld
         private IEnumerator RunHeal()
         {
             _busy = true;
+            bool wasFrozen = _player != null && _player.IsMotionFrozen;
             if (_player != null) _player.SetMotionFrozen(true);
-
-            if (_greeting != null && _dialogueRunner != null)
+            try
             {
-                _dialogueRunner.Play(_greeting, gameObject);
-                while (_dialogueRunner.IsPlaying) yield return null;
-            }
+                if (_greeting != null && _dialogueRunner != null)
+                {
+                    _dialogueRunner.Play(_greeting, gameObject);
+                    while (_dialogueRunner.IsPlaying) yield return null;
+                }
 
-            // Apply the mechanical effect first, then play the show. A player who alt-F4s during
-            // the animation keeps their heal, which is the forgiving failure mode.
-            if (ServiceHub.TryGet<IPlayerProfile>(out var profile) && profile is PlayerProfile concrete)
+                // Apply the mechanical effect first, then play the show. A player who alt-F4s during
+                // the animation keeps their heal, which is the forgiving failure mode.
+                if (ServiceHub.TryGet<IPlayerProfile>(out var profile) && profile is PlayerProfile concrete)
+                {
+                    concrete.HealParty();
+                }
+
+                _healSequenceStarted.Invoke(_sequenceSeconds);
+                if (_sequenceSeconds > 0f) yield return new WaitForSeconds(_sequenceSeconds);
+
+                if (_restsUntilMorning && _clock != null) _clock.SetPhase(TimeOfDay.Dawn);
+
+                _healCompleted.Invoke(name);
+                OverworldEvents.RaisePartyChanged();
+
+            }
+            finally
             {
-                concrete.HealParty();
+                if (_player != null) _player.SetMotionFrozen(wasFrozen);
+                _busy = false;
             }
-
-            _healSequenceStarted.Invoke(_sequenceSeconds);
-            if (_sequenceSeconds > 0f) yield return new WaitForSeconds(_sequenceSeconds);
-
-            if (_restsUntilMorning && _clock != null) _clock.SetPhase(TimeOfDay.Dawn);
-
-            _healCompleted.Invoke(name);
-            OverworldEvents.RaisePartyChanged();
-
-            if (_player != null) _player.SetMotionFrozen(false);
-            _busy = false;
         }
     }
 }

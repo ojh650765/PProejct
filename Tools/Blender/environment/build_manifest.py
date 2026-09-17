@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import envlib as E
 import textures as T
 
-FAMILIES = ["Foliage", "Terrain", "Town", "Props", "Characters"]
+FAMILIES = ["Foliage", "Terrain", "Town", "Props", "Interior", "Characters"]
 
 # Families whose atlas still exists and is still referenced. Characters was
 # retired when the project moved to official pixel sprites (Docs/GOAL.md), so
@@ -29,6 +29,7 @@ ATLAS_FAMILIES = ["Foliage", "Terrain", "Town", "Props"]
 # holds both 6k buildings and 400-tri benches, and a single grass blade is
 # meant to be tiny.  Classify each asset so the report is honest.
 BUDGETS = {
+    "furniture": [10, 2500],
     "foliage": [200, 1500],
     "rock": [300, 2000],
     # 900, not 1500: the rebuilt buildings dropped the whole-mesh bevel
@@ -289,8 +290,7 @@ def main():
             if os.path.normpath(f) not in referenced:
                 orphans.append(f)
     for f in orphans:
-        os.remove(f)
-        E.log("removed stale LOD %s" % os.path.basename(f))
+        E.log("unreferenced LOD (retained for review): %s" % os.path.basename(f))
 
     out = os.path.join(E.ART_ENV, "environment_manifest.json")
     with open(out, "w", encoding="utf-8") as f:

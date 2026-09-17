@@ -156,10 +156,8 @@ namespace PokeLab.Boot
                 { "op_prologue_confirm", "study" },
             };
 
-        private Texture2D _worldBlur;
 
         /// <summary>Whether this conversation already has its backdrop. Cleared when it ends.</summary>
-        private bool _backdropGrabbed;
 
         /// <summary>
         /// Puts something behind the speaker.
@@ -193,68 +191,14 @@ namespace PokeLab.Boot
             // Everyone else is met where they stand, so they are framed close.
             _view.SetPortraitFraming(staged: false);
 
-            // Grabbed once per conversation, not once per line.
-            //
-            // Re-capturing on every line re-renders the camera into the target, and the camera
-            // is still easing toward its dialogue framing — so each line replaced the backdrop
-            // with a slightly different one and the blur visibly slid and widened behind the
-            // text. The world does not change during a conversation, so one grab is not merely
-            // cheaper, it is the only one that holds still.
-            if (!_backdropGrabbed)
-            {
-                _backdropGrabbed = true;
-                _view.SetBackdrop(null, CaptureBlurredWorld(), 0.72f);
-            }
+            // Keep the live world visible while its camera sequence moves.
+            // A frozen screenshot here hid every camera move and could show the previous scene.
+            _view.SetBackdrop(null);
         }
 
         /// <summary>
-        /// The game as it looks right now, at a fraction of its resolution.
-        ///
-        /// The blur is the downsample. Rendering the camera into a small target and letting
-        /// the UI stretch it back up is a box filter done by the sampler, which costs one
-        /// pass and no shader — and at this size the difference between that and a real
-        /// gaussian is not visible behind a text panel.
-        /// </summary>
-        private Texture2D CaptureBlurredWorld()
-        {
-            var camera = Camera.main;
-            if (camera == null) return null;
-
-            const int width = 160;
-            const int height = 90;
-
-            var target = RenderTexture.GetTemporary(width, height, 16);
-            var previousTarget = camera.targetTexture;
-            var previousActive = RenderTexture.active;
-
-            camera.targetTexture = target;
-            camera.Render();
-
-            RenderTexture.active = target;
-            if (_worldBlur == null)
-                _worldBlur = new Texture2D(width, height, TextureFormat.RGB24, false)
-                    { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
-            _worldBlur.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
-            _worldBlur.Apply();
-
-            camera.targetTexture = previousTarget;
-            RenderTexture.active = previousActive;
-            RenderTexture.ReleaseTemporary(target);
-
-            return _worldBlur;
-        }
-
-        /// <summary>
-        /// The speaker's face, cut out of the sheet they walk around in.
-        ///
-        /// No portrait art exists — the frame the box reserves is 116x172 and nothing has
-        /// ever been drawn for it, so the opening was a name and a voice with an empty plate
-        /// beside it. Their own front-idle cell is real drawn art of the right person, and a
-        /// 32-pixel face scaled up in a pixel game reads as a portrait rather than as a
-        /// placeholder. It is also guaranteed to match whoever is actually standing in the
-        /// world, which a separately drawn portrait would not be.
-        ///
-        /// Cached per key: this is called once per line, and building a Sprite allocates.
+        /// Dedicated dialogue illustration, cached per character. Overworld animation
+        /// sheets are never used as portraits; missing illustrations leave the frame empty.
         /// </summary>
         private Sprite PortraitFor(DialogueLine line)
         {
@@ -264,8 +208,7 @@ namespace PokeLab.Boot
 
             // The drawn illustration first. DialoguePortraits loads a half-body from
             // Resources/Portraits and is what the box is really designed around; the
-            // sprite-sheet face below is what shows until that art exists, so neither
-            // path has to wait for the other.
+            // walking sprite is never enlarged into this frame.
             // Asked for by the normalised key, not the raw one. The book writes PortraitKey as
             // the speaker id — npc_professor_01 — and the drawn portraits are filed under the
             // role, so looking up the raw value missed every one of them and quietly fell
@@ -288,28 +231,7 @@ namespace PokeLab.Boot
                 return portrait;
             }
 
-            var entry = PersonSpriteLibrary.Shared.Find(key);
-            var clip = entry?.frontIdle;
-            if (clip != null && clip.IsValid)
-            {
-                var texture = PersonSpriteLibrary.Shared.Texture(clip.texture);
-                if (texture != null)
-                {
-                    var frame = clip.sequence[0];
-                    var cellW = texture.width / Mathf.Max(1, clip.columns);
-                    var cellH = texture.height / Mathf.Max(1, clip.rows);
-                    var column = frame % clip.columns;
-                    var row = frame / clip.columns;
-
-                    // Row 0 is the top of the sheet; Sprite rects count up from the bottom.
-                    var rect = new Rect(column * cellW,
-                                        texture.height - (row + 1) * cellH,
-                                        cellW, cellH);
-                    portrait = Sprite.Create(texture, rect, new Vector2(0.5f, 0.5f), cellH);
-                    portrait.name = "~Portrait_" + key;
-                }
-            }
-
+            // Dialogue art never falls back to an enlarged overworld animation frame.
             _portraits[key] = portrait;
             return portrait;
         }
@@ -337,10 +259,20 @@ namespace PokeLab.Boot
             // art is drawn per role.
             var tail = id.LastIndexOf('_');
             if (tail > 0 && int.TryParse(id.Substring(tail + 1), out _)) id = id.Substring(0, tail);
-            return id;
+            return id switch
+            {
+                "mom" or "townswoman" => "mother",
+                "rival_mom" => "elder_woman",
+                "lake_fisher" => "fisher",
+                "mentor" => "player_f",
+                "cave_hiker" => "hiker",
+                "route_lass" => "lass",
+                "route_youngster" => "youngster",
+                _ => id
+            };
         }
 
-        private void ResetBackdrop() => _backdropGrabbed = false;
+        private void ResetBackdrop() => _view?.SetBackdrop(null);
 
         private void OnEnded(string sequenceId)
         {

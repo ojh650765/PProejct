@@ -101,7 +101,7 @@ namespace PokeLab.Boot
 
             if (keyboard.escapeKey.wasPressedThisFrame) { Close(); return; }
 
-            if ((keyboard.enterKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame)
+            if (((keyboard.enterKey.wasPressedThisFrame || keyboard.fKey.wasPressedThisFrame) || keyboard.spaceKey.wasPressedThisFrame)
                 && _pvp.State == PvpSession.Phase.Ready)
             {
                 Commit();

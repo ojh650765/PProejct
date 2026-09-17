@@ -1,0 +1,16 @@
+{
+    "state": "passed",
+    "checks": [
+        "Town_LabShelfItemBall_01: reachable pickup, stand at (0.51, 2.71, -12.69)",
+        "Town_OrchardItemBall_01: reachable pickup, stand at (-28.40, 2.68, -3.40)",
+        "Town_YardItemBall_01: reachable pickup, stand at (-29.60, 2.80, -37.83)",
+        "Town: 9 entrances, 3 pickups, 0 bin colliders checked",
+        "Route_StonesItemBall_01: reachable pickup, stand at (21.10, 0.11, 23.80)",
+        "Route_GrassItemBall_01: reachable pickup, stand at (8.60, -0.11, 12.00)",
+        "Field: 0 entrances, 2 pickups, 0 bin colliders checked",
+        "Interior_Lab: generated room, arrival and return transition checked",
+        "Interior_House: generated room, arrival and return transition checked",
+        "Interior_PokeCentre: generated room, arrival and return transition checked"
+    ],
+    "failures": []
+}

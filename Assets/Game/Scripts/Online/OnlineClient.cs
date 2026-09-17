@@ -212,6 +212,10 @@ namespace PokeLab.Online
                                "시도가 너무 많아요. 잠시 후 다시 시도해 주세요.");
                 case "unauthorised":
                     return Loc("Signed out. Please sign in again.", "로그인이 만료되었어요. 다시 로그인해 주세요.");
+                case "not_enough_coins": return Loc("Not enough PP.", "PP가 부족해요.");
+                case "account_changed_retry": return Loc("Your account changed. Please try again.", "계정 정보가 변경됐어요. 다시 시도해 주세요.");
+                case "choose_starter_first": return Loc("Choose your free starter team first.", "무료 시작 팀을 먼저 선택해 주세요.");
+                case "starter_already_selected": return Loc("A starter team was already selected.", "이미 시작 팀을 선택했어요.");
                 case "already_rolled":
                     return Loc("This account already has a team.", "이미 팀을 뽑은 계정이에요.");
                 case "version_mismatch":

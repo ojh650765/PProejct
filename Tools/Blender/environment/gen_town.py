@@ -266,221 +266,18 @@ def chimney(bm, x, y, base_z, top_z, w=0.44, mat=STONE_WALL):
 # --------------------------------------------------------------------------
 
 def house_a(bm, rng):
-    """Cottage: rectangular plan, steep gable, half-timbered street gable.
-
-    Rebuilt on townlib.Shell. The previous L-shaped plan bought a silhouette at
-    the cost of a wall the extrusion never closed; a clean rectangle with three
-    real openings reads better and is watertight. The plan is deliberately
-    simple because the interest is meant to come from the openings and the
-    roof, not from more slabs.
-    """
-    w, d, eave, th = 4.5, 4.0, 2.55, 0.26
-    poly = [(-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2), (-w / 2, d / 2)]
-
-    sh = TL.Shell(bm, poly, 0.0, eave, th, PLASTER_C, PLASTER_C)
-    # segment 0 is the -Y street face for a CCW rectangle starting at (-w/2,-d/2)
-    front, right, back, left = 0, 1, 2, 3
-    o_door = sh.add_opening(front, 1.00, 2.05, 0.0, 0.34, "door")
-    o_w1 = sh.add_opening(front, 0.85, 0.95, 1.10, 0.68, "window")
-    o_w2 = sh.add_opening(left, 0.80, 0.90, 1.15, 0.50, "window")
-    o_w3 = sh.add_opening(back, 0.85, 0.90, 1.15, 0.55, "window")
-    sh.build()
-    HOLE_CHECKS.extend(sh.assert_openings())
-
-    # stone plinth: a closed prism that swallows the wall foot rather than
-    # sitting flush against it
-    TL.solid_prism(bm, [(x * 1.03, y * 1.035) for (x, y) in poly],
-                   -0.02, 0.44, STONE_WALL)
-
-    TL.gable_roof(bm, poly, eave, 1.70, 0.38, 0.16, ROOF_RED, TRIM,
-                  ridge_along_x=True, gable_mat=PLASTER_C)
-
-    TL.corner_posts(bm, poly, 0.0, eave, 0.15, BEAM)
-
-    # half timbering on the street face only, and it stops at the openings
-    for z in (0.62, 1.86, 2.34):
-        TL.beams_around(bm, sh, front, z, 0.13, 0.07, BEAM)
-    TL.beams_around(bm, sh, front, eave - 0.09, 0.16, 0.09, BEAM)
-
-    TL.window_furniture(bm, o_w1, TRIM, GLASS, th)
-    TL.window_furniture(bm, o_w2, TRIM, GLASS, th)
-    TL.window_furniture(bm, o_w3, TRIM, GLASS, th, mullion=False)
-    TL.door_furniture(bm, o_door, DOOR, TRIM, PAVING, th)
-
-    # dormer on the street pitch: a small shell of its own, with a real
-    # window cut through it, so it reads as a room rather than a bump
-    dw, dd = 1.30, 1.10
-    dpoly = [(-1.15 - dw / 2, -d / 2 - 0.05), (-1.15 + dw / 2, -d / 2 - 0.05),
-             (-1.15 + dw / 2, -d / 2 + dd), (-1.15 - dw / 2, -d / 2 + dd)]
-    dsh = TL.Shell(bm, dpoly, eave + 0.10, 0.95, 0.16, PLASTER_C, PLASTER_C)
-    o_dorm = dsh.add_opening(0, 0.62, 0.66, eave + 0.28, 0.5, "window")
-    dsh.build()
-    HOLE_CHECKS.extend(dsh.assert_openings())
-    TL.gable_roof(bm, dpoly, eave + 1.05, 0.46, 0.16, 0.10, ROOF_RED, TRIM,
-                  ridge_along_x=False, gable_mat=PLASTER_C)
-    TL.window_furniture(bm, o_dorm, TRIM, GLASS, 0.16, mullion=False,
-                        sill=False)
-
-    # window box under the street window -- cheap, and it says "lived in"
-    TL.solid_box(bm, (o_w1.centre.x, -d / 2 - 0.16,
-                      o_w1.centre.z - o_w1.height * 0.5 - 0.18),
-                 (o_w1.width + 0.24, 0.26, 0.20), BEAM)
-
-    chimney(bm, w / 2 - 0.95, 0.9, 0.6, eave + 2.30)
+    from building_kit import cottage
+    return cottage(bm, rng)
 
 
 def house_b(bm, rng):
-    """Two-storey townhouse: jettied upper floor, shopfront, hipped-look roof.
-
-    Two stacked shells, the upper one oversailing on the street side. Both are
-    closed volumes, so the jetty has a real soffit and the building has a back.
-    """
-    w, d, e1, e2, th = 4.0, 4.4, 2.55, 4.90, 0.24
-    j = 0.24
-    lower = [(-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2), (-w / 2, d / 2)]
-    upper = [(-w / 2 - j, -d / 2 - j), (w / 2 + j, -d / 2 - j),
-             (w / 2 + j, d / 2), (-w / 2 - j, d / 2)]
-
-    s1 = TL.Shell(bm, lower, 0.0, e1, th, PLASTER_B, PLASTER_B)
-    o_shop = s1.add_opening(0, 1.30, 1.35, 0.90, 0.30, "window")
-    o_door = s1.add_opening(0, 1.05, 2.10, 0.0, 0.70, "door")
-    o_side = s1.add_opening(1, 0.75, 0.95, 1.10, 0.55, "window")
-    s1.build()
-    HOLE_CHECKS.extend(s1.assert_openings())
-
-    s2 = TL.Shell(bm, upper, e1, e2 - e1, th, PLASTER_C, PLASTER_C)
-    # spaced so the shutters do not run into each other: 0.70 window plus two
-    # 0.26 shutters is 1.30 m of frontage, and the wall is 4.48 m
-    ups = [s2.add_opening(0, 0.70, 1.00, e1 + 0.65, cs, "window")
-           for cs in (0.175, 0.5, 0.825)]
-    o_up_side = s2.add_opening(1, 0.70, 1.00, e1 + 0.65, 0.55, "window")
-    s2.build()
-    HOLE_CHECKS.extend(s2.assert_openings())
-
-    # Jetty brackets, each biting into both shells.  Sat at e1 - 0.02 in the
-    # first pass, which left their soffit at z 2.430 -- only 92 mm above the
-    # top of the shop window's lintel course at z 2.338.  A shopfront awning
-    # cannot be built with a real slab thickness and real clearance top and
-    # bottom in 92 mm, so the brackets are lifted 50 mm.  At e1 + 0.03 they
-    # still bite 70 mm into the lower shell and 130 mm into the upper, which
-    # is the whole reason they are here.
-    for x in (-1.35, 0.0, 1.35):
-        TL.solid_box(bm, (x, -d / 2 - j * 0.45, e1 + 0.03),
-                     (0.15, j + 0.20, 0.20), BEAM)
-    TL.solid_box(bm, (0, -d / 2 - j + 0.03, e1 + 0.13),
-                 (w + 2 * j + 0.04, 0.14, 0.18), BEAM)
-
-    TL.gable_roof(bm, upper, e2, 1.25, 0.40, 0.16, ROOF_BLUE, TRIM,
-                  ridge_along_x=True, gable_mat=PLASTER_C)
-    TL.corner_posts(bm, lower, 0.0, e1, 0.15, BEAM)
-
-    # ----------------------------------------------------------------------
-    # Shopfront awning.
-    #
-    # The first pass authored this as a slab floating 33-60 mm off the wall,
-    # a valance 50 mm wider than the slab it hung on, and two horizontal
-    # "struts" that crossed out through the canopy and then lay 158 mm above
-    # its top surface in open air -- which is precisely what the game's
-    # three-quarter overhead camera looks straight down at.  Rebuilt as a
-    # piece of construction:
-    #
-    #   * the canopy's back edge is buried 10-28 mm INSIDE the wall face, so
-    #     there is no gap to close anywhere along the head;
-    #   * it is carried on two diagonal knee brackets running from a cleat on
-    #     the wall out and up into the soffit -- a load path a real awning
-    #     could use -- and every part of them stops 15 mm inside the wall
-    #     face, 225 mm short of the inner skin, so nothing shows in the room;
-    #   * measured clearances: 17 mm under the jetty brackets above, 20 mm
-    #     over the shop window's lintel course below, and the knee brackets
-    #     stop 40 mm short of punching through the canopy's TOP surface;
-    #   * the valance, its piping and the scalloped hem are all inset inside
-    #     the canopy's own x range, so no trim overhangs what it is nailed to.
-    #
-    # It is centred on the shop window at x = -0.80 rather than on the facade.
-    # That is deliberate, not a slip: the window is the shop and the door at
-    # x = +0.80 has to stay walkable, so an awning that framed the whole
-    # frontage would read as a porch.  The old span (-1.95..0.55) was centred
-    # on neither -- it stabbed 47 mm into the front corner post at one end and
-    # half-covered the door at the other, which is what made it read as a
-    # mistake rather than as a shopfront.
-    aw_x0, aw_x1 = -1.75, 0.15                 # 1.90 m, centred on the window
-    aw_y0, aw_y1 = -d / 2 + 0.01, -d / 2 - 0.91    # -2.19 into the wall, -3.11
-    aw_z0, aw_z1 = 2.463, 2.150                # head and eave of the top face
-    aw_cx = (aw_x0 + aw_x1) * 0.5
-    TL.solid_from_quad(bm, [
-        (aw_x0, aw_y0, aw_z0), (aw_x1, aw_y0, aw_z0),
-        (aw_x1, aw_y1, aw_z1), (aw_x0, aw_y1, aw_z1)],
-        0.057, AWNING, up=(0, 0, 1))
-    # valance on the eave, inset 20 mm inside the canopy at both ends
-    val_w = (aw_x1 - aw_x0) - 0.04
-    TL.solid_box(bm, (aw_cx, aw_y1 + 0.027, 1.995), (val_w, 0.075, 0.24),
-                 AWNING)
-    TL.solid_box(bm, (aw_cx, aw_y1 + 0.012, 2.105), (val_w + 0.02, 0.055, 0.05),
-                 TRIM)
-    # scalloped hem: what makes it read as a shop awning at ten metres
-    for k in range(7):
-        sx = aw_x0 + 0.13 + k * ((aw_x1 - aw_x0) - 0.26) / 6.0
-        TL.solid_box(bm, (sx, aw_y1 + 0.027, 1.845), (0.215, 0.065, 0.12),
-                     AWNING)
-    # knee brackets: a cleat bedded in the wall and a diagonal into the soffit
-    for sx in (-1.66, 0.06):
-        TL.solid_box(bm, (sx, -d / 2 - 0.035, 1.965), (0.14, 0.11, 0.19), BEAM)
-        TL.solid_from_quad(bm, [
-            (sx - 0.045, -d / 2 + 0.015, 1.990),
-            (sx + 0.045, -d / 2 + 0.015, 1.990),
-            (sx + 0.045, -2.860, 2.195),
-            (sx - 0.045, -2.860, 2.195)], 0.07, BEAM, up=(0, 0, 1))
-
-    TL.window_furniture(bm, o_shop, TRIM, GLASS, th, sill=True)
-    TL.window_furniture(bm, o_side, TRIM, GLASS, th)
-    TL.door_furniture(bm, o_door, DOOR, TRIM, PAVING, th)
-    for o in ups:
-        TL.window_furniture(bm, o, TRIM, GLASS, th, shutters=True,
-                            mat_shutter=BEAM)
-    TL.window_furniture(bm, o_up_side, TRIM, GLASS, th)
-
-    chimney(bm, -w / 2 + 0.60, 1.2, e1, e2 + 1.60, 0.40)
+    from building_kit import townhouse
+    return townhouse(bm, rng)
 
 
 def house_c(bm, rng):
-    """Long low farmhouse: shallow pitch, porch on real posts, shutters."""
-    w, d, eave, th = 6.0, 3.6, 2.45, 0.26
-    poly = [(-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2), (-w / 2, d / 2)]
-
-    sh = TL.Shell(bm, poly, 0.0, eave, th, PLASTER_R, PLASTER_R)
-    o_door = sh.add_opening(0, 1.05, 2.10, 0.0, 0.52, "door")
-    front_w = [sh.add_opening(0, 0.75, 0.95, 1.15, cs, "window")
-               for cs in (0.14, 0.30, 0.74, 0.90)]
-    o_end = sh.add_opening(1, 0.70, 0.90, 1.20, 0.5, "window")
-    o_back = sh.add_opening(2, 0.80, 0.90, 1.20, 0.35, "window")
-    sh.build()
-    HOLE_CHECKS.extend(sh.assert_openings())
-
-    TL.solid_prism(bm, [(x * 1.02, y * 1.035) for (x, y) in poly],
-                   -0.02, 0.36, STONE_WALL)
-    TL.gable_roof(bm, poly, eave, 1.15, 0.50, 0.16, ROOF_GREEN, TRIM,
-                  ridge_along_x=True, gable_mat=PLASTER_R)
-    TL.corner_posts(bm, poly, 0.0, eave, 0.15, BEAM)
-
-    # porch: posts, a head beam and a lean-to roof with real thickness
-    py = -d / 2 - 1.20
-    for x in (-1.75, 0.0, 1.75):
-        TL.solid_box(bm, (x, py, 1.15), (0.15, 0.15, 2.30), BEAM)
-        TL.solid_box(bm, (x, py, 2.24), (0.32, 0.32, 0.14), BEAM)
-    TL.solid_box(bm, (0, py, 2.38), (3.85, 0.16, 0.18), BEAM)
-    TL.solid_from_quad(bm, [
-        (-2.25, py - 0.32, 2.44), (2.25, py - 0.32, 2.44),
-        (2.25, -d / 2 + 0.06, 2.98), (-2.25, -d / 2 + 0.06, 2.98)],
-        0.11, ROOF_GREEN, up=(0, 0, 1))
-
-    for o in front_w:
-        TL.window_furniture(bm, o, TRIM, GLASS, th, shutters=True,
-                            mat_shutter=BEAM)
-    TL.window_furniture(bm, o_end, TRIM, GLASS, th)
-    TL.window_furniture(bm, o_back, TRIM, GLASS, th, mullion=False)
-    TL.door_furniture(bm, o_door, DOOR, TRIM, PAVING, th)
-
-    chimney(bm, -1.9, 0.5, eave - 0.5, eave + 1.65, 0.46)
+    from building_kit import farmhouse
+    return farmhouse(bm, rng)
 
 
 def poke_lab(bm, rng):
@@ -498,17 +295,17 @@ def poke_lab(bm, rng):
     sides = 12
     th = 0.30
 
-    def ring(r, phase=0.0):
+    def ring(r, phase=-0.5):
         return [(math.cos(2 * math.pi * (i + phase) / sides) * r,
                  math.sin(2 * math.pi * (i + phase) / sides) * r)
                 for i in range(sides)]
 
-    for (r, z0, z1, m) in ((R + 1.10, -0.02, 0.20, PAVING),
-                           (R + 0.76, 0.18, 0.42, PAVING),
-                           (R + 0.44, 0.40, 0.72, STONE_WALL)):
+    for (r, z0, z1, m) in ((R + 1.10, -0.02, 0.08, PAVING),
+                           (R + 0.76, 0.06, 0.15, PAVING),
+                           (R + 0.44, 0.13, 0.24, STONE_WALL)):
         TL.solid_prism(bm, ring(r), z0, z1, m)
 
-    base_z = 0.70
+    base_z = 0.22
     drum = ring(R)
     sh = TL.Shell(bm, drum, base_z, 2.85, th, PLASTER_C, PLASTER_C)
     # facet 9 of a 12-gon starting at angle 0 faces -Y, which is the street
@@ -587,12 +384,13 @@ def poke_lab(bm, rng):
     TL.solid_box(bm, (0, cy - 0.64, 2.72), (2.15, 0.12, 0.54), AWNING)
     TL.solid_box(bm, (0, cy - 0.71, 2.72), (1.90, 0.06, 0.36), TRIM)
     for k in range(3):
-        TL.solid_box(bm, (0, cy + 0.62 + k * 0.32, 0.06 + k * 0.13),
-                     (3.1 - k * 0.24, 0.40, 0.14 + k * 0.10), PAVING)
+        TL.solid_box(bm, (0, cy + 0.62 + k * 0.32, 0.035 + k * 0.055),
+                     (3.1 - k * 0.24, 0.40, 0.07 + k * 0.05), PAVING)
 
     for o in bays:
         TL.window_furniture(bm, o, TRIM, GLASS, th, mullion=True)
     TL.door_furniture(bm, o_door, DOOR, TRIM, PAVING, th)
+    return o_door
 
 
 
@@ -661,128 +459,9 @@ def poke_ball_sign(bm, centre, r, depth, m_top, m_bot, m_band, rows=22,
 
 
 def poke_centre(bm, rng):
-    """The Pokemon Centre: wide cream block under one broad red roof, a
-    covered entrance with a walk-in doorway, and the Poke Ball roundel over it.
+    from building_kit import pokemon_centre
+    return pokemon_centre(bm, rng)
 
-    Three things drive the design.  (1) The level puts an interior-load
-    trigger on the front face, so the doorway is a real 2.3 x 2.6 m hole cut
-    through the wall -- no leaf in it -- and a dark lobby wall stands 2.2 m
-    behind it so the opening reads as an interior and never shows daylight
-    from the far side.  (2) The front is Blender -Y, which the FBX export maps
-    to Unity +Z: the same face house_a and poke_lab put their doors on, and
-    the convention the manifest and the level's rotations assume.  (3) It has
-    to sit in a street with 4.5 m cottages, so it is wide and low rather than
-    tall -- 9.2 x 7.0 m on plan against the Poke Lab's 7.2 m drum.
-    """
-    W, D, EAVE, TH = 9.2, 7.0, 3.30, 0.30
-    poly = [(-W / 2, -D / 2), (W / 2, -D / 2), (W / 2, D / 2), (-W / 2, D / 2)]
-    front, right, back, left = 0, 1, 2, 3
-    fy = -D / 2                       # outer face of the front wall
-
-    sh = TL.Shell(bm, poly, 0.0, EAVE, TH, PLASTER_C, GLASS)
-    # GLASS inside on purpose. It is not glazing here, it is the darkest cell
-    # in the Town atlas (window_glass, 0.05-0.20 against lamp_metal's 0.16-0.48)
-    # and the inner skin is exactly what a player looks at through the doorway.
-    o_door = sh.add_opening(front, 2.30, 2.60, 0.0, 0.50, "door")
-    lights = [sh.add_opening(front, 0.60, 2.20, 0.35, cs, "window")
-              for cs in (0.326, 0.674)]
-    fronts = [sh.add_opening(front, 1.80, 1.50, 1.25, cs, "window")
-              for cs in (0.13, 0.87)]
-    sides = [sh.add_opening(seg, 1.30, 1.40, 1.25, cs, "window")
-             for seg in (right, left) for cs in (0.30, 0.70)]
-    backs = [sh.add_opening(back, 1.40, 1.40, 1.25, cs, "window")
-             for cs in (0.20, 0.50, 0.80)]
-    sh.build()
-    HOLE_CHECKS.extend(sh.assert_openings())
-
-    # stone plinth, swallowing the wall foot
-    TL.solid_prism(bm, [(x * 1.022, y * 1.028) for (x, y) in poly],
-                   -0.02, 0.40, STONE_WALL)
-
-    # Floor and ceiling. The Shell caps only the wall footprint, so without
-    # these the room is a lidless box with no floor: through the doorway you
-    # would see the ground plane the building is standing on, from below.
-    iw, idp = W - 2 * TH + 0.10, D - 2 * TH + 0.10
-    # Interior surfaces are the dark cell too, not paving and not trim. A
-    # 2.6 m doorway with the sun at 36 deg lets daylight 3.6 m into the room,
-    # so nothing inside can be shaded into darkness -- it has to BE dark. The
-    # first build had a paved floor and a white counter and both came out lit
-    # like a shopfront through the opening.
-    TL.solid_box(bm, (0, 0, 0.14), (iw, idp, 0.28), GLASS)
-    TL.solid_box(bm, (0, 0, EAVE - 0.14), (iw, idp, 0.28), GLASS)
-
-    # Lobby wall 1.25 m in on the doorway's sight line, a soffit over the
-    # opening, and a low counter -- enough depth to read as a room you could
-    # walk into, little enough that there is nothing bright to see in it. The
-    # counter was LAMP for one pass and read as a lit grey shelf across the
-    # bottom of the opening; everything a player can see through that hole is
-    # the dark cell now, without exception.
-    TL.solid_box(bm, (0, fy + 1.25, 1.45), (6.40, 0.30, 2.90), GLASS)
-    TL.solid_box(bm, (0, fy + 0.70, 2.74), (6.40, 1.20, 0.34), GLASS)
-    TL.solid_box(bm, (0, fy + 0.92, 0.50), (3.20, 0.44, 1.00), GLASS)
-
-    TL.gable_roof(bm, poly, EAVE, 1.55, 0.55, 0.22, ROOF_RED, TRIM,
-                  ridge_along_x=True, gable_mat=PLASTER_C)
-    TL.corner_posts(bm, poly, 0.0, EAVE, 0.16, TRIM)
-
-    # eaves fascia front and back, biting up into the roof slab
-    for sy in (-1, 1):
-        TL.solid_box(bm, (0, sy * (D / 2 + 0.52), EAVE + 0.06),
-                     (W + 1.10, 0.18, 0.32), TRIM)
-
-    # ----------------------------------------------------------------------
-    # Covered entrance.  Piers, a head beam and a canopy, all overlapping what
-    # they land on, and no shell of its own: a porch built as a second Shell
-    # would put a second wall across the doorway and the door would have to be
-    # cut twice, aligned by hand, forever.
-    # ----------------------------------------------------------------------
-    for sx in (-1, 1):
-        TL.solid_box(bm, (sx * 1.86, fy - 0.75, 1.35), (0.36, 0.36, 2.70),
-                     TRIM)
-        TL.solid_box(bm, (sx * 1.86, fy - 0.75, 0.22), (0.56, 0.56, 0.44),
-                     STONE_WALL)
-    TL.solid_box(bm, (0, fy - 0.75, 2.82), (4.34, 0.42, 0.36), TRIM)
-    # canopy: back edge at y = fy + 0.225, i.e. 225 mm into a 300 mm wall, so
-    # it is bedded in the wall along its whole width and 75 mm clear of the
-    # inner face rather than poking into the room
-    TL.solid_box(bm, (0, fy - 0.45, 3.06), (5.30, 1.35, 0.24), ROOF_RED)
-    TL.solid_box(bm, (0, fy - 1.06, 2.93), (5.24, 0.18, 0.40), TRIM)
-
-    # The roundel, on the canopy fascia and standing proud of the roof line --
-    # this is the one silhouette cue that says Centre rather than bungalow, so
-    # it is sized to be legible from the game camera 22 m out. PLASTER_R, not
-    # ROOF_RED: roof_red is a tile pattern and at the texel density a sign this
-    # size gets it reads as brown stripes rather than as red.
-    poke_ball_sign(bm, (0.0, fy - 1.14, 3.62), 0.82, 0.18,
-                   PLASTER_R, TRIM, LAMP)
-
-    # threshold steps under the doorway, as solids on the ground
-    TL.solid_box(bm, (0, fy - 0.72, 0.11), (4.90, 1.00, 0.30), PAVING)
-    TL.solid_box(bm, (0, fy - 1.42, 0.07), (5.50, 1.10, 0.22), PAVING)
-
-    # door architrave -- the reveal is real, this just frames it
-    aw = 0.14
-    TL.solid_box(bm, (0, fy + 0.045 - TL.EMBED, o_door.z1 + aw * 0.5),
-                 (o_door.width + aw * 2.6, 0.10, aw), TRIM)
-    for sx in (-1, 1):
-        TL.solid_box(bm, (sx * (o_door.width * 0.5 + aw * 0.5),
-                          fy + 0.045 - TL.EMBED, o_door.height * 0.5),
-                     (aw, 0.10, o_door.height + aw), TRIM)
-
-    for o in lights:
-        TL.window_furniture(bm, o, TRIM, GLASS, TH, mullion=False, sill=False)
-    for o in fronts + sides + backs:
-        TL.window_furniture(bm, o, TRIM, GLASS, TH)
-
-
-# --------------------------------------------------------------------------
-# More street kit.  Cheapest density per triangle a town has: a market square
-# with one stall reads as a set dressing, with two it reads as a market, and a
-# fence run that ends in mid air reads as neither.
-#
-# Everything here is built from closed solids and overlaps whatever it sits on,
-# for the same reasons the buildings are -- see townlib's header.
-# --------------------------------------------------------------------------
 
 def market_stall_b(bm, rng):
     """A second stall: a lean-to against a wall rather than a free-standing

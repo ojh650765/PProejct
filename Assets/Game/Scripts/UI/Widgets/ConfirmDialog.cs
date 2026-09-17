@@ -216,7 +216,7 @@ namespace PokeLab.UI
 
             if (keyboard.escapeKey.wasPressedThisFrame) { Answer(false); return; }
 
-            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)
+            if ((keyboard.enterKey.wasPressedThisFrame || keyboard.fKey.wasPressedThisFrame) || keyboard.numpadEnterKey.wasPressedThisFrame)
                 Answer(_confirmHighlighted);
         }
     }

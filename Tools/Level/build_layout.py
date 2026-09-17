@@ -423,7 +423,7 @@ FRONTAGE_ARC = (140.0, 320.0)
 # it lands and nothing else in this file has to change. The door is keyed on the object's
 # name in emit_unity_layout.ENTERABLE_BY_NAME, not on the asset, precisely so the swap
 # does not silently turn the Centre back into a house.
-POKE_CENTRE_ASSET = "Env_House_Townhouse_B"       # PLACEHOLDER -- see above
+POKE_CENTRE_ASSET = "Env_Building_PokeCentre"
 POKE_CENTRE = (POKE_CENTRE_ASSET, -18.2, -0.8, 184.0)
 
 HOUSES = [
@@ -882,6 +882,7 @@ class Builder:
             _, _, tangent = closest_on_polyline(x, z, pts)
             yaw = yaw_face if yaw_face is not None else \
                 yaw_towards(-side * tangent[1], side * tangent[0])
+            if prefab == "Env_Lamp_Post": yaw -= 90.0  # lantern arm is local +X
             if self.try_place(prefab, x, z, yaw, parent, tag, road_margin=0.2, margin=0.0):
                 made += 1
         return made
@@ -1037,9 +1038,10 @@ def build_town(b, rng):
                                  # rather than sinking into it and being shoved off it
                                  # by every audit --fix pass
         offset = min(1.45, w * 0.28)
-        b.place("Env_Lamp_Wall", x + fx * depth + sx * offset,
+        lamp = b.place("Env_Lamp_Wall", x + fx * depth + sx * offset,
                 z + fz * depth + sz * offset, yaw, TOWN + "/Detail", "Town_DoorLamp",
                 y=y + min(2.35, h * 0.46), record=False)
+        lamp["attachedBuilding"] = o["name"]
 
     # ------------------------------------------------------------- frontages
     # One per front door. Each reaches from the road edge to the doorstep, about two
@@ -1145,11 +1147,11 @@ def build_town(b, rng):
     b.street_furniture([(-15.4, -36.6), (-14.2, -30.0), (-13.2, -22.0), (-12.4, -9.0),
                         (-8.2, 1.0)],
                        "Env_Lamp_Post", TOWN + "/Detail", "Town_Lamp",
-                       spacing=5.5, offsets=[(1, 3.5), (-1, 3.5)])
+                       spacing=7.5, offsets=[(1, 3.8), (-1, 3.8)])
     b.street_furniture([(-18.5, -20.6), (-27.0, -21.2), (-35.0, -23.8), (-35.6, -31.4),
                         (-24.0, -33.8), (-16.4, -33.0)],
                        "Env_Lamp_Post", TOWN + "/Detail", "Town_LaneLamp",
-                       spacing=7.5, offsets=[(-1, 2.6), (1, 2.6)])
+                       spacing=9.0, offsets=[(-1, 3.1), (1, 3.1)])
 
     # --------------------------------------------------- the working end
     # The south end of the street. A closed gate in a stone wall, a notice and a
@@ -1812,9 +1814,9 @@ def build():
     # sphere -- audit_placement grew its whole buried check around this asset.
     BALL_SCALE = 2.6
     for asset, x, z, yaw, parent, tag_prefix, item in [
-        ("Env_Prop_CaptureBall_Great", 36.5, 11.0, 28.0, ROUTE + "/Props",
+        ("Env_Prop_CaptureBall_Great", 20.5, 23.8, 28.0, ROUTE + "/Props",
          "Route_StonesItemBall", "great-ball"),
-        ("Env_Prop_CaptureBall_Net", 7.0, 22.5, 312.0, ROUTE + "/Props",
+        ("Env_Prop_CaptureBall_Net", 8.0, 12.0, 312.0, ROUTE + "/Props",
          "Route_GrassItemBall", "net-ball"),
         ("Env_Prop_CaptureBall", -0.4, -12.6, 196.0, "Town/Props",
          "Town_LabShelfItemBall", "poke-ball"),
@@ -2308,6 +2310,14 @@ def terrain_block(baked, paths, stream, lake_poly, stream_poly, plaza, cave_floo
 
 def main():
     b, baked, paths, stream, lake_poly, stream_poly, plaza, cave_floor = build()
+    # Open residential approaches; containment belongs to the terrain banks.
+    # Keep the lake event's approach and lens positions free of tree canopies.
+    # Ground cover remains, but full-height scenery cannot hide the bag or the actors.
+    b.objects[:] = [o for o in b.objects if not
+                   (any(t in o["prefab"] for t in ("Env_Tree_", "Env_Bush_"))
+                    and 21 < o["position"][0] < 39 and 18 < o["position"][2] < 36)]
+    b.objects[:] = [o for o in b.objects if "/Env_Fence_" not in o["prefab"]
+                   and not o["name"].startswith("Town_Hedge")]
 
     # tall-grass triggers derived from the encounter fields, so the two cannot drift
     grass_triggers = []

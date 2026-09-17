@@ -41,6 +41,7 @@ namespace PokeLab.Boot
         private MainMenuView _view;
         private AccountPanel _account;
         private GachaPanel _gacha;
+        private MyCreaturesPanel _collection;
         private SettingsPanel _settings;
         private MatchmakingPanel _matchmaking;
         private Canvas _canvas;
@@ -118,6 +119,10 @@ namespace PokeLab.Boot
             var gachaHost = new GameObject("Gacha", typeof(RectTransform));
             gachaHost.transform.SetParent(host.transform, false);
             _gacha = gachaHost.AddComponent<GachaPanel>();
+            var collectionHost = new GameObject("MyCreatures", typeof(RectTransform));
+            collectionHost.transform.SetParent(gachaHost.transform.parent, false);
+            _collection = collectionHost.AddComponent<MyCreaturesPanel>();
+            _collection.Closed += Refresh;
             _gacha.Closed = () => { Refresh(); };
 
             var settingsHost = new GameObject("Settings", typeof(RectTransform));
@@ -155,7 +160,7 @@ namespace PokeLab.Boot
             _view.SetTeam(BuildTeamSlots());
             _view.SetFooter(Loc.Pick(
                 "↑↓ move    Enter select    Esc back",
-                "↑↓ 이동    Enter 선택    Esc 뒤로"));
+                "↑↓ / Tab 이동    F / Enter 선택    Esc 뒤로"));
         }
 
         private List<MainMenuView.Entry> BuildRootRows()
@@ -198,7 +203,7 @@ namespace PokeLab.Boot
             // because that is the instant it is actually about to happen.
             rows.Add(new MainMenuView.Entry(
                 Loc.Pick("Story", "스토리 모드"),
-                Loc.Pick("Begin in Aster Town.", "아스터 마을에서 시작해요."),
+                Loc.Pick("Begin at home, watching TV.", "집에서 TV를 보며 모험을 시작해요."),
                 UiPalette.AceLime));
             _actions.Add(() => { if (hasSave) ConfirmNewGame(); else LoadStory(true); });
 
@@ -232,6 +237,10 @@ namespace PokeLab.Boot
                 if (session == null || !session.IsSignedIn) OpenAccount();
                 else OpenGacha();
             });
+
+            rows.Add(new MainMenuView.Entry(Loc.Pick("My Pokémon", "내 포켓몬"),
+                Loc.Pick("Collection and battle team", "모은 포켓몬과 대전 팀"), UiPalette.AceCyan));
+            _actions.Add(() => { if (signedIn) _collection.Open(); else OpenAccount(); });
 
             rows.Add(new MainMenuView.Entry(
                 Loc.Pick("Account", "계정"),
@@ -338,7 +347,7 @@ namespace PokeLab.Boot
             if (session == null || !session.HasTeam) return null;
 
             var slots = new List<MainMenuView.TeamSlot>(6);
-            foreach (var entry in session.Roster)
+            foreach (var entry in session.Party)
             {
                 if (entry == null) continue;
                 slots.Add(new MainMenuView.TeamSlot(
@@ -410,15 +419,15 @@ namespace PokeLab.Boot
                                 "로그인하지 않았어요.\n가챠와 온라인 대전에는 계정이 필요해요.");
 
             if (!session.HasTeam)
-                return Loc.Pick("Signed in. No team drawn yet.\nOpen Gacha to draw six.",
+                return Loc.Pick("Signed in. No team drawn yet.\nOpen Gacha to choose a free team.",
                                 "로그인됨. 아직 팀이 없어요.\n가챠에서 여섯 마리를 뽑아 주세요.");
 
             var levels = 0;
-            foreach (var entry in session.Roster) if (entry != null) levels += entry.level;
-            var average = session.Roster.Length > 0 ? levels / session.Roster.Length : 0;
+            foreach (var entry in session.Party) if (entry != null) levels += entry.level;
+            var average = session.Party.Length > 0 ? levels / session.Party.Length : 0;
 
-            return Loc.Pick($"Signed in.\nTeam of {session.Roster.Length}, average level {average}.",
-                            $"로그인됨.\n{session.Roster.Length}마리 편성, 평균 레벨 {average}.");
+            return Loc.Pick($"Signed in.\nTeam of {session.Party.Length}, average level {average}.",
+                            $"로그인됨.\n{session.Party.Length}마리 편성, 평균 레벨 {average}.");
         }
 
         // --- Doing things -------------------------------------------------------------------
@@ -447,8 +456,14 @@ namespace PokeLab.Boot
         /// </summary>
         private void LoadStory(bool fresh)
         {
-            if (fresh) SaveSystem.Delete();
-            SceneManager.LoadScene(_storyScene, LoadSceneMode.Single);
+            if (fresh)
+            {
+                SaveSystem.Delete();
+                PlayerProfileHost.PrepareFreshSession();
+                LevelTransition.PendingArrivalSpawn="Spawn_WatchTV";
+                LevelTransition.ReturnScene=null;LevelTransition.ReturnSpawn=null;
+            }
+            SceneManager.LoadScene(fresh ? "Interior_PlayerHome" : _storyScene, LoadSceneMode.Single);
         }
 
         /// <summary>
@@ -572,12 +587,14 @@ namespace PokeLab.Boot
             if (_confirming) return;
             if (_account != null && _account.IsOpen) return;
             if (_gacha != null && _gacha.IsOpen) return;
+            if (_collection != null && _collection.IsOpen) return;
             if (_settings != null && _settings.IsOpen) return;
             if (_matchmaking != null && _matchmaking.IsOpen) return;
 
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
 
+            if (keyboard.tabKey.wasPressedThisFrame) _view.Move(keyboard.shiftKey.isPressed ? -1 : 1);
             _repeatCooldown -= Time.unscaledDeltaTime;
 
             var down = keyboard.downArrowKey.isPressed || keyboard.sKey.isPressed;
@@ -593,7 +610,7 @@ namespace PokeLab.Boot
 
             if (!down && !up) _repeatCooldown = 0f;
 
-            if (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame
+            if ((keyboard.enterKey.wasPressedThisFrame || keyboard.fKey.wasPressedThisFrame) || keyboard.numpadEnterKey.wasPressedThisFrame
                 || keyboard.spaceKey.wasPressedThisFrame)
             {
                 _view.Take();

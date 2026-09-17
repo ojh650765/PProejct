@@ -17,7 +17,8 @@
         "PokeLab.Battle",
         "PokeLab.Cinematics",
         "PokeLab.UI",
-        "PokeLab.Audio"
+        "PokeLab.Audio",
+        "PokeLab.Online"
     ],
     "includePlatforms": [
         "Editor"

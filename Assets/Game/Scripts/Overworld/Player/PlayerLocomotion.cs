@@ -65,6 +65,8 @@ namespace PokeLab.Overworld
         [SerializeField] private float _fallRecoveryDrop = 12f;
 
         [Header("Getting unstuck")]
+        [Tooltip("Optional legacy relocation. Keep off for the rebuilt terrain; normal movement must solve road shoulders.")]
+        [SerializeField] private bool _allowPitRelocation;
         [Tooltip("Seconds of asking to move and going nowhere before the player is examined " +
                  "for being trapped. Long enough that leaning on a fence is not a rescue.")]
         [SerializeField] private float _stuckSeconds = 1.6f;
@@ -249,7 +251,7 @@ namespace PokeLab.Overworld
             // every test below it would be measuring a player who is not where they should be.
             ResolveOverlap(dt);
             RecoverFromFall();
-            RecoverFromPit(dt);
+            if (_allowPitRelocation) RecoverFromPit(dt);
 
             if (_motionFrozen)
             {

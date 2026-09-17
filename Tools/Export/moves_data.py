@@ -58,6 +58,13 @@ def _move(move_id, name_en, name_ko, type_name, category, power=0, accuracy=100,
 # --- The pool: 32 moves ----------------------------------------------------------
 
 MOVES = [
+    _move("scratch", "Scratch", "할퀴기", "Normal", PHYSICAL, power=40, pp=35, vfx="vfx_tackle"),
+    _move("pound", "Pound", "막치기", "Normal", PHYSICAL, power=40, pp=35, vfx="vfx_tackle"),
+    _move("leer", "Leer", "째려보기", "Normal", STATUS, pp=30,
+          stat_changes=((DEFENSE, -1),), contact=False, anim="Cast_Debuff", vfx="vfx_growl"),
+    _move("bubble", "Bubble", "거품", "Water", SPECIAL, power=20, pp=30,
+          stat_changes=((SPEED, -1),), effect_chance=10, contact=False, projectile=True, vfx="vfx_water_gun"),
+    _move("peck", "Peck", "쪼기", "Flying", PHYSICAL, power=35, pp=35, vfx="vfx_tackle"),
     # Normal (5)
     _move("tackle", "Tackle", "몸통박치기", "Normal", PHYSICAL, power=40, pp=35),
     _move("quick-attack", "Quick Attack", "전광석화", "Normal", PHYSICAL, power=40, pp=30,
@@ -152,6 +159,12 @@ MOVES = [
 # at or below the requested level; the battle layer keeps the last four.
 
 LEARNSETS: dict[int, tuple[tuple[int, str], ...]] = {
+    # DP levels for moves currently supported by the slice's battle engine.
+    433: ((1, "tackle"), (5, "withdraw"), (9, "absorb"), (13, "razor-leaf"), (21, "bite")),
+    436: ((1, "scratch"), (1, "leer"), (7, "ember"), (41, "flamethrower")),
+    439: ((1, "pound"), (4, "growl"), (8, "bubble"), (15, "peck"), (18, "bubble-beam")),
+    445: ((1, "tackle"), (5, "growl")),
+    442: ((1, "tackle"), (1, "growl"), (5, "quick-attack"), (9, "wing-attack")),
     1: (   # Bulbasaur - Grass/Poison
         (1, "tackle"), (1, "growl"), (3, "vine-whip"), (7, "absorb"),
         (13, "poison-powder"), (15, "sleep-powder"), (20, "razor-leaf"),

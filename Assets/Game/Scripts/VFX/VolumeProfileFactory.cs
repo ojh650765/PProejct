@@ -87,9 +87,8 @@ namespace PokeLab.Vfx
             bloom.intensity.Override(Mathf.Max(grade.BloomIntensity, 0f));
             bloom.scatter.Override(Mathf.Clamp01(grade.BloomScatter));
             bloom.tint.Override(grade.BloomTint);
-            // High quality filtering costs little at 1080p and is the difference
-            // between a soft glow and a stair-stepped one.
-            bloom.highQualityFiltering.Override(true);
+            // Keep the reduced bloom inexpensive alongside the HD-2D depth pass.
+            bloom.highQualityFiltering.Override(false);
 
             // --- Vignette -------------------------------------------------------
             var vignette = GetOrAdd<Vignette>(profile);

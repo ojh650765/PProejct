@@ -85,6 +85,7 @@ namespace PokeLab.Overworld
 
         /// <summary>True once the profile holds a real session rather than an empty default.</summary>
         public static bool SessionBegun => _sessionBegun;
+        public static void PrepareFreshSession() { _sessionBegun=false; _loadedFromSave=false; }
 
         /// <summary>
         /// Whether this host owns the write side — the play clock and the save file.

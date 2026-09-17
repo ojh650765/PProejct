@@ -1,0 +1,47 @@
+{
+  "state": "passed",
+  "episode": "field_professor_returns",
+  "beat": "Dialogue:field_professor_returns",
+  "completed": [
+    "field_bag_left",
+    "field_ambush",
+    "field_professor_returns"
+  ],
+  "failures": [],
+  "frames": [
+    "previews/starter_polish/000.png: field_bag_left_MoveActorToPlayer:NPC_Rival",
+    "previews/starter_polish/001.png: field_bag_left_Dialogue:field_bag_left",
+    "previews/starter_polish/002.png: field_bag_left_Wait",
+    "previews/starter_polish/003.png: field_ambush_Dialogue:field_ambush",
+    "previews/starter_polish/004.png: field_ambush_Dialogue:field_ambush_ringed",
+    "previews/starter_polish/005.png: field_ambush_CreatureApproach",
+    "previews/starter_polish/006.png: field_ambush_Dialogue:field_ambush_bag",
+    "previews/starter_polish/007.png: field_ambush_ChooseStarter",
+    "previews/starter_polish/008.png: starter UI Choice0",
+    "previews/starter_polish/009.png: starter UI Take",
+    "previews/starter_polish/010.png: field_ambush_Battle",
+    "previews/starter_polish/011.png: field_ambush_StageRing",
+    "previews/starter_polish/012.png: field_professor_returns_MoveActor:NPC_Professor",
+    "previews/starter_polish/013.png: field_professor_returns_Dialogue:field_professor_returns"
+  ],
+  "poses": [
+    "field_bag_left: target=(31.00, -0.76, 28.50) placed=(31.00, -1.13, 26.70)",
+    "field_bag_left_MoveActorToPlayer:NPC_Rival: player=(31.02, -1.05, 26.68) camera=(31.02, 1.29, 18.26)",
+    "field_bag_left_Dialogue:field_bag_left: player=(31.02, -1.05, 26.68) camera=(31.02, 3.95, 19.68)",
+    "field_bag_left_Wait: player=(31.02, -1.05, 26.68) camera=(31.02, 3.95, 19.68)",
+    "field_ambush_Dialogue:field_ambush: player=(31.02, -1.05, 26.68) camera=(31.02, 3.95, 19.68)",
+    "field_ambush_Dialogue:field_ambush_ringed: player=(31.02, -1.05, 26.68) camera=(31.02, 3.95, 19.68)",
+    "field_ambush_CreatureApproach: player=(31.02, -1.05, 26.68) camera=(31.02, 3.95, 19.68)",
+    "Flock approach: 4 birds, 2.06s",
+    "Flock bird: moved 2.01m, peak 4.21m/s",
+    "Flock bird: moved 2.63m, peak 3.54m/s",
+    "Flock bird: moved 6.49m, peak 4.68m/s",
+    "Flock bird: moved 2.05m, peak 4.01m/s",
+    "field_ambush_Dialogue:field_ambush_bag: player=(31.02, -1.05, 26.68) camera=(31.02, 3.95, 19.68)",
+    "field_ambush_ChooseStarter: player=(31.02, -1.05, 26.68) camera=(30.24, 0.08, 29.61)",
+    "field_ambush_Battle: player=(31.02, -1.05, 26.68) camera=(31.02, 3.73, 19.56)",
+    "field_ambush_StageRing: player=(31.02, -1.05, 26.68) camera=(31.02, 1.29, 18.26)",
+    "field_professor_returns_MoveActor:NPC_Professor: player=(31.02, -1.05, 26.68) camera=(30.31, 1.38, 18.79)",
+    "field_professor_returns_Dialogue:field_professor_returns: player=(31.02, -1.05, 26.68) camera=(23.74, 2.25, 23.74)"
+  ]
+}

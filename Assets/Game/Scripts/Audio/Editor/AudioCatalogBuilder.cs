@@ -43,6 +43,7 @@ namespace PokeLab.Audio.Editor
             public string path;
             public string category;
             public bool loop;
+            public bool disabled;
             public float duration;
             public int channels;
             public int sample_rate;
@@ -89,6 +90,13 @@ namespace PokeLab.Audio.Editor
             foreach (var clip in manifest.clips)
             {
                 if (string.IsNullOrEmpty(clip.name) || string.IsNullOrEmpty(clip.path)) continue;
+                if (clip.disabled && BusFor(clip.category) == AudioBus.Music)
+                {
+                    // Keep the cue addressable but exclude the retired placeholder asset.
+                    entries.Add(new AudioClipCatalog.Entry { Name = clip.name, Bus = AudioBus.Music,
+                        Loop = clip.loop, Disabled = true, Gain = 1f });
+                    continue;
+                }
                 var asset = AssetDatabase.LoadAssetAtPath<AudioClip>(clip.path);
                 if (asset == null)
                 {

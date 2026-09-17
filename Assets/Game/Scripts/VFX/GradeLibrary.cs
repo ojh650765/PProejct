@@ -133,7 +133,7 @@ namespace PokeLab.Vfx
         {
             Key = GradeKey.Day,
             SunColor = new Color(1.00f, 0.94f, 0.80f),
-            SunIntensity = 2.05f,
+            SunIntensity = 1.20f,
             ShadowStrength = 0.78f,
 
             AmbientSky = new Color(0.56f, 0.72f, 0.98f),
@@ -170,9 +170,9 @@ namespace PokeLab.Vfx
             SplitBalance = 0f,
             LutContribution = 0.70f,
 
-            PostExposure = 0.06f,
-            BloomThreshold = 0.92f,
-            BloomIntensity = 0.75f,
+            PostExposure = -0.15f,
+            BloomThreshold = 1.15f,
+            BloomIntensity = 0.25f,
             BloomScatter = 0.70f,
             BloomTint = new Color(1.00f, 0.98f, 0.94f),
             VignetteIntensity = 0.22f,

@@ -1,6 +1,10 @@
 using System.Collections;
 using Unity.Cinemachine;
 using UnityEngine;
+using System.Collections.Generic;
+using PokeLab.Overworld;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace PokeLab.Cinematics
 {
@@ -58,9 +62,9 @@ namespace PokeLab.Cinematics
         private const float ShotAimY = 0.04f;
         private const float ShotFov = 32f;
 
-        private const float RevealDistance = 2.35f;
-        private const float RevealHeight = 0.85f;
-        private const float RevealAimY = 0.30f;
+        private const float RevealDistance = 1.45f;
+        private const float RevealHeight = 0.62f;
+        private const float RevealAimY = 0.16f;
 
         /// <summary>Centre-to-centre spacing of the balls. The drawn case is ~0.55 m across.</summary>
         private const float BallSpacing = 0.17f;
@@ -92,6 +96,8 @@ namespace PokeLab.Cinematics
         private StarterSpriteCard _player;
         private Light _caseLight;
         private CinemachineCamera _shot;
+        private VolumeProfile _focusProfile;
+        private DepthOfField _focus;
         private StarterBallKit _kit;
 
         private Vector3 _ballRowCentre;
@@ -235,7 +241,7 @@ namespace PokeLab.Cinematics
                 var anchor = new GameObject($"Ball{i}").transform;
                 anchor.SetParent(transform, false);
                 // Local X runs along the row because the root looks at the camera.
-                anchor.localPosition = new Vector3((i - span) * BallSpacing,
+                anchor.localPosition = new Vector3((span - i) * BallSpacing,
                     _ballRowCentre.y - transform.position.y, 0f);
                 slot.Anchor = anchor;
 
@@ -261,7 +267,7 @@ namespace PokeLab.Cinematics
                 // reveal reads as coming out of that ball and not as a picture appearing.
                 var creatureRoot = new GameObject("Creature").transform;
                 creatureRoot.SetParent(anchor, false);
-                creatureRoot.localPosition = new Vector3(0f, 0.09f, 0f);
+                creatureRoot.localPosition = new Vector3(0f, 0.035f, 0.12f);
                 slot.CreatureRoot = creatureRoot;
 
                 var creatureGo = new GameObject("Sprite", typeof(MeshFilter), typeof(MeshRenderer));
@@ -273,7 +279,7 @@ namespace PokeLab.Cinematics
                 // camera blends through on the way in.
                 slot.Creature.ForcedFacing = SpriteFacing.Front;
                 slot.Creature.Bind(speciesIds[i],
-                    displayHeights != null && i < displayHeights.Length ? displayHeights[i] : 0.5f,
+                    displayHeights != null && i < displayHeights.Length ? displayHeights[i] * WorldSpriteScale : 0.5f * WorldSpriteScale,
                     null);
                 slot.Creature.SetVisible(false);
 
@@ -323,11 +329,21 @@ namespace PokeLab.Cinematics
 
         private void BuildShotCamera()
         {
+            var volume = gameObject.AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.priority = 1000;
+            _focusProfile = ScriptableObject.CreateInstance<VolumeProfile>();
+            volume.sharedProfile = _focusProfile;
+            _focus = _focusProfile.Add<DepthOfField>(true);
+            _focus.mode.Override(DepthOfFieldMode.Bokeh);
+            _focus.aperture.Override(8f);
+            _focus.focalLength.Override(40f);
             var go = new GameObject("StarterCaseShot");
             go.transform.SetParent(transform, false);
             _shot = go.AddComponent<CinemachineCamera>();
             _shot.Lens = LensSettings.Default;
             _shot.Lens.FieldOfView = ShotFov;
+            _shot.Lens.NearClipPlane = 0.05f;
             // No Follow and no LookAt on purpose: this camera is a fixed pose, and a tracking
             // component would let the shot drift with whoever it was bound to.
             _shot.Priority = 0;
@@ -348,8 +364,12 @@ namespace PokeLab.Cinematics
             var height = Mathf.Lerp(ShotHeight, RevealHeight, toReveal);
             var aimY = Mathf.Lerp(ShotAimY, RevealAimY, toReveal);
 
-            var aim = _ballRowCentre + Vector3.up * aimY;
-            var position = _ballRowCentre + _shotBack * distance + Vector3.up * height;
+            var centre = _ballRowCentre;
+            if (_highlighted >= 0 && _highlighted < _slots.Length)
+                centre = Vector3.Lerp(centre, _slots[_highlighted].Anchor.position, toReveal);
+            var aim = centre + Vector3.up * aimY;
+            var position = CameraPath.ClearPosition(centre + _shotBack * distance + Vector3.up * height, aim, 0.1f);
+            _focus.focusDistance.Override(Vector3.Distance(position, aim));
             _shot.transform.SetPositionAndRotation(position,
                 Quaternion.LookRotation((aim - position).normalized, Vector3.up));
         }
@@ -381,10 +401,11 @@ namespace PokeLab.Cinematics
             if (_open) yield break;
             _open = true;
 
+            HideCast();
             TakeShot();
 
             yield return CinematicRunner.Tween(0.45f, CinematicEase.OutCubic,
-                t => _caseLight.intensity = Mathf.Lerp(0f, 2.6f, t));
+                t => _caseLight.intensity = Mathf.Lerp(0f, 0.12f, t));
 
             for (var i = 0; i < _slots.Length; i++)
             {
@@ -426,7 +447,7 @@ namespace PokeLab.Cinematics
 
             Highlight(index);
             slot.Scripted = true;
-            if (_player != null) _player.gameObject.SetActive(true);
+            // Keep the actual trainer outside this close-up; no duplicate reaching sprite.
 
             // Wind up: the ball shivers in place. Short — anything longer reads as a stall.
             var lift = slot.Lift;
@@ -438,27 +459,27 @@ namespace PokeLab.Cinematics
 
             if (slot.Closed != null) slot.Closed.SetActive(false);
             if (slot.Open != null) slot.Open.SetActive(true);
-            slot.Glow.intensity = 9f;
+            slot.Glow.intensity = 0.18f;
 
             if (slot.Creature != null)
             {
                 slot.Creature.SetVisible(true);
-                slot.Creature.Flash(1f);
+                slot.Creature.Flash(0.2f);
             }
 
-            CinematicRunner.Fork(CinematicRunner.Tween(0.8f, CinematicEase.InOutCubic,
-                t => PlaceShot(t)));
+            // One owned coroutine drives the shot and reveal; no camera tween can outlive this beat.
 
             // Out of the ball: a fast overshoot to full size. OutBack rather than OutCubic
             // because the creature has to arrive rather than fade up.
             yield return CinematicRunner.Tween(0.55f, t => CinematicEase.OutBack(t, 2.1f), t =>
             {
-                var scale = Mathf.Lerp(0.15f, 1f, t);
+                PlaceShot(CameraPath.Ease(t));
+                var scale = Mathf.Lerp(0.15f, 1f, Mathf.Clamp01(t));
                 if (slot.Creature != null) slot.Creature.SetSquash(new Vector3(scale, scale, scale));
             });
 
             yield return CinematicRunner.Tween(0.5f, CinematicEase.OutCubic,
-                t => slot.Glow.intensity = Mathf.Lerp(9f, 3.2f, t));
+                t => slot.Glow.intensity = Mathf.Lerp(0.18f, 0f, t));
         }
 
         /// <summary>Undoes a reveal, for a player who looks and then changes their mind.</summary>
@@ -468,14 +489,14 @@ namespace PokeLab.Cinematics
             var slot = _slots[index];
 
             if (_player != null) _player.gameObject.SetActive(false);
-            CinematicRunner.Fork(CinematicRunner.Tween(0.5f, CinematicEase.InOutCubic,
-                t => PlaceShot(1f - t)));
+
 
             yield return CinematicRunner.Tween(0.28f, CinematicEase.InCubic, t =>
             {
+                PlaceShot(1f - CameraPath.Ease(t));
                 var scale = Mathf.Lerp(1f, 0.1f, t);
                 if (slot.Creature != null) slot.Creature.SetSquash(new Vector3(scale, scale, scale));
-                slot.Glow.intensity = Mathf.Lerp(3.2f, 0f, t);
+                slot.Glow.intensity = Mathf.Lerp(slot.Glow.intensity, 0f, t);
             });
 
             if (slot.Creature != null) slot.Creature.SetVisible(false);
@@ -493,6 +514,34 @@ namespace PokeLab.Cinematics
             ReleaseShot();
             yield return CinematicRunner.Wait(blendSeconds);
             if (this != null) Destroy(gameObject);
+        }
+
+        private readonly Dictionary<Renderer, bool> _hiddenCast = new Dictionary<Renderer, bool>();
+        private void HideCast()
+        {
+            foreach (var player in FindObjectsByType<PlayerLocomotion>(FindObjectsSortMode.None)) HideRenderers(player.gameObject);
+            foreach (var npc in FindObjectsByType<NpcController>(FindObjectsSortMode.None)) HideRenderers(npc.gameObject);
+            foreach (var creature in FindObjectsByType<CreatureBillboard>(FindObjectsSortMode.None))
+                if (!creature.transform.IsChildOf(transform)) HideRenderers(creature.gameObject);
+        }
+
+        private void HideRenderers(GameObject actor)
+        {
+            foreach (var renderer in actor.GetComponentsInChildren<Renderer>())
+            {
+                if (_hiddenCast.ContainsKey(renderer)) continue;
+                _hiddenCast.Add(renderer, renderer.enabled);
+                renderer.enabled = false;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            ReleaseShot();
+            if (_focusProfile != null) Destroy(_focusProfile);
+            foreach (var pair in _hiddenCast)
+                if (pair.Key != null) pair.Key.enabled = pair.Value;
+            _hiddenCast.Clear();
         }
 
         private void LateUpdate()
@@ -513,7 +562,7 @@ namespace PokeLab.Cinematics
                 if (selected) slot.Spin += Time.deltaTime * 42f;
                 slot.Ball.localRotation = Quaternion.Euler(0f, slot.Spin, 0f);
 
-                var wantedGlow = selected ? 2.4f : 0f;
+                var wantedGlow = selected ? 0.12f : 0f;
                 if (slot.Creature == null || !slot.Creature.IsVisible)
                     slot.Glow.intensity = Mathf.Lerp(slot.Glow.intensity, wantedGlow,
                         1f - Mathf.Exp(-10f * Time.deltaTime));

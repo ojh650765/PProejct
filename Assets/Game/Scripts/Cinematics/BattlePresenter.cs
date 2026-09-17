@@ -265,7 +265,14 @@ namespace PokeLab.Cinematics
                 // field first. ChooseAction stays the fallback for both a missing UI and a UI
                 // that ran its routine without ever committing.
                 BattleAction action;
-                if (ActionRoutine != null)
+                if (battle.CurrentRequest != null && battle.CurrentRequest.IsCaptureLesson)
+                {
+                    yield return CinematicRunner.Wait(1.0f);
+                    action = battle.Engine.State.TurnNumber == 0
+                        ? BattleAction.UseMove(BattleSide.Player, 0)
+                        : BattleAction.Capture(BattleSide.Player, PokeLab.Battle.ItemCatalog.PokeBallId);
+                }
+                else if (ActionRoutine != null)
                 {
                     _committed = null;
                     yield return ActionRoutine(battle.Engine, a => _committed = a);
@@ -480,11 +487,17 @@ namespace PokeLab.Cinematics
                 // Both taps go through the early-raise sets: an event the attacking beat
                 // already announced at its frame of contact must not be announced a second
                 // time here, or the HUD would drain the same hit twice.
-                RaiseObserved(evt);
-                RaisePerformed(evt);
+                if (!(evt is DamageDealtEvent))
+                {
+                    // Capture carries the outcome. Narrate it only once the ball has
+                    // clicked or the creature has broken out, never before the throw.
+                    if (!(evt is CaptureAttemptEvent)) RaiseObserved(evt);
+                    RaisePerformed(evt);
+                }
 
                 float startedAt = Time.unscaledTime;
                 yield return Perform(evt);
+                if (evt is DamageDealtEvent) _performedEarly.Remove(evt);
 
                 // The floor. Overshooting it is fine and normal; undershooting is not.
                 float elapsed = Time.unscaledTime - startedAt;
@@ -1064,7 +1077,6 @@ namespace PokeLab.Cinematics
             // Claimed before it is announced, so a damage beat that somehow opens while this
             // fork is still running finds the flag already set and plays the settle only.
             _reactedEarly.Add(incoming);
-            PerformEarly(incoming);
             yield return PlayDamageImpact(incoming, target);
         }
 
@@ -1128,7 +1140,9 @@ namespace PokeLab.Cinematics
             {
                 Rig.Show(BattleCameraRig.FocusOn(e.Target));
                 CinematicHooks.Vfx(CinematicVfxKeys.ImpactGeneric, Rig.ImpactPointOf(e.Target), Quaternion.identity);
-                yield return target.Motion.Flinch(0.5f, 0.4f);
+                if (target != null) target.Play(CreatureAnimation.Hit, CreatureView.DefaultCrossfade(CreatureAnimation.Hit));
+                PerformEarly(e);
+                if (target != null) yield return target.Motion.Flinch(0.5f, 0.4f);
                 Rig.Release();
                 yield break;
             }
@@ -1152,7 +1166,7 @@ namespace PokeLab.Cinematics
         /// </summary>
         private IEnumerator PlayDamageImpact(DamageDealtEvent e, CreatureView target)
         {
-            if (target == null) yield break;
+            if (target == null) { PerformEarly(e); yield break; }
 
             float fraction = e.MaxHp > 0 ? Mathf.Clamp01(e.Amount / (float)e.MaxHp) : 0.2f;
 
@@ -1186,6 +1200,7 @@ namespace PokeLab.Cinematics
             }
 
             target.Play(CreatureAnimation.Hit, CreatureView.DefaultCrossfade(CreatureAnimation.Hit));
+            PerformEarly(e);
 
             Vector3 knockDirection = e.Target == BattleSide.Player ? -Rig.Axis : Rig.Axis;
 
@@ -1495,6 +1510,7 @@ namespace PokeLab.Cinematics
                 yield return ball.Click(timing.CaptureClickHold);
                 CinematicHooks.HudBeat("capture_success", 1f);
                 target.SetModelVisible(false);
+                RaiseObserved(e);
                 yield return CinematicRunner.Wait(timing.CaptureCelebrate);
                 DismissBall(ball, 2f);
             }
@@ -1516,6 +1532,7 @@ namespace PokeLab.Cinematics
                 yield return target.FaceTowardsAndWait(Stage.MarkOf(BattleSide.Player).position, 0.3f);
                 target.PlayAuthored(CreatureAnimation.IdleBattle);
                 CinematicHooks.HudBeat("capture_failed", 1f);
+                RaiseObserved(e);
             }
 
             Rig.Release();

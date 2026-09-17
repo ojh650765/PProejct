@@ -99,6 +99,10 @@ namespace PokeLab.Vfx.Editor
 
         private static void Apply(TextureImporter importer, string path)
         {
+            // UI portraits are Sprite assets owned by CreatureImportSettings. The generic
+            // first-import rule must not change them back to Default textures afterwards.
+            if (path.StartsWith("Assets/Game/Art/Sprites/Resources/Portraits/", StringComparison.Ordinal) ||
+                path.StartsWith("Assets/Game/Art/Sprites/Resources/CreaturePortraits/", StringComparison.Ordinal)) return;
             Family family = Classify(path);
             if (family == Family.None)
                 return;
@@ -113,6 +117,9 @@ namespace PokeLab.Vfx.Editor
             switch (family)
             {
                 case Family.Sprite:
+                    // Frame grids such as 768 x 384 must retain their exact texels.
+                    // Rescaling to a power of two blurs the art before Point sampling.
+                    importer.npotScale = TextureImporterNPOTScale.None;
                     // The billboard shader samples a plain Texture2D atlas, not a
                     // Unity Sprite: sprite import mode would cost the mip chain the
                     // wide shot needs and buy nothing, because nothing here goes

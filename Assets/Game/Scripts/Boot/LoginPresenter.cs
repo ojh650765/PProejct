@@ -253,7 +253,7 @@ namespace PokeLab.Boot
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
 
-            if (keyboard.tabKey.wasPressedThisFrame) _view.FocusNext();
+            UiKeyboardCursor.Update(_view.transform);
             if (keyboard.escapeKey.wasPressedThisFrame) SkipAccount();
         }
     }

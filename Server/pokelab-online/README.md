@@ -14,8 +14,9 @@ Supabase. See the note in `wrangler.toml` for why.
 | `/odds` | GET | The gacha odds on their own. |
 | `/account/create` | POST | Trainer name + recovery question + answer → token. |
 | `/account/login` | POST | The same three → token. |
-| `/roster` | GET | The six the account owns. |
-| `/gacha/roll` | POST | Draw a team. Six pulls, no duplicates, weighted by tier. |
+| `/roster` | GET | Collection, PP balance, party and saved starter groups. |
+| `/gacha/starter` | POST | Generate five free groups of six once, or commit `selected` (0-4). |
+| `/gacha/roll` | POST | Buy 1-10 creatures with PP; requires a stable `requestId` for retries. |
 | `/battle/result` | POST | Grant experience for a finished AI or PvP battle. |
 | `/pvp/queue` | WS | Matchmaking. Returns a match id and a shared seed. |
 | `/pvp/match/{id}` | WS | The match room. Relays turns between the two players. |
@@ -62,7 +63,34 @@ npm run dev          # http://localhost:8787
 Point the game at `http://localhost:8787` the same way. Note the editor and a desktop player
 can reach `localhost`; a WebGL build served from GitHub Pages cannot.
 
+## Existing databases and verification
+
+This workspace integrates the existing collection/PP implementation from `fix/audit-sweep`.
+The wire and database field is still `coins`; the player-facing label is PP.
+Do not recreate a production database or reset balances. For an existing database, apply only
+missing migrations in order: `0001_rolls_used.sql`, `0002_collection.sql`,
+`0003_starter_gacha.sql`. A database already running the collection version needs only 0003.
+`schema.sql` creates a fresh database; `CREATE TABLE IF NOT EXISTS` does not upgrade existing columns.
+Deploy the Worker and matching Unity build together. No remote migration or deployment has been
+performed as part of these local changes.
+
+Run `npm run typecheck` and `npm test`. The tests use Node 22 SQLite to execute actual SQL,
+including constraints and rollback, through a D1-shaped adapter. They cover concurrent first
+draws/selections, saved groups, insufficient funds and exactly-once purchase retries.
+
 ## The gacha
+
+New accounts draw five candidate groups automatically, each containing six distinct creatures.
+All five are persisted server-side. Choosing one commits exactly its six to the collection and
+party; the remaining candidates award nothing. Returning accounts keep their collection and PP.
+After the choice, the normal count selector buys 1-10 creatures at 500 PP each; duplicates become
+shards without replacing the existing team. Battle rewards retain the existing balance:
+AI victory 140 PP / defeat 45 PP; PvP multiplies those by 1.8.
+
+Paid requests carry a client-generated ID persisted until a definitive response. The server
+stores a receipt and validates the account snapshot in the same D1 batch as the debit and
+collection writes. A timeout/reload can recover the same result without another charge.
+
 
 `src/pool.ts` is **generated**, from `Assets/StreamingAssets/pokelab/species.json` intersected
 with `Assets/Game/Art/Sprites/Creatures/sprite_manifest.json`. The pool is the 53 species that
@@ -81,8 +109,8 @@ Tiers come from the base stat total, once, at generation time:
 
 A tier is picked by weight, then a species uniformly within it — so adding three commons to the
 pool does not quietly make every epic rarer. Draws are without replacement, and the
-`roster_unique_species` index in `schema.sql` enforces "no duplicates" a second time, where it
-cannot be forgotten by a future change to the draw.
+`roster_unique_species` index keeps one collection row per species. A later duplicate
+adds a breakthrough shard rather than creating a second row.
 
 ## Accounts, and what this scheme is worth
 

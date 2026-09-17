@@ -1,62 +1,18 @@
-# Deploying the WebGL build
+# GitHub Pages 배포
 
-**Nobody pushes gh-pages by hand any more.** A build with a silently-broken
-StreamingAssets JSON went live once because the push happened before anyone looked at the
-console. The gate below is now the only sanctioned way to publish.
+프로젝트 루트의 `DeployGame.exe`를 더블클릭합니다.
+이 프로젝트를 Unity에서 열고 Play 모드를 종료한 상태여야 합니다. Unity MCP는 localhost:8080에서 연결합니다.
+Python(requests, websocket-client), Git, Chrome, GitHub push 인증은 현재 PC의 설치를 사용합니다.
 
-## How to deploy
+실행 순서: 현재 Unity 프로젝트 확인 → WebGL 빌드 → 로컬 브라우저 로딩/오류 검사 → gh-pages 커밋·업로드 → 실제 사이트 로딩 검사.
+실패하면 이후 단계는 실행하지 않습니다. 강제 push나 다른 브라우저 프로세스 종료는 하지 않습니다.
+사이트: https://ojh650765.github.io/PProejct/
 
-1. Build the WebGL player from the Unity editor menu (the gate does not build).
-2. From the repo root (`C:\PProejct`, the checkout that contains `Build/WebGL`):
+- `DeployGame.exe --dry-run`: 빌드와 로컬 검사만 실행합니다.
+- `DeployGame.exe --deploy-existing`: 이미 빌드된 결과를 검사 후 게시합니다.
+- `DeployGame.exe --help --no-pause`: 창 대기 없이 사용법을 출력합니다.
 
-```
-python Tools/deploy_webgl.py
-```
-
-Useful variants:
-
-```
-python Tools/deploy_webgl.py --dry-run      # run every check, push nothing
-python Tools/deploy_webgl.py --force        # push even if Build/WebGL shows no diff
-python Tools/deploy_webgl.py --budget 600   # give a slow machine a longer loader budget
-```
-
-## What the gate does, in order
-
-Each step must pass before the next runs; the first failure aborts with that step's
-number as the exit code. `0` means deployed and verified (or a clean dry run / nothing
-to deploy).
-
-| Step | Check |
-|------|-------|
-| 1/6  | Preflight: `Build/WebGL` exists, is its own git checkout on `gh-pages`, and has changes to publish (no diff = "nothing to deploy", exit 0, unless `--force`). |
-| 2/6  | Data sanity: every `.json` under `Build/WebGL/StreamingAssets/` parses. This is the failure class that already shipped once — JsonUtility answers null on broken JSON and the game silently degrades. |
-| 3/6  | Local load: serves `Build/WebGL` with `http.server` on a free port and drives headless Chrome via `Tools/capture_web.py`; the Unity loader must actually finish. Screenshot: `Temp/deploy_gate_local.png`. |
-| 4/6  | Console triage: scans `Temp/web_console.txt` for error signatures (`Exception`, `error CS`, `NullReference`, `IndexOutOf`, `Failed to`, `would not parse`, `uncaught`, `ERROR: Shader`). Any hit not on the allowlist fails the gate and is printed with its line number. |
-| 5/6  | Deploy: `git add -A && commit -m "Publish the WebGL build" && push` inside `Build/WebGL`. Skipped by `--dry-run`. |
-| 6/6  | Live check: waits ~90 s for GitHub Pages, loads https://ojh650765.github.io/PProejct/ the same way, triages the console again. Screenshot: `Temp/deploy_gate_live.png`. A live failure after a local pass is **reported, not rolled back** — the output says so; roll back by reverting the last commit in `Build/WebGL` if needed. |
-
-## Extending the allowlist
-
-`Tools/deploy_webgl_allowlist.txt` — one substring per line, `#` for comments. A console
-line containing an entry is treated as known-benign. Unity's shader errors arrive as two
-lines (`ERROR: Shader` then the shader name); the triage joins them, so allowlisting the
-shader's name is enough.
-
-Add an entry only after you have looked at the line and understood why it is harmless,
-and say why in a comment. The allowlist is the record of noise we have decided to live
-with — it is not a mute button for errors you are tired of seeing.
-
-## Requirements
-
-- `python` on PATH with the `websocket-client` module (capture_web.py imports `websocket`).
-- Chrome at `C:\Program Files\Google\Chrome\Application\chrome.exe` (capture_web.py's path).
-- capture_web.py kills any Chrome holding debug port 9222 — don't run two gates at once.
-
-## Tests
-
-```
-python -m unittest discover -s Tools/tests -v
-```
-
-covers the console triage and JSON sanity logic without needing a build or Chrome.
+실행 파일 소스는 `Tools/DeployLauncher.cs`, 파이프라인은 `Tools/release_game.py`입니다.
+Unity 빌드 결과는 `Temp/release_build.json`, 로컬/온라인 캡처는 `Temp/deploy_gate_*.png`에 남습니다.
+소스 코드 커밋은 별도로 관리하며, 실행 파일은 gh-pages의 빌드 결과만 커밋합니다.
+로그인·매칭·PP 서버는 `Server/pokelab-online`의 별도 Cloudflare Worker입니다. 이 실행 파일은 게임 웹사이트를 배포합니다.

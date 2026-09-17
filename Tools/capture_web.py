@@ -10,7 +10,8 @@ This drives the browser over the DevTools protocol instead: open the page, poll 
 DOM for the loader's progress bar disappearing, and only then capture. It also drains the
 console so a failure has an error attached rather than being an indefinite splash screen.
 """
-import base64, io, json, subprocess, sys, time, urllib.request
+import atexit, base64, io, json, socket, subprocess, sys, time, urllib.request, uuid
+from pathlib import Path
 import websocket
 
 URL = sys.argv[1] if len(sys.argv) > 1 else "https://ojh650765.github.io/PProejct/"
@@ -18,25 +19,21 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else "Temp/deployed_loaded.png"
 BUDGET = int(sys.argv[3]) if len(sys.argv) > 3 else 480
 
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-PORT = 9222
-
-# Any Chrome still holding the debugging port is a previous run that crashed before it could
-# clean up. Left alone, the new Chrome silently fails to bind the port, targets() answers the
-# OLD browser, and the run attaches to a dead tab -- which presents as the very first CDP call
-# timing out after the full budget, ten minutes from anything informative.
-subprocess.run(["powershell.exe", "-NoProfile", "-Command",
-                "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | "
-                "Where-Object { $_.CommandLine -like '*remote-debugging-port*' } | "
-                "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"],
-               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-time.sleep(1.5)
+with socket.socket() as listener:
+    listener.bind(("127.0.0.1", 0))
+    PORT = listener.getsockname()[1]
+# Isolate this verification browser; never kill another user's debugging session.
+profile = Path("Temp") / ("web-capture-" + uuid.uuid4().hex)
+profile.mkdir(parents=True)
 
 proc = subprocess.Popen([
     CHROME, "--headless=new", "--no-sandbox", "--disable-gpu-sandbox",
     "--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=swiftshader",
     "--window-size=1280,720", f"--remote-debugging-port={PORT}",
-    "--remote-allow-origins=*", "about:blank",
+    "--remote-allow-origins=*", "--user-data-dir=" + str(profile.resolve()), "about:blank",
 ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+atexit.register(lambda: proc.kill() if proc.poll() is None else None)
 
 def targets():
     with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/json", timeout=5) as r:

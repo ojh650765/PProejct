@@ -226,6 +226,7 @@ namespace PokeLab.Battle
             Engine = new BattleEngine(ai: new BattleAi(
                 request.Kind == BattleKind.Wild ? AiDifficulty.Wild : TrainerDifficulty));
 
+            Engine.IsCaptureLesson = request.IsCaptureLesson;
             Engine.Trace = EngineTrace;
             Engine.SetOpponentTrainer(request.TrainerId);
             Engine.Begin(request.Kind, _playerParty, _opponentParty, request.Weather, request.Seed);
@@ -242,6 +243,11 @@ namespace PokeLab.Battle
         private void BuildPlayerParty(EncounterRequest request)
         {
             _playerParty.Clear();
+            if (request.IsCaptureLesson)
+            {
+                _playerParty.Add(CreatureFactory.Create(request.DemonstratorSpeciesId, 5, request.Seed ^ 0x5EED));
+                return;
+            }
 
             if (ServiceHub.TryGet<IPlayerProfile>(out var profile) && profile.Party != null)
             {
@@ -323,7 +329,10 @@ namespace PokeLab.Battle
 
             while (IsBattleActive && Engine.State.Outcome == BattleOutcome.InProgress && turns < AutoPlayTurnCap)
             {
-                SubmitAction(policy.ChooseAction(Engine, BattleSide.Player));
+                var action = CurrentRequest != null && CurrentRequest.IsCaptureLesson
+                    ? (turns == 0 ? BattleAction.UseMove(BattleSide.Player, 0) : BattleAction.Capture(BattleSide.Player, ItemCatalog.PokeBallId))
+                    : policy.ChooseAction(Engine, BattleSide.Player);
+                SubmitAction(action);
                 turns++;
             }
 
@@ -345,7 +354,7 @@ namespace PokeLab.Battle
             var result = new EncounterResult
             {
                 Outcome = outcome,
-                CapturedCreature = Engine?.CapturedCreature,
+                CapturedCreature = CurrentRequest != null && CurrentRequest.IsCaptureLesson ? null : Engine?.CapturedCreature,
                 MoneyDelta = MoneyFor(outcome),
             };
 

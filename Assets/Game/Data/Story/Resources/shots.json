@@ -8,18 +8,29 @@
       "1": "Fixed -- authored world Position looking at authored world LookAt. Optional DollyTo/DollySeconds eases the position while the aim holds.",
       "2": "Orbit -- composed around the scene object named by TargetName, resolved at shot time (Actor_StagedCreature, Prop_ProfessorBag, Player). The camera stands Distance metres from the target on the target-to-player bearing swung by YawOffsetDegrees, Height metres up, aiming at the target plus AimHeight. Player absent: the offset is read as a world bearing."
     },
-    "eases": { "0": "Hold (stay on From)", "1": "Smooth (smoothstep)", "2": "Linear" },
+    "eases": {
+      "0": "Hold (stay on From)",
+      "1": "Smooth (smoothstep)",
+      "2": "Linear"
+    },
     "timelineNote": "Timelines are baked into TimelineAssets by Tools/Poké Lab/Rebuild/Sequencing Timelines, into Assets/Game/Data/Story/Resources/Timelines/<Name>.playable, and are scrubbable in the Timeline window through the ~SequencingPreview object the same menu creates. AUTHORING RULE: a timeline's first key must equal the pose of the shot (or exploration framing) it is entered from, because Cinemachine blends into the timeline camera over its opening moments -- matching poses makes that blend a no-op instead of a drift. A timeline's last key is HELD by the rig after it ends, so the pose the choreography finishes on is the shot the following beats play under.",
     "geometryBasis": "Every number below is derived from cast.json's verified positions: lab Town_Lab_01 at (-1.453, 2.728, -5.691) with the dome at (-1.45, 8.2, -5.69); plaza spawn (-9.0, 2.43, -13.5); ramp head area (-8.1, 2.7, 1.5) and route head (-5.7, 1.6, 10.0); Bram (-9.6, 2.654, 0.4); square catch point (-11.41, ~2.4, -5.36) with Look_Square (-17.8, 4.03, -10.4) on bearing 231.7; lake catch point (25.18, ~, 27.79) with Look_LakeBank (31.39, -1.0, 35.44) on bearing 39.1, Linden (28.75, -0.436, 29.5), grass (26.5, -1.153, 33.25), offstage mark (21.8, 0.033, 26.2)."
   },
-
   "Shots": [
     {
       "Name": "shot_lab_dome",
       "Mode": 1,
       "ModeName": "Fixed",
-      "Position": [-15.74, 3.21, -23.27],
-      "LookAt": [-1.45, 7.2, -5.69],
+      "Position": [
+        -15.74,
+        3.21,
+        -23.27
+      ],
+      "LookAt": [
+        -1.45,
+        7.2,
+        -5.69
+      ],
       "Fov": 42.0,
       "Note": "The opening reveal, composed so the dome is actually IN it. The yaw swing kept the exploration rig's 8 deg pitch on an 8.5 m boom behind the spawn at (-15, -19.5)ish, which cut the dome off above the frame and let the tree canopies flanking the plaza into both edges. This camera stands ON the plaza near the spawn (ground 2.43, lens 0.72 m up -- a low angle), past the tree rows, on the spawn-to-lab 44 deg axis, pitched 22 deg UP at the dome: horizontal distance 10.4 m, rise 4.25 m. Aiming at y 7.4 -- 0.8 m below the dome centre at 8.2 -- puts the dome in the upper third with sky behind it, which is the authored intent: 'the dome filling the top of the screen'. Pose is identical to tl_opening_reveal's first key, so the fade-in reveals the shot the timeline then pushes from with no seam."
     },
@@ -27,8 +38,16 @@
       "Name": "shot_gate_ramp",
       "Mode": 1,
       "ModeName": "Fixed",
-      "Position": [-6.82, 3.8, 5.08],
-      "LookAt": [-9.8, 2.3, -1.3],
+      "Position": [
+        -6.82,
+        3.8,
+        5.08
+      ],
+      "LookAt": [
+        -9.8,
+        2.3,
+        -1.3
+      ],
       "Fov": 40.0,
       "Note": "The refusal, framed on the people in it. RETUNED a second time, against corrected-schema captures (Captures/retune_v2/001_gateH2): the landscape version -- camera over the street aimed past everyone at the route -- read in play as the camera cutting to an empty vista while Bram talked, which the user called out as a wrong screen. This is the reverse two-shot instead: camera 7.2 m out on the ramp side at bearing 205, pitch 12, so Bram stands centre facing the lens with the player arriving behind-left and the town street behind them both. The refused route sits behind the camera; what the cut says now is WHO is refusing, and the ramp reads from the signpost at frame right. Reused by gate_wait_for_kes, gate_opens, and the held end pose of tl_square_sendoff."
     },
@@ -36,17 +55,33 @@
       "Name": "shot_square",
       "Mode": 1,
       "ModeName": "Fixed",
-      "Position": [-8.66, 4.6, -3.19],
-      "LookAt": [-17.8, 3.0, -10.4],
+      "Position": [
+        -8.66,
+        4.6,
+        -3.19
+      ],
+      "LookAt": [
+        -17.8,
+        3.0,
+        -10.4
+      ],
       "Fov": 42.0,
-      "Note": "Kes' send-off. Camera 3.5 m behind and 2.2 m above the Trigger_Square catch point (-11.41, -5.36), on the reciprocal (51.7 deg) of the shot axis, looking down the square at Look_Square on bearing 231.7 -- the axis cast.json verified: Mark_Kes_Approach bears 232.1 and Kes' post 230.1 from the catch point, under half a degree of spread, so his whole walk comes straight up the middle of this frame toward the lens. Pitch 7.9 deg down (1.6 m over 11.65). The player at the catch point stands ~3.5 m ahead of the lens, low in frame: an over-the-shoulder. The market row is looked PAST, per the marker's own note. Pose is identical to tl_square_sendoff's first key."
+      "Note": "Barry' send-off. Camera 3.5 m behind and 2.2 m above the Trigger_Square catch point (-11.41, -5.36), on the reciprocal (51.7 deg) of the shot axis, looking down the square at Look_Square on bearing 231.7 -- the axis cast.json verified: Mark_Barry_Approach bears 232.1 and Barry' post 230.1 from the catch point, under half a degree of spread, so his whole walk comes straight up the middle of this frame toward the lens. Pitch 7.9 deg down (1.6 m over 11.65). The player at the catch point stands ~3.5 m ahead of the lens, low in frame: an over-the-shoulder. The market row is looked PAST, per the marker's own note. Pose is identical to tl_square_sendoff's first key."
     },
     {
       "Name": "shot_lake_bank",
       "Mode": 1,
       "ModeName": "Fixed",
-      "Position": [22.6, 2.4, 24.6],
-      "LookAt": [31.39, -1.0, 35.44],
+      "Position": [
+        22.6,
+        2.4,
+        24.6
+      ],
+      "LookAt": [
+        31.39,
+        -1.0,
+        35.44
+      ],
       "Fov": 45.0,
       "Note": "The one framing that carries the whole lake scene. Camera 2.3 m above the bank path behind the catch point (25.18, 27.79), aiming at Look_LakeBank out over the water on its verified 39 deg bearing, pitched 13.7 deg down (3.4 m over 14.0). From HERE rather than from the player: Linden (28.75, 29.5) bears 51.5 -- 12.4 deg right of axis; the ambush grass (26.5, 33.25) bears 24.3 -- 14.8 deg left; both comfortably inside FOV 45's ~36 deg horizontal half-angle, with the water he is counting dead centre. The player at the catch point sits on the axis 4.1 m out, back to camera -- 'the first thing they see is his back' now includes the player seeing it. Mark_Prof_Offstage (21.8, 26.2) bears 66 deg LEFT of axis: behind the lens, out of frame, which is what field_professor_returns' staging depends on -- his walk-in from there passes ~1.8 m in front of the lens and enters frame as a foreground crossing, a walk past the camera rather than a materialisation. Pose is identical to tl_lakebank_arrival's last key."
     },
@@ -55,10 +90,10 @@
       "Mode": 2,
       "ModeName": "Orbit",
       "TargetName": "Prop_ProfessorBag",
-      "Distance": 2.2,
-      "Height": 1.5,
+      "Distance": 2.6,
+      "Height": 1.8,
       "YawOffsetDegrees": 25.0,
-      "AimHeight": 0.15,
+      "AimHeight": 0.25,
       "Fov": 36.0,
       "Note": "field_bag_left's 'only close shot in the field', which the yaw swing made a lie -- it framed the bag from 8.5 m behind the player at 8 deg of pitch. Orbit: 2.2 m out on the player's side of the bag, swung 25 deg for a three-quarter look, 1.5 m up = 31.5 deg down at the bag's top (aim 0.15 m over its seated pivot at -0.63). Orbit rather than fixed because the trigger radius is 3 m and the player can arrive from any bearing; composing off the player's own line keeps them just out of frame behind the lens."
     },
@@ -66,8 +101,16 @@
       "Name": "shot_creature_stare",
       "Mode": 1,
       "ModeName": "Fixed",
-      "Position": [24.07, 2.56, 29.04],
-      "LookAt": [26.5, -0.6, 33.25],
+      "Position": [
+        24.07,
+        2.56,
+        29.04
+      ],
+      "LookAt": [
+        26.5,
+        -0.6,
+        33.25
+      ],
       "Fov": 38.0,
       "Note": "The look at the thing in the grass, before anything names it -- and the ambush's opening frame. RETUNED a second time against corrected-schema captures (Captures/retune_v2): the lakeward-opposite pose at 0.85 m was BELOW the cattail tips -- the shipped frame was reeds edge to edge with the creature invisible behind them and the player a dot on the far bank (002_ambJ_current). The lens now stands 2.56 m up on the bank side at bearing 30, pitched 33 deg down over the reed line at the mark's head height, so the creature reads centre against the water edge with the reeds brushing the frame bottom (004_ambL_high shows the geometry; the creature is runtime-staged, so final judgement is the in-play film). Fixed pose for the same reason as before: the creature always stands on Mark_Ambush_Grass (26.5, -1.153, 33.25)."
     },
@@ -76,15 +119,85 @@
       "Mode": 2,
       "ModeName": "Orbit",
       "TargetName": "Prop_ProfessorBag",
-      "Distance": 2.6,
-      "Height": 1.8,
+      "Distance": 4.5,
+      "Height": 2.6,
       "YawOffsetDegrees": -30.0,
-      "AimHeight": 0.1,
-      "Fov": 40.0,
+      "AimHeight": 0.65,
+      "Fov": 45,
       "Note": "The choice frame: 'three balls, and something standing over them'. Wider and higher than shot_bag_close (2.6 m out, 1.8 m up, FOV 40) so the bag, the approached creature 1.6 m from the player, and the near arc of the ring all fit. Swung -30 deg -- the opposite shoulder from shot_bag_close, so returning to the bag reads as a new look at it under new circumstances, not a replay."
+    },
+    {
+      "Name": "shot_lab_interior",
+      "Mode": 1,
+      "Position": [
+        0,
+        4.8,
+        -5.4
+      ],
+      "LookAt": [
+        0,
+        1.1,
+        0.7
+      ],
+      "Fov": 43
+    },
+    {
+      "Name": "shot_home_family",
+      "Mode": 1,
+      "Position": [
+        0,
+        4.8,
+        -5.0
+      ],
+      "LookAt": [
+        0,
+        1,
+        0.1
+      ],
+      "Fov": 43
+    },
+    {
+      "Name": "shot_route202_lesson",
+      "Mode": 1,
+      "Position": [
+        -27.5,
+        5.3,
+        13.7
+      ],
+      "LookAt": [
+        -31.5,
+        1,
+        19.6
+      ],
+      "Fov": 44
+    },
+    {
+      "Name": "shot_home_tv",
+      "Mode": 1,
+      "Position": [
+        2.1,
+        3.4,
+        -4.5
+      ],
+      "LookAt": [
+        0,
+        0.8,
+        1.3
+      ],
+      "Fov": 44
+    },
+    {
+      "Name": "shot_lake_player_hold",
+      "Mode": 2,
+      "TargetName": "Player",
+      "Distance": 7,
+      "Height": 5,
+      "YawOffsetDegrees": 180,
+      "AimHeight": 0.6,
+      "Fov": 48,
+      "Note": "Sample once and hold through the approach, dialogue and starter choice. No repeated orbit or zoom."
     }
   ],
-
   "Timelines": [
     {
       "Name": "tl_opening_reveal",
@@ -92,15 +205,57 @@
       "Note": "The shot the whole town was built around, given motion: 1.2 s of dead hold on the dome (absorbing the tail of any blend, though CameraShot has already matched this pose behind black), then a 3.4 s push-in along the plaza axis -- 1.75 m closer, rising 0.25 m, pitch steepening 22 to 25 deg as the dome grows. Runs after the 2.4 s FadeIn beat, replacing the old 'Wait 1.8'. Ends held on the tighter frame for the morning bulletin.",
       "Segments": [
         {
-          "StartSeconds": 0.0, "EndSeconds": 1.2, "Ease": 0, "EaseName": "Hold",
-          "FromPosition": [-15.74, 3.21, -23.27], "ToPosition": [-15.74, 3.21, -23.27],
-          "FromLookAt": [-1.45, 7.2, -5.69], "ToLookAt": [-1.45, 7.2, -5.69],
+          "StartSeconds": 0.0,
+          "EndSeconds": 1.2,
+          "Ease": 0,
+          "EaseName": "Hold",
+          "FromPosition": [
+            -15.74,
+            3.21,
+            -23.27
+          ],
+          "ToPosition": [
+            -15.74,
+            3.21,
+            -23.27
+          ],
+          "FromLookAt": [
+            -1.45,
+            7.2,
+            -5.69
+          ],
+          "ToLookAt": [
+            -1.45,
+            7.2,
+            -5.69
+          ],
           "Note": "Let the dome sit there. Same intent as the Wait beat this replaces. RETUNED against in-play film: the old pose stood 5.5 m from the lab's door face, which fills the frame wall-to-wall at FOV 42 -- the building is 222 deg rotated and its visible face is far closer than its centre. This one stands 23 m out on the same axis (verified render: Captures/dome_retune/001_domeB_wider) with the round observatory floor centred under open sky, the town's fences and the neighbour house framing it."
         },
         {
-          "StartSeconds": 1.2, "EndSeconds": 4.6, "Ease": 1, "EaseName": "Smooth",
-          "FromPosition": [-15.74, 3.21, -23.27], "ToPosition": [-13.49, 3.2, -20.51],
-          "FromLookAt": [-1.45, 7.2, -5.69], "ToLookAt": [-1.45, 7.5, -5.69],
+          "StartSeconds": 1.2,
+          "EndSeconds": 4.6,
+          "Ease": 1,
+          "EaseName": "Smooth",
+          "FromPosition": [
+            -15.74,
+            3.21,
+            -23.27
+          ],
+          "ToPosition": [
+            -13.49,
+            3.2,
+            -20.51
+          ],
+          "FromLookAt": [
+            -1.45,
+            7.2,
+            -5.69
+          ],
+          "ToLookAt": [
+            -1.45,
+            7.5,
+            -5.69
+          ],
           "Note": "The push-in: 3.5 m along the same axis, aim lifting to the dome proper, ending on Captures/dome_retune/000_domeA's verified frame. ~1 m/s at peak."
         }
       ]
@@ -108,18 +263,60 @@
     {
       "Name": "tl_square_sendoff",
       "Fov": 40.0,
-      "Note": "The turn-away after Kes' forfeit: from the square shot to the gate-ramp shot in one composed move. The two poses are 2.3 m apart in position but 145 deg apart in aim, so this is a PAN with a step, not a travel -- the camera stays above the street throughout and crosses no geometry. Starts exactly on shot_square's pose (no blend seam) and ends exactly on shot_gate_ramp's, held there while the MoveActor and ExitActor beats walk Kes down the ramp UNDER the shot -- the script has already said he is gone, so the frame is of where he went. FOV 40 splits the two shots' 42/38; Cinemachine blends the 2 deg on entry and exit.",
+      "Note": "The turn-away after Barry' forfeit: from the square shot to the gate-ramp shot in one composed move. The two poses are 2.3 m apart in position but 145 deg apart in aim, so this is a PAN with a step, not a travel -- the camera stays above the street throughout and crosses no geometry. Starts exactly on shot_square's pose (no blend seam) and ends exactly on shot_gate_ramp's, held there while the MoveActor and ExitActor beats walk Barry down the ramp UNDER the shot -- the script has already said he is gone, so the frame is of where he went. FOV 40 splits the two shots' 42/38; Cinemachine blends the 2 deg on entry and exit.",
       "Segments": [
         {
-          "StartSeconds": 0.0, "EndSeconds": 0.4, "Ease": 0, "EaseName": "Hold",
-          "FromPosition": [-8.66, 4.6, -3.19], "ToPosition": [-8.66, 4.6, -3.19],
-          "FromLookAt": [-17.8, 3.0, -10.4], "ToLookAt": [-17.8, 3.0, -10.4],
+          "StartSeconds": 0.0,
+          "EndSeconds": 0.4,
+          "Ease": 0,
+          "EaseName": "Hold",
+          "FromPosition": [
+            -8.66,
+            4.6,
+            -3.19
+          ],
+          "ToPosition": [
+            -8.66,
+            4.6,
+            -3.19
+          ],
+          "FromLookAt": [
+            -17.8,
+            3.0,
+            -10.4
+          ],
+          "ToLookAt": [
+            -17.8,
+            3.0,
+            -10.4
+          ],
           "Note": "A beat on the empty square axis before the turn."
         },
         {
-          "StartSeconds": 0.4, "EndSeconds": 3.0, "Ease": 1, "EaseName": "Smooth",
-          "FromPosition": [-8.66, 4.6, -3.19], "ToPosition": [-6.82, 3.8, 5.08],
-          "FromLookAt": [-17.8, 3.0, -10.4], "ToLookAt": [-9.8, 2.3, -1.3],
+          "StartSeconds": 0.4,
+          "EndSeconds": 3.0,
+          "Ease": 1,
+          "EaseName": "Smooth",
+          "FromPosition": [
+            -8.66,
+            4.6,
+            -3.19
+          ],
+          "ToPosition": [
+            -6.82,
+            3.8,
+            5.08
+          ],
+          "FromLookAt": [
+            -17.8,
+            3.0,
+            -10.4
+          ],
+          "ToLookAt": [
+            -9.8,
+            2.3,
+            -1.3
+          ],
           "Note": "The turn itself: ~84 deg/s at peak, decisive without whipping. End pose retuned with shot_gate_ramp -- the authoring rule is that this last key IS that shot's pose, so the held frame and the shot are one thing."
         }
       ]
@@ -130,15 +327,57 @@
       "Note": "The player's arrival on the bank: opens 2.3 m over their shoulder on the axis toward the water (the blend from exploration lands on this moving start), then pulls back and settles 1.9 m onto shot_lake_bank's exact pose -- the settle is the reveal: the frame widens until Linden, the water and the grass are all carried, and holds there for his five muttered lines. Aim is pinned on Look_LakeBank throughout; only the camera moves.",
       "Segments": [
         {
-          "StartSeconds": 0.0, "EndSeconds": 3.8, "Ease": 1, "EaseName": "Smooth",
-          "FromPosition": [23.9, 2.2, 26.0], "ToPosition": [22.6, 2.4, 24.6],
-          "FromLookAt": [31.39, -1.0, 35.44], "ToLookAt": [31.39, -1.0, 35.44],
+          "StartSeconds": 0.0,
+          "EndSeconds": 3.8,
+          "Ease": 1,
+          "EaseName": "Smooth",
+          "FromPosition": [
+            23.9,
+            2.2,
+            26.0
+          ],
+          "ToPosition": [
+            22.6,
+            2.4,
+            24.6
+          ],
+          "FromLookAt": [
+            31.39,
+            -1.0,
+            35.44
+          ],
+          "ToLookAt": [
+            31.39,
+            -1.0,
+            35.44
+          ],
           "Note": "The pull-back. 0.5 m/s at peak, an unhurried scene's unhurried camera."
         },
         {
-          "StartSeconds": 3.8, "EndSeconds": 4.4, "Ease": 0, "EaseName": "Hold",
-          "FromPosition": [22.6, 2.4, 24.6], "ToPosition": [22.6, 2.4, 24.6],
-          "FromLookAt": [31.39, -1.0, 35.44], "ToLookAt": [31.39, -1.0, 35.44],
+          "StartSeconds": 3.8,
+          "EndSeconds": 4.4,
+          "Ease": 0,
+          "EaseName": "Hold",
+          "FromPosition": [
+            22.6,
+            2.4,
+            24.6
+          ],
+          "ToPosition": [
+            22.6,
+            2.4,
+            24.6
+          ],
+          "FromLookAt": [
+            31.39,
+            -1.0,
+            35.44
+          ],
+          "ToLookAt": [
+            31.39,
+            -1.0,
+            35.44
+          ],
           "Note": "Settled before the dialogue takes over."
         }
       ]

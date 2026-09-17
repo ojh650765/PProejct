@@ -238,7 +238,7 @@ def _wait_until_written(build_dir, quiet_seconds=20, budget=900):
         previous = sizes
         time.sleep(4)
 
-    print("      (still being written after %ds; deploying anyway)" % budget)
+    raise GateFailure("Build output did not become stable within %ds; refusing to deploy." % budget)
 
 
 def step_preflight(build_dir, force):
@@ -343,23 +343,15 @@ def step_deploy(build_dir, dry_run):
     r = _git(build_dir, "add", "-A")
     if r.returncode != 0:
         raise GateFailure("git add failed: %s" % r.stderr.strip())
-    # Published as a single fresh commit, always. Sixteen deploys of ~80 MB binary
-    # history had grown the gh-pages checkout past a gigabyte -- the served tree is
-    # 84 MB. Nothing downstream reads this branch's history; the site is its tip.
-    tree = _git(build_dir, "write-tree")
-    if tree.returncode != 0:
-        raise GateFailure("git write-tree failed: %s" % tree.stderr.strip())
-    commit = _git(build_dir, "commit-tree", tree.stdout.strip(), "-m", COMMIT_MESSAGE)
-    if commit.returncode != 0:
-        raise GateFailure("git commit-tree failed: %s" % commit.stderr.strip())
-    r = _git(build_dir, "reset", "--soft", commit.stdout.strip())
+    r = _git(build_dir, "commit", "-m", COMMIT_MESSAGE)
     if r.returncode != 0:
-        raise GateFailure("git reset failed: %s" % r.stderr.strip())
-    r = _git(build_dir, "push", "--force")
+        raise GateFailure("git commit failed: %s" % r.stderr.strip())
+    # A concurrent deployment must be reviewed, never overwritten by a forced push.
+    r = _git(build_dir, "push", "origin", "HEAD:gh-pages")
     if r.returncode != 0:
         raise GateFailure("git push failed: %s" % r.stderr.strip())
     sha = _git(build_dir, "rev-parse", "--short", "HEAD").stdout.strip()
-    print("[5/6] deployed - gh-pages is at %s (single-commit publish)" % sha)
+    print("[5/6] deployed - gh-pages is at %s" % sha)
     return True
 
 

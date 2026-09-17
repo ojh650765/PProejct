@@ -104,10 +104,12 @@ namespace PokeLab.UI
         private static readonly int[] EmptyStats = new int[StatKinds.BaseCount];
 
         /// <summary>Portrait sprite, or null. Callers show the type glyph as a stand-in.</summary>
+        public static System.Func<int, Sprite> PortraitResolver { get; set; }
+
         public static Sprite PortraitOf(int speciesId)
         {
             var art = Art;
-            return art != null ? art.GetPortrait(speciesId) : null;
+            return PortraitResolver?.Invoke(speciesId) ?? (art != null ? art.GetPortrait(speciesId) : null);
         }
 
         /// <summary>Move definition, or null when the move registry has not landed.</summary>

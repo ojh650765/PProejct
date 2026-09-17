@@ -23,9 +23,8 @@ namespace PokeLab.Boot
     /// Three jobs, in order:
     ///
     ///   1. <b>Existence.</b> Ensure exactly one of each AV system is alive. Created copies
-    ///      live on children of this object; a scene that later provides its own copy wins
-    ///      (its serialized mixer, catalogue and profiles are the authored versions), and
-    ///      the host's stand-in is destroyed the moment a rival appears.
+    ///      live on children of this object. Registered singleton owners remain authoritative
+    ///      across scene loads; scene-provided copies take precedence for unregistered systems.
     ///   2. <b>Wiring.</b> Find the scene's <see cref="BattlePresenter"/> and subscribe the
     ///      audio and VFX presenters to its <c>EventPerformed</c> tap — the paced,
     ///      beat-open one, never <c>EventObserved</c>, because a sound scored on arrival
@@ -223,12 +222,14 @@ namespace PokeLab.Boot
         }
 
         /// <summary>
-        /// Create-if-absent with an eviction rule: a copy this host created exists only
-        /// until a scene provides an authored one. Both alive at once is the failure mode
-        /// this guards against — two music directors is two songs.
+        /// Keep the registered owner, otherwise prefer an authored scene component to a
+        /// host-created fallback. A duplicate awaiting destruction cannot replace an owner.
         /// </summary>
         private T Ensure<T>(string childName) where T : Component
         {
+            // Directors elect their owner in Awake. A duplicate scheduled for destruction
+            // must not evict the registered persistent owner during sceneLoaded.
+            if(ServiceHub.TryGet<T>(out var live) && live!=null) return live;
             var all = FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
             T sceneCopy = null;

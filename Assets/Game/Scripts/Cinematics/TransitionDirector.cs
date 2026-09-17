@@ -259,7 +259,7 @@ namespace PokeLab.Cinematics
                 // them stays put and the world rotates around them rather than cutting.
                 yield return SwingAroundPlayer(origin, facing);
 
-                yield return overlay.CoverIn(coverDuration, WipeStyle.ShutterWipe);
+                yield return overlay.CoverIn(coverDuration, WipeStyle.Fade);
                 CinematicHooks.Audio(CinematicAudioCues.TransitionWhoosh, origin);
 
                 // Opaque. The level may now be swapped unseen.
@@ -299,7 +299,7 @@ namespace PokeLab.Cinematics
                 // which is a far worse failure than a camera that settles in view.
                 yield return WaitForOpeningShot(presenter);
 
-                yield return overlay.CoverOut(revealDuration, WipeStyle.SplitWipe);
+                yield return overlay.CoverOut(revealDuration, WipeStyle.Fade);
 
                 // The battle may perform now. Released here rather than before the wipe because
                 // the send-out is the one beat the player only ever sees once per encounter, and
@@ -413,14 +413,14 @@ namespace PokeLab.Cinematics
                 // Covering on that frame throws away the end of every battle the player wins.
                 var presenter = Presenter;
                 if (presenter != null)
-                    yield return presenter.WaitUntilIdle(Mathf.Max(0f, outroDrain));
+                    yield return presenter.WaitUntilIdle(Mathf.Max(30f, outroDrain));
 
                 CinematicHooks.HudVisible(false, 0.35f);
                 yield return CinematicRunner.Wait(0.35f);
 
                 if (freezeWorld && !_worldFrozen) yield return FreezeTime();
 
-                yield return overlay.CoverIn(coverDuration, WipeStyle.SplitWipe);
+                yield return overlay.CoverIn(coverDuration, WipeStyle.Fade);
                 CinematicHooks.Audio(CinematicAudioCues.TransitionWhoosh, transform.position);
 
                 if (presenter != null)
@@ -475,7 +475,7 @@ namespace PokeLab.Cinematics
                 // One frame so the rig evaluates its new pose before it is revealed.
                 yield return null;
 
-                yield return overlay.CoverOut(revealDuration, WipeStyle.ShutterWipe);
+                yield return overlay.CoverOut(revealDuration, WipeStyle.Fade);
                 if (freezeWorld) yield return ThawTime();
 
                 StagedMode = GameMode.Exploring;
@@ -595,7 +595,9 @@ namespace PokeLab.Cinematics
 
             BattleZone zone = BattleArena.ZoneFor(request != null ? request.BiomeId : null);
             arena.Dress(zone);
-            arena.Stage.SetTrainers(PokeLab.Core.PlayerBody.SpriteKey, OpponentPersonKey(request));
+            var trainerKey = request != null && request.IsCaptureLesson
+                ? (PlayerBody.IsFemale ? "player" : "player_f") : PlayerBody.SpriteKey;
+            arena.Stage.SetTrainers(trainerKey, OpponentPersonKey(request));
 
             _biomeBeforeBattle = request != null && !string.IsNullOrEmpty(request.BiomeId)
                 ? request.BiomeId
@@ -795,7 +797,7 @@ namespace PokeLab.Cinematics
                 // Rise through the move, so the arc reads as a lift as well as a turn.
                 float height = Mathf.Lerp(swingHeight, swingHeight + 0.45f, Mathf.Sin(p * Mathf.PI));
 
-                camT.position = pivot + direction * radius + Vector3.up * (height - 1.1f);
+                camT.position = CameraPath.ClearPosition(pivot + direction * radius + Vector3.up * (height - 1.1f), pivot);
                 camT.rotation = Quaternion.LookRotation((pivot - camT.position).normalized, Vector3.up);
             });
         }
@@ -912,14 +914,15 @@ namespace PokeLab.Cinematics
         private IEnumerator Watchdog(CallbackOnce once, string label)
         {
             float elapsed = 0f;
-            while (!once.HasFired && elapsed < watchdogSeconds)
+            float budget = label == "BattleOutro" ? Mathf.Max(42f, watchdogSeconds) : watchdogSeconds;
+            while (!once.HasFired && elapsed < budget)
             {
                 elapsed += Time.unscaledDeltaTime;
                 yield return null;
             }
             if (once.HasFired) yield break;
 
-            Debug.LogError($"[TransitionDirector] {label} exceeded {watchdogSeconds:0.0}s without reaching " +
+            Debug.LogError($"[TransitionDirector] {label} exceeded {budget:0.0}s without reaching " +
                            "its callback. Releasing the flow and forcing a safe visual state.", this);
             AbortToMode(StagedMode);
             once.Fire("watchdog");

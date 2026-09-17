@@ -217,13 +217,9 @@ namespace PokeLab.Audio
             StopLowHpWarning();
             StopExpLoop();
 
-            if (evt.Outcome != BattleOutcome.PlayerVictory) return;
-
-            // The fanfare plays on the music director's sting deck, which is not ducked --
-            // only the looping theme underneath it dips, which is the effect asked for.
-            _audio.DuckMusic(fanfareDuck, 0.25f, 2.4f, 1.2f);
-            if (_music != null) _music.PlaySting(AudioIds.MusicVictoryFanfare);
-            else _audio.PlaySfx(AudioIds.MusicVictoryFanfare);
+            // Every result tells the sole music transport that battle ownership ended.
+            // A victory cue replaces the loop and is cancelled by the next scene/context.
+            _music?.EndBattle(evt.Outcome);
         }
 
         private void OnMessage(MessageEvent evt)
@@ -565,7 +561,6 @@ namespace PokeLab.Audio
                 yield return new WaitForSeconds(0.14f);
                 _audio.DuckMusic(fanfareDuck, 0.2f, 1.8f, 1.0f);
                 if (_music != null) _music.PlaySting(AudioIds.MusicCaptureSuccess);
-                else _audio.PlaySfx(AudioIds.MusicCaptureSuccess);
             }
             else
             {

@@ -1383,6 +1383,7 @@ ENTERABLE = {
 # door is a Centre door today and stays one the moment the mesh is swapped, whichever
 # way round the swap happens.
 ENTERABLE_BY_NAME = {
+    "Town_House_01": ("PlayerHome", "your home"),
     "Town_PokeCentre": ("PokeCentre", "the Pokemon Centre"),
 }
 
@@ -1402,6 +1403,8 @@ def building_doors(objects, bounds, grid):
     is local +Z -- the openings are cut in wall 0 and the manifest's convention is that
     models face +Z.
     """
+    anchors_path = os.path.join(OUT_DIR, "building_entrances.json")
+    anchors = json.load(open(anchors_path, encoding="utf-8")) if os.path.exists(anchors_path) else {}
     out = []
     for o in objects:
         asset = o["prefab"].split("/")[-1].replace(".fbx", "")
@@ -1420,6 +1423,13 @@ def building_doors(objects, bounds, grid):
         # rather than inside the mesh.
         depth = size[2] * 0.5 + 0.55
         dx, dz = x + fx * depth, z + fz * depth
+        anchor = anchors.get(asset)
+        if anchor:
+            ax, ay, az = anchor["position"]
+            scale = o.get("scale", [1,1,1])
+            if isinstance(scale, (int,float)): scale = [scale]*3
+            dx = x + ax * scale[0] * math.cos(r) + az * scale[2] * math.sin(r)
+            dz = z - ax * scale[0] * math.sin(r) + az * scale[2] * math.cos(r)
         out.append({
             "name": "Door_%s" % o["name"],
             "scene": "Interior_%s" % kind,
@@ -1454,6 +1464,31 @@ def main():
 
     with open(os.path.join(HERE, "asset_bounds.json"), encoding="utf-8") as fh:
         bounds = json.load(fh)
+
+    # Resolve attachments after the placement audit, which may have moved a house.
+    with open(os.path.join(OUT_DIR, "building_entrances.json"), encoding="utf-8") as fh:
+        entrances = json.load(fh)
+    named = {o["name"]: o for o in layout["objects"]}
+    for lamp in layout["objects"]:
+        parent = named.get(lamp.get("attachedBuilding"))
+        if parent is None: continue
+        key = os.path.splitext(os.path.basename(parent["prefab"]))[0]
+        anchor = entrances.get(key, {}).get("wallLamp")
+        if anchor is None: continue
+        x,y,z = parent["position"]
+        yaw = parent["rotation"][1]; r = math.radians(yaw)
+        ax,ay,az = anchor
+        lamp["position"] = [round(x+ax*math.cos(r)+az*math.sin(r),3),round(y+ay,3),
+                            round(z-ax*math.sin(r)+az*math.cos(r),3)]
+        lamp["rotation"] = [0,yaw,0]
+    for anchor in layout.get("ambientAnchors", []):
+        prefix = next((p for p in ("Amb_LampGlow_", "Amb_LampMoths_") if anchor["name"].startswith(p)), None)
+        if prefix is None: continue
+        lamp = named.get(anchor["name"][len(prefix):])
+        if lamp is None: continue
+        x,y,z = lamp["position"];r=math.radians(lamp["rotation"][1])
+        anchor["position"]=[round(x+.305*math.cos(r),3),round(y+2.5,3),round(z-.305*math.sin(r),3)]
+        if prefix == "Amb_LampGlow_": anchor.update(radius=5.5,intensity=.38)
 
     grid = Grid(layout["terrain"]["heightField"]["grid"])
     painter = SurfacePainter(layout)

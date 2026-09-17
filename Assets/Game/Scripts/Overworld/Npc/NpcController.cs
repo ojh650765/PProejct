@@ -121,6 +121,7 @@ namespace PokeLab.Overworld
         [SerializeField] private string _activityParam = "Activity";
 
         private NavMeshAgent _agent;
+        private NavMeshPath _wanderPath;
         private DayNightCycle _clock;
         private Transform _player;
         private DeterministicRandom _rng;
@@ -170,6 +171,7 @@ namespace PokeLab.Overworld
 
         private void Awake()
         {
+            _wanderPath = new NavMeshPath();
             _agent = GetComponent<NavMeshAgent>();
 
             // Switched off before anything moves it, and back on once it is standing somewhere
@@ -204,7 +206,7 @@ namespace PokeLab.Overworld
             //
             // SnapToNavMesh switches it back off where there is genuinely no mesh to stand
             // on — an interior, the battle arena — so this is safe to do unconditionally.
-            _agent.enabled = true;
+            _agent.enabled = WalkableGround.TryNavMesh(transform.position, 0.5f, _agent.areaMask, out _);
 
             // Sampled again with the agent live, because Warp is the only thing that tells an
             // enabled agent where it is; moving the transform under a disabled one is what
@@ -229,9 +231,11 @@ namespace PokeLab.Overworld
         private void SnapToNavMesh()
         {
             if (_agent == null) return;
-            if (_agent.enabled && _agent.isOnNavMesh) return;
+            if (_agent.enabled && _agent.isOnNavMesh
+                && WalkableGround.TrySample(transform.position, out var standing, 0.5f, 1f)
+                && Mathf.Abs(standing.y - transform.position.y) < 0.35f) return;
 
-            if (NavMesh.SamplePosition(transform.position, out var hit, 3f, NavMesh.AllAreas))
+            if (WalkableGround.TryNavMesh(transform.position, 3f, _agent.areaMask, out var hit))
             {
                 transform.position = hit.position;
                 if (!_agent.enabled) return;        // placed; the enable will take it from here
@@ -240,39 +244,18 @@ namespace PokeLab.Overworld
                 return;
             }
 
-            // No navmesh anywhere in this scene — an interior or the battle arena, where an
-            // agent is not merely misplaced but meaningless. Switching it off is quieter and
-            // more honest than leaving one that throws on every call.
-            if (!NavMesh.SamplePosition(transform.position, out _, 500f, NavMesh.AllAreas))
-            {
-                _agent.enabled = false;
-                return;
-            }
-
-            // No navmesh within reach, so put them on the ground at least.
-            //
-            // Standing still is survivable; standing still three metres in the air is not — a
-            // character hanging over the valley is the first thing anyone notices and it reads
-            // as the whole game being broken. The navmesh is the better answer because it is
-            // what walking needs, but when it is not there the ground still is, and a raycast
-            // finds it. They will not move, and the warning below says so.
-            if (Physics.Raycast(transform.position + Vector3.up * 4f, Vector3.down,
-                                out var ground, 40f, ~0, QueryTriggerInteraction.Ignore))
-            {
-                var drop = transform.position.y - ground.point.y;
-                transform.position = ground.point;
-                if (drop > 0.25f)
-                    Debug.LogWarning($"[Npc] '{name}' was {drop:F1} m above the ground and has " +
-                                     "been set down on it. Their authored position has the wrong " +
-                                     "height — check the height grid the layout sampled.", this);
-            }
-
-            // Nothing within three metres is a level fault, not a rounding error, so name
-            // the character and where they are rather than letting them silently do nothing.
-            Debug.LogWarning($"[Npc] '{name}' is at {transform.position} with no navmesh " +
-                             "within 3 m. They are walled in — check the barrier volumes and " +
-                             "props around them.", this);
             _agent.enabled = false;
+            if (WalkableGround.TryFind(transform.position, 6f, out var ground))
+            {
+                transform.position = ground;
+                if (WalkableGround.TryNavMesh(ground, 0.5f, _agent.areaMask, out var nearby))
+                {
+                    transform.position = nearby.position;
+                    _agent.enabled = true;
+                    _agent.Warp(nearby.position);
+                }
+            }
+            else Debug.LogWarning($"[Npc] '{name}' has no dry walkable ground within 6 m. Check its placement.", this);
         }
 
         private void CacheAnimatorParams()
@@ -385,7 +368,7 @@ namespace PokeLab.Overworld
 
             if (warp)
             {
-                if (NavMesh.SamplePosition(entry.Waypoint.position, out var hit, 4f, NavMesh.AllAreas))
+                if (WalkableGround.TryNavMesh(entry.Waypoint.position, 4f, _agent.areaMask, out var hit))
                 {
                     if (_agent.isOnNavMesh) _agent.Warp(hit.position);
                     else transform.position = hit.position;
@@ -394,10 +377,13 @@ namespace PokeLab.Overworld
                 return;
             }
 
-            if (_agent.isOnNavMesh)
+            if (_agent.enabled && _agent.isOnNavMesh
+                && WalkableGround.TryNavMesh(entry.Waypoint.position, 1f, _agent.areaMask, out var destination)
+                && _agent.CalculatePath(destination.position, _wanderPath)
+                && _wanderPath.status == NavMeshPathStatus.PathComplete)
             {
                 _agent.isStopped = false;
-                _agent.SetDestination(entry.Waypoint.position);
+                _agent.SetPath(_wanderPath);
             }
         }
 
@@ -422,7 +408,7 @@ namespace PokeLab.Overworld
             // the console. It happens for a real reason -- the terrain is regenerated and
             // the mesh has to be rebuilt with it -- so say so once and stand still rather
             // than pretending to walk.
-            if (!_agent.isOnNavMesh)
+            if (!_agent.enabled || !_agent.isOnNavMesh)
             {
                 if (!_warnedOffMesh)
                 {
@@ -454,9 +440,18 @@ namespace PokeLab.Overworld
             if (entry.Activity == NpcActivity.Sit || entry.Activity == NpcActivity.Sleep) return;
 
             var anchor = entry.Waypoint != null ? entry.Waypoint.position : transform.position;
-            var offset = new Vector3(_rng.Range(-1f, 1f), 0f, _rng.Range(-1f, 1f)).normalized * _rng.Range(0.3f, radius);
-            if (NavMesh.SamplePosition(anchor + offset, out var hit, radius, NavMesh.AllAreas) && _agent.isOnNavMesh)
-                _agent.SetDestination(hit.position);
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                float angle = _rng.Range(0f, Mathf.PI * 2f);
+                float distance = Mathf.Sqrt(_rng.Range(0f, 1f)) * radius;
+                var offset = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distance;
+                if (!WalkableGround.TryNavMesh(anchor + offset, .5f, _agent.areaMask, out var hit)
+                    || !_agent.CalculatePath(hit.position, _wanderPath)
+                    || _wanderPath.status != NavMeshPathStatus.PathComplete) continue;
+                _agent.isStopped = false;
+                _agent.SetPath(_wanderPath);
+                break;
+            }
         }
 
         private void FacePlayer()

@@ -21,7 +21,7 @@ namespace PokeLab.Boot.Editor
         private const string Field = "Assets/Game/Scenes/Field.unity";
 
         [MenuItem("Tools/Poké Lab/Debug/Opening Dialogue", priority = 100)]
-        public static void Opening() => Jump("opening", Town, freshSave: true);
+        public static void Opening() => Jump("opening", "Assets/Game/Scenes/Interior_PlayerHome.unity", freshSave: true);
 
         [MenuItem("Tools/Poké Lab/Debug/Starter Selection", priority = 101)]
         public static void Starter() => Jump("starter", Field, freshSave: true);

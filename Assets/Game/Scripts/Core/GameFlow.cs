@@ -27,6 +27,9 @@ namespace PokeLab.Core
         public BattleKind Kind = BattleKind.Wild;
         public int WildSpeciesId;
         public int WildLevel = 5;
+        /// <summary>An isolated NPC demonstration; never uses the player party or bag.</summary>
+        public bool IsCaptureLesson;
+        public int DemonstratorSpeciesId = 433;
         public string TrainerId;
         public Weather Weather = Weather.Clear;
         public TimeOfDay TimeOfDay = TimeOfDay.Day;

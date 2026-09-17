@@ -459,6 +459,8 @@ namespace PokeLab.Cinematics
         /// is ignored — the caller's speed already encodes the urgency the plan's Walk/Run
         /// bias was approximating. Battle never calls this; it is reset by <see cref="Bind"/>.
         /// </summary>
+        public bool UseSmallStepGait { get; set; }
+
         public void SetLocomotionRate(float stepsPerSecond)
             => _locomotionFps = Mathf.Max(0f, stepsPerSecond);
 
@@ -541,19 +543,15 @@ namespace PokeLab.Cinematics
         }
 
         /// <summary>
-        /// The locomotion fallback for art with no frames to advance: a small hop synced to
-        /// the caller's speed-tied rate, applied to the quad's own local position so the feet
-        /// leave and re-meet the anchored ground point. Engages only while a locomotion rate
-        /// is set <i>and</i> the active view genuinely cannot animate — a species the manifest
-        /// does not know, a sheet whose texture failed to load, a single-frame portrait — so
-        /// creatures with real frames never hop on top of them, and battle (which never sets
-        /// a locomotion rate) never sees it. Facing is untouched: a static frame still picks
-        /// its view and its mirror from the heading like every animated one does.
+        /// A small ground step synced to travel speed. Normally a fallback for single-frame
+        /// art; the field Starly opts in explicitly to show its quick short-step gait.
+        /// Battle never enables that override or publishes a locomotion rate. Stopping
+        /// restores the foot anchor, so the pose cannot remain halfway through a step.
         /// </summary>
         private void UpdateLocomotionBob()
         {
             var sheet = ActiveSheet();
-            bool needsBob = _locomotionFps > 0f && !_frozen && (sheet == null || sheet.StepCount <= 1);
+            bool needsBob = _locomotionFps > 0f && !_frozen && (UseSmallStepGait || sheet == null || sheet.StepCount <= 1);
 
             if (!needsBob)
             {
@@ -572,10 +570,10 @@ namespace PokeLab.Cinematics
             // earned: the wander lands near three hops a second, a flee doubles it. |sin|
             // rather than sin, because a gait leaves the ground and lands — it does not
             // sink below the ground line on the down-beat.
-            _bobPhase += Time.deltaTime * _locomotionFps * 0.4f;
+            _bobPhase += Time.deltaTime * _locomotionFps * (UseSmallStepGait ? .28f : .4f);
             if (_bobPhase > 1024f) _bobPhase -= 1024f;
 
-            float amplitude = Mathf.Clamp(_displayHeight * 0.05f, 0.01f, 0.06f);
+            float amplitude = Mathf.Clamp(_displayHeight * (UseSmallStepGait ? .09f : .05f), .01f, .06f);
             _bobOffset = Mathf.Abs(Mathf.Sin(_bobPhase * Mathf.PI)) * amplitude;
             transform.localPosition = new Vector3(
                 _anchorLocalPos.x, _anchorLocalPos.y + _bobOffset, _anchorLocalPos.z);
@@ -692,7 +690,7 @@ namespace PokeLab.Cinematics
                 else
                 {
                     _sideBorrowsBack = false;
-                    _sideFlip = _facing == SpriteFacing.Left && SideSheet(SpriteFacing.Left) == SideSheet(SpriteFacing.Right);
+                    _sideFlip = _facing == SpriteFacing.Right && SideSheet(SpriteFacing.Left) == SideSheet(SpriteFacing.Right);
                 }
             }
 

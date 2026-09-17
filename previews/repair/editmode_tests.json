@@ -1,0 +1,49 @@
+{
+  "mode": "EditMode",
+  "summary": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "durationSeconds": 0.2338492,
+    "resultState": "Passed"
+  },
+  "results": [
+    {
+      "name": "AnExplicitBridgeDeckAboveWaterIsWalkable",
+      "fullName": "WalkableGroundTests.AnExplicitBridgeDeckAboveWaterIsWalkable",
+      "state": "Passed",
+      "durationSeconds": 0.0152655,
+      "message": null,
+      "stackTrace": null,
+      "output": ""
+    },
+    {
+      "name": "AShortScriptedStepCannotClimbACliff",
+      "fullName": "WalkableGroundTests.AShortScriptedStepCannotClimbACliff",
+      "state": "Passed",
+      "durationSeconds": 0.0005812,
+      "message": null,
+      "stackTrace": null,
+      "output": ""
+    },
+    {
+      "name": "PropTopCannotReplaceTheGroundBelowIt",
+      "fullName": "WalkableGroundTests.PropTopCannotReplaceTheGroundBelowIt",
+      "state": "Passed",
+      "durationSeconds": 0.0002846,
+      "message": null,
+      "stackTrace": null,
+      "output": ""
+    },
+    {
+      "name": "SubmergedGroundIsRejected",
+      "fullName": "WalkableGroundTests.SubmergedGroundIsRejected",
+      "state": "Passed",
+      "durationSeconds": 0.0002048,
+      "message": null,
+      "stackTrace": null,
+      "output": ""
+    }
+  ]
+}

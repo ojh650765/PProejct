@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using PokeLab.Cinematics;
 using PokeLab.Overworld;
@@ -100,6 +100,8 @@ namespace PokeLab.Boot
         private const int StarterSortingOrder = 420;
 
         private StarterCaseStage _stage;
+        private Renderer[] _bagRenderers;
+        private bool[] _bagVisibility;
         private Coroutine _running;
         private bool _offered;
 
@@ -144,7 +146,17 @@ namespace PokeLab.Boot
 
         private void OnEnable() => OverworldEvents.DialogueSignal += OnDialogueSignal;
 
-        private void OnDisable() => OverworldEvents.DialogueSignal -= OnDialogueSignal;
+        private void OnDisable()
+        {
+            OverworldEvents.DialogueSignal -= OnDialogueSignal;
+            if (_running != null) StopCoroutine(_running);
+            _running = null;
+            if (_stage != null) Destroy(_stage.gameObject);
+            _stage = null;
+            RestoreBag();
+            TearDownScreen();
+            _offered = false;
+        }
 
         /// <summary>
         /// The case is opened by the line that says it is being opened, not by the beat that
@@ -186,6 +198,15 @@ namespace PokeLab.Boot
         private void LateUpdate()
         {
             if (_canvas == null) return;
+            var keyboard = UnityEngine.InputSystem.Keyboard.current;
+            if (keyboard != null && keyboard.tabKey.wasPressedThisFrame && _buttons != null && _buttons.Length > 0)
+                Select((_cursor + (keyboard.shiftKey.isPressed ? -1 : 1) + _buttons.Length) % _buttons.Length);
+            if (keyboard != null && keyboard.fKey.wasPressedThisFrame && UnityEngine.EventSystems.EventSystem.current != null)
+            {
+                var events = UnityEngine.EventSystems.EventSystem.current;
+                UnityEngine.EventSystems.ExecuteEvents.Execute(events.currentSelectedGameObject,
+                    new UnityEngine.EventSystems.BaseEventData(events), UnityEngine.EventSystems.ExecuteEvents.submitHandler);
+            }
             ReadCursor();
             ReadConfirmButton();
         }
@@ -259,7 +280,7 @@ namespace PokeLab.Boot
                 if (_selection.HasChosen) break;
 
                 SetBrowsing(false);
-                CinematicRunner.Run(FlashScreen());
+                // The ball supplies a small local flash; keep the whole frame readable.
                 yield return _stage.Reveal(_opening);
 
                 ShowConfirm(options[_opening].DisplayName);
@@ -283,28 +304,13 @@ namespace PokeLab.Boot
             // runner's timeout pick.
             if (_view != null) _view.Close();
 
-            // This is the call the runner has been blocked on since the beat began. Everything
-            // above it is presentation; this line is the game starting.
-            if (chosen >= 0)
-            {
-                var taken = _selection.Options[chosen];
-                Debug.Log($"[Starter] Commit: '{taken.DisplayName}' (game species {taken.SpeciesId}) " +
-                          "— prompt closed, choice handed to StarterSelection.", this);
-                _selection.Choose(chosen);
-            }
-
-            // The creature stays out of its ball for a moment, and then the case goes.
-            //
-            // This used to wait up to twenty seconds for 'op_choice_result' — Linden's read on
-            // the one you took. That sequence went with the version of the act he was present
-            // for and nothing has played it since, so the wait timed out in full every single
-            // time: a 1.35 m close-up on the case, held at priority 150, over the top of the
-            // wild battle the very next beat starts. There is no line here any more, so what
-            // the moment needs is a beat to look at what it got and then the camera back.
+            // Complete the close-up before Choose releases the episode into battle.
             yield return new WaitForSeconds(TakenHoldSeconds);
-            yield return _stage.Dismiss();
+            yield return _stage.Dismiss(.45f);
             _stage = null;
+            RestoreBag();
             _running = null;
+            if (chosen >= 0) _selection.Choose(chosen);
         }
 
         /// <summary>Seconds the creature is looked at before the shot is handed back.</summary>
@@ -409,15 +415,15 @@ namespace PokeLab.Boot
             {
                 var bounds = drawn.bounds;
                 mark = new Vector3(bounds.center.x, mark.y, bounds.center.z);
-                groundY = bounds.min.y;
-                ballY = groundY + CaseLidHeightMetres;
+                groundY = WalkableGround.TrySample(mark, out var floor, 3f, 6f) ? floor.y : mark.y;
+                ballY = groundY + CaseLidHeightMetres * StarterCaseStage.WorldSpriteScale;
             }
             else
             {
                 // An empty: its authored Y is already the ball line, and only the ground has
                 // to be found.
                 if (Physics.Raycast(mark + Vector3.up * 3f, Vector3.down, out var underfoot,
-                                    30f, ~0, QueryTriggerInteraction.Ignore))
+                                    30f, LayerMask.GetMask("Ground"), QueryTriggerInteraction.Ignore))
                     groundY = underfoot.point.y;
                 else groundY = mark.y - CaseLidHeightMetres;
             }
@@ -464,6 +470,13 @@ namespace PokeLab.Boot
             stage.SetBalls(species, heights);
 
             _stage = stage;
+            _bagRenderers = caseMark.GetComponentsInChildren<Renderer>();
+            _bagVisibility = new bool[_bagRenderers.Length];
+            for (int i = 0; i < _bagRenderers.Length; i++)
+            {
+                _bagVisibility[i] = _bagRenderers[i].enabled;
+                _bagRenderers[i].enabled = false;
+            }
             return true;
         }
 
@@ -940,7 +953,17 @@ namespace PokeLab.Boot
         private void OnDestroy()
         {
             if (_running != null) StopCoroutine(_running);
+            RestoreBag();
             TearDownScreen();
+        }
+
+        private void RestoreBag()
+        {
+            if (_bagRenderers == null) return;
+            for (int i = 0; i < _bagRenderers.Length; i++)
+                if (_bagRenderers[i] != null) _bagRenderers[i].enabled = _bagVisibility[i];
+            _bagRenderers = null;
+            _bagVisibility = null;
         }
     }
 }

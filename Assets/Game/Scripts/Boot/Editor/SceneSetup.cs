@@ -105,6 +105,7 @@ namespace PokeLab.Boot.Editor
             // leads to exists on disk — a door into a missing scene covers the screen and then
             // fails — so creating the interiors after the town means a town with no doors until
             // somebody runs this a second time.
+            Route202Builder.EnsureScene();
             InteriorBuilder.EnsureScenesExist();
             AddToBuildSettings();
 
@@ -125,7 +126,9 @@ namespace PokeLab.Boot.Editor
             // LayoutFor falls back to the old combined slice for any scene it does not know,
             // so running the level builder over Interior_Lab would build the whole town inside
             // the professor's front room.
+            WorldNavigationBuilder.Build();
             var rooms = InteriorBuilder.BuildAll();
+            Route202Builder.Build();
 
             // Finish on the town: it is the scene that gets pressed Play on, and leaving
             // whichever scene happened to be last in the list open is how a review ends up
@@ -175,7 +178,8 @@ namespace PokeLab.Boot.Editor
                      {
                          SceneDir + "MainMenu.unity",
                          SceneDir + "Boot.unity",
-                         SceneDir + "Battle.unity"
+                         SceneDir + "Battle.unity",
+                         SceneDir + "Route202.unity"
                      })
                 if (File.Exists(extra)) wanted.Add(extra);
 

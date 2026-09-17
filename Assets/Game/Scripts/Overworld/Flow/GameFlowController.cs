@@ -365,7 +365,7 @@ namespace PokeLab.Overworld
                 // 6. Outro, restore, reveal — in that order, so the reposition happens under cover.
                 SetMode(GameMode.BattleOutro);
                 yield return PlayTransition(director => director.TryInvoke(
-                    nameof(ITransitionDirector.PlayBattleOutro), result, (Action)OnStageReady));
+                    nameof(ITransitionDirector.PlayBattleOutro), result, (Action)OnStageReady), 45f);
 
                 RestoreReturnPoint();
                 SetMode(GameMode.Exploring);
@@ -414,7 +414,7 @@ namespace PokeLab.Overworld
         /// Runs one transition step. The callback flag is shared, which is safe because the
         /// sequence is strictly serial — only one transition is ever in flight.
         /// </summary>
-        private IEnumerator PlayTransition(Func<ServiceBridge, bool> invoke)
+        private IEnumerator PlayTransition(Func<ServiceBridge, bool> invoke, float minimumTimeout = 0f)
         {
             _stageReady = false;
 
@@ -430,7 +430,7 @@ namespace PokeLab.Overworld
             }
 
             var elapsed = 0f;
-            while (!_stageReady && elapsed < _transitionTimeout)
+            while (!_stageReady && elapsed < Mathf.Max(_transitionTimeout, minimumTimeout))
             {
                 elapsed += Time.unscaledDeltaTime;
                 yield return null;

@@ -32,6 +32,17 @@ namespace PokeLab.Boot
         /// <summary>True once every service the game needs is on the hub.</summary>
         public static bool ServicesReady { get; private set; }
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void CreateSessionServices()
+        {
+            if (_owner != null) return;
+            // Only data services live for the session. A GameBoot on GameHosts
+            // otherwise preserves its old dialogue, flow and camera controllers
+            // when a door loads a new scene, leaving two competing sets alive.
+            var host = new GameObject("PokeLabSessionServices");
+            host.AddComponent<GameBoot>();
+        }
+
         private void Awake()
         {
             // A second GameBoot stands down rather than re-initialising over the first. It
@@ -158,7 +169,7 @@ namespace PokeLab.Boot
             }
         }
 
-        private void OnApplicationQuit() => Teardown();
+        private void OnApplicationQuit() { if (_owner == this) Teardown(); }
 
         private static GameBoot _owner;
 

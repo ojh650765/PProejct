@@ -97,7 +97,7 @@ namespace PokeLab.UI
         /// Binds a creature. Call this on every state change; it is cheap and only animates
         /// what actually moved.
         /// </summary>
-        public void Bind(CreatureInstance creature, bool immediate = false)
+        public void Bind(CreatureInstance creature, bool immediate = false, bool preserveHealth = false)
         {
             if (creature == null)
             {
@@ -114,7 +114,7 @@ namespace PokeLab.UI
             if (_name != null) _name.SetText(UiServices.NameOf(creature));
             if (_level != null) _level.SetText("Lv. " + creature.Level);
 
-            BindHealth(creature, immediate || isNewCreature);
+            if (!preserveHealth || isNewCreature) BindHealth(creature, immediate || isNewCreature);
             BindStatus(creature, immediate || isNewCreature);
             BindExperience(creature, immediate || isNewCreature);
 
@@ -156,6 +156,21 @@ namespace PokeLab.UI
         /// A four-point chip and a hit that takes half the bar must not read the same, and
         /// before this they did: one <c>SetValue</c> call, same tween, same 0.55 seconds.
         /// </summary>
+        public void SetPresentedHealth(int hp, int maxHp)
+        {
+            int max = Mathf.Max(1, maxHp);
+            _lastHp = Mathf.Clamp(hp, 0, max); _lastMaxHp = max;
+            float fraction = _lastHp / (float)max;
+            var colour = UiPalette.Health(fraction);
+            _healthBar?.SetImmediate(fraction); _healthBar?.SetColorImmediate(colour);
+            if (_healthNumber != null)
+            {
+                _healthNumber.WithFormat(v => $"{Mathf.RoundToInt(v)}<size=78%><color=#FFFFFF70>/{max}</color></size>");
+                _healthNumber.SetImmediate(_lastHp); _healthNumber.SetColor(colour,0);
+            }
+            StopLowPulse(); SetLowPulse(fraction);
+        }
+
         public void PlayDamage(DamageDealtEvent damage)
         {
             if (damage == null) return;

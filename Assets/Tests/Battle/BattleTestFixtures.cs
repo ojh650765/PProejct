@@ -73,6 +73,7 @@ namespace PokeLab.Battle.Tests
             return !string.IsNullOrEmpty(moveId) && _byId.TryGetValue(moveId, out move);
         }
 
+        public IReadOnlyList<MoveData> LearnableBy(int speciesId) => All;
         public IReadOnlyList<MoveData> MovesFor(int speciesId, int level) =>
             _learnsets.TryGetValue(speciesId, out var list) ? list : new List<MoveData>();
     }

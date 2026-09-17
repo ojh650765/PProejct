@@ -424,6 +424,13 @@ namespace PokeLab.Boot
             }
         }
 
+        private void Update()
+        {
+            if (!IsOpen) return;
+            UiKeyboardCursor.Update(transform);
+            if (UnityEngine.InputSystem.Keyboard.current?.escapeKey.wasPressedThisFrame == true) Close();
+        }
+
         private void Say(string message)
         {
             if (_status != null) _status.text = message ?? "";

@@ -103,7 +103,10 @@ namespace PokeLab.Boot.Editor
 
             try
             {
+                if (band == "Town" || band == "Field") PrepareOutdoorJoin(layout, band);
                 BuildGround(layout, root.transform, parents);
+                if (band == "Town") GatePassBuilder.Build(ResolveParent(root.transform, parents, "Terrain/GatePass"),
+                    AssetDatabase.LoadAssetAtPath<Material>(TerrainMaterial));
                 BuildWater(layout, root.transform, parents);
                 BuildObjects(layout, root.transform, parents, missing);
                 BuildFoliage(layout, root.transform, parents, missing, stats);
@@ -123,6 +126,8 @@ namespace PokeLab.Boot.Editor
                 // objects the two steps above create.
                 BuildStoryPresence();
                 BuildStoryGate(layout, root.transform, parents);
+                InteriorStoryBuilder.Build(band, root.transform);
+                if (band == "Town") Route202Builder.TownJunction(root.transform);
                 BuildNavigation(root);
             }
             finally
@@ -238,7 +243,19 @@ namespace PokeLab.Boot.Editor
             // player cannot follow them onto.
             surface.overrideVoxelSize = true;
             surface.voxelSize = 0.12f;
+            Physics.SyncTransforms();
+            ExcludeSubmergedGround(root.transform);
 
+            // Only explicitly classified Ground can create walkable polygons.
+            // Props still contribute collision and exclusion, never rooftop destinations.
+            foreach (var solid in root.GetComponentsInChildren<Collider>(true))
+            {
+                if (solid.isTrigger || solid.gameObject.layer == ground) continue;
+                var modifier = solid.GetComponent<NavMeshModifier>();
+                if (modifier == null) modifier = solid.gameObject.AddComponent<NavMeshModifier>();
+                modifier.overrideArea = true;
+                modifier.area = 1;
+            }
             surface.BuildNavMesh();
 
             // BuildNavMesh leaves the data in memory. Unless it is written out as an
@@ -269,7 +286,68 @@ namespace PokeLab.Boot.Editor
 
         private static int MaskOf(int layer) => layer >= 0 ? 1 << layer : 0;
 
+        private static void ExcludeSubmergedGround(Transform root)
+        {
+            // Bake-time strips follow the actual water mesh, not its rectangular bounds.
+            // They exclude the lake bed while leaving bridge decks above the water intact.
+            var parent = new GameObject("NavigationWaterExclusions").transform;
+            parent.SetParent(root, false);
+            const float cell = 0.5f;
+            foreach (var water in root.GetComponentsInChildren<MeshCollider>())
+            {
+                if (water.gameObject.layer != LayerMask.NameToLayer("Water")) continue;
+                var bounds = water.bounds;
+                for (float z = bounds.min.z; z < bounds.max.z; z += cell)
+                {
+                    float runStart = float.NaN;
+                    float surfaceY = float.NaN;
+                    for (float x = bounds.min.x; x <= bounds.max.x + cell; x += cell)
+                    {
+                        var origin = new Vector3(x + cell*.5f, bounds.max.y + 1f, z + cell*.5f);
+                        var hit = default(RaycastHit);
+                        bool wet = x < bounds.max.x && water.Raycast(new Ray(origin, Vector3.down),
+                            out hit, bounds.size.y + 2f);
+                        // A river slopes: its upstream maximum must never exclude a
+                        // downstream bridge. Merge only cells at the same local height.
+                        float localY = wet ? Mathf.Ceil(hit.point.y * 20f) / 20f : 0f;
+                        if (!float.IsNaN(runStart) && (!wet || !Mathf.Approximately(localY, surfaceY)))
+                        {
+                            var strip = new GameObject("WaterBed").AddComponent<NavMeshModifierVolume>();
+                            strip.transform.SetParent(parent, false);
+                            strip.transform.position = new Vector3((runStart+x)*.5f, surfaceY-10f, z+cell*.5f);
+                            strip.size = new Vector3(x-runStart+.12f, 20.02f, cell+.12f);
+                            strip.area = 1;
+                            runStart = float.NaN;
+                        }
+                        if (wet && float.IsNaN(runStart)) { runStart = x; surfaceY = localY; }
+                    }
+                }
+            }
+        }
+
         // --- terrain ------------------------------------------------------------------
+
+        private static void PrepareOutdoorJoin(Layout layout, string band)
+        {
+            bool Clear(float x,float z) => OutdoorJoinBuilder.ClearForRoad(x,z) ||
+                (band == "Field" && OutdoorJoinBuilder.RouteFootprint(x,z));
+            bool TreeBlocksView(string prefab,float x,float z) => prefab != null && prefab.Contains("Tree") &&
+                OutdoorJoinBuilder.RoadDistance(x,z,out _) < 6.5f;
+            layout.objects=Array.FindAll(layout.objects ?? Array.Empty<Placement>(),p=>
+                !Clear(p.position[0],p.position[2]) && !TreeBlocksView(p.prefab,p.position[0],p.position[2]));
+            layout.barrierVolumes=Array.FindAll(layout.barrierVolumes ?? Array.Empty<BarrierVolume>(),p=>!Clear(p.centre[0],p.centre[2]));
+            foreach(var field in layout.foliage ?? Array.Empty<FoliageField>())
+                foreach(var group in field.groups ?? Array.Empty<FoliageGroup>())
+                {
+                    var keep=new List<float>();
+                    for(int i=0;i<group.instances.Length;i+=5)
+                    {
+                        if(Clear(group.instances[i],group.instances[i+2]) || TreeBlocksView(group.prefab,group.instances[i],group.instances[i+2]))continue;
+                        for(int j=0;j<5;j++)keep.Add(group.instances[i+j]);
+                    }
+                    group.instances=keep.ToArray();
+                }
+        }
 
         private static void BuildGround(Layout layout, Transform root,
             Dictionary<string, Transform> parents)
@@ -302,13 +380,17 @@ namespace PokeLab.Boot.Editor
                     cols[i] = new Color(chunk.colors[i * 4], chunk.colors[i * 4 + 1],
                                         chunk.colors[i * 4 + 2], chunk.colors[i * 4 + 3]);
                     uvs[i] = new Vector2(chunk.uvs[i * 2], chunk.uvs[i * 2 + 1]);
+                    if (layout.scene == "Town" || layout.scene == "Field")
+                        OutdoorJoinBuilder.ShapeGround(ref verts[i], ref cols[i]);
                 }
 
                 mesh.vertices = verts;
                 mesh.normals = norms;
                 mesh.colors = cols;
                 mesh.uv = uvs;
-                mesh.triangles = chunk.triangles;
+                mesh.triangles = OutdoorJoinBuilder.GroundTriangles(layout.scene, verts, chunk.triangles);
+                if (mesh.triangles.Length == 0) { UnityEngine.Object.DestroyImmediate(mesh); continue; }
+                mesh.RecalculateNormals();
                 mesh.RecalculateTangents();
                 mesh.RecalculateBounds();
 
@@ -1468,7 +1550,25 @@ namespace PokeLab.Boot.Editor
                     instance.isStatic = false;
                     AttachPickup(instance, entry.pickup);
                 }
-                if (!string.IsNullOrEmpty(entry.layer)) SetLayer(instance, entry.layer);
+                if (string.IsNullOrEmpty(entry.pickup) && !string.IsNullOrEmpty(entry.layer))
+                    SetLayer(instance, entry.layer);
+                if (entry.prefab.Contains("Env_Stepping_"))
+                    SetLayer(instance, "Ground");
+                if (entry.prefab.Contains("Env_Bridge_"))
+                {
+                    SetLayer(instance, "Environment");
+                    foreach (var part in instance.GetComponentsInChildren<MeshFilter>())
+                        if (part.name.EndsWith("_Deck", StringComparison.Ordinal))
+                            part.gameObject.layer = LayerMask.NameToLayer("Ground");
+                        else
+                        {
+                            // Stringers touch the underside of the 6 cm deck. Marking
+                            // them NotWalkable merges that area into the deck's voxel.
+                            // The deck's eroded edges already keep agents inside rails.
+                            var modifier = part.gameObject.AddComponent<NavMeshModifier>();
+                            modifier.ignoreFromBuild = true;
+                        }
+                }
                 if (!string.IsNullOrEmpty(entry.tag) && entry.tag != "Untagged")
                     TrySetTag(instance, entry.tag);
             }
@@ -1548,6 +1648,9 @@ namespace PokeLab.Boot.Editor
         private static void AttachPickup(GameObject instance, string itemId)
         {
             var bounds = LocalBounds(instance);
+            foreach (var solid in instance.GetComponentsInChildren<Collider>())
+                UnityEngine.Object.DestroyImmediate(solid);
+            SetLayer(instance, "Interactable");
             var scale = Mathf.Max(0.01f, instance.transform.lossyScale.x);
 
             var trigger = instance.AddComponent<SphereCollider>();
@@ -1555,7 +1658,9 @@ namespace PokeLab.Boot.Editor
             trigger.center = bounds.center;
             trigger.radius = Mathf.Max(bounds.extents.magnitude, PickupReachMetres / scale);
 
-            instance.AddComponent<ItemPickup>().ItemId = itemId;
+            var pickup = instance.AddComponent<ItemPickup>();
+            pickup.ItemId = itemId;
+            pickup.ConfigureIdentity(instance.scene.name + "/" + instance.name);
 
             var renderer = instance.GetComponentInChildren<Renderer>();
             if (renderer == null)
@@ -2100,7 +2205,7 @@ namespace PokeLab.Boot.Editor
             // for Aster Grotto has finished. He said he would see the player at the cave; from
             // then on he is not in the overworld at all, and a whiteout that carries the player
             // back to town cannot find him standing in it.
-            new StoryPresenceRule("NPC_Rival", "story.pokedex", "story.kes_summons_done",
+            new StoryPresenceRule("NPC_Rival", "story.lab_invited", "story.kes_summons_done",
                                   "Mark_Rival_BagSide", false),
 
             // The professor's bag. "야생포켓몬과 대전하고 나면, 월드에 배치된 가방의
@@ -2113,6 +2218,7 @@ namespace PokeLab.Boot.Editor
             // whole return is played standing over this object. StoryPresence refuses to remove
             // anything while an episode is running or while a camera can see it, so the bag
             // survives his scene and goes the first moment the player looks away.
+            new StoryPresenceRule("NPC_Professor", "story.lab_invited", "", "", false),
             new StoryPresenceRule("Prop_ProfessorBag", "story.ambush_done", "", "", false),
         };
 

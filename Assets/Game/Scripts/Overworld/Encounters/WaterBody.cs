@@ -47,6 +47,7 @@ namespace PokeLab.Overworld
         /// <summary>Last position the blocked player held on dry land, to put them back on.</summary>
         private Vector3 _lastDryPosition;
         private bool _hasDryPosition;
+        private bool _refusedThisVisit;
 
         public EncounterSourceKind SourceKind => EncounterSourceKind.Water;
 
@@ -158,6 +159,7 @@ namespace PokeLab.Overworld
             if (locomotion == null) return;
             _player = locomotion;
             _playerInside = true;
+            _refusedThisVisit = false;
         }
 
         private void OnTriggerExit(Collider other)
@@ -181,8 +183,13 @@ namespace PokeLab.Overworld
         /// </summary>
         private void Refuse()
         {
-            if (_player == null || !_hasDryPosition) return;
-            _player.Warp(_lastDryPosition, _player.transform.rotation);
+            if (_player == null || !_hasDryPosition || _refusedThisVisit) return;
+            // A capsule brushing the shore is not a player standing in water.
+            if (!TryGetSurfaceAt(_player.transform.position, out var surface)
+                || _player.transform.position.y > surface.y + _rideDepth + .12f) return;
+            if (!WalkableGround.TrySample(_lastDryPosition, out var dry)) return;
+            _refusedThisVisit = true;
+            _player.Warp(dry, _player.transform.rotation);
             Refused?.Invoke(_lastDryPosition);
         }
 
@@ -201,7 +208,8 @@ namespace PokeLab.Overworld
 
             if (!_playerInside)
             {
-                if (_player.Traversal != TraversalState.Water && _player.IsGrounded)
+                if (_player.Traversal != TraversalState.Water && _player.IsGrounded
+                    && WalkableGround.TrySample(_player.transform.position, out _))
                 {
                     _lastDryPosition = _player.transform.position;
                     _hasDryPosition = true;

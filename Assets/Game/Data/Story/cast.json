@@ -8,7 +8,6 @@
     "retired": "Look_GateStand, Look_Case, Look_RouteHead, Look_LabDoor, Mark_Rival_GateStand, Mark_Player_GateStand, Mark_Prof_Case and Mark_Rival_GateWait were staged for 'opening_departure' and 'leaving_town', both retired with the rewrite of the act. They are kept and still built because a marker with nothing aimed at it costs one empty GameObject, while deleting one that turns out to be referenced costs a beat -- but nothing in episodes.json names them today.",
     "verification": "Every position added for the rewritten act was sampled against the emitted layout's own height grid (the bilinear read LevelLayoutBuilder.TrySampleGround does), measured for clearance against every emitted collider's rotated footprint, and measured against the lake's traced waterline. The numbers are in each entry's note. This is the check that was missing when a professor was authored standing inside the lab."
   },
-
   "speakers": [
     {
       "speakerId": "npc_professor_01",
@@ -24,8 +23,16 @@
         "name": "NPC_Professor",
         "npcId": "npc_professor_01",
         "displayName": "Professor Linden",
-        "position": [28.75, -0.436, 29.5],
-        "rotation": [0, 20, 0],
+        "position": [
+          28.75,
+          -0.436,
+          29.5
+        ],
+        "rotation": [
+          0,
+          20,
+          0
+        ],
         "positionNote": "MOVED TO THE FIELD, and the move is two fixes at once. The act was rewritten so the player meets him on the lake bank instead of at his lab door; and while he was authored as Town he was built into Town.unity only, so the field beats that name him found nothing -- or, once WorldStreamer had both bands loaded, whichever of two identically-placed copies GameObject.Find reached first. He exists exactly once now, in Field, and there is no Town copy.",
         "verification": "On the bank at the head of the lake's south-west corner, where Path_LakeBranch runs out at the water. Ground -0.436, read from slice_field_unity.json's height grid with the same bilinear sample LevelLayoutBuilder.TrySampleGround uses; ground varies 0.18 m across the 1.5 m around him, so this is a flat shelf and not the drop into the lake. 3.48 m from Water_Lake's traced waterline (nearest point (29.92, 32.78)) -- the bank, without standing in the shallows. Nearest collider is Route_StreamNorth_22, a conifer, at 6.30 m; nearest barrier volume 27 m; so nothing carves the navmesh under him and NpcController.SnapToNavMesh has nothing to correct. The player first comes inside his 4.0 m trigger radius at (25.18, 27.79), a Path_LakeBranch control point 3.96 m out; from there he lies on a bearing of 64.4 degrees while Look_LakeBank lies on 39.1, so he sits 25.3 degrees off the shot's axis, inside the exploration camera's roughly 33 degree horizontal half-angle. Yaw 20 turns him to the water he is counting (nearest waterline bears 19.6); the player arrives from 244, so the first thing they see is his back, which is what the beat asks for."
       }
@@ -33,15 +40,15 @@
     {
       "speakerId": "npc_rival_01",
       "scene": "Town",
-      "name": "Kes",
-      "nameKo": "케스",
+      "name": "Barry",
+      "nameKo": "용식",
       "subtitle": "Aster Town",
       "subtitleKo": "아스터 마을",
       "role": "rival",
       "spriteKey": "rival",
       "existsAs": "NPC_Rival at (-16.0, 2.355, -9.2), yaw 55 -- standing in the town square, authored in Tools/Level/build_layout.py gameplay.npcs and emitted into slice_town_unity.json. NOT authored here: this file only stands up people the layout has none of.",
       "movedFrom": "(-6.2, 2.728, -7.4). That position was 4.15 m from Town_Lab_01's axis and the lab's own collider face is 4.70 m out at that bearing, so he was inside the building's mesh collider -- unreachable, and standing on ground the navmesh bake had carved away. It was also the wrong place for the rewritten act: gate_wait_for_kes sends the player to 광장, the square, and he has to be in it.",
-      "note": "Short for Kestrel. One syllable because he is interrupted constantly and the name plate has to survive being read forty times. He is Barry's function, not Barry: the momentum the player has not earned yet. He talks in three-word sentences when excited and complete ones when he has lost, which is the only characterisation the writing has room for."
+      "note": "Short for Barrytrel. One syllable because he is interrupted constantly and the name plate has to survive being read forty times. He is Barry's function, not Barry: the momentum the player has not earned yet. He talks in three-word sentences when excited and complete ones when he has lost, which is the only characterisation the writing has room for."
     },
     {
       "speakerId": "npc_gate_01",
@@ -91,98 +98,391 @@
       "note": "Speaks the opening bulletin without the player interacting with it -- it is playing to the empty plaza, which is the point. Tone System, so DialogueView renders it in the flat register rather than as a person."
     }
   ],
-
   "markers": [
-    { "name": "Look_LabDome", "scene": "Town", "position": [-1.45, 8.2, -5.69], "usedBy": "opening",
-      "note": "CameraTo target for the first frame. Town_Lab_01 stands at (-1.453, 2.728, -5.691), 0.4m up and 8.8m tall, dead on the 45 deg camera axis from the player spawn; this marker is the dome itself at roughly 5.5m above its base. The fade-in reveals it already composed." },
-    { "name": "Look_GateRamp", "scene": "Town", "position": [-7.4, 2.1, 3.2], "usedBy": "gate_wait_for_kes, gate_opens, kes_summons",
-      "note": "Fourth control point of Path_GateRamp. Framing the ramp head so the drop is visible before Bram says anything about it -- the refusal is composed on what is being refused rather than on the man refusing it. kes_summons reuses it to turn the camera away from Kes before he runs, so the shot is of where he went and not of him going." },
-    { "name": "Look_RouteHead", "scene": "Town", "position": [-5.7, 1.6, 10.0], "usedBy": "opening_departure",
-      "note": "Bottom of the gate ramp / Spawn_RouteHead, lifted 1.5m so the flock has sky to go up into. The one shot in the opening that looks at the route." },
-    { "name": "Look_GateStand", "scene": "Town", "position": [-9.2, 3.1, -1.6], "usedBy": "opening_departure, rival_first_battle",
-      "note": "Head height over the group standing at the top of the street. The default framing for everything spoken at the gate, including the rival battle." },
-    { "name": "Look_Case", "scene": "Town", "position": [-10.1, 2.95, -2.9], "usedBy": "opening_departure",
-      "note": "The open case between Linden and the player, at chest height. The only close shot in the episode -- it exists so the three balls are the largest thing on screen at the moment of choosing." },
-    { "name": "Look_LabDoor", "scene": "Town", "position": [-4.0, 3.6, -11.4], "usedBy": "leaving_town",
-      "note": "Linden outside his lab with the dome above him. Deliberately rhymes with Look_LabDome from the first frame: the episode that opens the world is framed on the same building that opened the game. Moved with him -- it was at (-4.0, -7.0), aimed at the doorway he used to be standing inside; left there it would frame an empty porch while he speaks four metres away. Height unchanged, and it sits 0.35 m lab-side of him so the porch and the drum are in the same shot." },
-
-    { "name": "Mark_Rival_GateStand", "scene": "Town", "position": [-8.8, 2.41, -0.6], "usedBy": "opening_departure",
-      "note": "MoveActor destination for Kes. Just short of Bram, on Path_TownMain between (-9.6,-1.5) and (-8.2,1.0)." },
-    { "name": "Mark_Player_GateStand", "scene": "Town", "position": [-10.4, 2.42, -2.6], "usedBy": "opening_departure",
-      "note": "MoveActor destination for the player, ~2m behind Kes and facing north-east up the street. Roughly 9m of walk from the plaza spawn." },
-    { "name": "Mark_Prof_Case", "scene": "Town", "position": [-10.9, 2.42, -3.6], "usedBy": "opening_departure",
-      "note": "Where Linden stops, behind and to the side of the player, having come up Path_TownMain from the lab lane junction near (-11.4,-5.0). ~11m of walk; the beat allows 6s and he should use most of it." },
-    { "name": "Mark_Rival_GateWait", "scene": "Town", "position": [-8.4, 2.41, 0.2], "usedBy": "retired (was rival_first_battle at the gate)",
-      "note": "Where Kes used to settle after the battle, at the lip of the ramp. The battle has moved to the lake; nothing names this now." },
-
-    { "name": "Trigger_Square", "scene": "Town", "position": [-14.0, 2.441, -9.0], "usedBy": "kes_summons (StoryEncounter host, radius 5.0)",
-      "note": "Not a camera target: this is the object LevelLayoutBuilder.StoryTriggers hangs kes_summons on, because Kes' own single StoryEncounter slot is spent on the rival battle. In the square, on the cobbles of Path_TownMain where it widens -- ground 2.441 off slice_town_unity.json's height grid, 0.03 m of variation across 1.5 m, 2.58 m clear of the nearest collider (Town_Planter_01) and 7.26 m off the nearest barrier volume. 6.73 m from the player spawn at (-9.0, -13.5), so a radius of 5 cannot fire the instant the opening hands control back. Walking south from the gate the player crosses the radius at (-11.41, -5.36), a Path_TownMain control point 4.47 m out and inside the plaza polygon, so the beat starts with them standing in the square rather than short of it." },
-    { "name": "Trigger_GateOpen", "scene": "Town", "position": [-8.1, 2.716, 1.5], "usedBy": "gate_opens (StoryEncounter host, radius 3.5)",
-      "note": "Also a trigger object, for the same one-slot reason -- Bram's slot is spent on the refusal. At the top of the gate ramp: 0.51 m from Ramp_TownGate's own head at (-8.2, 2.4, 1.0), ground 2.716, 2.05 m clear of Town_Signpost_01. Six of Path_GateRamp's control points lie inside the 3.5 m radius, from the head at (-8.2, 1.0) down to (-7.0, 4.5), so there is no line down the 4 m ramp that misses it. The To_Field volume at (-6.6, 5.6) is 4.37 m away and therefore outside -- the beat fires while the player is still on the ramp, not as they are being handed to the other scene. 1.86 m from Bram, which is close on purpose: he is the one speaking." },
-    { "name": "Mark_Exit_RampDown", "scene": "Town", "position": [-4.8, 0.6, 7.7], "usedBy": "kes_summons (ExitActor waypoint)",
-      "note": "The point on the gate ramp Kes' exit must visibly pass through on his way to the field -- the world coordinate came from the user's own live play (2026-08-20), given precisely because the walk was NOT passing through it: a single field-side target put the bearing east through the fence beside Bram, and the baked StoryGate hole meant the agent could not reach the ramp at all. Between the ramp head at (-8.2, 2.4, 1.0) and Spawn_RouteHead at (-5.7, ~0.1, 10.0), so it is on the descending slope. Y is approximate in the authored way this file's yWarning describes; the builder seats built markers and EpisodeRunner's cast fallback seats stood-up ones, and the exit walk re-seats every step on the ground under it regardless." },
-    { "name": "Mark_Rival_BagSide", "scene": "Field", "position": [33.2, -0.9, 29.6], "usedBy": "kes_summons (ExitActor landing)",
-      "note": "Where Kes is standing when the player reaches the lake: beside the professor's bag, per the user's staging note ('케스 가방 옆에 있는 걸로 배치. 멀리서 걸어오지 않고'). 2.46 m from Prop_ProfessorBag at (31.0, 28.5) -- close enough to read as standing over it, outside the bag trigger's 3.0 m player radius which only fires on the player anyway. 3.31 m from Mark_Prof_Return, so Linden's return does not arrive on top of him, and 4.45 m from where Linden stands muttering. On the bank between the bag (2.41 m from the waterline) and Mark_Rival_FieldPost (0.99 m from it), within the 5.02 m collider clearance measured around the bag. Y -0.9 is an estimate between the bag's ground (-0.631) and the field post's (-1.452) and is seated at build/stand-up like every other mark. He does not stand here at the dex moment: field_professor_returns ends with his ExitActor running for the grotto, the episode's finally grants story.pokedex only after that exit finishes with him hidden 10.8 m inside the cave, and rival_first_battle is regated to story.cave_act besides -- two locks where the old walk-back was one." },
-    { "name": "Mark_Kes_Approach", "scene": "Town", "position": [-13.0, 2.429, -6.6], "usedBy": "kes_summons",
-      "note": "MoveActor destination for Kes -- where he stops in front of the player, facing them. 3.97 m from his post at (-16.0, -9.2), which is 2.8 s of walking at NpcController's 1.4 m/s against the beat's 4.0 s timeout, so the walk lands and is never the snap the timeout exists to cover. Placed on the line between the square and (-11.41, -5.36), the point on Path_TownMain where Trigger_Square catches the player: from there he bears 232.1 degrees and Look_Square bears 231.7, so he is on the shot's axis rather than at its edge. Ground 2.429, 1.63 m clear of Town_Lamp_05." },
-    { "name": "Look_Square", "scene": "Town", "position": [-17.8, 4.03, -10.4], "usedBy": "kes_summons",
-      "note": "The square itself, at head height -- ground 2.332 plus 1.7. OverworldCameraRig.LookToward only sets the rig's yaw from the player, so this is a direction and not a camera position; what it has to do is put Kes and the square in the same frame. From the catch point at (-11.41, -5.36) it bears 231.7 degrees against Mark_Kes_Approach's 232.1 and Kes' post at 230.1 -- under half a degree of spread, so the shot looks down the square with him walking up its axis. Kept 1.59 m off Town_Market_02 rather than dead-centre of the plaza: the market row is what the camera should be looking past, not into." },
-
-    { "name": "Look_LakeBank", "scene": "Field", "position": [31.39, -1.0, 35.44], "usedBy": "field_professor_mutters, field_professor_returns",
-      "note": "Out over the bay at the lake's south-west corner, 2.81 m inside Water_Lake's traced waterline, so the shot is water and not the ground short of it. Y is authored at the lake surface (-2.2) plus 1.2 for legibility in the editor; LookToward projects onto the ground plane and ignores it. From the player's catch point at (25.18, 27.79) this bears 39.1 degrees, with Linden 25.3 degrees off it on one side and Mark_Ambush_Grass 25.5 off on the other -- both inside the camera's roughly 33 degree horizontal half-angle at a 40 degree vertical FOV. So the one framing carries the whole scene: the bank and Linden on the right, the water he is counting in the middle, the tall grass the ambush comes out of on the left." },
-    { "name": "Mark_Ambush_Grass", "scene": "Field", "position": [26.5, -1.153, 33.25], "usedBy": "field_bag_left (StageCreature)",
-      "note": "Where the Pidgey is standing before anything mentions it, so it must be real grass and not a bare patch that happens to be inside a trigger box. It is both: 109 Field_Lake_ShoreGrass instances stand within 1.5 m of it and the nearest is 0.21 m away, and it is inside the Grass_Lake_ShoreGrass trigger volume (centre (44.45, -3.69, 24.66), size 41.41 x 30.19) that makes this ground encounter-bearing in the first place. Ground -1.153, which is 1.05 m above the lake surface, and 2.51 m from the waterline, so it is bank and not shallows. 6.74 m to the nearest tree, so the creature has room to turn and the camera has no trunk across it. 6.54 m from the bag: the CreatureApproach beat walks that in about 3 s against a 6 s timeout, and every point along the line is dry ground rising no more than 0.77 m, so the walk cannot snag on water or a step. In frame from Look_LakeBank -- 25.5 degrees off its axis from the player's catch point, see that marker." },
-    { "name": "Mark_Prof_Return", "scene": "Field", "position": [29.9, -0.539, 29.3], "usedBy": "field_professor_returns",
-      "note": "Beside the bag, 1.36 m from it, on the landward side so he arrives between the player and the town rather than out of the water. Ground -0.539, 0.19 m of variation across 1.5 m, 6.01 m clear of the nearest collider, 3.43 m from the waterline." },
-    { "name": "Mark_Prof_Offstage", "scene": "Field", "position": [21.8, 0.033, 26.2], "usedBy": "field_professor_mutters, field_professor_returns",
-      "note": "Town-ward along Path_LakeBranch, and the distance is set by the beats' own timeouts rather than by taste. 7.69 m from where he stands, which is 5.5 s of walking at 1.4 m/s against the 7 s the mutter beat allows; 8.67 m from Mark_Prof_Return, 6.2 s against 8 s. So all three walks land, and none of them ends in the snap the timeout exists to cover. It is far enough that his return is a walk the player watches and not a step, and it sits behind the camera in the Look_LakeBank framing, which is what makes it offstage. Ground 0.033, flat to 0.06 m, 4.83 m clear." },
-    { "name": "Mark_Rival_FieldPost", "scene": "Field", "position": [38.5, -1.452, 33.5], "usedBy": "nothing live -- rival_first_battle's old post, regated to the cave act",
-      "note": "MOOT WHILE REGATED (2026-08-20, second revision): Kes no longer waits at the lake at all -- he leaves field_professor_returns running for Aster Grotto, and rival_first_battle now requires story.cave_act, which nothing sets yet. The dex-distance rule below therefore binds nothing today; it is kept because the mark and its measurements are sound, and the cave act may well re-anchor his post here or somewhere measured the same way. On Path_LakeShoreTrail above the beach, ground -1.452 with 0.58 m of variation across 1.5 m, 0.99 m from the waterline and 10.49 m from the nearest collider. Distance from the bag is 9.01 m, which is the number that matters: story.pokedex is set with the player standing within 3 m of the bag, and his 5.0 m radius must not fire in that same frame -- worst case here is 6.01 m, so it cannot. 4.24 m from Trainer_Lake_Fisher, who is facing yaw 250 with a 24 degree half-angle while this mark bears 160 from him, so the trainer that wakes up on story.pokedex does not challenge the player over Kes' shoulder." },
-
-    { "name": "Mark_Exit_CaveFork", "scene": "Field", "position": [9.5, 0.8, 25.8], "usedBy": "field_professor_returns (Kes' cave exit, waypoint 1)",
-      "note": "The west end of Path_CrossroadsFork, where the cave branch splits off the route -- slice_layout.json paths: Path_CrossroadsFork runs (16.2,24.0)->(9.5,25.8) and Path_CaveBranch picks up from exactly here. Kes' run from the bag retraces Path_LakeBranch to the crossroads and turns; a straight line from the bank to the grotto would cut cross-field over the rise, and the whole point of tonight's exits is that departures visibly use the ground people walk on. Y 0.8 is an estimate between the bank (-0.5) and the cave mouth (3.455); every stand-up and every walking step re-seats on the real ground." },
-    { "name": "Mark_Exit_CaveBranch", "scene": "Field", "position": [2.4, 1.4, 33.0], "usedBy": "field_professor_returns (Kes' cave exit, waypoint 2)",
-      "note": "Path_CaveBranch's bend at (2.4,33.0), where the branch stops curving west and runs north for the mouth. From here the straight line to Mark_Rival_CaveDeep passes within ~2 m of the branch's own control points ((1.8,37.0)..(2.2,48.5)) and through the mouth at (5.0,51.0), so the last visible leg of his run reads as a boy on the cave path. Y estimated as with the fork." },
-    { "name": "Mark_Rival_CaveDeep", "scene": "Field", "position": [-4.0, 3.3, 57.0], "usedBy": "field_professor_returns (Kes' cave exit, landing)",
-      "note": "INSIDE Aster Grotto, on Path_CaveInterior between (0.5,54.0) and (-9.5,59.0), 10.8 m past the mouth at (5.0,3.3,51.0). Y 3.3 is the cave's authored floorY. Deliberately deeper than 5 m from anywhere the player can stand: the Town scene still carries rival_first_battle's pre-regate story.pokedex trigger on NPC_Rival until the next level rebuild, and a hidden Kes parked at the mouth would be an invisible battle waiting for whoever walks in. Landing here, his 5.0 m StoryEncounter radius cannot be entered from the field side of the entrance volume. NOTE: in the Field band this point is under Mass_MassifWest, so the runner's off-mesh ground-seat may put the hidden body on the massif top instead of the cave floor -- harmless while hidden and regated, but re-place him properly when the cave act stages him." }
+    {
+      "name": "Look_LabDome",
+      "scene": "Town",
+      "position": [
+        -1.45,
+        8.2,
+        -5.69
+      ],
+      "usedBy": "opening",
+      "note": "CameraTo target for the first frame. Town_Lab_01 stands at (-1.453, 2.728, -5.691), 0.4m up and 8.8m tall, dead on the 45 deg camera axis from the player spawn; this marker is the dome itself at roughly 5.5m above its base. The fade-in reveals it already composed."
+    },
+    {
+      "name": "Look_GateRamp",
+      "scene": "Town",
+      "position": [
+        -7.4,
+        2.1,
+        3.2
+      ],
+      "usedBy": "gate_wait_for_kes, gate_opens, kes_summons",
+      "note": "Fourth control point of Path_GateRamp. Framing the ramp head so the drop is visible before Bram says anything about it -- the refusal is composed on what is being refused rather than on the man refusing it. kes_summons reuses it to turn the camera away from Barry before he runs, so the shot is of where he went and not of him going."
+    },
+    {
+      "name": "Look_RouteHead",
+      "scene": "Town",
+      "position": [
+        -5.7,
+        1.6,
+        10.0
+      ],
+      "usedBy": "opening_departure",
+      "note": "Bottom of the gate ramp / Spawn_RouteHead, lifted 1.5m so the flock has sky to go up into. The one shot in the opening that looks at the route."
+    },
+    {
+      "name": "Look_GateStand",
+      "scene": "Town",
+      "position": [
+        -9.2,
+        3.1,
+        -1.6
+      ],
+      "usedBy": "opening_departure, rival_first_battle",
+      "note": "Head height over the group standing at the top of the street. The default framing for everything spoken at the gate, including the rival battle."
+    },
+    {
+      "name": "Look_Case",
+      "scene": "Town",
+      "position": [
+        -10.1,
+        2.95,
+        -2.9
+      ],
+      "usedBy": "opening_departure",
+      "note": "The open case between Linden and the player, at chest height. The only close shot in the episode -- it exists so the three balls are the largest thing on screen at the moment of choosing."
+    },
+    {
+      "name": "Look_LabDoor",
+      "scene": "Town",
+      "position": [
+        -4.0,
+        3.6,
+        -11.4
+      ],
+      "usedBy": "leaving_town",
+      "note": "Linden outside his lab with the dome above him. Deliberately rhymes with Look_LabDome from the first frame: the episode that opens the world is framed on the same building that opened the game. Moved with him -- it was at (-4.0, -7.0), aimed at the doorway he used to be standing inside; left there it would frame an empty porch while he speaks four metres away. Height unchanged, and it sits 0.35 m lab-side of him so the porch and the drum are in the same shot."
+    },
+    {
+      "name": "Mark_Rival_GateStand",
+      "scene": "Town",
+      "position": [
+        -8.8,
+        2.41,
+        -0.6
+      ],
+      "usedBy": "opening_departure",
+      "note": "MoveActor destination for Barry. Just short of Bram, on Path_TownMain between (-9.6,-1.5) and (-8.2,1.0)."
+    },
+    {
+      "name": "Mark_Player_GateStand",
+      "scene": "Town",
+      "position": [
+        -10.4,
+        2.42,
+        -2.6
+      ],
+      "usedBy": "opening_departure",
+      "note": "MoveActor destination for the player, ~2m behind Barry and facing north-east up the street. Roughly 9m of walk from the plaza spawn."
+    },
+    {
+      "name": "Mark_Prof_Case",
+      "scene": "Town",
+      "position": [
+        -10.9,
+        2.42,
+        -3.6
+      ],
+      "usedBy": "opening_departure",
+      "note": "Where Linden stops, behind and to the side of the player, having come up Path_TownMain from the lab lane junction near (-11.4,-5.0). ~11m of walk; the beat allows 6s and he should use most of it."
+    },
+    {
+      "name": "Mark_Rival_GateWait",
+      "scene": "Town",
+      "position": [
+        -8.4,
+        2.41,
+        0.2
+      ],
+      "usedBy": "retired (was rival_first_battle at the gate)",
+      "note": "Where Barry used to settle after the battle, at the lip of the ramp. The battle has moved to the lake; nothing names this now."
+    },
+    {
+      "name": "Trigger_Square",
+      "scene": "Town",
+      "position": [
+        -14.0,
+        2.441,
+        -9.0
+      ],
+      "usedBy": "kes_summons (StoryEncounter host, radius 5.0)",
+      "note": "Not a camera target: this is the object LevelLayoutBuilder.StoryTriggers hangs kes_summons on, because Barry' own single StoryEncounter slot is spent on the rival battle. In the square, on the cobbles of Path_TownMain where it widens -- ground 2.441 off slice_town_unity.json's height grid, 0.03 m of variation across 1.5 m, 2.58 m clear of the nearest collider (Town_Planter_01) and 7.26 m off the nearest barrier volume. 6.73 m from the player spawn at (-9.0, -13.5), so a radius of 5 cannot fire the instant the opening hands control back. Walking south from the gate the player crosses the radius at (-11.41, -5.36), a Path_TownMain control point 4.47 m out and inside the plaza polygon, so the beat starts with them standing in the square rather than short of it."
+    },
+    {
+      "name": "Trigger_GateOpen",
+      "scene": "Town",
+      "position": [
+        -8.1,
+        2.716,
+        1.5
+      ],
+      "usedBy": "gate_opens (StoryEncounter host, radius 3.5)",
+      "note": "Also a trigger object, for the same one-slot reason -- Bram's slot is spent on the refusal. At the top of the gate ramp: 0.51 m from Ramp_TownGate's own head at (-8.2, 2.4, 1.0), ground 2.716, 2.05 m clear of Town_Signpost_01. Six of Path_GateRamp's control points lie inside the 3.5 m radius, from the head at (-8.2, 1.0) down to (-7.0, 4.5), so there is no line down the 4 m ramp that misses it. The To_Field volume at (-6.6, 5.6) is 4.37 m away and therefore outside -- the beat fires while the player is still on the ramp, not as they are being handed to the other scene. 1.86 m from Bram, which is close on purpose: he is the one speaking."
+    },
+    {
+      "name": "Mark_Exit_RampDown",
+      "scene": "Town",
+      "position": [
+        -4.8,
+        0.6,
+        7.7
+      ],
+      "usedBy": "kes_summons (ExitActor waypoint)",
+      "note": "The point on the gate ramp Barry' exit must visibly pass through on his way to the field -- the world coordinate came from the user's own live play (2026-08-20), given precisely because the walk was NOT passing through it: a single field-side target put the bearing east through the fence beside Bram, and the baked StoryGate hole meant the agent could not reach the ramp at all. Between the ramp head at (-8.2, 2.4, 1.0) and Spawn_RouteHead at (-5.7, ~0.1, 10.0), so it is on the descending slope. Y is approximate in the authored way this file's yWarning describes; the builder seats built markers and EpisodeRunner's cast fallback seats stood-up ones, and the exit walk re-seats every step on the ground under it regardless."
+    },
+    {
+      "name": "Mark_Rival_BagSide",
+      "scene": "Field",
+      "position": [
+        33.2,
+        -0.9,
+        29.6
+      ],
+      "usedBy": "kes_summons (ExitActor landing)",
+      "note": "Where Barry is standing when the player reaches the lake: beside the professor's bag, per the user's staging note ('용식 가방 옆에 있는 걸로 배치. 멀리서 걸어오지 않고'). 2.46 m from Prop_ProfessorBag at (31.0, 28.5) -- close enough to read as standing over it, outside the bag trigger's 3.0 m player radius which only fires on the player anyway. 3.31 m from Mark_Prof_Return, so Linden's return does not arrive on top of him, and 4.45 m from where Linden stands muttering. On the bank between the bag (2.41 m from the waterline) and Mark_Rival_FieldPost (0.99 m from it), within the 5.02 m collider clearance measured around the bag. Y -0.9 is an estimate between the bag's ground (-0.631) and the field post's (-1.452) and is seated at build/stand-up like every other mark. He does not stand here at the dex moment: field_professor_returns ends with his ExitActor running for the grotto, the episode's finally grants story.pokedex only after that exit finishes with him hidden 10.8 m inside the cave, and rival_first_battle is regated to story.cave_act besides -- two locks where the old walk-back was one."
+    },
+    {
+      "name": "Mark_Barry_Approach",
+      "scene": "Town",
+      "position": [
+        -13.0,
+        2.429,
+        -6.6
+      ],
+      "usedBy": "kes_summons",
+      "note": "MoveActor destination for Barry -- where he stops in front of the player, facing them. 3.97 m from his post at (-16.0, -9.2), which is 2.8 s of walking at NpcController's 1.4 m/s against the beat's 4.0 s timeout, so the walk lands and is never the snap the timeout exists to cover. Placed on the line between the square and (-11.41, -5.36), the point on Path_TownMain where Trigger_Square catches the player: from there he bears 232.1 degrees and Look_Square bears 231.7, so he is on the shot's axis rather than at its edge. Ground 2.429, 1.63 m clear of Town_Lamp_05."
+    },
+    {
+      "name": "Look_Square",
+      "scene": "Town",
+      "position": [
+        -17.8,
+        4.03,
+        -10.4
+      ],
+      "usedBy": "kes_summons",
+      "note": "The square itself, at head height -- ground 2.332 plus 1.7. OverworldCameraRig.LookToward only sets the rig's yaw from the player, so this is a direction and not a camera position; what it has to do is put Barry and the square in the same frame. From the catch point at (-11.41, -5.36) it bears 231.7 degrees against Mark_Barry_Approach's 232.1 and Barry' post at 230.1 -- under half a degree of spread, so the shot looks down the square with him walking up its axis. Kept 1.59 m off Town_Market_02 rather than dead-centre of the plaza: the market row is what the camera should be looking past, not into."
+    },
+    {
+      "name": "Look_LakeBank",
+      "scene": "Field",
+      "position": [
+        31.39,
+        -1.0,
+        35.44
+      ],
+      "usedBy": "field_professor_mutters, field_professor_returns",
+      "note": "Out over the bay at the lake's south-west corner, 2.81 m inside Water_Lake's traced waterline, so the shot is water and not the ground short of it. Y is authored at the lake surface (-2.2) plus 1.2 for legibility in the editor; LookToward projects onto the ground plane and ignores it. From the player's catch point at (25.18, 27.79) this bears 39.1 degrees, with Linden 25.3 degrees off it on one side and Mark_Ambush_Grass 25.5 off on the other -- both inside the camera's roughly 33 degree horizontal half-angle at a 40 degree vertical FOV. So the one framing carries the whole scene: the bank and Linden on the right, the water he is counting in the middle, the tall grass the ambush comes out of on the left."
+    },
+    {
+      "name": "Mark_Ambush_Grass",
+      "scene": "Field",
+      "position": [
+        26.5,
+        -1.153,
+        33.25
+      ],
+      "usedBy": "field_bag_left (StageCreature)",
+      "note": "Where the Pidgey is standing before anything mentions it, so it must be real grass and not a bare patch that happens to be inside a trigger box. It is both: 109 Field_Lake_ShoreGrass instances stand within 1.5 m of it and the nearest is 0.21 m away, and it is inside the Grass_Lake_ShoreGrass trigger volume (centre (44.45, -3.69, 24.66), size 41.41 x 30.19) that makes this ground encounter-bearing in the first place. Ground -1.153, which is 1.05 m above the lake surface, and 2.51 m from the waterline, so it is bank and not shallows. 6.74 m to the nearest tree, so the creature has room to turn and the camera has no trunk across it. 6.54 m from the bag: the CreatureApproach beat walks that in about 3 s against a 6 s timeout, and every point along the line is dry ground rising no more than 0.77 m, so the walk cannot snag on water or a step. In frame from Look_LakeBank -- 25.5 degrees off its axis from the player's catch point, see that marker."
+    },
+    {
+      "name": "Mark_Prof_Return",
+      "scene": "Field",
+      "position": [
+        29.9,
+        -0.539,
+        29.3
+      ],
+      "usedBy": "field_professor_returns",
+      "note": "Beside the bag, 1.36 m from it, on the landward side so he arrives between the player and the town rather than out of the water. Ground -0.539, 0.19 m of variation across 1.5 m, 6.01 m clear of the nearest collider, 3.43 m from the waterline."
+    },
+    {
+      "name": "Mark_Prof_Offstage",
+      "scene": "Field",
+      "position": [
+        21.8,
+        0.033,
+        26.2
+      ],
+      "usedBy": "field_professor_mutters, field_professor_returns",
+      "note": "Town-ward along Path_LakeBranch, and the distance is set by the beats' own timeouts rather than by taste. 7.69 m from where he stands, which is 5.5 s of walking at 1.4 m/s against the 7 s the mutter beat allows; 8.67 m from Mark_Prof_Return, 6.2 s against 8 s. So all three walks land, and none of them ends in the snap the timeout exists to cover. It is far enough that his return is a walk the player watches and not a step, and it sits behind the camera in the Look_LakeBank framing, which is what makes it offstage. Ground 0.033, flat to 0.06 m, 4.83 m clear."
+    },
+    {
+      "name": "Mark_Rival_FieldPost",
+      "scene": "Field",
+      "position": [
+        38.5,
+        -1.452,
+        33.5
+      ],
+      "usedBy": "nothing live -- rival_first_battle's old post, regated to the cave act",
+      "note": "MOOT WHILE REGATED (2026-08-20, second revision): Barry no longer waits at the lake at all -- he leaves field_professor_returns running for Aster Grotto, and rival_first_battle now requires story.cave_act, which nothing sets yet. The dex-distance rule below therefore binds nothing today; it is kept because the mark and its measurements are sound, and the cave act may well re-anchor his post here or somewhere measured the same way. On Path_LakeShoreTrail above the beach, ground -1.452 with 0.58 m of variation across 1.5 m, 0.99 m from the waterline and 10.49 m from the nearest collider. Distance from the bag is 9.01 m, which is the number that matters: story.pokedex is set with the player standing within 3 m of the bag, and his 5.0 m radius must not fire in that same frame -- worst case here is 6.01 m, so it cannot. 4.24 m from Trainer_Lake_Fisher, who is facing yaw 250 with a 24 degree half-angle while this mark bears 160 from him, so the trainer that wakes up on story.pokedex does not challenge the player over Barry' shoulder."
+    },
+    {
+      "name": "Mark_Exit_CaveFork",
+      "scene": "Field",
+      "position": [
+        9.5,
+        0.8,
+        25.8
+      ],
+      "usedBy": "field_professor_returns (Barry' cave exit, waypoint 1)",
+      "note": "The west end of Path_CrossroadsFork, where the cave branch splits off the route -- slice_layout.json paths: Path_CrossroadsFork runs (16.2,24.0)->(9.5,25.8) and Path_CaveBranch picks up from exactly here. Barry' run from the bag retraces Path_LakeBranch to the crossroads and turns; a straight line from the bank to the grotto would cut cross-field over the rise, and the whole point of tonight's exits is that departures visibly use the ground people walk on. Y 0.8 is an estimate between the bank (-0.5) and the cave mouth (3.455); every stand-up and every walking step re-seats on the real ground."
+    },
+    {
+      "name": "Mark_Exit_CaveBranch",
+      "scene": "Field",
+      "position": [
+        2.4,
+        1.4,
+        33.0
+      ],
+      "usedBy": "field_professor_returns (Barry' cave exit, waypoint 2)",
+      "note": "Path_CaveBranch's bend at (2.4,33.0), where the branch stops curving west and runs north for the mouth. From here the straight line to Mark_Rival_CaveDeep passes within ~2 m of the branch's own control points ((1.8,37.0)..(2.2,48.5)) and through the mouth at (5.0,51.0), so the last visible leg of his run reads as a boy on the cave path. Y estimated as with the fork."
+    },
+    {
+      "name": "Mark_Rival_CaveDeep",
+      "scene": "Field",
+      "position": [
+        -4.0,
+        3.3,
+        57.0
+      ],
+      "usedBy": "field_professor_returns (Barry' cave exit, landing)",
+      "note": "INSIDE Aster Grotto, on Path_CaveInterior between (0.5,54.0) and (-9.5,59.0), 10.8 m past the mouth at (5.0,3.3,51.0). Y 3.3 is the cave's authored floorY. Deliberately deeper than 5 m from anywhere the player can stand: the Town scene still carries rival_first_battle's pre-regate story.pokedex trigger on NPC_Rival until the next level rebuild, and a hidden Barry parked at the mouth would be an invisible battle waiting for whoever walks in. Landing here, his 5.0 m StoryEncounter radius cannot be entered from the field side of the entrance volume. NOTE: in the Field band this point is under Mass_MassifWest, so the runner's off-mesh ground-seat may put the hidden body on the massif top instead of the cave floor -- harmless while hidden and regated, but re-place him properly when the cave act stages him."
+    }
   ],
-
   "props": [
-    { "name": "Prop_ProfessorBag", "scene": "Field", "prefab": "Assets/Game/Art/Environment/Town/Env_Crate.fbx",
-      "position": [31.0, -0.631, 28.5], "rotation": [0, 24, 0], "scale": [0.78, 0.52, 0.6],
+    {
+      "name": "Prop_ProfessorBag",
+      "scene": "Field",
+      "prefab": "Assets/Game/Art/Environment/Town/Env_Crate.fbx",
+      "position": [
+        31.0,
+        -0.631,
+        28.5
+      ],
+      "rotation": [
+        0,
+        24,
+        0
+      ],
+      "scale": [
+        0.78,
+        0.52,
+        0.6
+      ],
       "usedBy": "field_bag_left (StoryEncounter host, radius 3.0), CameraTo in field_bag_left and field_ambush",
       "asset": "PLACEHOLDER, and it is the one thing in this file that is not the right object. There is no bag in the kit -- Assets/Game/Art/Props holds capture balls, a healing machine, a terminal and a scanner, and the town set holds a crate. So this is Env_Crate squashed to 0.54 x 0.34 x 0.42 m, which reads at HD-2D distance as a satchel set down on its side. It needs a real Env_Prop_FieldBag; the line calls it a bag with three balls unfastened in the top, and a crate is not that.",
       "note": "A prop and not a marker because the beat's whole content is that the player can see it: field_bag_left takes the only close shot in the field on this object, and CameraTo on an empty is a shot of bare ground. The Y above is the pivot ground height (-0.631) for reference only; LevelLayoutBuilder.SeatProp overwrites it, sampling the nine points across the scaled and rotated footprint and seating on the lowest (-0.675) less a 0.06 m bite, so it beds into the 0.08 m of fall across its own 0.54 m rather than perching on the uphill corner of it. 2.41 m from the waterline with the water on bearing 129, which is what puts the lake behind the player when the thing in the grass comes at them from the north-west. 2.46 m from where Linden was standing, close enough to read as set down and forgotten and far enough that the player takes a step toward it rather than being caught by a 3 m radius the instant he walks off. 5.02 m clear of the nearest collider, and the whole 6.5 m from Mark_Ambush_Grass to here is dry ground rising no more than 0.77 m with 5.02 m of collider clearance at its tightest. Built with no collider of its own, deliberately -- the ambusher has to reach within 1.6 m of a player standing over this, and a solid here is a hole in the navmesh exactly where that approach lands."
     }
   ],
-
   "starterOptions": {
-    "note": "Copy for the three balls. The species ids are GAME ids from SliceRoster, verified against Assets/StreamingAssets/pokelab/species.json (Species[].Id / NameEn) and against the sprite cast in Tools/Sprites/species.py: game 1 = Bulbasaur (dex 1), game 5 = Charmander (dex 4), game 10 = Squirtle (dex 7). All three are in the 53-species sprite cast, so all three render. StarterSelection.cs already ships defaults; these are proposed replacements -- shorter, and written as a label on a ball rather than as a sentence about a type chart. The order matches SliceRoster.Starters, and each RivalCounterSpeciesId is the one Kes announces in op_choice_result_*.",
+    "note": "Copy for the three balls. The species ids are GAME ids from SliceRoster, verified against Assets/StreamingAssets/pokelab/species.json (Species[].Id / NameEn) and against the sprite cast in Tools/Sprites/species.py: game 1 = Bulbasaur (dex 1), game 5 = Charmander (dex 4), game 10 = Squirtle (dex 7). All three are in the 53-species sprite cast, so all three render. StarterSelection.cs already ships defaults; these are proposed replacements -- shorter, and written as a label on a ball rather than as a sentence about a type chart. The order matches SliceRoster.Starters, and each RivalCounterSpeciesId is the one Barry announces in op_choice_result_*.",
     "level": 5,
     "options": [
-      { "SpeciesId": 1,  "DisplayName": "Bulbasaur", "Blurb": "Grass · Poison — carries its own garden. Hard to finish.", "RivalCounterSpeciesId": 5 },
-      { "SpeciesId": 5,  "DisplayName": "Charmander", "Blurb": "Fire — thin early, frightening later. Keep the tail dry.", "RivalCounterSpeciesId": 10 },
-      { "SpeciesId": 10, "DisplayName": "Squirtle", "Blurb": "Water — steady, and forgiving of a bad first month.", "RivalCounterSpeciesId": 1 }
+      {
+        "SpeciesId": 433,
+        "DisplayName": "Turtwig",
+        "Blurb": "Grass",
+        "RivalCounterSpeciesId": 436
+      },
+      {
+        "SpeciesId": 436,
+        "DisplayName": "Chimchar",
+        "Blurb": "Fire",
+        "RivalCounterSpeciesId": 439
+      },
+      {
+        "SpeciesId": 439,
+        "DisplayName": "Piplup",
+        "Blurb": "Water",
+        "RivalCounterSpeciesId": 433
+      }
     ]
   },
-
   "flags": [
-    { "note": "The chain as LevelLayoutBuilder.StoryTriggers now wires it. Each trigger's Requires is the previous one's Completes, which is what keeps the act in sequence without a state machine -- so a flag that is set by nothing stalls everything below it." },
-    { "key": "story.opening_seen", "setBy": "opening", "gates": "gate_wait_for_kes, on NPC_GateKeeper" },
-    { "key": "story.gate_refused", "setBy": "gate_wait_for_kes", "gates": "kes_summons, on Trigger_Square" },
-    { "key": "story.kes_summons_done", "setBy": "kes_summons", "gates": "gate_opens, on Trigger_GateOpen" },
-    { "key": "story.gate_open", "setBy": "kes_summons (a SetFlag beat, not the completion flag)", "gates": "StoryGate_TownRamp, which is the wall across the ramp; field_professor_mutters, on NPC_Professor; and Bram's fourth dialogue state. Gating the field beat on this rather than on story.gate_acknowledged is deliberate -- gate_opens is skippable by design, so a player who walked straight past Bram must still meet Linden." },
-    { "key": "story.gate_acknowledged", "setBy": "gate_opens", "gates": "nothing. It is the completion flag that stops those two lines replaying." },
-    { "key": "story.prof_mutter_done", "setBy": "field_professor_mutters", "gates": "field_bag_left, on Prop_ProfessorBag" },
-    { "key": "story.bag_seen", "setBy": "field_bag_left", "gates": "nothing -- field_ambush is chained by NextEpisodeId, not by a flag." },
-    { "key": "story.ambush_done", "setBy": "field_ambush", "gates": "nothing -- field_professor_returns is chained the same way." },
-    { "key": "story.starter_chosen", "setBy": "field_ambush (SetFlag after the commit)", "gates": "Bram's second dialogue state" },
-    { "key": "story.pokedex", "setBy": "field_professor_returns (its CompletionFlag, so it is set even on a failed path)", "gates": "Bram's first dialogue state; Sela's alternate line; and StoryPhase, which is what re-arms wild encounters, roamers and trainer challenges. NO LONGER gates rival_first_battle -- see story.cave_act." },
-    { "key": "story.cave_act", "setBy": "NOTHING YET -- the cave act's opening beat will own it. Deliberate: the 2026-08-20 revision has Kes leave the lake on the bet without fighting, so his battle is parked whole behind a flag this act cannot reach.", "gates": "rival_first_battle, on NPC_Rival (regate lives in LevelLayoutBuilder.StoryTriggers; needs a level rebuild to reach the scene)." },
-    { "key": "story.rival_battle_done", "setBy": "rival_first_battle", "gates": "Kes' riv_idle line. Nothing else -- this is the end of the act." },
-    { "key": "profile.body.male / profile.body.female", "setBy": "op_prologue choice ResultEventId", "gates": "which player sprite sheet is used (Tools/Sprites/people.py has player_m and player_f). Nothing listens for these signals yet." }
+    {
+      "note": "The chain as LevelLayoutBuilder.StoryTriggers now wires it. Each trigger's Requires is the previous one's Completes, which is what keeps the act in sequence without a state machine -- so a flag that is set by nothing stalls everything below it."
+    },
+    {
+      "key": "story.opening_seen",
+      "setBy": "opening",
+      "gates": "gate_wait_for_kes, on NPC_GateKeeper"
+    },
+    {
+      "key": "story.gate_refused",
+      "setBy": "gate_wait_for_kes",
+      "gates": "kes_summons, on Trigger_Square"
+    },
+    {
+      "key": "story.kes_summons_done",
+      "setBy": "kes_summons",
+      "gates": "gate_opens, on Trigger_GateOpen"
+    },
+    {
+      "key": "story.gate_open",
+      "setBy": "kes_summons (a SetFlag beat, not the completion flag)",
+      "gates": "StoryGate_TownRamp, which is the wall across the ramp; field_professor_mutters, on NPC_Professor; and Bram's fourth dialogue state. Gating the field beat on this rather than on story.gate_acknowledged is deliberate -- gate_opens is skippable by design, so a player who walked straight past Bram must still meet Linden."
+    },
+    {
+      "key": "story.gate_acknowledged",
+      "setBy": "gate_opens",
+      "gates": "nothing. It is the completion flag that stops those two lines replaying."
+    },
+    {
+      "key": "story.prof_mutter_done",
+      "setBy": "field_professor_mutters",
+      "gates": "field_bag_left, on Prop_ProfessorBag"
+    },
+    {
+      "key": "story.bag_seen",
+      "setBy": "field_bag_left",
+      "gates": "nothing -- field_ambush is chained by NextEpisodeId, not by a flag."
+    },
+    {
+      "key": "story.ambush_done",
+      "setBy": "field_ambush",
+      "gates": "nothing -- field_professor_returns is chained the same way."
+    },
+    {
+      "key": "story.starter_chosen",
+      "setBy": "field_ambush (SetFlag after the commit)",
+      "gates": "Bram's second dialogue state"
+    },
+    {
+      "key": "story.pokedex",
+      "setBy": "field_professor_returns (its CompletionFlag, so it is set even on a failed path)",
+      "gates": "Bram's first dialogue state; Sela's alternate line; and StoryPhase, which is what re-arms wild encounters, roamers and trainer challenges. NO LONGER gates rival_first_battle -- see story.cave_act."
+    },
+    {
+      "key": "story.cave_act",
+      "setBy": "NOTHING YET -- the cave act's opening beat will own it. Deliberate: the 2026-08-20 revision has Barry leave the lake on the bet without fighting, so his battle is parked whole behind a flag this act cannot reach.",
+      "gates": "rival_first_battle, on NPC_Rival (regate lives in LevelLayoutBuilder.StoryTriggers; needs a level rebuild to reach the scene)."
+    },
+    {
+      "key": "story.rival_battle_done",
+      "setBy": "rival_first_battle",
+      "gates": "Barry' riv_idle line. Nothing else -- this is the end of the act."
+    },
+    {
+      "key": "profile.body.male / profile.body.female",
+      "setBy": "op_prologue choice ResultEventId",
+      "gates": "which player sprite sheet is used (Tools/Sprites/people.py has player_m and player_f). Nothing listens for these signals yet."
+    }
   ],
-
   "signals": {
     "note": "Ids raised through OverworldEvents.RaiseDialogueSignal by DialogueLine.EventId and DialogueChoice.ResultEventId. Every one of them is optional -- the scene plays without a listener, it just plays flatter.",
     "vfx.flock_startle": "A dozen Pidgey out of the grass below the ramp, north over the gate. Prop/VFX work that does not exist. Pidgey is game id 21 and has a sprite, so a real flock is buildable rather than faked.",

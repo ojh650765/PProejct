@@ -15,6 +15,11 @@ namespace PokeLab.Overworld
     /// </summary>
     public static class SliceRoster
     {
+        public const int Turtwig = 433;
+        public const int Chimchar = 436;
+        public const int Piplup = 439;
+        public const int Starly = 442;
+        public const int Bidoof = 445;
         public const int Bulbasaur = 1;
         public const int Charmander = 5;
         public const int Squirtle = 10;
@@ -44,7 +49,7 @@ namespace PokeLab.Overworld
         /// <summary>Every species in the slice, in dex order.</summary>
         public static readonly IReadOnlyList<int> All = new[]
         {
-            Bulbasaur, Charmander, Squirtle, Pidgey, Rattata, Pikachu,
+            Turtwig, Chimchar, Piplup, Starly, Bidoof, Bulbasaur, Charmander, Squirtle, Pidgey, Rattata, Pikachu,
             Zubat, Oddish, Poliwag, Machop, Geodude, Gastly,
             Psyduck, Slowpoke, Krabby, Horsea, Goldeen, Staryu, Magikarp,
         };
@@ -63,7 +68,7 @@ namespace PokeLab.Overworld
         };
 
         /// <summary>The three starters, offered by the lab and never found in the wild.</summary>
-        public static readonly IReadOnlyList<int> Starters = new[] { Bulbasaur, Charmander, Squirtle };
+        public static readonly IReadOnlyList<int> Starters = new[] { Turtwig, Chimchar, Piplup };
 
         public static bool IsInSlice(int speciesId)
         {
@@ -81,6 +86,10 @@ namespace PokeLab.Overworld
         {
             switch (speciesId)
             {
+                case Turtwig: return "Turtwig";
+                case Chimchar: return "Chimchar";
+                case Piplup: return "Piplup";
+                case Starly: return "Starly";
                 case Bulbasaur: return "Bulbasaur";
                 case Charmander: return "Charmander";
                 case Squirtle: return "Squirtle";
@@ -113,6 +122,10 @@ namespace PokeLab.Overworld
         {
             switch (speciesId)
             {
+                case Turtwig: return 0.4f;
+                case Chimchar: return 0.5f;
+                case Piplup: return 0.4f;
+                case Starly: return 0.3f;
                 case Bulbasaur: return 0.7f;
                 case Charmander: return 0.6f;
                 case Squirtle: return 0.5f;

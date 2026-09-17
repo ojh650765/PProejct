@@ -23,6 +23,7 @@ namespace PokeLab.Boot.Editor
     /// </summary>
     public static class GameBuilder
     {
+        public static bool LastWebGLBuildSucceeded { get; private set; }
         private const string OutputRoot = "Build";
 
         /// <summary>
@@ -79,6 +80,7 @@ namespace PokeLab.Boot.Editor
         [MenuItem("Tools/Poké Lab/Build/WebGL", priority = 310)]
         public static void BuildWebGL()
         {
+            LastWebGLBuildSucceeded = false;
             var scenes = ResolveScenes();
             if (scenes == null) return;
 
@@ -128,6 +130,7 @@ namespace PokeLab.Boot.Editor
             }
 
             WritePagesMetadata(folder);
+            LastWebGLBuildSucceeded = true;
 
             Debug.Log($"[Build] WebGL succeeded in {report.summary.totalTime.TotalSeconds:0}s → {folder}");
             ReportPagesFit(folder);

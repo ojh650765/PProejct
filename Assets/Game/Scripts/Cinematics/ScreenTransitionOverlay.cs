@@ -36,18 +36,9 @@ namespace PokeLab.Cinematics
     {
         [Header("Look")]
         [Tooltip("Colour of the wipe. Alpha is driven by the sequence, not read from here.")]
-        [SerializeField] private Color wipeColor = new Color(0.04f, 0.05f, 0.09f, 1f);
+        [SerializeField] private Color wipeColor = Color.black;
         [Tooltip("Colour used by WipeStyle.Flash.")]
         [SerializeField] private Color flashColor = new Color(1f, 0.98f, 0.92f, 1f);
-        [Tooltip("Number of bars in the shutter and split wipes. Odd numbers read better.")]
-        [Range(1, 24)]
-        [SerializeField] private int barCount = 9;
-        [Tooltip("Bar tilt in degrees. Zero is a plain vertical wipe; 12-18 reads as stylised.")]
-        [SerializeField] private float barTilt = 14f;
-        [Tooltip("Fraction of the total duration spread across the bar stagger.")]
-        [Range(0f, 0.9f)]
-        [SerializeField] private float barStagger = 0.45f;
-
         [Header("Overrides")]
         [Tooltip("Optional replacement material. Must be unlit, transparent, and honour _BaseColor or _Color.")]
         [SerializeField] private Material overrideMaterial;
@@ -103,8 +94,16 @@ namespace PokeLab.Cinematics
 
         private void OnDestroy()
         {
+            // The rig is reparented to the output camera, so destroying this
+            // component's scene does not necessarily destroy its screen quads.
+            if (_rig != null) Destroy(_rig.gameObject);
             if (_quad != null) Destroy(_quad);
             if (_material != null && overrideMaterial == null) Destroy(_material);
+        }
+
+        private void OnDisable()
+        {
+            if (_rig != null) SetCoverage(0f, wipeColor);
         }
 
         /// <summary>
@@ -139,9 +138,9 @@ namespace PokeLab.Cinematics
             _rig = rigGo.transform;
             _rig.SetParent(transform, false);
 
-            for (int i = 0; i < Mathf.Max(1, barCount); i++)
+            for (int i = 0; i < 1; i++)
             {
-                var bar = new GameObject("Bar" + i) { hideFlags = HideFlags.DontSave };
+                var bar = new GameObject("FadePlane") { hideFlags = HideFlags.DontSave };
                 bar.transform.SetParent(_rig, false);
 
                 var mf = bar.AddComponent<MeshFilter>();
@@ -161,8 +160,8 @@ namespace PokeLab.Cinematics
         }
 
         /// <summary>
-        /// Sizes the bars to exactly cover the frustum at the overlay plane, with a margin
-        /// so a tilted bar cannot expose a corner. Recomputed on aspect or FOV change.
+        /// Sizes the single fade plane to cover the frustum, including its edges.
+        /// Recomputed on aspect or FOV change.
         /// </summary>
         private void LayoutBars()
         {
@@ -174,25 +173,11 @@ namespace PokeLab.Cinematics
                 : z * Mathf.Tan(_target.fieldOfView * 0.5f * Mathf.Deg2Rad);
             float halfWidth = halfHeight * _target.aspect;
 
-            // The tilt rotates each bar, so the swept rectangle must be oversized by the
-            // projection of the bar's own height onto the horizontal axis, or the top and
-            // bottom corners of a tilted bar leave triangular gaps.
-            float tiltPad = Mathf.Abs(Mathf.Tan(barTilt * Mathf.Deg2Rad)) * halfHeight * 2f;
-            float sweptWidth = halfWidth * 2f + tiltPad + 0.05f;
-            float barWidth = sweptWidth / _bars.Count;
-            float barHeight = halfHeight * 2f + 0.05f;
-
-            // Extra 1.02 on width closes the seam between neighbouring tilted bars.
-            _barBaseScale = new Vector2(barWidth * 1.02f, barHeight);
-
-            for (int i = 0; i < _bars.Count; i++)
-            {
-                var t = _bars[i];
-                if (t == null) continue;
-                t.localPosition = new Vector3(-sweptWidth * 0.5f + barWidth * (i + 0.5f), 0f, z);
-                t.localRotation = Quaternion.Euler(0f, 0f, barTilt);
-                t.localScale = new Vector3(_barBaseScale.x, _barBaseScale.y, 1f);
-            }
+            _barBaseScale = new Vector2(halfWidth * 2f + .05f, halfHeight * 2f + .05f);
+            var plane = _bars[0];
+            plane.localPosition = new Vector3(0, 0, z);
+            plane.localRotation = Quaternion.identity;
+            plane.localScale = new Vector3(_barBaseScale.x, _barBaseScale.y, 1f);
         }
 
         private void LateUpdate()
@@ -208,10 +193,10 @@ namespace PokeLab.Cinematics
         // --- Public sequences -------------------------------------------------------------
 
         /// <summary>Covers the screen over <paramref name="duration"/> seconds and leaves it covered.</summary>
-        public IEnumerator CoverIn(float duration, WipeStyle style = WipeStyle.ShutterWipe)
+        public IEnumerator CoverIn(float duration, WipeStyle style = WipeStyle.Fade)
         {
             EnsureRig();
-            Color color = style == WipeStyle.Flash ? flashColor : wipeColor;
+            Color color = Color.black;
 
             // A flash arrives hard; a cover arrives smoothly. Assigned rather than written as
             // a ternary because a method group has no type until it is assigned to one.
@@ -223,10 +208,10 @@ namespace PokeLab.Cinematics
         }
 
         /// <summary>Uncovers the screen over <paramref name="duration"/> seconds.</summary>
-        public IEnumerator CoverOut(float duration, WipeStyle style = WipeStyle.ShutterWipe)
+        public IEnumerator CoverOut(float duration, WipeStyle style = WipeStyle.Fade)
         {
             EnsureRig();
-            Color color = style == WipeStyle.Flash ? flashColor : wipeColor;
+            Color color = Color.black;
             yield return CinematicRunner.Progress(duration, p => ApplyStyle(style, 1f - CinematicEase.InOutCubic(p), color));
             ApplyStyle(style, 0f, color);
         }
@@ -237,7 +222,7 @@ namespace PokeLab.Cinematics
         /// is hidden without ever showing the player a cut.
         /// </summary>
         public IEnumerator CoverSwapReveal(float coverSeconds, float holdSeconds, float revealSeconds,
-            System.Action atBlack, WipeStyle inStyle = WipeStyle.ShutterWipe, WipeStyle outStyle = WipeStyle.SplitWipe)
+            System.Action atBlack, WipeStyle inStyle = WipeStyle.Fade, WipeStyle outStyle = WipeStyle.Fade)
         {
             yield return CoverIn(coverSeconds, inStyle);
             atBlack?.Invoke();
@@ -282,71 +267,15 @@ namespace PokeLab.Cinematics
             _lastProgress = progress;
             _lastColor = color;
 
-            bool isFade = style == WipeStyle.Fade || style == WipeStyle.Flash;
-            int n = _bars.Count;
-
-            for (int i = 0; i < n; i++)
+            // Legacy shutter/split requests now use the same uniform alpha fade.
+            // A single full-screen plane has no overlapping bar seams at partial opacity.
+            for (int i = 0; i < _barRenderers.Count; i++)
             {
-                float local = StyleProgress(style, i, n, progress);
-                var mr = _barRenderers[i];
-                var t = _bars[i];
-                // Same reason as LayoutBars: a bar can be destroyed under this list between
-                // frames, and the draw must not be what discovers it.
-                if (t == null || mr == null) continue;
-
-                if (isFade)
-                {
-                    t.localScale = new Vector3(_barBaseScale.x, _barBaseScale.y, 1f);
-                    SetBarAlpha(mr, color, local);
-                }
-                else
-                {
-                    // Bars grow vertically from their own centre and stay fully opaque.
-                    // Scaling geometry rather than ramping alpha is what makes this read as
-                    // an authored wipe instead of a crossfade — the difference is obvious
-                    // in motion even though a still frame at 50% looks similar.
-                    t.localScale = new Vector3(_barBaseScale.x, _barBaseScale.y * local, 1f);
-                    SetBarAlpha(mr, color, 1f);
-                }
-
-                mr.enabled = local > 0.001f;
+                var renderer = _barRenderers[i];
+                if (renderer == null) continue;
+                SetBarAlpha(renderer, color, progress);
+                renderer.enabled = progress > .001f;
             }
-        }
-
-        private float StyleProgress(WipeStyle style, int index, int count, float progress)
-        {
-            switch (style)
-            {
-                case WipeStyle.Fade:
-                case WipeStyle.Flash:
-                    return progress;
-
-                case WipeStyle.SplitWipe:
-                {
-                    // Distance from the centre bar drives the delay, so the wipe closes inward.
-                    float centre = (count - 1) * 0.5f;
-                    float d = count <= 1 ? 0f : Mathf.Abs(index - centre) / centre;
-                    return StaggeredRamp(progress, 1f - d);
-                }
-
-                default: // ShutterWipe
-                {
-                    float order = count <= 1 ? 0f : index / (float)(count - 1);
-                    return StaggeredRamp(progress, order);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Maps global progress to a bar's own 0-1 given its position in the stagger.
-        /// The stagger is what makes this read as authored motion rather than a crossfade.
-        /// </summary>
-        private float StaggeredRamp(float progress, float order)
-        {
-            float span = Mathf.Clamp01(1f - barStagger);
-            float start = barStagger * Mathf.Clamp01(order);
-            if (span <= 1e-4f) return progress >= start ? 1f : 0f;
-            return CinematicEase.OutQuad(Mathf.Clamp01((progress - start) / span));
         }
 
         private void SetBarAlpha(MeshRenderer mr, Color color, float alpha)

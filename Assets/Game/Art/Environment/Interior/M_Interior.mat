@@ -1,0 +1,75 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: M_Interior
+  m_Shader: {fileID: 4800000, guid: 042b45093c550a2a25890c073e03a932, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 2800000, guid: 1c35da05d7b7e3446a6f3cd19f4f695d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 2800000, guid: 93286237d095fdf4490d1ddec1d91649, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AlphaClip: 0
+    - _BlendHeight: 0.35
+    - _BlendNoiseAmount: 0.5
+    - _BlendNoiseScale: 6
+    - _BlendPower: 2
+    - _BlendStrength: 0
+    - _BumpScale: 1
+    - _Cull: 2
+    - _Cutoff: 0.5
+    - _DstBlend: 0
+    - _FadeAmount: 0
+    - _MossHeight: 1.6
+    - _MossSharpness: 2.5
+    - _MossStrength: 0
+    - _OcclusionStrength: 0.6
+    - _PickupEdge: 1.6
+    - _PickupGlow: 0
+    - _PickupPulseDepth: 0.45
+    - _PickupPulseSpeed: 2.4
+    - _PickupRimPower: 2.2
+    - _RimPower: 3.5
+    - _RimStrength: 0.12
+    - _ShadeSoftness: 0.02
+    - _ShadeSteps: 3
+    - _ShadeWrap: 0.2
+    - _ShadowStrength: 0.85
+    - _SpecularSharpness: 40
+    - _SpecularStrength: 0.05
+    - _SrcBlend: 1
+    - _Wetness: 0
+    - _ZWriteMode: 1
+    m_Colors:
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _GroundColor: {r: 0.34, g: 0.42, b: 0.22, a: 1}
+    - _MossColor: {r: 0.3, g: 0.45, b: 0.2, a: 1}
+    - _PickupColor: {r: 1, g: 0.86, b: 0.41999996, a: 1}
+    - _RimColor: {r: 1, g: 0.95, b: 0.85, a: 1}
+    - _ShadeColor: {r: 0.4, g: 0.48, b: 0.66, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

@@ -77,6 +77,11 @@ PORTRAIT = 72
 # Pikachu is game 31 / dex 25.  Reading this table as if one column were the
 # other is the failure this pipeline exists to prevent.
 CAST = [
+    (433, 387, "Turtwig", 0.40),
+    (436, 390, "Chimchar", 0.50),
+    (439, 393, "Piplup", 0.40),
+    (442, 396, "Starly", 0.30),
+    (445, 399, "Bidoof", 0.50),
     (1,     1, "Bulbasaur",  0.70),
     (2,     2, "Ivysaur",    1.00),
     (5,     4, "Charmander", 0.60),

@@ -21,6 +21,7 @@ namespace PokeLab.Audio
             public AudioClip Clip;
             public AudioBus Bus;
             public bool Loop;
+            public bool Disabled;
             [Range(0f, 2f)] public float Gain;
         }
 
@@ -41,7 +42,7 @@ namespace PokeLab.Audio
                 for (int i = 0; i < entries.Count; i++)
                 {
                     var e = entries[i];
-                    if (string.IsNullOrEmpty(e.Name) || e.Clip == null) continue;
+                    if (string.IsNullOrEmpty(e.Name) || (e.Clip == null && !e.Disabled)) continue;
                     _index[e.Name] = e;
                 }
                 return _index;
@@ -74,7 +75,7 @@ namespace PokeLab.Audio
             var broken = new List<string>();
             for (int i = 0; i < entries.Count; i++)
             {
-                if (entries[i].Clip == null)
+                if (entries[i].Clip == null && !entries[i].Disabled)
                     broken.Add(string.IsNullOrEmpty(entries[i].Name) ? $"<unnamed #{i}>" : entries[i].Name);
             }
             return broken;

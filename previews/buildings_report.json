@@ -1,0 +1,117 @@
+[
+  {
+    "asset": "Env_House_Cottage_A",
+    "triangles": 1684,
+    "entrance": {
+      "position": [
+        0.0,
+        0.21,
+        2.23
+      ],
+      "forward": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "width": 1.3000000000000003,
+      "source": "Blender shell opening",
+      "wallLamp": [
+        2.04,
+        1.8,
+        2.02
+      ]
+    }
+  },
+  {
+    "asset": "Env_House_Townhouse_B",
+    "triangles": 2548,
+    "entrance": {
+      "position": [
+        0.0,
+        0.21,
+        2.43
+      ],
+      "forward": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "width": 1.3,
+      "source": "Blender shell opening",
+      "wallLamp": [
+        1.89,
+        1.8,
+        2.22
+      ]
+    }
+  },
+  {
+    "asset": "Env_House_Farmhouse_C",
+    "triangles": 1684,
+    "entrance": {
+      "position": [
+        -0.0,
+        0.21,
+        2.03
+      ],
+      "forward": [
+        0.0,
+        0.0,
+        0.9999999403953552
+      ],
+      "width": 1.2999999999999996,
+      "source": "Blender shell opening",
+      "wallLamp": [
+        2.69,
+        1.8,
+        1.82
+      ]
+    }
+  },
+  {
+    "asset": "Env_Building_PokeLab",
+    "triangles": 2160,
+    "entrance": {
+      "position": [
+        -0.0,
+        0.29,
+        3.6073
+      ],
+      "forward": [
+        -2.383095698062248e-16,
+        0.0,
+        1.0
+      ],
+      "width": 1.55,
+      "source": "Blender shell opening",
+      "wallLamp": [
+        1.5,
+        1.8,
+        2.9491
+      ]
+    }
+  },
+  {
+    "asset": "Env_Building_PokeCentre",
+    "triangles": 1960,
+    "entrance": {
+      "position": [
+        0.0,
+        0.21,
+        2.8575
+      ],
+      "forward": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "width": 1.8999999999999997,
+      "source": "Blender shell opening",
+      "wallLamp": [
+        3.39,
+        1.8,
+        2.6475
+      ]
+    }
+  }
+]

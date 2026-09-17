@@ -93,7 +93,7 @@ namespace PokeLab.Boot
                 }
 
                 if (keyboard.escapeKey.wasPressedThisFrame
-                    || keyboard.enterKey.wasPressedThisFrame
+                    || (keyboard.enterKey.wasPressedThisFrame || keyboard.fKey.wasPressedThisFrame)
                     || keyboard.zKey.wasPressedThisFrame)
                     CloseDetail();
                 return;
@@ -103,7 +103,8 @@ namespace PokeLab.Boot
 
             if (keyboard.downArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame) _menu.Move(1);
             if (keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame) _menu.Move(-1);
-            if (keyboard.enterKey.wasPressedThisFrame || keyboard.zKey.wasPressedThisFrame) _menu.Take();
+            if (keyboard.tabKey.wasPressedThisFrame) _menu.Move(keyboard.shiftKey.isPressed ? -1 : 1);
+            if ((keyboard.enterKey.wasPressedThisFrame || keyboard.fKey.wasPressedThisFrame) || keyboard.zKey.wasPressedThisFrame) _menu.Take();
         }
 
         private void Open()
@@ -239,7 +240,8 @@ namespace PokeLab.Boot
 
             var text = new StringBuilder();
             foreach (var pair in inventory)
-                text.Append(pair.Key).Append("   x").Append(pair.Value).Append('\n');
+                text.Append(StoryProgress.ItemName(pair.Key)).Append("   x").Append(pair.Value).Append('\n');
+            if (inventory.ContainsKey("journal")) text.Append("\n").Append(StoryProgress.Journal());
             return text.ToString();
         }
 

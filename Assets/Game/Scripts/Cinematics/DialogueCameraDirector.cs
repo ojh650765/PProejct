@@ -299,6 +299,7 @@ namespace PokeLab.Cinematics
             ShotGoal goal = ComputeGoal(speakerT);
             _curPos = Vector3.SmoothDamp(_curPos, goal.Position, ref _posVel, trackSmoothing, Mathf.Infinity, dt);
             _curAim = Vector3.SmoothDamp(_curAim, goal.Aim, ref _aimVel, trackSmoothing * 0.8f, Mathf.Infinity, dt);
+            _curPos = CameraPath.ClearPosition(_curPos, _curAim);
             _curFov = Mathf.SmoothDamp(_curFov, goal.Fov, ref _fovVel, trackSmoothing, Mathf.Infinity, dt);
             Apply();
         }

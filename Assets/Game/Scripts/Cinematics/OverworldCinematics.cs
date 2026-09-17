@@ -301,7 +301,7 @@ namespace PokeLab.Cinematics
 
             yield return CinematicRunner.Tween(duration, ease, p =>
             {
-                Vector3 pos = Vector3.Lerp(fromPos, position, p);
+                Vector3 pos = CameraPath.ClearPosition(Vector3.Lerp(fromPos, position, p), lookAt);
                 t.position = pos;
 
                 Vector3 direction = lookAt - pos;

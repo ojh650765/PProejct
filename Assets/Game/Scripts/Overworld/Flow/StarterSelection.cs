@@ -76,7 +76,10 @@ namespace PokeLab.Overworld
 
         private void Awake()
         {
-            if (_options == null || _options.Count == 0) _options = DefaultOptions();
+            if (_options == null || _options.Count == 0 ||
+                (_options.Count == 3 && _options[0].SpeciesId == 1 &&
+                 _options[1].SpeciesId == 5 && _options[2].SpeciesId == 10))
+                _options = DefaultOptions();
         }
 
         /// <summary>
@@ -89,21 +92,21 @@ namespace PokeLab.Overworld
         {
             new StarterOption
             {
-                SpeciesId = SliceRoster.Bulbasaur, DisplayName = "Bulbasaur",
+                SpeciesId = SliceRoster.Turtwig, DisplayName = "Turtwig",
                 Blurb = "Grass · Poison — patient, and hard to knock down.",
-                RivalCounterSpeciesId = SliceRoster.Charmander,
+                RivalCounterSpeciesId = SliceRoster.Chimchar,
             },
             new StarterOption
             {
-                SpeciesId = SliceRoster.Charmander, DisplayName = "Charmander",
+                SpeciesId = SliceRoster.Chimchar, DisplayName = "Chimchar",
                 Blurb = "Fire — fragile early, frightening later.",
-                RivalCounterSpeciesId = SliceRoster.Squirtle,
+                RivalCounterSpeciesId = SliceRoster.Piplup,
             },
             new StarterOption
             {
-                SpeciesId = SliceRoster.Squirtle, DisplayName = "Squirtle",
+                SpeciesId = SliceRoster.Piplup, DisplayName = "Piplup",
                 Blurb = "Water — steady, and forgiving of mistakes.",
-                RivalCounterSpeciesId = SliceRoster.Bulbasaur,
+                RivalCounterSpeciesId = SliceRoster.Turtwig,
             },
         };
 

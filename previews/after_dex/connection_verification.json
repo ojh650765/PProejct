@@ -1,0 +1,16 @@
+{
+    "state": "passed",
+    "step": "",
+    "checks": [
+        "Walkable outdoor connection at (-12.00, 0.00, 4.00) (remaining 0.34m)",
+        "Walkable outdoor connection at (-28.00, 0.00, 4.00) (remaining 0.34m)",
+        "Walkable outdoor connection at (-32.00, 0.00, 8.00) (remaining 0.34m)",
+        "Walkable outdoor connection at (-32.00, 0.00, 11.00) (remaining 0.33m)",
+        "Loaded Route202"
+    ],
+    "failures": [],
+    "frames": [
+        "previews/after_dex/outdoor_connection.png",
+        "previews/after_dex/outdoor_arrival.png"
+    ]
+}

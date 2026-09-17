@@ -429,11 +429,14 @@ class HeightField:
         # disconnected puddles. A road can be carried over water on a bridge; water
         # cannot be carried over a road.
         best_w, best_y = 0.0, 0.0
+        road_distance, road_height = float('inf'), 0.0
         cut_w, cut_y = 0.0, 0.0
         for points, hw, blend, is_skippable in self.conform:
             if is_skippable and not skippable:
                 continue
             d, pt, _ = closest_on_polyline(x, z, points)
+            if is_skippable and d - hw < road_distance:
+                road_distance, road_height = d - hw, pt[1]
             if d >= hw + blend:
                 continue
             w = 1.0 if d <= hw else smootherstep(1.0 - (d - hw) / blend)
@@ -448,11 +451,22 @@ class HeightField:
         if best_w > 0.0:
             y = lerp(y, best_y, best_w)
 
+        # Keep the roadside a traversable shoulder instead of a narrow trench.
+        # Lower the high verge and fill low pockets from the same road elevation.
+        # Water channels win so bridges still span water, not a filled-in embankment.
+        if skippable and cut_w < 0.05 and road_distance < 8.0:
+            allowance = max(0.0, road_distance) * math.tan(math.radians(25.0))
+            shoulder = clamp(y, road_height - allowance, road_height + allowance)
+            weight = 1.0 if road_distance <= 3.0 else smootherstep((8.0-road_distance)/5.0)
+            y = lerp(y, shoulder, weight)
+
         # Pads last: a house's platform wins over the road that runs past it.
         for cx, cz, hx, hz, height, blend in self.pads:
             dx = max(abs(x - cx) - hx, 0.0)
             dz = max(abs(z - cz) - hz, 0.0)
             d = math.hypot(dx, dz)
+            # Use a fixed broad skirt; varying its radius per sample creates a seam.
+            blend = max(blend, 5.0)
             if d >= blend:
                 continue
             w = 1.0 if d <= 0.0 else smootherstep(1.0 - d / blend)

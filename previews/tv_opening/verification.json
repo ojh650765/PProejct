@@ -1,0 +1,18 @@
+{
+  "state": "passed",
+  "episode": "opening",
+  "beat": "Dialogue:home_mom_departure",
+  "completed": [
+    "opening"
+  ],
+  "failures": [],
+  "frames": [
+    "previews/tv_opening/000.png: opening_FadeOut",
+    "previews/tv_opening/001.png: opening_AskName:광휘",
+    "previews/tv_opening/002.png: opening_FadeIn",
+    "previews/tv_opening/003.png: opening_Wait",
+    "previews/tv_opening/004.png: opening_Dialogue:home_tv_broadcast",
+    "previews/tv_opening/005.png: opening_Wait",
+    "previews/tv_opening/006.png: opening_Dialogue:home_mom_departure"
+  ]
+}

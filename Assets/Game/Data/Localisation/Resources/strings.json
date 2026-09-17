@@ -20,7 +20,6 @@
       "en": "The water is deep here. Cross on {0}?",
       "ko": "물이 깊다. {0}(을)를 타고 건널까?"
     },
-
     {
       "key": "starter.prompt",
       "en": "Three balls… which one.",
@@ -61,7 +60,6 @@
       "en": "Look again",
       "ko": "다시 본다"
     },
-
     {
       "key": "pickup.found",
       "en": "Found {0}.",
@@ -72,7 +70,6 @@
       "en": "There is no room left in the bag.",
       "ko": "가방에 자리가 없다."
     },
-
     {
       "key": "encounter.wild_appeared",
       "en": "A wild {0} appeared.",
@@ -83,7 +80,6 @@
       "en": "{0} noticed you.",
       "ko": "{0}(이)가 이쪽을 봤다."
     },
-
     {
       "key": "door.locked",
       "en": "It is locked.",
@@ -99,7 +95,6 @@
       "en": "Read",
       "ko": "읽기"
     },
-
     {
       "key": "ui.talk",
       "en": "Talk",
@@ -160,7 +155,6 @@
       "en": "No",
       "ko": "아니오"
     },
-
     {
       "key": "menu.paused",
       "en": "Paused",
@@ -241,7 +235,6 @@
       "en": "Boot, sweep and alert cues from the Poké Lab device.",
       "ko": "포켓랩 장치의 기동음, 탐색음, 경고음."
     },
-
     {
       "key": "bag.title",
       "en": "Bag",
@@ -302,7 +295,6 @@
       "en": "No description recorded yet.",
       "ko": "아직 기록된 설명이 없다."
     },
-
     {
       "key": "party.title",
       "en": "Party",
@@ -318,7 +310,6 @@
       "en": "Drag to reorder · click twice to send out",
       "ko": "끌어서 순서 변경 · 두 번 눌러 내보내기"
     },
-
     {
       "key": "dex.title",
       "en": "Dex",
@@ -329,7 +320,6 @@
       "en": "{0} caught · {1} seen · {2} total",
       "ko": "포획 {0} · 발견 {1} · 전체 {2}"
     },
-
     {
       "key": "centre.heal_offer",
       "en": "Shall I take a look at your Pokémon?",
@@ -340,13 +330,11 @@
       "en": "They are back on their feet. Come again.",
       "ko": "모두 건강해졌습니다. 또 오세요."
     },
-
     {
       "key": "battle.degraded",
       "en": "The battle resolved without a stage to show it on.",
       "ko": "전투를 보여줄 무대가 없어 결과만 처리했다."
     },
-
     {
       "key": "scanner.no_target",
       "en": "Nothing in range.",
@@ -356,6 +344,21 @@
       "key": "scanner.reading",
       "en": "Reading {0}.",
       "ko": "{0}(을)를 분석하는 중."
+    },
+    {
+      "key": "starter.blurb.433",
+      "en": "Grass ? a sturdy little partner.",
+      "ko": "풀 — 작은 몸에 든든한 힘을 지닌 파트너."
+    },
+    {
+      "key": "starter.blurb.436",
+      "en": "Fire ? an energetic little partner.",
+      "ko": "불꽃 — 활기 넘치는 파트너."
+    },
+    {
+      "key": "starter.blurb.439",
+      "en": "Water ? a proud little partner.",
+      "ko": "물 — 자신감 넘치는 파트너."
     }
   ]
 }

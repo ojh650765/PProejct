@@ -52,6 +52,8 @@ namespace PokeLab.Cinematics.Sequencing
         private Animator _timelineAnimator;
         private PlayableDirector _director;
         private bool _timelinePlaying;
+        private EpisodeTimelineDef _timelineDefinition;
+        private float _heldTimelineTime;
         private Coroutine _dolly;
 
         private readonly Dictionary<string, PlayableAsset> _timelineAssets =
@@ -152,7 +154,7 @@ namespace PokeLab.Cinematics.Sequencing
             ICinemachineCamera from, ICinemachineCamera to, CinemachineBlendDefinition proposed)
         {
             var rig = _instance;
-            if (rig == null || (!rig.IsOurs(from) && !rig.IsOurs(to))) return proposed;
+            if (rig == null || from == null || to == null) return proposed;
 
             if (!TryPosition(from, out var a) || !TryPosition(to, out var b)) return proposed;
 
@@ -162,7 +164,7 @@ namespace PokeLab.Cinematics.Sequencing
                 return new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.Cut, 0f);
 
             if (distance > 0.5f && Physics.SphereCast(a, 0.25f, span / distance, out _,
-                    distance - 0.4f, ~0, QueryTriggerInteraction.Ignore))
+                    distance - 0.4f, CameraPath.GeometryMask, QueryTriggerInteraction.Ignore))
                 return new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.Cut, 0f);
 
             return proposed;
@@ -183,7 +185,7 @@ namespace PokeLab.Cinematics.Sequencing
         {
             if (cam is CinemachineCamera cm)
             {
-                position = cm.transform.position;
+                position = cm.State.GetFinalPosition();
                 return true;
             }
             position = default;
@@ -192,8 +194,12 @@ namespace PokeLab.Cinematics.Sequencing
 
         // --- IEpisodeShotDirector ------------------------------------------------------------
 
+        private string _heldShotName;
         public bool ShowShot(string shotName)
         {
+            // Chained dialogue beats may request the same frame. Keep its pose and
+            // lens instead of alternating cameras and recomputing an orbit.
+            if (_heldShotName == shotName && !_timelinePlaying) return true;
             var shot = Book?.FindShot(shotName);
             if (shot == null)
             {
@@ -247,12 +253,14 @@ namespace PokeLab.Cinematics.Sequencing
             // is a Cinemachine blend between two poses rather than a cut inside one camera.
             _staticIndex = 1 - _staticIndex;
             var camera = _staticCameras[_staticIndex];
+            position = CameraPath.ClearPosition(position, aimPoint);
             camera.transform.SetPositionAndRotation(position, ShotMath.AimFrom(position, aimPoint));
             var lens = camera.Lens;
             lens.FieldOfView = shot.Fov > 1f ? shot.Fov : DefaultFov;
             camera.Lens = lens;
 
             Claim(camera);
+            _heldShotName = shotName;
 
             if (ShotMath.HasVector3(shot.DollyTo) && shot.DollySeconds > 0.01f)
             {
@@ -264,6 +272,7 @@ namespace PokeLab.Cinematics.Sequencing
 
         public void ReleaseShot()
         {
+            _heldShotName = null;
             StopDolly();
             if (_timelinePlaying) ForceFinishTimeline();
             Claim(null);
@@ -287,6 +296,7 @@ namespace PokeLab.Cinematics.Sequencing
         /// </summary>
         public IEnumerator PlayTimeline(string timelineName)
         {
+            _heldShotName = null;
             var asset = LoadTimeline(timelineName);
             if (asset == null) yield break;
 
@@ -295,6 +305,8 @@ namespace PokeLab.Cinematics.Sequencing
             if (_timelinePlaying) ForceFinishTimeline();
 
             var definition = Book?.FindTimeline(timelineName);
+            _timelineDefinition = definition;
+            _heldTimelineTime = 0;
             var lens = _timelineCamera.Lens;
             lens.FieldOfView = definition != null && definition.Fov > 1f ? definition.Fov : DefaultFov;
             _timelineCamera.Lens = lens;
@@ -336,6 +348,7 @@ namespace PokeLab.Cinematics.Sequencing
             if (_director == null || _director.playableAsset == null) return;
 
             _director.time = _director.playableAsset.duration;
+            _heldTimelineTime = (float)_director.time;
             _director.Evaluate();
 
             // Stop() tears the graph down; whether the animated transform survives that is a
@@ -344,6 +357,25 @@ namespace PokeLab.Cinematics.Sequencing
             body.GetPositionAndRotation(out var position, out var rotation);
             _director.Stop();
             body.SetPositionAndRotation(position, rotation);
+        }
+
+        private void LateUpdate()
+        {
+            if (_timelineCamera == null || _timelineDefinition == null
+                || _timelineCamera.Priority.Value != ShotPriorities.EpisodeShot) return;
+            float time = _timelinePlaying ? (float)_director.time : _heldTimelineTime;
+            foreach (var segment in _timelineDefinition.Segments)
+            {
+                if (time < segment.StartSeconds || time > segment.EndSeconds + .01f) continue;
+                float t = Mathf.InverseLerp(segment.StartSeconds, segment.EndSeconds, time);
+                ShotMath.SegmentPose(segment, t, out var position, out var rotation);
+                float eased = segment.Ease == 0 ? 0 : segment.Ease == 2 ? t : CameraPath.Ease(t);
+                var aim = Vector3.Lerp(ShotMath.ToVector3(segment.FromLookAt, position + Vector3.forward),
+                    ShotMath.ToVector3(segment.ToLookAt, position + Vector3.forward), eased);
+                position = CameraPath.ClearPosition(position, aim);
+                _timelineCamera.transform.SetPositionAndRotation(position, ShotMath.AimFrom(position, aim));
+                break;
+            }
         }
 
         // --- Internals -----------------------------------------------------------------------
@@ -435,8 +467,8 @@ namespace PokeLab.Cinematics.Sequencing
             while (elapsed < seconds)
             {
                 elapsed += Time.deltaTime;
-                var s = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / seconds));
-                var position = Vector3.Lerp(from, to, s);
+                var s = CameraPath.Ease(elapsed / Mathf.Max(0.01f, seconds));
+                var position = CameraPath.ClearPosition(Vector3.Lerp(from, to, s), aimPoint);
                 camera.transform.SetPositionAndRotation(position,
                     ShotMath.AimFrom(position, aimPoint));
                 yield return null;

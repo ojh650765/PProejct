@@ -1196,6 +1196,7 @@ def a_bridge(bm, rng, seed):
                       bm.verts.new((x, BR_DECK_Y, zb)),
                       bm.verts.new((x, BR_DECK_Y, zt)),
                       bm.verts.new((x, -BR_DECK_Y, zt))])
+    walking = bm.faces.layers.int.get('bridge_deck') or bm.faces.layers.int.new('bridge_deck')
     dfaces = []
     for i in range(len(rings) - 1):
         a, b = rings[i], rings[i + 1]
@@ -1207,6 +1208,8 @@ def a_bridge(bm, rng, seed):
     for f in dfaces:
         f.material_index = WOOD
         f.smooth = False
+    for f in dfaces:
+        f[walking] = 1
     bmesh.ops.recalc_face_normals(bm, faces=dfaces)
 
     # ---- stringers: three runs from abutment to abutment ----------------
@@ -1703,6 +1706,10 @@ def main():
         E.delete_obj(obj)
 
     E.write_part(FAM, part)
+    # The crossing exports separate deck/structure meshes for navigation.
+    # Keep the broad terrain rebuild on that same asset contract.
+    import runpy
+    runpy.run_path(os.path.join(os.path.dirname(__file__), 'rebuild_bridge.py'), run_name='__main__')
     E.log("---- %d terrain assets, %d with problems" % (len(part), len(problems)))
     for n, p in problems:
         E.log("  ISSUE %s: %s" % (n, p))

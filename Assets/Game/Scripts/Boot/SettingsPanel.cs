@@ -279,6 +279,7 @@ namespace PokeLab.Boot
         private void Update()
         {
             if (!IsOpen) return;
+            UiKeyboardCursor.Update(transform);
             var keyboard = UnityEngine.InputSystem.Keyboard.current;
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) Close();
         }

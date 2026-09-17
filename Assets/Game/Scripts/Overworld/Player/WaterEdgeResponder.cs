@@ -16,8 +16,13 @@ namespace PokeLab.Overworld
     [RequireComponent(typeof(CharacterController))]
     public sealed class WaterEdgeResponder : MonoBehaviour
     {
+        private OverworldInputReader _input;
+        private void Awake() => _input = GetComponent<OverworldInputReader>();
+
         private void OnControllerColliderHit(ControllerColliderHit hit)
         {
+            // Walking along the shore must never open a modal dialogue and freeze input.
+            if (_input == null || !_input.InputEnabled || !_input.InteractPressed) return;
             if (hit.collider == null) return;
 
             // Only when actually pushing into it. Brushing past a shoreline while walking
@@ -25,7 +30,11 @@ namespace PokeLab.Overworld
             if (Vector3.Dot(hit.moveDirection, hit.normal) > -0.35f) return;
 
             var edge = hit.collider.GetComponent<WaterEdge>();
-            if (edge != null) edge.Prompt();
+            if (edge != null)
+            {
+                _input.ConsumeInteract();
+                edge.Prompt();
+            }
         }
     }
 }

@@ -13,7 +13,7 @@
   "trainers": [
     {
       "_trainerId": "trainer_rival_01",
-      "_displayName": "Kes",
+      "_displayName": "Barry",
       "_trainerClass": "Rival",
       "npcId": "npc_rival_01",
       "sceneObject": "NPC_Rival",
@@ -52,8 +52,8 @@
         "note": "Wide cone and short range because this is not an ambush down a route -- he is two metres away, at the gate, and the player is walking past him on purpose. The approach speed is faster than the route trainers' 3.4 because he runs everywhere and it is the only characterisation the walk can carry. The battle is triggered by the rival_first_battle episode's Battle beat rather than left to the cone, so the cone only matters if the player wanders back."
       },
 
-      "designNote": "Uphill by design. Kes always holds the type advantage, at the same level, with no items -- which means a straight-ahead player usually loses this fight, and riv_won is written to be the more likely branch and to not read as a failure. This is Platinum's arrangement, not Diamond/Pearl's: in DP the first battle is two wild Starly at Lake Verity and the rival has no Pokémon at all until Route 203. See the episode note on rival_first_battle for why the Platinum version is the right one for a one-town slice.",
-      "notDone": "The battle engine's difficulty is unknown to this workstream. If a level-5 type-disadvantaged starter cannot win at all, the fix is Kes at level 4, not a change to the writing."
+      "designNote": "Uphill by design. Barry always holds the type advantage, at the same level, with no items -- which means a straight-ahead player usually loses this fight, and riv_won is written to be the more likely branch and to not read as a failure. This is Platinum's arrangement, not Diamond/Pearl's: in DP the first battle is two wild Starly at Lake Verity and the rival has no Pokémon at all until Route 203. See the episode note on rival_first_battle for why the Platinum version is the right one for a one-town slice.",
+      "notDone": "The battle engine's difficulty is unknown to this workstream. If a level-5 type-disadvantaged starter cannot win at all, the fix is Barry at level 4, not a change to the writing."
     },
 
     {

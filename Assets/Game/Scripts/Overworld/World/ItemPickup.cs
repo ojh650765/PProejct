@@ -56,8 +56,11 @@ namespace PokeLab.Overworld
         }
 
         private string _stableId;
+        private bool _taken;
 
         private string TakenFlagKey => "item_taken_" + StableId;
+
+        public void ConfigureIdentity(string id) => _pickupId = id;
 
         /// <summary>
         /// What the taken-flag is keyed on.
@@ -94,7 +97,7 @@ namespace PokeLab.Overworld
 
         public string InteractionPrompt => _prompt;
 
-        public bool CanInteract(GameObject instigator) => !string.IsNullOrEmpty(_itemId);
+        public bool CanInteract(GameObject instigator) => !_taken && isActiveAndEnabled && !string.IsNullOrEmpty(_itemId);
 
         /// <summary>Taken before anything can move the object, so the key never shifts under it.</summary>
         private void Awake() => _stableId = BuildStableId();
@@ -107,7 +110,18 @@ namespace PokeLab.Overworld
             // LevelLayoutBuilder and this object has to come back with the scene; what
             // must not come back is the item, and the flag is what remembers that.
             var profile = ResolveProfile();
-            if (profile != null && profile.GetFlagBool(TakenFlagKey)) gameObject.SetActive(false);
+            if (profile == null) return;
+            var taken = profile.GetFlagBool(TakenFlagKey);
+            if (!taken && !string.IsNullOrEmpty(_pickupId))
+            {
+                // Migrate the old position-based key after a level placement changes.
+                var prefix = "item_taken_" + gameObject.scene.name + "/" + name + "@";
+                foreach (var flag in profile.Flags)
+                    if (flag.Key.StartsWith(prefix, System.StringComparison.Ordinal) && flag.Value == "1")
+                    { taken = true; break; }
+                if (taken) profile.SetFlagBool(TakenFlagKey, true);
+            }
+            if (taken) { _taken = true; gameObject.SetActive(false); }
         }
 
         private static PlayerProfile ResolveProfile() =>
@@ -126,7 +140,9 @@ namespace PokeLab.Overworld
                 return;
             }
 
-            bag.AddItem(_itemId, _count);
+            if (bag == null) return;
+            _taken = true;
+            bag.AddItem(_itemId, Mathf.Max(1, _count));
             if (bag is PlayerProfile concrete) concrete.SetFlagBool(TakenFlagKey, true);
 
             if (_glow != null) _glow.SetActive(false);

@@ -117,35 +117,3 @@ body {
   font-size: 14px;
   line-height: 1.5;
 }
-
-/* --- the fullscreen hint -------------------------------------------------------------- */
-
-/*
- * A hint and not a button, deliberately. The old footer button was a control the player had to
- * find and press every session; this says what will happen on the click they were going to
- * make anyway, then gets out of the way and never comes back.
- */
-#unity-fullscreen-hint {
-  position: fixed;
-  left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
-  z-index: 25;
-  padding: 8px 16px;
-  border-radius: 999px;
-  background: rgba(8, 13, 22, 0.62);
-  color: rgba(242, 245, 250, 0.72);
-  font-size: 13px;
-  letter-spacing: 0.02em;
-  pointer-events: none;           /* never eats the click it is describing */
-  opacity: 1;
-  transition: opacity 0.45s ease;
-}
-
-#unity-fullscreen-hint.gone {
-  opacity: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #unity-fullscreen-hint { transition: none; }
-}

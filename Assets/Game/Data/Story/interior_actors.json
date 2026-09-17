@@ -1,0 +1,72 @@
+{
+  "actors": [
+    {
+      "scene": "Interior_Lab",
+      "actor": "NPC_Professor",
+      "npcId": "npc_professor_01",
+      "displayName": "Professor Rowan",
+      "personKey": "professor",
+      "episode": "lab_pokedex",
+      "requiresFlag": "story.lab_invited",
+      "completionFlag": "story.pokedex",
+      "position": [
+        0,
+        0.02,
+        0.7
+      ],
+      "radius": 3.2
+    },
+    {
+      "scene": "Interior_PlayerHome",
+      "actor": "NPC_Mom",
+      "npcId": "npc_mom",
+      "displayName": "npc_mom",
+      "personKey": "townswoman",
+      "episode": "home_journal",
+      "requiresFlag": "story.pokedex",
+      "completionFlag": "story.home_journal",
+      "position": [
+        -1.0,
+        0.02,
+        0.35
+      ],
+      "radius": 3.2
+    },
+    {
+      "scene": "Interior_PlayerHome",
+      "actor": "NPC_RivalMom",
+      "npcId": "npc_rival_mom",
+      "displayName": "npc_rival_mom",
+      "personKey": "elder_woman",
+      "episode": "home_parcel",
+      "requiresFlag": "story.home_journal",
+      "completionFlag": "story.home_ready",
+      "position": [
+        0,
+        0.02,
+        -4.25
+      ],
+      "radius": 3.2,
+      "appearsOnFlag": "story.home_journal",
+      "leavesOnFlag": "story.rival_mom_left"
+    },
+    {
+      "scene": "Route202",
+      "actor": "NPC_Mentor",
+      "npcId": "npc_mentor",
+      "displayName": "npc_mentor",
+      "personKey": "player_f",
+      "episode": "route202_capture",
+      "requiresFlag": "story.home_ready",
+      "completionFlag": "story.capture_learned",
+      "position": [
+        1.0,
+        0.02,
+        12
+      ],
+      "radius": 3.2,
+      "mentor": true,
+      "leavesOnFlag": "story.capture_learned"
+    }
+  ]
+}

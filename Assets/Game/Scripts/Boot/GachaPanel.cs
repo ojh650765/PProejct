@@ -60,18 +60,28 @@ namespace PokeLab.Boot
         private const int TeamSize = 6;
 
         /// <summary>
-        /// How many times you may draw before you have to keep one of them.
+        /// The counts the buttons offer.
         ///
-        /// The user's rule: five chances, and if you have not settled on one, a button in the
-        /// top right opens every group you drew so you can pick between them. Five is enough
-        /// that a bad first roll is not the run, and few enough that the choice is still a
-        /// choice rather than an inventory.
+        /// The user's rule: 무조건 6개가 아니라, 1개도 뽑을 수도 있고 ~n개를 뽑기 가능한거지.
+        /// One is the honest unit — you should be able to spend exactly what you have — five is
+        /// the everyday multi, and ten is what a saved-up purse is for. Anything the server
+        /// will not allow is clamped away in <see cref="RefreshPullStepper"/> rather than
+        /// discovered as a refusal.
         /// </summary>
-        private const int MaxDraws = 5;
+        /// <summary>Parts of the count stepper the refresh has to reach back into.</summary>
+        private TextMeshProUGUI _pullCount;
+        private Button _pullDown;
+        private Button _pullUp;
+        private UiPane _pullDownPane;
+        private UiPane _pullUpPane;
+        private TextMeshProUGUI _pullDownLabel;
+        private TextMeshProUGUI _pullUpLabel;
+
         private const float CardWidth = 216f;
         private const float CardHeight = 300f;
 
         private RectTransform _teamRoot;
+        private RectTransform _idleMark;
         private RectTransform _revealRoot;
         private TextMeshProUGUI _status;
         private RectTransform _statusPill;
@@ -80,14 +90,15 @@ namespace PokeLab.Boot
         private TextMeshProUGUI _rollLabel;
         private UiPane _rollPane;
 
-        private RectTransform _groupsRoot;
-        private RectTransform _groupsButton;
-        private TextMeshProUGUI _drawsLabel;
+        private TextMeshProUGUI _purseLabel;
 
-        /// <summary>Every group drawn this session, oldest first. Capped at <see cref="MaxDraws"/>.</summary>
-        private readonly List<GachaPull[]> _draws = new List<GachaPull[]>(MaxDraws);
-        /// <summary>Which of <see cref="_draws"/> the player has settled on. -1 before the first roll.</summary>
-        private int _chosen = -1;
+        /// <summary>How many the next press draws. Sticky across rolls, so a ten-pull run is one press each.</summary>
+        private int _pulls = 1;
+        private StarterTeamPicker _starterPicker;
+        private bool _accountLoaded;
+
+        /// <summary>The last roll, kept only so the grid can show what just arrived.</summary>
+        private GachaPull[] _lastPulls = Array.Empty<GachaPull>();
 
         private Coroutine _reveal;
         private bool _advance;
@@ -102,13 +113,31 @@ namespace PokeLab.Boot
             gameObject.SetActive(true);
             IsOpen = true;
             UiSound.MenuOpen();
+
+            // Arriving shows the party, not whatever was drawn last time the screen was open.
+            // The last roll is what the player wants to look at in the seconds after a reveal;
+            // a session later it is just a stale list standing where the team should be.
+            _lastPulls = Array.Empty<GachaPull>();
+
+            _accountLoaded = false;
             Build();
             Refresh();
+            var session = OnlineSession.Instance;
+            session.StartCoroutine(session.FetchRoster(ok =>
+            {
+                if (this == null || !IsOpen) return;
+                _accountLoaded = ok && session.GachaVersion >= 2;
+                Refresh();
+                if (ok && !_accountLoaded) Say(Loc.Pick("The gacha server needs an update.", "가챠 서버 업데이트가 필요해요."));
+                else if (!ok) Say(OnlineClient.Explain(session.LastError));
+                else if (session.StarterEligible && session.StarterGroups.Length == 5) ShowStarterGroups();
+            }));
         }
 
         public void Close()
         {
             if (_reveal != null) { StopCoroutine(_reveal); _reveal = null; }
+            if (_starterPicker != null) Destroy(_starterPicker.gameObject);
             IsOpen = false;
             UiSound.MenuClose();
             gameObject.SetActive(false);
@@ -160,16 +189,43 @@ namespace PokeLab.Boot
             UiBuilder.Anchor(_oddsText.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-40f, 0f));
 
-            BuildGroupsButton(safe);
+            BuildPurse(safe);
 
             _teamRoot = UiBuilder.Rect("Team", safe, false);
             UiBuilder.Anchor(_teamRoot, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), new Vector2(0f, 4f), new Vector2(1406f, CardHeight));
             UiBuilder.Grid(_teamRoot, new Vector2(CardWidth, CardHeight), new Vector2(22f, 22f), 6);
 
+            // What the middle of the screen is before the first pull of a visit.
+            //
+            // It used to be the player's team, which read as a result that had already
+            // happened. That was removed and the band became genuinely empty -- and an empty
+            // band is not restraint, it is a hole: two thirds of the screen with the roll
+            // button marooned at the bottom of it.
+            //
+            // So: the ball the reveal bursts from, sitting there dim and breathing. It is the
+            // same art at the same place, which makes the roll read as this waking up rather
+            // than as a cutscene arriving from nowhere. No caption -- the screen is titled
+            // 가챠 and the button states the price; a sentence here would only be explaining
+            // a space nobody was confused by.
+            _idleMark = UiBuilder.Rect("Idle", safe, false);
+            UiBuilder.Anchor(_idleMark, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(0f, 4f), new Vector2(300f, 300f));
+            _idleMark.SetAsFirstSibling();
+            var idleBall = UiJuice.Ball(_idleMark, 300f);
+            UiBuilder.Anchor(idleBall, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(300f, 300f));
+            UiIdle.Attach(idleBall, UiIdleMode.Bob, 12f, 3.8f);
+            // Dim enough to be scenery. At full strength it competes with the roll button for
+            // the eye, and the roll button is the thing to press.
+            SetAlpha(_idleMark.gameObject, 0.22f);
+
+            // Stacked up the screen from the bottom edge, and the numbers have to stay in
+            // that order: the roll button occupies 30..118, the pull chips 128..190, and this
+            // sits above both. It used to sit at 150, which put it straight through the chips.
             _statusPill = UiBuilder.Rect("Status", safe, false);
             UiBuilder.Anchor(_statusPill, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0.5f, 0f), new Vector2(0f, 150f), new Vector2(940f, 54f));
+                new Vector2(0.5f, 0f), new Vector2(0f, 206f), new Vector2(940f, 54f));
             var statusBack = UiBuilder.Image("Pill", _statusPill, UiSprites.Pill(46),
                 UiPalette.AceGlass.WithAlpha(0.72f));
             UiBuilder.Stretch(statusBack.rectTransform);
@@ -179,6 +235,11 @@ namespace PokeLab.Boot
                 UiPalette.AceText, TextAlignmentOptions.Center);
             UiBuilder.Anchor(_status.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-36f, -8f));
+            // Built hidden, because it is built empty. Say() is what shows it, and until
+            // something has been said there is no message -- only a capsule. That capsule was
+            // visible on arrival for every account with no free pulls left: a lit, rimmed,
+            // 940-wide box in the middle of the screen containing nothing.
+            _statusPill.gameObject.SetActive(false);
 
             var roll = UiBuilder.Rect("Roll", safe, false);
             UiBuilder.Anchor(roll, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
@@ -192,6 +253,7 @@ namespace PokeLab.Boot
                 UiPalette.AceText, TextAlignmentOptions.Center);
             UiBuilder.Anchor(_rollLabel.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-28f, -16f));
+            UiButtonMotion.Attach(roll, 22);
             _rollButton = UiBuilder.Button("Take", roll, _rollPane.Fill, Roll);
             // The one thing on the screen the player is here to press, and the only thing on it
             // that breathes.
@@ -206,17 +268,14 @@ namespace PokeLab.Boot
                 UiTextRole.Body, UiPalette.AceText, TextAlignmentOptions.Center);
             UiBuilder.Anchor(closeLabel.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-28f, -16f));
+            UiButtonMotion.Attach(close, 16);
             UiBuilder.Button("Take", close, closePane.Fill, Close);
+
+            BuildPullStepper(safe);
 
             UiJuice.PopIn(oddsPill, 0.06f, new Vector2(0f, 60f), 0.4f);
             UiJuice.PopIn(roll, 0.22f, new Vector2(0f, -90f), 0.42f);
             UiJuice.PopIn(close, 0.27f, new Vector2(0f, -90f), 0.42f);
-
-            // Above the team grid and below the reveal: the picker is a page over the screen,
-            // and the reveal is a page over everything.
-            _groupsRoot = UiBuilder.Rect("Groups", root, false);
-            UiBuilder.Stretch(_groupsRoot);
-            _groupsRoot.gameObject.SetActive(false);
 
             // Built last so it sits above everything, and left empty until a roll fills it.
             _revealRoot = UiBuilder.Rect("Reveal", root, false);
@@ -228,56 +287,134 @@ namespace PokeLab.Boot
         {
             var session = OnlineSession.Instance;
 
-            // A group the player picked wins over the session roster, because the picker is the
-            // whole point of drawing five times. Before the first roll there is nothing to pick
-            // between and the account's own team is what there is to show.
-            var roster = _chosen >= 0 && _chosen < _draws.Count
-                ? AsRoster(_draws[_chosen])
-                : session != null ? session.Roster : Array.Empty<RosterEntry>();
+            // The grid shows the LAST ROLL while there is one, and the party otherwise.
+            //
+            // With a collection there is no longer one team this screen is about: what the
+            // player wants to see the instant a reveal ends is what they just got, and what they
+            // want to see on arriving is who is currently fighting for them. Everything else
+            // they own lives on 내 포켓몬, which is the screen built for a list that grows.
+            var showing = _lastPulls != null && _lastPulls.Length > 0
+                ? AsCards(_lastPulls)
+                : Array.Empty<RosterEntry>();
 
             UiBuilder.ClearChildren(_teamRoot);
-            for (var slot = 0; slot < TeamSize; slot++)
+
+            // Exactly what was drawn, and nothing at all before that.
+            //
+            // This band used to fall back to the player's team, which made the screen look like
+            // it was reporting a pull whenever it was opened -- six creatures laid out as cards,
+            // indistinguishable from a result, hours after the last one was drawn. The team has
+            // its own screen now. Here, cards mean "you just got these" or there are no cards.
+            var afterRoll = _lastPulls != null && _lastPulls.Length > 0;
+            var cells = afterRoll
+                ? Mathf.Min(showing.Length, session != null ? session.MaxPulls : 10)
+                : 0;
+
+            // Ten pulls do not fit one row of six, so the grid grows a second row and the block
+            // is re-centred on it. The band between the odds pill and the status pill is about
+            // 690 reference units; two 300pt rows and a 22pt gutter is 622.
+            var rows = Mathf.Max(1, Mathf.CeilToInt(cells / 6f));
+            _teamRoot.sizeDelta = new Vector2(1406f, rows * CardHeight + (rows - 1) * 22f);
+
+            // Before the first pull of a visit the band is simply empty.
+            //
+            // It carried a caption for one revision -- "뽑은 포켓몬이 여기에 나와요" -- and that was
+            // a manual sentence explaining a space nobody was confused by: the screen is titled
+            // 가챠, the odds are stated above it and the button below says 1회 뽑기 · 500. Writing
+            // out what the middle is for is the kind of line that reads as translated, so the
+            // band keeps its height and says nothing.
+            if (cells == 0) _teamRoot.sizeDelta = new Vector2(1406f, CardHeight);
+            if (_idleMark != null) _idleMark.gameObject.SetActive(cells == 0);
+
+            for (var slot = 0; slot < cells; slot++)
             {
-                var entry = FindSlot(roster, slot);
-                BuildCard(_teamRoot, entry, slot);
+                BuildCard(_teamRoot, slot < showing.Length ? showing[slot] : null, slot);
             }
 
-            var hasTeam = _draws.Count > 0 || (session != null && session.HasTeam);
-            var spent = _draws.Count;
-            var left = Mathf.Max(0, MaxDraws - spent);
+            RefreshPurse();
+            RefreshPullStepper();
 
-            _rollLabel.text = left <= 0
-                ? Loc.Pick("No draws left", "뽑기 기회를 다 썼어요")
-                : hasTeam
-                    ? Loc.Pick($"Draw again ({left} left)", $"다시 뽑기 (남은 {left}회)")
-                    : Loc.Pick("Draw six", "여섯 마리 뽑기");
-            if (_rollButton != null) _rollButton.interactable = left > 0;
+            var starter = session != null && session.StarterEligible;
+            var affordable = _accountLoaded && session != null && !session.Busy && (starter || session.PendingRollCount > 0 || session.AffordablePulls >= _pulls);
+            var cost = CostOf(session, _pulls);
+
+            // The shortfall, not just the refusal. "코인이 부족해요" answers a question the
+            // player did not ask -- they can see the button is dead -- while leaving the one
+            // they did ask, which is how much more they need before it works.
+            _rollLabel.text = !_accountLoaded ? Loc.Pick("Loading…", "불러오는 중…")
+                : session != null && session.PendingRollCount > 0 ? Loc.Pick("Recover last draw", "이전 뽑기 결과 확인")
+                : starter ? Loc.Pick("Draw 5 free groups", "무료 5개 조합 뽑기")
+                : !affordable
+                ? Loc.Pick($"Need {Shortfall(session, cost):N0} more",
+                           $"{Shortfall(session, cost):N0} PP 더 필요")
+                : cost <= 0
+                    ? Loc.Pick($"Draw {_pulls} · free", $"{_pulls}회 뽑기 · 무료")
+                    : Loc.Pick($"Draw {_pulls} · {cost:N0} PP", $"{_pulls}회 뽑기 · {cost:N0} PP");
+
+            if (_pullCount != null) _pullCount.transform.parent.parent.gameObject.SetActive(!starter);
+            if (_rollButton != null) _rollButton.interactable = affordable;
             if (_rollPane.IsValid)
             {
                 UiJuice.Recolour(_rollPane,
-                    left > 0 ? UiPalette.AceRed.WithAlpha(0.92f) : UiPalette.AceGlass.WithAlpha(0.4f));
+                    affordable ? UiPalette.AceRed.WithAlpha(0.92f) : UiPalette.AceGlass.WithAlpha(0.4f));
             }
 
-            RefreshGroupsButton();
-
+            // The idle line says one thing and only when it is worth saying.
+            //
+            // It used to explain the economy every time the screen was opened -- where PP come
+            // from, what a duplicate turns into -- which is a manual read out at somebody who has
+            // opened this screen fifty times. Free pulls are the exception: that is a fact about
+            // the player's account right now, and it expires.
             if (_status != null && string.IsNullOrEmpty(_status.text))
             {
-                Say(spent == 0
-                    ? Loc.Pick("Six pulls, no duplicates. Five draws to find a team you like.",
-                               "여섯 번, 중복 없이 뽑아요. 마음에 드는 팀이 나올 때까지 다섯 번 뽑을 수 있어요.")
-                    : left > 0
-                        ? Loc.Pick($"{spent} drawn, {left} to go. Compare them from the button above.",
-                                   $"{spent}조합을 뽑았어요. {left}번 더 뽑거나, 위 버튼에서 비교해 고를 수 있어요.")
-                        : Loc.Pick("All five drawn. Pick the one you want from the button above.",
-                                   "다섯 조합을 모두 뽑았어요. 위 버튼에서 원하는 조합을 고르세요."));
+                var free = session != null ? session.FreePulls : 0;
+                // Said either way: Say("") is what takes the pill back down, and skipping the
+                // call is what left it standing there empty.
+                Say(free > 0
+                    ? Loc.Pick($"{free} free pulls left.", $"무료 뽑기 {free}회가 남았어요.")
+                    : "");
             }
         }
 
-        private static RosterEntry FindSlot(RosterEntry[] roster, int slot)
+        /// <summary>Coins the given number of pulls would cost, free pulls taken off first.</summary>
+        /// <summary>How many more PP this draw needs. Never negative.</summary>
+        private static int Shortfall(OnlineSession session, int cost) =>
+            Mathf.Max(0, cost - (session?.Coins ?? 0));
+
+        private static int CostOf(OnlineSession session, int pulls)
         {
-            if (roster == null) return null;
-            foreach (var entry in roster) if (entry != null && entry.slot == slot) return entry;
-            return null;
+            if (session == null) return 0;
+            var paid = Mathf.Max(0, pulls - session.FreePulls);
+            return paid * session.PullCost;
+        }
+
+        /// <summary>
+        /// The last roll as cards.
+        ///
+        /// A duplicate is shown as the creature it was, marked, rather than hidden: the shard it
+        /// became is the only route to 돌파, so the screen says so instead of looking like a
+        /// pull that did nothing.
+        /// </summary>
+        private static RosterEntry[] AsCards(GachaPull[] pulls)
+        {
+            if (pulls == null) return Array.Empty<RosterEntry>();
+            var cards = new RosterEntry[pulls.Length];
+            for (var i = 0; i < pulls.Length; i++)
+            {
+                var pull = pulls[i];
+                cards[i] = new RosterEntry
+                {
+                    speciesId = pull.speciesId,
+                    level = pull.level,
+                    experience = pull.level <= 1 ? 0 : pull.level * pull.level * pull.level,
+                    rarity = pull.rarity,
+                    slot = pull.slot,
+                    // Borrowed as the "this was a duplicate" mark. The card only ever draws the
+                    // last roll, where a shard count of its own would mean nothing.
+                    shards = pull.duplicate ? 1 : 0,
+                };
+            }
+            return cards;
         }
 
         /// <summary>
@@ -370,6 +507,26 @@ namespace PokeLab.Boot
             UiBuilder.Anchor(level.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
                 new Vector2(0.5f, 0f), new Vector2(0f, 10f), new Vector2(-36f, 30f));
 
+            // 돌파 조각, top-right, when this creature has any.
+            //
+            // On a card drawn from the last roll it means "you already had this one, and the
+            // pull became a piece" — which is a result, not a blank. On a party card it is the
+            // standing count, and the same badge answering the same question either way is why
+            // there is only one of it.
+            if (entry.shards > 0)
+            {
+                var piece = UiBuilder.Rect("Shards", card, false);
+                UiBuilder.Anchor(piece, new Vector2(1f, 1f), new Vector2(1f, 1f),
+                    new Vector2(1f, 1f), new Vector2(-10f, -10f), new Vector2(74f, 34f));
+                var pieceFace = UiBuilder.Image("Face", piece, UiSprites.Pill(28),
+                    UiPalette.AceViolet.WithAlpha(0.94f));
+                UiBuilder.Stretch(pieceFace.rectTransform);
+                var pieceText = UiBuilder.Text("Text", piece, "◆ " + entry.shards, UiTextRole.Caption,
+                    UiPalette.AceText, TextAlignmentOptions.Center);
+                UiBuilder.Anchor(pieceText.rectTransform, Vector2.zero, Vector2.one,
+                    new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-10f, 0f));
+            }
+
             UiJuice.PopIn(card, 0.05f + slot * 0.05f, new Vector2(0f, -60f), 0.44f);
         }
 
@@ -421,298 +578,232 @@ namespace PokeLab.Boot
         }
 
         /// <summary>A drawn group, in the shape the team grid draws.</summary>
-        private static RosterEntry[] AsRoster(GachaPull[] pulls)
-        {
-            if (pulls == null) return Array.Empty<RosterEntry>();
-            var roster = new RosterEntry[pulls.Length];
-            for (var i = 0; i < pulls.Length; i++)
-            {
-                var pull = pulls[i];
-                roster[i] = new RosterEntry
-                {
-                    speciesId = pull.speciesId,
-                    level = pull.level,
-                    experience = pull.level <= 1 ? 0 : pull.level * pull.level * pull.level,
-                    rarity = pull.rarity,
-                    slot = i,
-                };
-            }
-            return roster;
-        }
-
-        // --- The picker ---------------------------------------------------------------------
-
-        /// <summary>
-        /// The button in the top right that opens every group drawn this session.
-        ///
-        /// It exists because five draws with no way back is not five chances, it is one chance
-        /// taken five times: the fifth roll overwrites the fourth whether the fourth was better
-        /// or not. The button is the memory of the other four.
-        /// </summary>
-        private void BuildGroupsButton(Transform safe)
-        {
-            _groupsButton = UiBuilder.Rect("Groups", safe, false);
-            UiBuilder.Anchor(_groupsButton, new Vector2(1f, 1f), new Vector2(1f, 1f),
-                new Vector2(1f, 1f), Vector2.zero, new Vector2(330f, 76f));
-
-            var pane = UiJuice.Pane("Pane", _groupsButton, UiPalette.AceGlass.WithAlpha(0.78f), 18,
-                true, true, true, UiPalette.AceRim, 76);
-
-            var glyph = UiBuilder.Image("Glyph", _groupsButton, UiSprites.BarsGlyph(64, 3, 0.16f),
-                UiPalette.AceCyan, Image.Type.Simple);
-            UiBuilder.Anchor(glyph.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                new Vector2(0.5f, 0.5f), new Vector2(38f, 0f), new Vector2(30f, 30f));
-
-            var label = UiBuilder.Text("Label", _groupsButton, Loc.Pick("Drawn groups", "뽑은 조합"),
-                UiTextRole.Body, UiPalette.AceText, TextAlignmentOptions.Left);
-            UiBuilder.Anchor(label.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 1f),
-                new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
-            label.rectTransform.offsetMin = new Vector2(64f, 8f);
-            label.rectTransform.offsetMax = new Vector2(-86f, -8f);
-
-            var badge = UiBuilder.Rect("Badge", _groupsButton, false);
-            UiBuilder.Anchor(badge, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(0.5f, 0.5f), new Vector2(-44f, 0f), new Vector2(64f, 40f));
-            var badgeBack = UiBuilder.Image("Pill", badge, UiSprites.Pill(32), UiPalette.AceCyan);
-            UiBuilder.Stretch(badgeBack.rectTransform);
-            _drawsLabel = UiBuilder.Text("Text", badge, "0/5", UiTextRole.Caption,
-                UiPalette.AceInk, TextAlignmentOptions.Center);
-            UiBuilder.Anchor(_drawsLabel.rectTransform, Vector2.zero, Vector2.one,
-                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-8f, 0f));
-
-            UiBuilder.Button("Take", _groupsButton, pane.Fill, OpenGroups);
-            UiJuice.PopIn(_groupsButton, 0.1f, new Vector2(0f, 70f), 0.42f);
-        }
-
-        private void RefreshGroupsButton()
-        {
-            if (_drawsLabel != null) _drawsLabel.text = _draws.Count + "/" + MaxDraws;
-            // Nothing drawn, nothing to compare: the button would be a door onto an empty room.
-            if (_groupsButton != null) _groupsButton.gameObject.SetActive(_draws.Count > 0);
-        }
-
-        private void OpenGroups()
-        {
-            if (_draws.Count == 0) { UiSound.Error(); return; }
-            UiSound.MenuOpen();
-            BuildGroups();
-            _groupsRoot.gameObject.SetActive(true);
-        }
-
-        private void CloseGroups()
-        {
-            if (_groupsRoot == null) return;
-            UiSound.MenuClose();
-            _groupsRoot.gameObject.SetActive(false);
-        }
-
-        /// <summary>
-        /// The picker itself: one row per group, six creatures across it, and the row the
-        /// account is actually holding marked as such.
-        ///
-        /// <b>What choosing does, honestly.</b> The server writes the roster on every roll, so
-        /// the group it holds is always the one drawn last. Choosing an earlier group here
-        /// changes what this screen shows and is remembered for the rest of the session; making
-        /// it the account's team as well needs an endpoint that does not exist yet, and the row
-        /// marked 현재 팀 is what the server would send to a battle today. The screen says that
-        /// rather than implying otherwise.
-        /// </summary>
-        private void BuildGroups()
-        {
-            UiBuilder.ClearChildren(_groupsRoot);
-
-            var scrim = UiBuilder.Backdrop("Scrim", _groupsRoot, null,
-                UiPalette.AceNight.WithAlpha(0.82f), true);
-            UiBuilder.Stretch(scrim.rectTransform);
-
-            var card = UiBuilder.Rect("Card", _groupsRoot, false);
-            UiBuilder.Anchor(card, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1480f, 900f));
-            UiJuice.Pane("Glass", card, UiPalette.AceGlass.WithAlpha(0.92f), 26, true, true, true,
-                UiPalette.AceRim, 240);
-
-            var stripe = UiBuilder.Image("Stripe", card, UiSprites.Pill(8), UiPalette.AceCyan);
-            UiBuilder.Anchor(stripe.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(-1180f, 8f));
-
-            var title = UiBuilder.Text("Title", card, Loc.Pick("Drawn groups", "뽑은 조합"),
-                UiTextRole.Title, UiPalette.AceText, TextAlignmentOptions.Left);
-            UiBuilder.Anchor(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, 1f), new Vector2(48f, -32f), new Vector2(-500f, 68f));
-
-            var note = UiBuilder.Text("Note", card, Loc.Pick(
-                    "The account keeps the group you drew last. Choosing another one here changes what this screen shows.",
-                    "계정에는 마지막으로 뽑은 조합이 저장돼요. 여기서 다른 조합을 고르면 이 화면에 그 조합이 표시돼요."),
-                UiTextRole.Caption, UiPalette.AceTextDim, TextAlignmentOptions.Left);
-            UiBuilder.Anchor(note.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, 1f), new Vector2(48f, -96f), new Vector2(-380f, 28f));
-
-            var stack = UiBuilder.Rect("Rows", card, false);
-            var rowHeight = 116f;
-            var spacing = 12f;
-            UiBuilder.Anchor(stack, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f),
-                new Vector2(40f, -150f), new Vector2(-80f, _draws.Count * (rowHeight + spacing)));
-            UiBuilder.Vertical(stack, spacing);
-
-            for (var i = 0; i < _draws.Count; i++)
-            {
-                BuildGroupRow(stack, i, rowHeight);
-            }
-
-            var close = UiBuilder.Rect("Close", card, false);
-            UiBuilder.Anchor(close, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
-                new Vector2(-48f, 36f), new Vector2(220f, 72f));
-            var closePane = UiJuice.Pane("Pane", close, UiPalette.AceGlassLift.WithAlpha(0.8f), 18,
-                false, true, true, UiPalette.AceRim, 72);
-            var closeLabel = UiBuilder.Text("Label", close, Loc.Pick("Close", "닫기"), UiTextRole.Body,
-                UiPalette.AceText, TextAlignmentOptions.Center);
-            UiBuilder.Anchor(closeLabel.rectTransform, Vector2.zero, Vector2.one,
-                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-20f, -14f));
-            UiBuilder.Button("Take", close, closePane.Fill, CloseGroups);
-
-            UiJuice.PopScale(card, 0f, 0.9f, 0.34f);
-        }
-
-        private void BuildGroupRow(Transform stack, int index, float rowHeight)
-        {
-            var pulls = _draws[index];
-            var live = index == _draws.Count - 1;
-            var picked = index == _chosen;
-
-            var row = UiBuilder.Rect("Group_" + index, stack, false);
-            UiBuilder.Size(row, 1400f, rowHeight, flexibleWidth: 1f);
-
-            var pane = UiJuice.Pane("Pane", row,
-                picked ? UiPalette.AceSelect.WithAlpha(0.16f) : UiPalette.AceGlass.WithAlpha(0.5f),
-                16, false, true, true,
-                picked ? UiPalette.AceLime.WithAlpha(0.9f) : UiPalette.AceRim, 116);
-
-            var number = UiBuilder.Text("Number", row, (index + 1).ToString(), UiTextRole.Heading,
-                picked ? UiPalette.AceLime : UiPalette.AceTextDim, TextAlignmentOptions.Center);
-            UiBuilder.Anchor(number.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                new Vector2(0.5f, 0.5f), new Vector2(72f, 14f), new Vector2(56f, 48f));
-
-            if (live)
-            {
-                var badge = UiBuilder.Rect("Live", row, false);
-                UiBuilder.Anchor(badge, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                    new Vector2(0.5f, 0.5f), new Vector2(72f, -32f), new Vector2(108f, 26f));
-                var back = UiBuilder.Image("Pill", badge, UiSprites.Pill(20), UiPalette.AceCyan);
-                UiBuilder.Stretch(back.rectTransform);
-                var text = UiBuilder.Text("Text", badge, Loc.Pick("ON ACCOUNT", "현재 팀"),
-                    UiTextRole.Caption, UiPalette.AceInk, TextAlignmentOptions.Center);
-                UiBuilder.Anchor(text.rectTransform, Vector2.zero, Vector2.one,
-                    new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-6f, 0f));
-            }
-
-            for (var i = 0; i < pulls.Length && i < TeamSize; i++)
-            {
-                BuildGroupTile(row, pulls[i], i);
-            }
-
-            var take = UiBuilder.Rect("Take", row, false);
-            UiBuilder.Anchor(take, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(1f, 0.5f), new Vector2(-20f, 0f), new Vector2(150f, 60f));
-            var takePane = UiJuice.Pane("Pane", take,
-                picked ? UiPalette.AceLime.WithAlpha(0.9f) : UiPalette.AceGlassLift.WithAlpha(0.85f),
-                16, false, true, true, UiPalette.AceRim, 60);
-            var takeLabel = UiBuilder.Text("Label", take,
-                picked ? Loc.Pick("Chosen", "선택됨") : Loc.Pick("Choose", "선택"),
-                UiTextRole.Body, picked ? UiPalette.AceInk : UiPalette.AceText, TextAlignmentOptions.Center);
-            UiBuilder.Anchor(takeLabel.rectTransform, Vector2.zero, Vector2.one,
-                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-12f, -12f));
-
-            var captured = index;
-            UiBuilder.Button("Pick", take, takePane.Fill, () => ChooseGroup(captured));
-        }
-
-        private void BuildGroupTile(Transform row, GachaPull pull, int slot)
-        {
-            var rank = Mathf.Clamp(pull.rarityRank, 0, 4);
-            var accent = UiPalette.Rarity(rank);
-
-            var tile = UiBuilder.Rect("Tile_" + slot, row, false);
-            UiBuilder.Anchor(tile, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                new Vector2(0f, 0.5f), new Vector2(150f + slot * 174f, 0f), new Vector2(164f, 88f));
-
-            UiJuice.Pane("Pane", tile, UiPalette.AceGlass.WithAlpha(0.62f), 14, false, true, false,
-                accent.WithAlpha(0.55f));
-
-            var glyph = UiBuilder.Image("Glyph", tile, UiSprites.BallGlyph(96, 9), accent,
-                Image.Type.Simple);
-            UiBuilder.Anchor(glyph.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                new Vector2(0.5f, 0.5f), new Vector2(30f, 0f), new Vector2(34f, 34f));
-
-            var name = UiBuilder.Text("Name", tile, SpeciesName(pull.speciesId), UiTextRole.Caption,
-                UiPalette.AceText, TextAlignmentOptions.Left);
-            UiBuilder.Anchor(name.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, 1f), new Vector2(54f, -14f), new Vector2(-64f, 28f));
-
-            var level = UiBuilder.Text("Level", tile, "Lv " + pull.level, UiTextRole.Caption,
-                UiPalette.AceTextDim, TextAlignmentOptions.Left);
-            UiBuilder.Anchor(level.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f),
-                new Vector2(0f, 1f), new Vector2(54f, -46f), new Vector2(-64f, 26f));
-        }
-
-        /// <summary>Settles on one of the drawn groups and says plainly what that does.</summary>
-        private void ChooseGroup(int index)
-        {
-            if (index < 0 || index >= _draws.Count) return;
-
-            _chosen = index;
-            UiSound.Confirm();
-            CloseGroups();
-            Refresh();
-
-            Say(index == _draws.Count - 1
-                ? Loc.Pick($"Group {index + 1} it is. This is the team on your account.",
-                           $"{index + 1}번 조합으로 정했어요. 계정에 저장된 팀이에요.")
-                : Loc.Pick($"Showing group {index + 1}. Your account still holds the group you drew last.",
-                           $"{index + 1}번 조합을 보고 있어요. 계정에는 마지막으로 뽑은 조합이 저장되어 있어요."));
-        }
-
         // --- Rolling ---------------------------------------------------------------------------
 
         private void Roll()
         {
             var session = OnlineSession.Instance;
-            if (session == null || session.Busy || _reveal != null) return;
-
-            if (_draws.Count >= MaxDraws)
+            if (!_accountLoaded || session == null || session.Busy || _reveal != null) return;
+            if (session.StarterEligible)
             {
-                UiSound.Error();
-                Say(Loc.Pick("No draws left. Pick one of the five you already have.",
-                             "뽑기 기회를 다 썼어요. 이미 뽑은 다섯 조합 중에서 골라 주세요."));
+                _rollButton.interactable = false;
+                session.StartCoroutine(session.StarterGacha(-1, response =>
+                {
+                    if (this == null || !IsOpen) return;
+                    Refresh();
+                    if (response == null) Say(OnlineClient.Explain(session.LastError));
+                    else ShowStarterGroups();
+                }));
                 return;
             }
 
-            var reroll = session.HasTeam;
+            if (session.PendingRollCount == 0 && session.AffordablePulls < _pulls)
+            {
+                UiSound.Error();
+                var cost = CostOf(session, _pulls);
+                var short_ = Shortfall(session, cost);
+                Say(Loc.Pick(
+                    $"{cost:N0} PP needed, {session.Coins:N0} in hand — {short_:N0} short. " +
+                    "Battles pay whether you win or lose.",
+                    $"{cost:N0} PP가 필요한데 {session.Coins:N0} PP뿐이에요. " +
+                    $"{short_:N0} PP가 모자라요. 대전은 이기든 지든 PP를 줘요."));
+                return;
+            }
+
             Say(Loc.Pick("Drawing…", "뽑는 중…"));
             _rollButton.interactable = false;
             UiSound.Confirm();
             UiJuice.Squash(_rollPane.Root);
 
-            StartCoroutine(session.RollGacha(TeamSize, reroll, response =>
+            session.StartCoroutine(session.RollGacha(_pulls, response =>
             {
+                if (this == null || !IsOpen) return;
                 _rollButton.interactable = true;
 
                 if (response == null)
                 {
                     UiSound.Error();
                     Say(OnlineClient.Explain(session.LastError));
+                    Refresh();
                     return;
                 }
 
                 Say("");
-                if (response.pulls != null && response.pulls.Length > 0)
-                {
-                    _draws.Add(response.pulls);
-                    // The newest group becomes the shown one, because that is the one the
-                    // server now holds and the one the player just watched arrive.
-                    _chosen = _draws.Count - 1;
-                }
+                _lastPulls = response.pulls ?? Array.Empty<GachaPull>();
                 _reveal = StartCoroutine(Reveal(response.pulls));
             }));
+        }
+
+        private void ShowStarterGroups()
+        {
+            if (_starterPicker != null) Destroy(_starterPicker.gameObject);
+            _starterPicker = StarterTeamPicker.Show(transform, OnlineSession.Instance.StarterGroups, () =>
+            {
+                var session = OnlineSession.Instance;
+                _lastPulls = session.StarterGroups[session.StarterSelected].pulls;
+                Refresh();
+                Say(Loc.Pick("Your team is ready!", "선택한 팀으로 대전할 준비가 됐어요!"));
+            });
+        }
+
+        // --- The purse and the pull counts ------------------------------------------------
+
+        /// <summary>
+        /// What the account can spend, in the corner the group picker used to sit in.
+        ///
+        /// It replaced that button rather than joining it. A collection is never overwritten, so
+        /// there are no earlier groups to compare against and the picker answered a question the
+        /// game stopped asking; what a player needs in its place is the one number that decides
+        /// whether the button below is pressable.
+        /// </summary>
+        private void BuildPurse(Transform safe)
+        {
+            var purse = UiBuilder.Rect("Purse", safe, false);
+            UiBuilder.Anchor(purse, new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(1f, 1f), Vector2.zero, new Vector2(380f, 76f));
+
+            UiJuice.Pane("Pane", purse, UiPalette.AceGlass.WithAlpha(0.78f), 18,
+                true, true, true, UiPalette.AceRim, 76);
+
+            var coin = UiBuilder.Image("Coin", purse, UiSprites.BallGlyph(48, 5),
+                UiPalette.AceGold, Image.Type.Simple);
+            UiBuilder.Anchor(coin.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(0.5f, 0.5f), new Vector2(38f, 0f), new Vector2(32f, 32f));
+
+            _purseLabel = UiBuilder.Text("Text", purse, "0", UiTextRole.Body,
+                UiPalette.AceText, TextAlignmentOptions.Right);
+            UiBuilder.Anchor(_purseLabel.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 1f),
+                new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            _purseLabel.rectTransform.offsetMin = new Vector2(66f, 8f);
+            _purseLabel.rectTransform.offsetMax = new Vector2(-26f, -8f);
+            _purseLabel.textWrappingMode = TextWrappingModes.NoWrap;
+
+            UiJuice.PopIn(purse, 0.1f, new Vector2(0f, 70f), 0.42f);
+        }
+
+        private void RefreshPurse()
+        {
+            if (_purseLabel == null) return;
+            var session = OnlineSession.Instance;
+            var PP = session != null ? session.Coins : 0;
+            var free = session != null ? session.FreePulls : 0;
+
+            _purseLabel.text = free > 0
+                ? Loc.Pick($"{PP:N0}  ·  {free} free", $"{PP:N0}  ·  무료 {free}회")
+                : $"{PP:N0} PP";
+        }
+
+        /// <summary>
+        /// How many to draw: two arrows and the number between them.
+        ///
+        /// <b>Why not the three chips this replaces.</b> x1 / x5 / x10 offered three counts and
+        /// implied there were only three, which is not what the route does -- the Worker takes
+        /// any number up to MAX_PULLS_PER_ROLL. A stepper says the real rule without a legend:
+        /// the number goes up, the number goes down, and it stops where the server stops.
+        ///
+        /// Arrows rather than a typed field. A text input on this screen would want a keyboard,
+        /// and this is the screen that opens on a phone.
+        /// </summary>
+        private void BuildPullStepper(Transform safe)
+        {
+            const float arrow = 64f;
+            const float box = 132f;
+            const float height = 62f;
+            const float gap = 10f;
+            var total = arrow * 2f + box + gap * 2f;
+
+            var row = UiBuilder.Rect("Pulls", safe, false);
+            UiBuilder.Anchor(row, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(-150f, 128f), new Vector2(total, height));
+
+            _pullDown = StepperArrow(row, "Down", "‹", 0f, arrow, height, -1);
+
+            var field = UiBuilder.Rect("Count", row, false);
+            UiBuilder.Anchor(field, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f), new Vector2(arrow + gap, 0f), new Vector2(box, height));
+            UiJuice.Pane("Pane", field, UiPalette.AceGlass.WithAlpha(0.72f), 16,
+                true, true, true, UiPalette.AceRim, (int)height);
+            _pullCount = UiBuilder.Text("Label", field, "1", UiTextRole.Numeric,
+                UiPalette.AceText, TextAlignmentOptions.Center);
+            UiBuilder.Anchor(_pullCount.rectTransform, Vector2.zero, Vector2.one,
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-12f, -12f));
+            _pullCount.textWrappingMode = TextWrappingModes.NoWrap;
+
+            _pullUp = StepperArrow(row, "Up", "›", arrow + gap + box + gap, arrow, height, 1);
+
+            UiJuice.PopIn(row, 0.18f, new Vector2(0f, -60f), 0.4f);
+        }
+
+        /// <summary>One arrow. Returns the button so the refresh can grey it at its limit.</summary>
+        private Button StepperArrow(Transform row, string name, string glyph, float x,
+                                    float width, float height, int delta)
+        {
+            var cell = UiBuilder.Rect(name, row, false);
+            UiBuilder.Anchor(cell, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f), new Vector2(x, 0f), new Vector2(width, height));
+
+            var pane = UiJuice.Pane("Pane", cell, UiPalette.AceGlass.WithAlpha(0.72f), 16,
+                true, true, true, UiPalette.AceRim, (int)height);
+            var label = UiBuilder.Text("Label", cell, glyph, UiTextRole.Body,
+                UiPalette.AceText, TextAlignmentOptions.Center);
+            UiBuilder.Anchor(label.rectTransform, Vector2.zero, Vector2.one,
+                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-8f, -10f));
+
+            if (delta < 0) _pullDownPane = pane; else _pullUpPane = pane;
+            if (delta < 0) _pullDownLabel = label; else _pullUpLabel = label;
+
+            UiButtonMotion.Attach(cell, 16);
+            return UiBuilder.Button("Take", cell, pane.Fill, () => StepPulls(delta));
+        }
+
+        /// <summary>Nudges the count, clamped to what the route will accept.</summary>
+        private void StepPulls(int delta)
+        {
+            var session = OnlineSession.Instance;
+            var ceiling = session != null ? Mathf.Max(1, session.MaxPulls) : 10;
+            var wanted = Mathf.Clamp(_pulls + delta, 1, ceiling);
+            if (wanted == _pulls) { UiSound.Error(); return; }
+            ChoosePulls(wanted);
+        }
+
+        private void ChoosePulls(int count)
+        {
+            if (_pulls == count) return;
+            _pulls = count;
+            UiSound.Navigate();
+            Say("");
+            Refresh();
+        }
+
+        private void RefreshPullStepper()
+        {
+            var session = OnlineSession.Instance;
+            var ceiling = session != null ? Mathf.Max(1, session.MaxPulls) : 10;
+
+            // Never leave the count above what the route accepts. Silently: this runs on every
+            // refresh and a sentence about it would fire on arrival.
+            _pulls = session != null && session.PendingRollCount > 0 ? session.PendingRollCount : Mathf.Clamp(_pulls, 1, ceiling);
+
+            if (_pullCount != null)
+            {
+                _pullCount.text = _pulls.ToString();
+                // Amber once the purse cannot cover the count. The number still moves -- seeing
+                // that ten is out of reach is the argument for going and battling -- but it says
+                // so before the draw button has to.
+                var affordable = session != null ? session.AffordablePulls : 0;
+                _pullCount.color = _pulls <= affordable ? UiPalette.AceText : UiPalette.AceGold;
+            }
+
+            SetArrow(_pullDown, _pullDownPane, _pullDownLabel, _pulls > 1 && session.PendingRollCount == 0);
+            SetArrow(_pullUp, _pullUpPane, _pullUpLabel, _pulls < ceiling && session.PendingRollCount == 0);
+        }
+
+        private static void SetArrow(Button button, UiPane pane, TextMeshProUGUI label, bool live)
+        {
+            if (button != null) button.interactable = live;
+            if (pane.IsValid)
+                UiJuice.Recolour(pane, UiPalette.AceGlass.WithAlpha(live ? 0.72f : 0.28f));
+            if (label != null) label.color = live ? UiPalette.AceText : UiPalette.AceTextFaint;
         }
 
         /// <summary>
@@ -1056,6 +1147,23 @@ namespace PokeLab.Boot
             // white flash and a moving starburst, and nothing else would hold its edge there.
             UiJuice.Ink(name, UiPalette.AceNight, 5f, 6f);
 
+            // A duplicate says so, under the name, in the moment it lands.
+            //
+            // It has to be said HERE and not only afterwards. The whole reveal is built to
+            // promise something by how loudly it shakes, and a legendary you already own shakes
+            // just as hard as one you do not — so a player who is not told reads the fanfare as
+            // a lie the second time it happens. Saying what it became instead keeps the promise
+            // true: a piece is not nothing, it is the only route to 돌파.
+            if (pull.duplicate)
+            {
+                var already = UiBuilder.Text("Duplicate", card,
+                    Loc.Pick("Already yours · +1 breakthrough piece", "이미 가진 포켓몬 · 돌파 조각 +1"),
+                    UiTextRole.Body, UiPalette.AceViolet, TextAlignmentOptions.Center);
+                UiBuilder.Anchor(already.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f),
+                    new Vector2(0.5f, 0f), new Vector2(0f, 30f), new Vector2(0f, 44f));
+                UiJuice.Ink(already, UiPalette.AceNight, 4f, 5f);
+            }
+
             // The ribbon arrives after the creature and from the side, so the two do not read
             // as one object landing.
             banner.anchoredPosition += new Vector2(-560f, 0f);
@@ -1099,6 +1207,7 @@ namespace PokeLab.Boot
             UiBuilder.Anchor(label.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-20f, -14f));
 
+            UiButtonMotion.Attach(skip, 16);
             UiBuilder.Button("Take", skip, pane.Fill, () => _skip = true);
         }
 
@@ -1133,20 +1242,25 @@ namespace PokeLab.Boot
             if (!IsOpen) return;
 
             var keyboard = Keyboard.current;
+            if (_starterPicker != null)
+            {
+                if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) Destroy(_starterPicker.gameObject);
+                return;
+            }
+            if (_reveal == null) UiKeyboardCursor.Update(transform);
             var mouse = Mouse.current;
 
             var pressed =
                 (keyboard != null && (keyboard.spaceKey.wasPressedThisFrame
-                                      || keyboard.enterKey.wasPressedThisFrame))
+                                      || (keyboard.enterKey.wasPressedThisFrame || keyboard.fKey.wasPressedThisFrame)))
                 || (mouse != null && mouse.leftButton.wasPressedThisFrame);
 
             if (pressed) _advance = true;
 
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
             {
-                // Innermost surface first: the reveal, then the picker, then the panel itself.
+                // Innermost surface first: the reveal, then the panel itself.
                 if (_reveal != null) _skip = true;
-                else if (_groupsRoot != null && _groupsRoot.gameObject.activeSelf) CloseGroups();
                 else Close();
             }
         }
@@ -1215,8 +1329,8 @@ namespace PokeLab.Boot
         /// flagged in both files rather than hidden.
         /// </summary>
         private static string OddsLine() => Loc.Pick(
-            "COMMON 55%   UNCOMMON 27%   RARE 12%   EPIC 4.5%   LEGENDARY 1.5%   ·   53 species, no duplicates",
-            "일반 55%   고급 27%   희귀 12%   영웅 4.5%   전설 1.5%   ·   53종, 중복 없음");
+            "COMMON 55%   UNCOMMON 27%   RARE 12%   EPIC 4.5%   LEGENDARY 1.5%   ·   53 species · a duplicate becomes a piece",
+            "일반 55%   고급 27%   희귀 12%   영웅 4.5%   전설 1.5%   ·   53종 · 중복은 돌파 조각으로");
 
         private static void SetAlpha(GameObject target, float alpha)
         {

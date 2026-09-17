@@ -1309,17 +1309,17 @@
   "min": [
    -4.5,
    0.0,
-   -0.8
+   -1.6
   ],
   "max": [
    4.5,
    2.18,
-   0.8
+   1.6
   ],
   "size": [
    9.0,
    2.18,
-   1.6
+   3.2
   ]
  },
  "Env_Ground_RouteFloor": {
@@ -1853,19 +1853,19 @@
   "path": "Assets/Game/Art/Environment/Town/Env_House_Cottage_A.fbx",
   "pivot": "ground level, footprint centred",
   "min": [
-   -2.66,
+   -2.6,
    0.0,
-   -2.65
+   -2.62
   ],
   "max": [
-   2.66,
-   5.27,
-   2.65
+   2.6,
+   4.26,
+   2.62
   ],
   "size": [
-   5.32,
-   5.27,
-   5.3
+   5.2,
+   4.26,
+   5.24
   ]
  },
  "Env_House_Townhouse_B": {
@@ -1874,19 +1874,19 @@
   "path": "Assets/Game/Art/Environment/Town/Env_House_Townhouse_B.fbx",
   "pivot": "ground level, footprint centred",
   "min": [
-   -2.67,
+   -2.45,
    0.0,
-   -2.8628
+   -2.82
   ],
   "max": [
-   2.67,
-   6.92,
-   2.8628
+   2.45,
+   5.91,
+   2.82
   ],
   "size": [
-   5.34,
-   6.92,
-   5.7255
+   4.9,
+   5.91,
+   5.64
   ]
  },
  "Env_House_Farmhouse_C": {
@@ -1895,19 +1895,19 @@
   "path": "Assets/Game/Art/Environment/Town/Env_House_Farmhouse_C.fbx",
   "pivot": "ground level, footprint centred",
   "min": [
-   -3.53,
+   -3.25,
    0.0,
-   -2.81
+   -2.42
   ],
   "max": [
-   3.53,
-   4.52,
-   2.81
+   3.25,
+   4.21,
+   2.42
   ],
   "size": [
-   7.06,
-   4.52,
-   5.62
+   6.5,
+   4.21,
+   4.84
   ]
  },
  "Env_Building_PokeLab": {
@@ -1916,19 +1916,19 @@
   "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeLab.fbx",
   "pivot": "ground level, footprint centred",
   "min": [
-   -4.7,
+   -4.5399,
    0.0,
-   -5.02
+   -4.9399
   ],
   "max": [
-   4.7,
-   9.33,
-   5.02
+   4.5399,
+   8.85,
+   4.9399
   ],
   "size": [
-   9.4,
-   9.33,
-   10.04
+   9.0797,
+   8.85,
+   9.8799
   ]
  },
  "Env_Building_PokeCentre": {
@@ -1937,19 +1937,19 @@
   "path": "Assets/Game/Art/Environment/Town/Env_Building_PokeCentre.fbx",
   "pivot": "ground level, footprint centred",
   "min": [
-   -5.18,
+   -3.95,
    0.0,
-   -4.79
+   -3.3925
   ],
   "max": [
-   5.18,
-   5.02,
-   4.79
+   3.95,
+   4.86,
+   3.3925
   ],
   "size": [
-   10.36,
-   5.02,
-   9.58
+   7.9,
+   4.86,
+   6.785
   ]
  },
  "Env_Fence_Picket_2m": {

@@ -222,7 +222,7 @@ namespace PokeLab.Cinematics.Sequencing
             {
                 TimelineEase.Hold => 0f,
                 TimelineEase.Linear => Mathf.Clamp01(t01),
-                _ => Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t01)),
+                _ => CameraPath.Ease(t01),
             };
 
             var from = ToVector3(segment.FromPosition, Vector3.zero);
