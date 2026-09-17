@@ -25,6 +25,7 @@ The allowlist (Tools/deploy_webgl_allowlist.txt) is data, not code: one substrin
 line, '#' for comments. Extend it there -- never by editing this script.
 """
 import argparse
+import hashlib
 import io
 import json
 import os
@@ -383,6 +384,37 @@ class GateFailure(Exception):
     pass
 
 
+def version_player_urls(build_dir):
+    """Give each payload a content version so a new index cannot reuse stale player bytes."""
+    index = os.path.join(build_dir, "index.html")
+    with open(index, encoding="utf-8") as stream:
+        html = stream.read()
+    pattern = r'((?:loaderUrl|dataUrl|frameworkUrl|codeUrl|memoryUrl|symbolsUrl)\s*[:=]\s*buildUrl\s*\+\s*")([^"\n]+)(")'
+    count = 0
+
+    def stamp(match):
+        nonlocal count
+        relative = match[2].split("?", 1)[0]
+        base = os.path.realpath(os.path.join(build_dir, "Build"))
+        path = os.path.realpath(os.path.join(base, relative.lstrip("/")))
+        if os.path.commonpath([base, path]) != base or not os.path.isfile(path):
+            raise GateFailure("Missing or invalid player payload: " + relative)
+        digest = hashlib.sha256()
+        with open(path, "rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(block)
+        count += 1
+        return match[1] + relative + "?v=" + digest.hexdigest()[:16] + match[3]
+
+    updated = re.sub(pattern, stamp, html)
+    if count < 4:
+        raise GateFailure("Expected loader, data, framework and code URLs in the WebGL template.")
+    if updated != html:
+        with open(index, "w", encoding="utf-8", newline="") as stream:
+            stream.write(updated)
+    print("[2/6] content-versioned %d player URLs" % count)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Verify Build/WebGL and, only if everything passes, publish it to gh-pages.")
@@ -409,6 +441,7 @@ def main(argv=None):
             return 0
         step = 2
         step_data_sanity(BUILD_DIR)
+        version_player_urls(BUILD_DIR)
         step = 3
         step_local_load(BUILD_DIR, args.budget)
         step = 4
