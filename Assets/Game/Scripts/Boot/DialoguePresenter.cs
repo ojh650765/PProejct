@@ -276,6 +276,9 @@ namespace PokeLab.Boot
 
         private void OnEnded(string sequenceId)
         {
+            // Keep Rowan and his room visible while the next beat asks for the name.
+            if (sequenceId == "op_prologue" && EpisodeRunner.Live != null &&
+                EpisodeRunner.Live.PlayingEpisodeId == "opening") return;
             if (_view != null) _view.Close();
             ResetBackdrop();
         }

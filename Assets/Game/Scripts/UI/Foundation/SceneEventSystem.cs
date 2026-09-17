@@ -37,6 +37,12 @@ namespace PokeLab.UI
             // A dedicated persistent host must not retain an entire scene's GameHosts root.
             if (owner == null)
             {
+                // Disable the authored system before AddComponent invokes OnEnable.
+                foreach (var previous in Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None))
+                {
+                    previous.enabled = false;
+                    foreach (var module in previous.GetComponents<BaseInputModule>()) module.enabled = false;
+                }
                 var host = new GameObject("PersistentUiInput");
                 Object.DontDestroyOnLoad(host);
                 owner = host.AddComponent<EventSystem>();

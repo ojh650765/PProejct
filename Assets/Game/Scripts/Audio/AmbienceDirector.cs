@@ -210,8 +210,7 @@ namespace PokeLab.Audio
 
         private void OnBiomeEntered(string biomeId)
         {
-            if (string.IsNullOrEmpty(biomeId)) return;
-            var normalised = biomeId.Trim().ToLowerInvariant();
+            var normalised = (biomeId ?? string.Empty).Trim().ToLowerInvariant();
             if (normalised == _biome) return;
             _biome = normalised;
             Recalculate();
@@ -320,7 +319,8 @@ namespace PokeLab.Audio
 
         private BiomeAmbience FindProfile(string biomeId)
         {
-            if (string.IsNullOrEmpty(biomeId)) return Silent;
+            if (string.IsNullOrEmpty(biomeId) ||
+                biomeId.IndexOf("interior", StringComparison.OrdinalIgnoreCase) >= 0) return Silent;
 
             for (int i = 0; i < profiles.Count; i++)
             {
@@ -509,7 +509,8 @@ namespace PokeLab.Audio
 
         private void UpdateThunder()
         {
-            if (!thunderInRain || _weather != Weather.Rain) return;
+            if (!thunderInRain || _weather != Weather.Rain ||
+                ReferenceEquals(FindProfile(_biome), Silent)) return;
             // Thunder is a one-shot on the SFX bus, so the hold gain cannot silence it;
             // gate it here or a clap lands in the middle of a held scene.
             if (_cinematicHold) return;

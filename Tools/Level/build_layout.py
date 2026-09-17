@@ -520,7 +520,7 @@ def build_height_field():
     # a widening rule, and forced a conform-priority fight with the roads -- for a
     # watercourse the player crosses once. Its channel stays because the terrain, the
     # bridge and the lake shoreline are all shaped against it; only the surface goes.
-    field.add_conform(bed, STREAM_HALF_WIDTH, 2.6, skippable=False)
+    field.add_conform(bed, STREAM_HALF_WIDTH, 7.0, skippable=False)
     return field, paths, stream
 
 
@@ -1814,7 +1814,7 @@ def build():
     # sphere -- audit_placement grew its whole buried check around this asset.
     BALL_SCALE = 2.6
     for asset, x, z, yaw, parent, tag_prefix, item in [
-        ("Env_Prop_CaptureBall_Great", 20.5, 23.8, 28.0, ROUTE + "/Props",
+        ("Env_Prop_CaptureBall_Great", 7.5, 14.0, 28.0, ROUTE + "/Props",
          "Route_StonesItemBall", "great-ball"),
         ("Env_Prop_CaptureBall_Net", 8.0, 12.0, 312.0, ROUTE + "/Props",
          "Route_GrassItemBall", "net-ball"),

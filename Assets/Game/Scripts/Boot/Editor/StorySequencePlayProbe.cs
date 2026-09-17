@@ -101,6 +101,7 @@ namespace PokeLab.Boot.Editor
                 }
                 if (mode == "starter")
                 {
+                    FindFirstObjectByType<PlayerProfileHost>().NewGame();
                     // This targeted probe starts after the town departure. Its gate
                     // must have the same prerequisite state as a real lake visit.
                     if(ServiceHub.TryGet<IPlayerProfile>(out var starterProfile) && starterProfile is PlayerProfile ready)

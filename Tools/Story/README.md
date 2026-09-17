@@ -10,7 +10,7 @@ It previews the JSON by default. Use an existing scene and a sprite key from the
 registry. Positions are Unity world coordinates (X, Y, Z), on dry Ground.
 
 ```powershell
-python Tools/Story/new_episode.py researcher_greeting --scene Interior_Lab --speaker Researcher --person professor --position -2 0.02 1 --requires story.pokedex --shot shot_lab_interior --line "Let us compare our observations."
+python Tools/Story/new_episode.py researcher_greeting --scene Interior_Lab --speaker Researcher --person professor --position -2 0.02 1 --requires story.pokedex --line "Let us compare our observations."
 ```
 
 Add `--write` to save that definition. Choose a unique actor name/episode ID. An existing
@@ -43,6 +43,9 @@ the actor is outside the camera, then hide and place it at the last marker. The 
 7.5 m/s. Use authored road markers for the visible portion. Do not add a straight movement
 fallback across cliffs. The runner reports a failed beat rather than granting story flags.
 
+Ordinary NPC conversations keep the exploration camera unchanged. Only explicit story
+shots may move it; omit `--shot` for regular dialogue.
+
 Camera moves share `CameraPath` easing and geometry clearance. Consecutive uses of the same
 shot preserve its existing framing. The bag and Starly approach share a held player shot,
 so they do not repeatedly orbit or restore and reapply a zoom. Long or obstructed shot
@@ -63,8 +66,10 @@ Reports go to `Temp`. The play probes use temporary in-memory profiles and do no
 
 ## Current story boundary
 
-A new game begins in `Interior_PlayerHome`, watching the red Gyarados lake broadcast on
-the television, followed by Mom's departure dialogue. The repaired opening includes the
+A new game first presents Rowan's introduction and trainer name entry, then reveals
+`Interior_PlayerHome` and a close shot of the red Gyarados television broadcast, followed
+by Mom's departure dialogue. The laboratory does not repeat name entry. Fresh profiles
+contain no debug starter or unseen Pok?dex entries. The repaired opening includes the
 lake bag, Sinnoh starters, Starly encounter, Rowan's
 invitation and the laboratory Pokédex scene. House 01 now leads to `Interior_PlayerHome`;
 the other six house doors share `Interior_House`. The laboratory and Pokémon Center have
@@ -149,3 +154,8 @@ The rival mother approaches the player's near side and stops short instead of wa
 
 Verify with **Tools > Poké Lab > Story > Play Test Home Startup**.
 This checks actual startup without a probe warp, name entry, mother clearance, four exits, portraits and alpha fades.
+
+## Reusable levels
+
+See [the route template workflow](../Level/templates/README.md) for generating terrain,
+NPCs, items, exits and their navigation checks from one JSON definition.

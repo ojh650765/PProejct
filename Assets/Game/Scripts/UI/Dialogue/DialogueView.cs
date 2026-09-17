@@ -78,33 +78,13 @@ namespace PokeLab.UI
         private const float CaretSize = 36f;
         private const float CaretRightMargin = 150f;
         private const float CaretY = 84f;
-        // The character illustration. Sized and placed as a drawn half-body standing at the
-        // right of frame, not as the 116x172 pixel bust that used to sit in the left margin:
-        // the two are different pictures doing different jobs, and a 32px overworld sprite blown
-        // up to speaking size is a mosaic. Right rather than left because the name plate, the
-        // rule and the body copy all share the left edge — a figure there would have to be
-        // small enough to stay out of them, which is the composition this replaces.
-        // Centred, not tucked into the right corner. The portraits are drawn facing the
-        // viewer, and a figure looking straight out from the edge of the frame reads as
-        // having been pushed aside; the games put the speaker in the middle of the shot.
-        // Two framings, because a conversation and a staged scene are not the same shot.
-        //
-        // Staged is the opening: the professor alone on a drawn room, whole figure in frame,
-        // standing clear of the box. It is a composed picture and cropping it would spoil it.
-        //
-        // Close is every other conversation: the speaker enlarged and stood at the bottom of
-        // the screen so the frame cuts them below the knee. That is what makes somebody read
-        // as leaning into the shot to talk to you rather than as a doll placed in the middle
-        // of it — and at this size their face is large enough to carry the line.
-        private const float StagedWidth = 620f;
-        private const float StagedBottom = 300f;
-        private const float StagedHeight = 720f;
-
-        private const float CloseWidth = 360f;
-        private const float CloseHeight = 480f;
-        // Negative: the figure's feet sit below the screen edge, so the cut lands on the shin
-        // rather than on the floor beneath them.
-        private const float CloseBottom = 30f;
+        // Large centered character art, with the lower body behind the dialogue band.
+        private const float StagedWidth = 780f;
+        private const float StagedBottom = 70f;
+        private const float StagedHeight = 990f;
+        private const float CloseWidth = 820f;
+        private const float CloseHeight = 1100f;
+        private const float CloseBottom = -110f;
         private const float ChoiceWidth = 820f;
         private const float ChoiceHeight = 62f;
         private const int ChoiceSlant = 12;
@@ -166,7 +146,7 @@ namespace PokeLab.UI
         {
             if (_portraitFrame == null) return;
 
-            var anchor = new Vector2(staged ? .5f : .87f, 0f);
+            var anchor = new Vector2(.5f, 0f);
             UiBuilder.Anchor(_portraitFrame, anchor, anchor,
                 new Vector2(0.5f, 0f),
                 new Vector2(0f, staged ? StagedBottom : CloseBottom),

@@ -245,7 +245,7 @@ namespace PokeLab.Overworld
             // reaches one of them — the boot path, or the context menu — has begun it, and every
             // host that arrives afterwards must see that and stand down.
             _sessionBegun = true;
-            _profile.InitialiseNewGame(_defaultTrainerName, _starterSpeciesId, _starterLevel, _starterSeed);
+            _profile.InitialiseNewGame(_defaultTrainerName, 0, _starterLevel, _starterSeed);
         }
 
         /// <summary>Loads the save file and restores the world state that came with it.</summary>

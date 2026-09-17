@@ -2,6 +2,7 @@ using System;
 using PokeLab.Core;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace PokeLab.Vfx
 {
@@ -294,8 +295,18 @@ namespace PokeLab.Vfx
         // ---------------------------------------------------------------------
         // The blend
         // ---------------------------------------------------------------------
+        private Camera gradedCamera;
         private void Apply()
         {
+            var camera = Camera.main;
+            if (camera != null && camera != gradedCamera)
+            {
+                gradedCamera = camera;
+                camera.allowHDR = true;
+                var data = camera.GetUniversalAdditionalCameraData();
+                data.renderPostProcessing = true;
+            }
+
             ResolveTimeBlend(progress, out int fromIndex, out int toIndex, out float t);
 
             GradeKey fromKey = TimeKeys[fromIndex];

@@ -72,7 +72,12 @@ namespace PokeLab.Boot.Editor
         {
             var open = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene().name;
             var band = string.IsNullOrEmpty(sceneName) ? open : sceneName;
-            var layoutPath = LayoutFor(band);
+            BuildFrom(LayoutFor(band), band);
+        }
+
+        // Template authoring uses the same mesh, placement and navigation implementation.
+        public static void BuildFrom(string layoutPath, string band)
+        {
 
             // Dropped at the top of every build, not held for the session: an editor with the
             // domain reload switched off would otherwise keep serving a cast.json somebody has
@@ -118,14 +123,13 @@ namespace PokeLab.Boot.Editor
                 BuildPeople(layout, root.transform, parents);
                 BuildAnchors(layout, root.transform, parents);
                 BuildSpawn(layout, root.transform);
-                BuildCast(layout, root.transform, parents, band);
-                // After BuildCast, which is what stands the professor up: an encounter armed
-                // on an actor the previous step has not created yet finds nothing to hang on.
-                BuildStoryTriggers();
-                // After the triggers, and for the same reason: presence is configured on the
-                // objects the two steps above create.
-                BuildStoryPresence();
-                BuildStoryGate(layout, root.transform, parents);
+                if (band == "Town" || band == "Field")
+                {
+                    BuildCast(layout, root.transform, parents, band);
+                    BuildStoryTriggers();
+                    BuildStoryPresence();
+                    BuildStoryGate(layout, root.transform, parents);
+                }
                 InteriorStoryBuilder.Build(band, root.transform);
                 if (band == "Town") Route202Builder.TownJunction(root.transform);
                 BuildNavigation(root);
@@ -2334,29 +2338,9 @@ namespace PokeLab.Boot.Editor
                 ToVector(link.position) + facing * Vector3.back * 1.0f);
             go.transform.localRotation = facing;
 
-            // Width ZERO, which StoryGate reads as "no lateral limit".
-            //
-            // It was the doorway's width plus a margin, and that was wrong for a measured
-            // reason rather than a stylistic one: the north fence ends 4.2 m west of the ramp
-            // mouth and the ground beyond it is open, so a boxed refusal was walked up to,
-            // slid along, and rounded — 24 m west of the gate, on the route, verified in play.
-            // A wider box only moves the hole. What is actually being closed is the town's
-            // northern boundary, so the refusal is the whole line and not a panel in it.
             go.AddComponent<StoryGate>().Configure("story.gate_open",
-                keeper.GetComponent<NpcController>(), 0f, 0.6f);
-
-            // NOTHING IS ADDED HERE. No collider, no NavMeshObstacle, no NavMeshModifier and no
-            // layer — the gate is an empty transform carrying a rule, and that is the whole
-            // point of the 2026-08-20 revision. Every previous era of this object put a solid
-            // on the ramp and then tried to hide it from the navmesh: baked in it carved the
-            // ramp permanently and sent every departing agent into the fence beside Bram;
-            // excluded from the bake it still left a serialized carve-era obstacle behind. An
-            // object with no bounds cannot be collected by BuildNavigation, so there is no
-            // longer anything to exclude, and the mesh under the ramp is simply continuous.
-            // The player is held back by coordinate in StoryGate.LateUpdate — the user's
-            // instruction, "플레이어를 이 콜리전으로 막는게 아니라 좌표값으로 막도록".
-            Debug.Log("[Level] Story: the town ramp is closed until story.gate_open, by " +
-                      "coordinate. The gate puts nothing in the physics scene or the navmesh.");
+                keeper.GetComponent<NpcController>(), 12f, 0.6f);
+            Debug.Log("[Level] Local story passage closes between the terrain banks until story.gate_open.");
         }
 
         [Serializable] private sealed class Cast

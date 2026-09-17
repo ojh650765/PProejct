@@ -49,7 +49,7 @@
       "Id": "opening",
       "DisplayName": "Aster Town, morning",
       "CompletionFlag": "story.opening_seen",
-      "Note": "Start at the TV inside the player home. No name entry during the broadcast or departure.",
+      "Note": "Rowan introduction and name entry over the illustrated study, followed by TV at home.",
       "Beats": [
         {
           "Kind": 5
@@ -57,6 +57,19 @@
         {
           "Kind": 1,
           "Seconds": 0.5
+        },
+        {
+          "Kind": 4,
+          "Id": "op_prologue"
+        },
+        {
+          "Kind": 13,
+          "Id": "광휘",
+          "Target": "profile.trainer_name"
+        },
+        {
+          "Kind": 4,
+          "Id": "op_prologue_confirm"
         },
         {
           "Kind": 19,
@@ -113,10 +126,6 @@
           "Kind": 5,
           "KindName": "TakeControl",
           "Seconds": 0.0
-        },
-        {
-          "Kind": 19,
-          "Id": "shot_gate_ramp"
         },
         {
           "Kind": 4,
@@ -496,15 +505,6 @@
         {
           "Kind": 19,
           "Id": "shot_lab_interior"
-        },
-        {
-          "Kind": 4,
-          "Id": "lab_ask_name"
-        },
-        {
-          "Kind": 13,
-          "Id": "광휘",
-          "Target": "profile.trainer_name"
         },
         {
           "Kind": 4,

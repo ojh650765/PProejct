@@ -1,0 +1,19 @@
+{
+    "state": "passed",
+    "checks": [
+        "Player locomotion present",
+        "west_bank floor Ground_02_02 at (30.00, -1.63, 19.00)",
+        "west_bank closed distant gate does not relocate player",
+        "west_bank walks uphill through real input: (30.00, -1.53, 19.00) -> (26.29, -0.74, 22.71)",
+        "east_bank floor Ground_02_01 at (36.00, -1.41, 11.00)",
+        "east_bank closed distant gate does not relocate player",
+        "east_bank walks uphill through real input: (36.00, -1.30, 11.00) -> (39.71, -0.22, 7.29)",
+        "Closed gate has a bounded physical barrier",
+        "Story flag opens physical passage",
+        "Postprocessing enabled in Mobile",
+        "Linear colour in Mobile",
+        "Postprocessing enabled in PC",
+        "Linear colour in PC"
+    ],
+    "failures": []
+}

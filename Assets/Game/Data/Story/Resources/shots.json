@@ -175,16 +175,17 @@
       "Name": "shot_home_tv",
       "Mode": 1,
       "Position": [
-        2.1,
-        3.4,
-        -4.5
+        0.55,
+        1.65,
+        -0.8
       ],
       "LookAt": [
         0,
-        0.8,
-        1.3
+        0.95,
+        2.45
       ],
-      "Fov": 44
+      "Fov": 38,
+      "Note": "One held close view of the television broadcast; no orbit or repeated zoom."
     },
     {
       "Name": "shot_lake_player_hold",

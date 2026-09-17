@@ -1,0 +1,18 @@
+{
+  "PC_mean_rgb": [
+    144.08,
+    147.034,
+    93.05
+  ],
+  "Mobile_mean_rgb": [
+    144.381,
+    147.136,
+    93.108
+  ],
+  "blurred_mean_absolute_channel_difference": [
+    4.256,
+    2.896,
+    1.375
+  ],
+  "scope": "Unity Editor quality tiers, same camera and fixed time; no physical phone test. Small wind/animation differences remain."
+}

@@ -154,10 +154,9 @@ namespace PokeLab.Vfx
                 clone.components.Add(copy);
             }
 
-            var lookup = GetOrAdd<ColorLookup>(clone);
-            lookup.active = lut != null;
-            lookup.texture.Override(lut);
-            lookup.contribution.Override(lut != null ? Mathf.Clamp01(grade.LutContribution) : 0f);
+            // Serialized profiles may predate the palette revision. Use the same source
+            // for runtime clones and freshly constructed profiles on every device.
+            Populate(clone, grade, lut);
 
             return clone;
         }

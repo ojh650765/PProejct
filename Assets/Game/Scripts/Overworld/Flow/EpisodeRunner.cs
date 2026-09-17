@@ -2393,6 +2393,7 @@ reachedTheEnd = true;
             flock.AddRange(_ring);
             var agents=new List<NavMeshAgent>();
             var destinations=new List<Vector3>();
+            var paths=new List<NavMeshPath>();
             var speed=beat.Speed>0 ? beat.Speed : 4.2f;
             var timeout=beat.Seconds>.01f ? beat.Seconds : 6f;
             try
@@ -2407,19 +2408,26 @@ reachedTheEnd = true;
                     if(outward.sqrMagnitude<.01f)outward=Vector3.back;
                     float radius=creature==_staged ? ApproachStopDistance : 2.35f;
                     var path=new NavMeshPath();var found=false;var destination=Vector3.zero;
-                    foreach(var angle in new[]{0f,18f,-18f,36f,-36f,60f,-60f})
+                    // Sample a little farther around narrow banks before refusing the scene.
+                    // Every mark still requires dry ground and a complete navigation path.
+                    foreach(var extraRadius in new[]{0f,.45f,.9f})
                     {
-                        var desired=focus+Quaternion.Euler(0,angle,0)*outward*radius;
-                        if(!WalkableGround.TryNavMesh(desired,1f,agent.areaMask,out var hit))continue;
-                        if(Flatten(hit.position-player.transform.position).magnitude<1.35f)continue;
-                        if(companion!=null && Flatten(hit.position-companion.transform.position).magnitude<1.2f)continue;
-                        if(destinations.Exists(p=>Flatten(p-hit.position).magnitude<.85f))continue;
-                        if(!agent.CalculatePath(hit.position,path) || path.status!=NavMeshPathStatus.PathComplete)continue;
-                        destination=hit.position;found=true;break;
+                        foreach(var angle in new[]{0f,18f,-18f,36f,-36f,60f,-60f,90f,-90f,120f,-120f,180f})
+                        {
+                            var desired=focus+Quaternion.Euler(0,angle,0)*outward*(radius+extraRadius);
+                            if(!WalkableGround.TryNavMesh(desired,.65f,agent.areaMask,out var hit))continue;
+                            if(Flatten(hit.position-player.transform.position).magnitude<1.35f)continue;
+                            if(companion!=null && Flatten(hit.position-companion.transform.position).magnitude<1.2f)continue;
+                            if(destinations.Exists(p=>Flatten(p-hit.position).magnitude<.85f))continue;
+                            if(Flatten(hit.position-focus).magnitude>Flatten(creature.transform.position-focus).magnitude-.5f)continue;
+                            if(!agent.CalculatePath(hit.position,path) || path.status!=NavMeshPathStatus.PathComplete)continue;
+                            destination=hit.position;found=true;break;
+                        }
+                        if(found)break;
                     }
                     if(!found)
                     {
-                        Debug.LogWarning("[Episode] No clear approach mark for "+creature.name+"; check the flock's dry-ground staging.");
+                        Debug.LogWarning("[Episode] No clear approach mark for "+creature.name+" at "+creature.transform.position+" toward "+focus+"; check the flock's dry-ground staging.");
                         _beatLost=true;yield break;
                     }
                     agent.speed=speed;
@@ -2427,10 +2435,9 @@ reachedTheEnd = true;
                     agent.angularSpeed=600f;
                     agent.autoBraking=true;
                     agent.stoppingDistance=.12f;
-                    agent.isStopped=false;
-                    agent.SetPath(path);
-                    agents.Add(agent);destinations.Add(destination);
+                    agents.Add(agent);destinations.Add(destination);paths.Add(path);
                 }
+                for(int i=0;i<agents.Count;i++){agents[i].isStopped=false;agents[i].SetPath(paths[i]);}
                 var elapsed=0f;var arrived=false;
                 while(elapsed<timeout)
                 {
@@ -2606,22 +2613,30 @@ reachedTheEnd = true;
                 DeterministicRandom.HashString("ring:" + beat.Id + ":" + speciesId + ":" + wanted));
             var turn = rng.Range(0f, 360f);
 
+            if (!WalkableGround.TryNavMesh(player.transform.position, 2f, NavMesh.AllAreas, out var anchor))
+            { _beatLost = true; yield break; }
             for (var i = 0; i < wanted; i++)
             {
-                // Spaced evenly and then knocked off it, because a ring of creatures at exact
-                // intervals is a fence. The jitter is small enough that the shape still reads
-                // as a circle closing in.
-                var bearing = (turn + i * (360f / wanted) + rng.Range(-14f, 14f)) * Mathf.Deg2Rad;
+                var bearing = turn + i * (360f / wanted) + rng.Range(-14f, 14f);
                 var reach = radius + rng.Range(-0.5f, 0.9f);
-                var wantedPoint = centre + new Vector3(Mathf.Sin(bearing), 0f, Mathf.Cos(bearing)) * reach;
-
-                if (!NavMesh.SamplePosition(wantedPoint, out var onMesh, 3f, NavMesh.AllAreas)) continue;
-
-                // A sample near the water or a cliff can be dragged back in on top of the pair.
-                // Better a gap in the ring than a Rattata standing inside the player.
-                if (Flatten(onMesh.position - centre).magnitude < radius * 0.55f) continue;
-
-                _ring.Add(BuildRingCreature(onMesh.position, centre, speciesId, level));
+                // A nearby navmesh polygon may be an isolated bank across the water.
+                // Stage only on dry terrain connected to the player, with room for the flock.
+                foreach (var offset in new[]{0f,20f,-20f,40f,-40f,70f,-70f,100f,-100f,140f,-140f,180f})
+                {
+                    var angle = (bearing + offset) * Mathf.Deg2Rad;
+                    var desired = centre + new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * reach;
+                    if (!WalkableGround.TryNavMesh(desired, 1.5f, NavMesh.AllAreas, out var onMesh)) continue;
+                    if (Flatten(onMesh.position - centre).magnitude < 3.5f) continue;
+                    if (_ring.Exists(c => Flatten(c.transform.position-onMesh.position).magnitude < 1.25f)) continue;
+                    if (_staged != null && Flatten(_staged.transform.position-onMesh.position).magnitude < 1.25f) continue;
+                    var route = new NavMeshPath();
+                    if (!NavMesh.CalculatePath(anchor.position,onMesh.position,NavMesh.AllAreas,route) || route.status != NavMeshPathStatus.PathComplete) continue;
+                    float length = 0f;
+                    for(int n=1;n<route.corners.Length;n++)length+=Vector3.Distance(route.corners[n-1],route.corners[n]);
+                    if(length>12f)continue;
+                    _ring.Add(BuildRingCreature(onMesh.position, centre, speciesId, level));
+                    break;
+                }
             }
 
             if (_ring.Count == 0)

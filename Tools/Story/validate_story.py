@@ -23,6 +23,13 @@ def validate():
     dialogue_ids = index(sequences, 'SequenceId', 'dialogue')
     shot_ids = index(shots['Shots'], 'Name', 'shot')
     timeline_ids = index(shots['Timelines'], 'Name', 'timeline')
+    for sequence in sequences:
+        lines = sequence.get('Lines', [])
+        for index, line in enumerate(lines):
+            for choice in line.get('Choices', []):
+                destination = choice.get('GoToLine', -1)
+                if destination != -1 and not 0 <= destination < len(lines):
+                    failures.append(f"{sequence['SequenceId']}: line {index} choice targets missing line {destination}")
     for episode in episodes:
         context = episode['Id']
         scene = episode.get('Scene')

@@ -463,6 +463,7 @@ namespace PokeLab.Boot.Editor
                 var go = new GameObject("Main Camera") { tag = "MainCamera" };
                 camera = go.AddComponent<Camera>();
             }
+            UnityEngine.Rendering.Universal.CameraExtensions.GetUniversalAdditionalCameraData(camera).renderPostProcessing = true;
             if (camera.GetComponent<CinemachineBrain>() == null)
                 camera.gameObject.AddComponent<CinemachineBrain>();
 

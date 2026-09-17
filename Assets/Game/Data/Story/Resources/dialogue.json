@@ -49,14 +49,13 @@
   "Sequences": [
     {
       "SequenceId": "op_prologue",
-      "PlaysOnlyOnce": true,
-      "Note": "Over black. Diamond/Pearl's title-screen professor monologue: name yourself, state the world, state the problem, ask who the player is. Auto-advancing until the two questions. Line 0 is the self-introduction the Korean DP script opens on -- without it a stranger lectures the player about 400 years of records.",
-      "lineCountWarning": "8 lines. The choice on line 6 jumps to 7; inserting anything above it moves that target.",
+      "PlaysOnlyOnce": false,
+      "Note": "Rowan introduction, player appearance, then name question. Choice on line 3 continues to line 4.",
       "Lines": [
         {
           "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
           "SpeakerSubtitle": "Aster Field Lab",
           "SpeakerSubtitleKo": "아스터 필드 연구소",
           "PortraitKey": "npc_professor_01",
@@ -65,88 +64,43 @@
           "AutoAdvanceSeconds": 3.6,
           "EventId": "",
           "Choices": [],
-          "Text": "My name is Linden. I study Pokémon, here in this valley.",
-          "TextKo": "내 이름은 린든. 이 골짜기에서 포켓몬을 연구하고 있네."
+          "Text": "Welcome! I am Rowan. I study Pokémon.",
+          "TextKo": "반갑네! 나는 포켓몬을 연구하는 마박사라고 하네."
         },
         {
           "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
           "SpeakerSubtitle": "Aster Field Lab",
           "SpeakerSubtitleKo": "아스터 필드 연구소",
           "PortraitKey": "npc_professor_01",
           "Tone": 0,
           "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 4.2,
+          "AutoAdvanceSeconds": 3.6,
           "EventId": "",
           "Choices": [],
-          "Text": "People have kept records of this valley for four hundred years. Rainfall. Harvests. The depth of the lake in spring.",
-          "TextKo": "이 골짜기는 400년 동안 기록돼 왔네. 비가 언제 왔는지. 무엇을 얼마나 거뒀는지. 봄에 호수가 얼마나 깊었는지."
+          "Text": "We share this world with many kinds of Pokémon.",
+          "TextKo": "이 세계에는 포켓몬이라 불리는 생명체가 우리와 함께 살아가고 있지."
         },
         {
           "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
           "SpeakerSubtitle": "Aster Field Lab",
           "SpeakerSubtitleKo": "아스터 필드 연구소",
           "PortraitKey": "npc_professor_01",
           "Tone": 0,
           "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 4.0,
+          "AutoAdvanceSeconds": 3.6,
           "EventId": "",
           "Choices": [],
-          "Text": "And in the margin of every one of them, in a different hand, somebody has drawn a creature.",
-          "TextKo": "그 기록마다 여백에 그림이 있네. 손글씨는 다 다른데, 그린 건 늘 같은 것일세."
+          "Text": "There is so much still to discover. First, tell me about yourself.",
+          "TextKo": "아직 밝혀지지 않은 이야기가 무척 많다네. 먼저 자네에 대해 알려주겠나?"
         },
         {
           "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 4.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "Pokémon. We have lived beside them the entire time and written them down last.",
-          "TextKo": "포켓몬일세. 400년을 같이 살았는데 기록은 제일 늦었지."
-        },
-        {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 4.0,
-          "EventId": "",
-          "Choices": [],
-          "Text": "I intend to correct the order of that list. But I am seventy-one, and the valley is large.",
-          "TextKo": "그 순서를 바로잡을 생각이네. 그런데 나는 71일세. 골짜기는 넓고."
-        },
-        {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
-          "SpeakerSubtitle": "Aster Field Lab",
-          "SpeakerSubtitleKo": "아스터 필드 연구소",
-          "PortraitKey": "npc_professor_01",
-          "Tone": 0,
-          "ToneName": "Neutral",
-          "AutoAdvanceSeconds": 4.4,
-          "EventId": "",
-          "Choices": [],
-          "Text": "So I have been waiting for somebody to come and stand in front of me. It appears to be you.",
-          "TextKo": "그래서 누가 오기를 기다렸네. 자네가 왔군."
-        },
-        {
-          "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
           "SpeakerSubtitle": "Aster Field Lab",
           "SpeakerSubtitleKo": "아스터 필드 연구소",
           "PortraitKey": "npc_professor_01",
@@ -160,21 +114,21 @@
             {
               "Text": "A boy.",
               "TextKo": "남자.",
-              "GoToLine": 7,
+              "GoToLine": 4,
               "ResultEventId": "profile.body.male"
             },
             {
               "Text": "A girl.",
               "TextKo": "여자.",
-              "GoToLine": 7,
+              "GoToLine": 4,
               "ResultEventId": "profile.body.female"
             }
           ]
         },
         {
           "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
           "SpeakerSubtitle": "Aster Field Lab",
           "SpeakerSubtitleKo": "아스터 필드 연구소",
           "PortraitKey": "npc_professor_01",
@@ -190,13 +144,13 @@
     },
     {
       "SequenceId": "op_prologue_confirm",
-      "PlaysOnlyOnce": true,
+      "PlaysOnlyOnce": false,
       "Note": "Two lines, still over black. The second one is the cue for the fade.",
       "Lines": [
         {
           "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
           "SpeakerSubtitle": "Aster Field Lab",
           "SpeakerSubtitleKo": "아스터 필드 연구소",
           "PortraitKey": "npc_professor_01",
@@ -210,8 +164,8 @@
         },
         {
           "SpeakerId": "npc_professor_01",
-          "SpeakerName": "Linden",
-          "SpeakerNameKo": "린든",
+          "SpeakerName": "Rowan",
+          "SpeakerNameKo": "마박사",
           "SpeakerSubtitle": "Aster Field Lab",
           "SpeakerSubtitleKo": "아스터 필드 연구소",
           "PortraitKey": "npc_professor_01",
@@ -220,8 +174,8 @@
           "AutoAdvanceSeconds": 0.0,
           "EventId": "",
           "Choices": [],
-          "Text": "Open your eyes, then. It is already morning, and the valley does not record itself.",
-          "TextKo": "자, 눈을 뜨게. 아침일세. 기록은 저절로 남지 않네."
+          "Text": "Your adventure is about to begin. Let us meet again soon.",
+          "TextKo": "자네의 모험이 이제 시작되는군. 곧 다시 만나세!"
         }
       ]
     },

@@ -8,31 +8,8 @@ using UnityEngine.UI;
 
 namespace PokeLab.UI
 {
-    /// <summary>
-    /// A thumbstick, an action button and a look surface, for playing on a phone.
-    ///
-    /// The web build is the version people will actually open, and on a phone it has no
-    /// controls at all: the game reads a keyboard and a gamepad, and a browser on a
-    /// touchscreen offers neither. You can tap through a conversation and never move.
-    ///
-    /// The controls are Input System on-screen controls, not a parallel input path: the
-    /// stick injects into <c>&lt;Gamepad&gt;/leftStick</c> and the button into
-    /// <c>&lt;Gamepad&gt;/buttonNorth</c>, which are exactly the paths the action asset and
-    /// <c>OverworldInputReader</c> already bind. Camera look is the one exception — a drag
-    /// on the right half of the screen routes pixel deltas through
-    /// <see cref="TouchLookRoute"/> into the reader's own look path, because the Look
-    /// action's <c>&lt;Pointer&gt;/delta</c> binding cannot tell a camera drag from the
-    /// stick's thumb. Everything downstream — movement, the dialogue advance, the interact
-    /// prompt — works unchanged, and the input reader's freeze gate applies to a thumb the
-    /// same way it applies to a keyboard.
-    ///
-    /// Self-bootstrapped like <c>AvPresenterHost</c>, because no scene may be edited and
-    /// every scene needs it. Built rather than authored, like every other screen here.
-    ///
-    /// Shown only where a touchscreen exists, and hidden for the length of a battle: that
-    /// screen is tap-driven end to end, so the pad has nothing to steer and would only
-    /// cover the command buttons.
-    /// </summary>
+    /// <summary>Mobile movement stick and camera drag surface. Interaction prompts and
+    /// dialogue provide their own touch targets; there is no redundant virtual A button.</summary>
     [DisallowMultipleComponent]
     public sealed class TouchControls : MonoBehaviour
     {
@@ -47,10 +24,8 @@ namespace PokeLab.UI
         private const float RingSize = 300f;
         private const float KnobSize = 130f;
         private const float StickRange = 100f;    // drag distance for full deflection
-        private const float ButtonSize = 170f;
 
         private const string StickPath = "<Gamepad>/leftStick";
-        private const string ActionPath = "<Gamepad>/buttonNorth";
 
         private static TouchControls s_instance;
 
@@ -222,7 +197,7 @@ namespace PokeLab.UI
 
             // The look pad: an invisible drag surface over the right half of the screen.
             // Without it the only yaw on a phone is AutoFollow, which reads as a camera
-            // moving on its own. First child on purpose — the A button and the stick are
+            // moving on its own. First child on purpose — the stick is
             // later in the hierarchy, so they render above and win the raycast wherever
             // they overlap it: a touch on the button presses the button, never looks.
             var pad = UiBuilder.Image("LookPad", canvasGo.transform, null,
@@ -239,7 +214,6 @@ namespace PokeLab.UI
             canvasGo.AddComponent<SafeAreaFitter>().SetTarget(safe);
 
             _knob = BuildStick(safe);
-            BuildActionButton(safe);
         }
 
         /// <summary>
@@ -281,41 +255,6 @@ namespace PokeLab.UI
             stick.controlPath = StickPath;
             return knob.rectTransform;
         }
-
-        /// <summary>
-        /// The action button, bottom-right, where a right thumb rests. buttonNorth is this
-        /// game's talk-and-advance: the input reader turns it into InteractPressed while the
-        /// world is live and AdvancePressed inside a conversation, so one button both opens
-        /// a conversation and moves it on — same as Space on a keyboard.
-        /// </summary>
-        private static void BuildActionButton(RectTransform safe)
-        {
-            var face = UiBuilder.Image("ActionButton", safe, UiSprites.Dot(256),
-                UiPalette.ScannerCyan.WithAlpha(0.26f), Image.Type.Simple, raycast: true);
-            UiBuilder.Anchor(face.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f),
-                new Vector2(1f, 0f), new Vector2(-48f, 100f), new Vector2(ButtonSize, ButtonSize));
-            face.raycastPadding = new Vector4(-20f, -20f, -20f, -20f);
-
-            var rim = UiBuilder.Image("Rim", face.rectTransform, UiSprites.RingSprite(256, 0.07f),
-                UiPalette.ScannerCyan.WithAlpha(0.85f), Image.Type.Simple);
-            UiBuilder.Stretch(rim.rectTransform);
-
-            var label = UiBuilder.Text("Label", face.rectTransform, "A", UiTextRole.Title,
-                UiPalette.TextPrimary, TMPro.TextAlignmentOptions.Center);
-            UiBuilder.Stretch(label.rectTransform);
-            label.fontSize = 64f;
-            label.raycastTarget = false;
-
-            var feedback = face.gameObject.AddComponent<PressFeedback>();
-            feedback.Target = face;
-            feedback.IdleAlpha = 0.26f;
-            feedback.HeldAlpha = 0.45f;
-
-            var button = face.gameObject.AddComponent<OnScreenButton>();
-            button.controlPath = ActionPath;
-        }
-
-        // --- helpers -----------------------------------------------------------------------
 
         /// <summary>
         /// Keeps a stretched rect glued to <see cref="Screen.safeArea"/>. Reapplied from the

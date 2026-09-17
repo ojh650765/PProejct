@@ -1,7 +1,11 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using PokeLab.UI;
+using TMPro;
+using UnityEngine.UI;
 using PokeLab.Core;
 using PokeLab.Overworld;
 using UnityEditor;
@@ -48,6 +52,13 @@ namespace PokeLab.Boot.Editor
         public sealed class Probe : MonoBehaviour
         {
             private readonly Report report = new Report();
+            private IEnumerator Capture(string path)
+            {
+                yield return new WaitForEndOfFrame();
+                var texture=ScreenCapture.CaptureScreenshotAsTexture();
+                File.WriteAllBytes(path,texture.EncodeToPNG());
+                Destroy(texture);
+            }
             private void Save() => File.WriteAllText("Temp/home_start_play.json", JsonUtility.ToJson(report, true));
             private void Check(bool okay, string label) { (okay ? report.checks : report.failures).Add(label); Save(); }
             private void OnEnable() => Application.logMessageReceived += Logged;
@@ -87,29 +98,89 @@ namespace PokeLab.Boot.Editor
                 var tv = GameObject.Find("Spawn_WatchTV");
                 Check(player != null && tv != null && Vector3.Distance(player.transform.position, tv.transform.position) < .3f,
                     source + " places player at TV without probe relocation");
-                bool askedName = false;
+                bool askedName = false, professorSeen = false, broadcastSeen = false;
+                var fresh = FindFirstObjectByType<PlayerProfileHost>().Profile;
+                Check(fresh.Party.Count == 0 && fresh.SeenSpecies.Count == 0 && fresh.CaughtSpecies.Count == 0, source + " starts with no test Pokemon or dex entries");
                 bool capturedDialogue = false;
                 deadline = Time.realtimeSinceStartup + 50;
                 float next = 0;
                 while (runner != null && runner.IsPlaying && Time.realtimeSinceStartup < deadline)
                 {
                     askedName |= runner.IsAwaitingName;
-                    if (runner.IsAwaitingName) { Check(false, "Opening unexpectedly asks for a name"); break; }
+                    professorSeen |= DialogueRunner.Instance != null && DialogueRunner.Instance.CurrentSequenceId == "op_prologue";
+                    if (runner.IsAwaitingName)
+                    {
+                        Check(professorSeen && !broadcastSeen, "Professor introduces himself before name entry and TV");
+                        yield return new WaitForSecondsRealtime(.3f);
+                        yield return Capture("previews/home_start/" + source + "_professor_name.png");
+                        runner.SubmitName("Hikari");
+                    }
+                    if (!broadcastSeen && DialogueRunner.Instance != null && DialogueRunner.Instance.CurrentSequenceId == "home_tv_broadcast")
+                    {
+                        broadcastSeen = true;
+                        yield return new WaitForSecondsRealtime(.3f);
+                        yield return Capture("previews/home_start/" + source + "_tv.png");
+                    }
                     if (!capturedDialogue && DialogueRunner.Instance != null && DialogueRunner.Instance.CurrentSequenceId == "home_mom_departure")
                     {
                         capturedDialogue = true;
                         AdvanceDialogue();
                         yield return new WaitForSecondsRealtime(.3f);
-                        ScreenCapture.CaptureScreenshot("previews/home_start/" + source + "_dialogue.png");
+                        yield return Capture("previews/home_start/" + source + "_dialogue.png");
                     }
                     if (Time.realtimeSinceStartup > next) { AdvanceDialogue(); next = Time.realtimeSinceStartup + .8f; }
                     yield return null;
                 }
-                Check(!askedName, source + " never opens name input at home");
+                Check(askedName && broadcastSeen, source + " names the trainer before the home TV broadcast");
                 Check(runner != null && !runner.IsPlaying, source + " completes TV opening");
                 Check(player != null && !player.IsMotionFrozen, source + " restores player control");
-                ScreenCapture.CaptureScreenshot("previews/home_start/" + source + ".png");
+                yield return Capture("previews/home_start/" + source + ".png");
                 yield return null;
+            }
+            private IEnumerator MenuAndCamera()
+            {
+                report.phase = "Adventure menu and ordinary conversation"; Save();
+                DebugFlow.SuppressOpening=true;
+                yield return SceneManager.LoadSceneAsync("Town");
+                yield return new WaitForSecondsRealtime(3);
+                while(DialogueRunner.Instance != null && DialogueRunner.Instance.IsPlaying) { AdvanceDialogue();yield return null; }
+                var menu = FindFirstObjectByType<StartMenuPresenter>();
+                Check(menu != null, "Adventure menu exists");
+                if (menu == null) yield break;
+                menu.Open();menu.Show(0);yield return null;
+                var view = FindFirstObjectByType<AdventureMenuView>();
+                Check(view != null && view.GetComponentsInChildren<TMP_Text>().Any(t => t.text.Contains("아직 포켓몬")), "Empty party is explicitly described");
+                yield return Capture("previews/home_start/menu_empty.png");yield return null;
+                menu.Show(2);yield return null;
+                Check(view.GetComponentsInChildren<TMP_Text>().Any(t => t.text.Contains("아직 받지")), "Dex stays locked until Rowan awards it");
+                var host = FindFirstObjectByType<PlayerProfileHost>();
+                var profile = host.Profile;
+                profile.SetFlagBool("story.pokedex", true);
+                profile.TryAddToParty(CreatureFactory.Create(5, 5, 123)); // Explicit fixture; production NewGame stays empty.
+                profile.MarkCaught(5);profile.AddItem("potion", 1);
+                menu.Show(0);yield return null;
+                Check(view.GetComponentsInChildren<Image>().Any(i => i.sprite == CreatureThumbnail.Front(5) && i.sprite != null), "Party renders real Pokemon sprite");
+                Check(view.GetComponentsInChildren<TMP_Text>().Any(t => t.text.Contains("파이리")), "Party renders localized species name");
+                yield return Capture("previews/home_start/menu_party.png");yield return null;
+                menu.Show(2);yield return null;
+                Check(view.GetComponentsInChildren<TMP_Text>().Any(t => t.text == "004"), "Dex uses national number 004 for Charmander");
+                Check(!view.GetComponentsInChildren<TMP_Text>().Any(t => t.text == "005" && t.transform.parent.parent.name == "Dex_4"), "Internal id is never used as national dex number");
+                yield return Capture("previews/home_start/menu_dex.png");yield return null;
+                for(int page=1;page<6;page++) { menu.Show(page);yield return null; }
+                Check(view.Content.Cast<Transform>().All(t => t.gameObject.activeSelf), "Page changes remove previous content instead of stacking panels");
+                menu.Close();yield return null;
+                Check(!menu.IsOpen, "Menu closes and returns control");
+                // Discard only the in-memory fixture, without touching the user's save.
+                profile.InitialiseNewGame("Hikari",0,5,123);profile.SetFlagBool("story.opening_seen",true);
+                yield return new WaitForSecondsRealtime(1);
+                var cam=Camera.main;var position=cam.transform.position;var rotation=cam.transform.rotation;float fov=cam.fieldOfView;
+                var dialogue=DialogueRunner.Instance;
+                var seq=DialogueSequence.FromLines("probe_ordinary",new DialogueLine { SpeakerName="브람", PortraitKey="hiker", Text="마을의 길을 천천히 둘러보렴." });
+                Check(dialogue.Play(seq,gameObject), "Ordinary NPC conversation starts");
+                yield return new WaitForSecondsRealtime(1.2f);
+                Check(Vector3.Distance(cam.transform.position,position)<.02f && Quaternion.Angle(cam.transform.rotation,rotation)<.1f && Mathf.Abs(cam.fieldOfView-fov)<.01f,"Ordinary conversation keeps camera position rotation and FOV");
+                yield return Capture("previews/home_start/ordinary_dialogue.png");
+                dialogue.Advance();yield return null;Destroy(seq);
             }
             public IEnumerator Run()
             {
@@ -125,7 +196,8 @@ namespace PokeLab.Boot.Editor
                 yield return Opening("Interior_PlayerHome");
                 if (report.failures.Count > 0) { Finish(); yield break; }
 
-                report.phase = "Professor asks name in lab"; Save();
+                yield return MenuAndCamera();
+                report.phase = "Professor gives dex without repeating name entry"; Save();
                 yield return SceneManager.LoadSceneAsync("Interior_Lab");
                 yield return new WaitForSecondsRealtime(3);
                 var runner = EpisodeRunner.Live;
@@ -146,7 +218,7 @@ namespace PokeLab.Boot.Editor
                     if (Time.realtimeSinceStartup > next) { AdvanceDialogue(); next = Time.realtimeSinceStartup + .8f; }
                     yield return null;
                 }
-                Check(nameSeen, "Name entry appears in laboratory");
+                Check(!nameSeen, "Laboratory never repeats name entry");
                 Check(ServiceHub.TryGet<IPlayerProfile>(out var profile) && profile.TrainerName == "Hikari", "Submitted name is kept in profile");
                 Check(runner != null && !runner.IsPlaying, "Laboratory conversation completes");
                 Check(runner != null && !runner.Play("lab_pokedex"), "Completed lab visit does not ask name again");
@@ -188,7 +260,7 @@ namespace PokeLab.Boot.Editor
                     yield return new WaitForSecondsRealtime(2);
                     var entry = GameObject.Find("Entry_Floor");
                     Check(entry != null, scene + " has projecting entry floor");
-                    ScreenCapture.CaptureScreenshot("previews/home_start/" + scene + "_exit.png");
+                    yield return Capture("previews/home_start/" + scene + "_exit.png");
                     yield return null;
                     player = FindFirstObjectByType<PlayerLocomotion>();
                     deadline = Time.realtimeSinceStartup + 10;
@@ -216,10 +288,10 @@ namespace PokeLab.Boot.Editor
                     var color = properties.GetColor("_BaseColor");
                     Check(renderer != null && color.r == 0 && color.g == 0 && color.b == 0 && color.a > .1f && color.a < .9f,
                         "Legacy shutter uses translucent black instead of lines");
-                    ScreenCapture.CaptureScreenshot("previews/home_start/fade_half.png");
+                    yield return Capture("previews/home_start/fade_half.png");
                     yield return fade;
                     Check(overlay.IsCovered, "Fade reaches full black before scene swap");
-                    ScreenCapture.CaptureScreenshot("previews/home_start/fade_black.png");
+                    yield return Capture("previews/home_start/fade_black.png");
                     yield return null;
                     yield return overlay.CoverOut(.4f, PokeLab.Cinematics.WipeStyle.SplitWipe);
                     Check(overlay.Coverage == 0, "Legacy split reveals with alpha fade");

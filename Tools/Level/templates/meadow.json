@@ -1,0 +1,16 @@
+{
+  "scene": "TemplateMeadow",
+  "displayName": "초원 길 템플릿",
+  "biome": "route_meadow",
+  "width": 28,
+  "length": 40,
+  "roadHalfWidth": 2,
+  "relief": 0.25,
+  "props": [
+    {"name": "Tree_West", "at": [-10, 10], "radius": 2.5, "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx"},
+    {"name": "Tree_East", "at": [10, 24], "radius": 2.5, "prefab": "Assets/Game/Art/Environment/Foliage/Env_Tree_Broadleaf_A.fbx"}
+  ],
+  "items": [{"name": "Meadow_Item", "at": [3.5, 15], "id": "potion"}],
+  "npcs": [{"name": "NPC_MeadowGuide", "id": "npc_meadow_guide", "label": "길 안내인", "at": [-3.5, 23], "wanderRadius": 1.5}],
+  "exits": [{"scene": "Town", "arrivalSpawn": "Spawn_FromRoute202", "end": "south"}]
+}

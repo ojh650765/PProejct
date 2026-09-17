@@ -176,8 +176,8 @@ namespace PokeLab.Boot
             _root = new GameObject("NameEntry", typeof(RectTransform));
             _root.transform.SetParent(canvasGo.transform, false);
             var root = (RectTransform)_root.transform;
-            UiBuilder.Anchor(root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(760f, 320f));
+            UiBuilder.Anchor(root, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(760f, 300f));
 
             // Dims the scene behind without hiding it — the professor is mid-sentence and
             // should still be visible asking the question.

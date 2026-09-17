@@ -446,10 +446,12 @@ class HeightField:
             elif w > cut_w:
                 cut_w, cut_y = w, pt[1]
 
-        if cut_w >= 0.5:
-            best_w, best_y = cut_w, cut_y
         if best_w > 0.0:
             y = lerp(y, best_y, best_w)
+        # A continuous bank: switching ownership at weight .5 created a height
+        # discontinuity that the player could fall down but could not climb back up.
+        if cut_w > 0.0:
+            y = lerp(y, cut_y, cut_w)
 
         # Keep the roadside a traversable shoulder instead of a narrow trench.
         # Lower the high verge and fill low pockets from the same road elevation.

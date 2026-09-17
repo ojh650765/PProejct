@@ -397,9 +397,14 @@ namespace PokeLab.Overworld
                 MarkCaught(starterSpeciesId);
             }
 
-            AddItem(FieldItems.PokeBall, 10);
-            AddItem(FieldItems.Potion, 5);
-            AddItem(FieldItems.Antidote, 2);
+            // Debug callers with an explicit starter may request a battle kit. Story
+            // sessions start empty and receive their first partner and items through events.
+            if (starterSpeciesId > 0)
+            {
+                AddItem(FieldItems.PokeBall, 10);
+                AddItem(FieldItems.Potion, 5);
+                AddItem(FieldItems.Antidote, 2);
+            }
 
             RaiseChanged();
         }
