@@ -64,12 +64,12 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/WebGL.loader.js?v=9a779c6d5d2835c0";
+      var loaderUrl = buildUrl + "/WebGL.loader.js?v=e54ff1a3b99f0958";
       var config = {
         arguments: [],
-        dataUrl: buildUrl + "/WebGL.data.unityweb?v=af5c8d2add3d4f38",
-        frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb?v=844333941f406152",
-        codeUrl: buildUrl + "/WebGL.wasm.unityweb?v=7c471382e57871a1",
+        dataUrl: buildUrl + "/WebGL.data.unityweb?v=336fd81ecb68af73",
+        frameworkUrl: buildUrl + "/WebGL.framework.js.unityweb?v=71ab188f333094d8",
+        codeUrl: buildUrl + "/WebGL.wasm.unityweb?v=a3814c9d97493ff8",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "PProejct",
@@ -90,6 +90,26 @@
 
       var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      // Touch look does not need pointer lock. A denied desktop request is also
+      // recoverable; its rejected promise must not reach Unity's fatal-error handler.
+      function guardPointerLock(target, mobile) {
+        var nativeRequest = target.requestPointerLock;
+        if (typeof nativeRequest !== 'function') return;
+        var reported = false;
+        function unavailable(error) {
+          if (reported) return;
+          reported = true;
+          console.debug('[Input] Pointer lock unavailable: ' + (error && error.name || 'denied'));
+        }
+        target.requestPointerLock = function() {
+          if (mobile || !target.isConnected || document.visibilityState !== 'visible') return;
+          try {
+            var pending = nativeRequest.apply(target, arguments);
+            if (pending && typeof pending.catch === 'function') pending.catch(unavailable);
+          } catch (error) { unavailable(error); }
+        };
+      }
+      guardPointerLock(canvas, isMobile);
       if (isMobile) {
         canvas.className = "unity-mobile";
         // The touch build already fills the screen; the extra pixels of a modern phone are
